@@ -199,8 +199,8 @@ const SITE_TEXT_KEYS = [
     { key: 'faq_3_a', label: 'Faq 3 - Answer', group: 'FAQ Page' },
     { key: 'pg_hero_title', label: 'Pg Hero Title', group: 'Licensing & Permits Page (Hero)' },
     { key: 'pg_hero_sub', label: 'Pg Hero - Subtitle', group: 'Licensing & Permits Page (Hero)' },
-    { key: 'pw_hero_title', label: 'Pw Hero Title', group: 'Digital Systems Page (Hero)' },
-    { key: 'pw_hero_sub', label: 'Pw Hero - Subtitle', group: 'Digital Systems Page (Hero)' },
+    { key: 'pw_hero_title', label: 'Pw Hero Title', group: 'Our Client Page (Hero)' },
+    { key: 'pw_hero_sub', label: 'Pw Hero - Subtitle', group: 'Our Client Page (Hero)' },
     { key: 'tos_content', label: 'Tos Content', group: 'Legal Notices' },
     { key: 'rp_content', label: 'Rp Content', group: 'Return & Refund Policy' },
     { key: 'dp_title', label: 'Dp Title', group: 'Data Policy' },
@@ -3995,7 +3995,7 @@ createApp({
         websiteContentLabel(collectionName) {
             if (collectionName === 'portfolio_gaming') return 'Licensing & Permits';
             if (collectionName === 'services') return 'Services';
-            return 'Digital Systems';
+            return 'Our Client';
         },
         openWebsiteContentModal(collectionName, item = null) {
             if (!this.hasModulePermission('website-content', 'edit')) { this.showNotify('You do not have permission to manage website content.'); return; }
@@ -4005,7 +4005,7 @@ createApp({
                 isEdit: Boolean(item),
                 collectionName,
                 id: item?.id || '',
-                form: { tag: item?.tag || '', title: item?.title || '', desc: item?.desc || '', imgUrl: item?.imgUrl || '', imgStoragePath: item?.imgStoragePath || '', icon: item?.icon || '', name: item?.name || '' },
+                form: { tag: item?.tag || '', title: item?.title || '', desc: item?.desc || '', imgUrl: item?.imgUrl || '', imgStoragePath: item?.imgStoragePath || '', icon: item?.icon || '', name: item?.name || '', companyName: item?.companyName || '', eventDate: item?.eventDate || '' },
                 imageFile: null,
                 imagePreviewUrl: item?.imgUrl || '',
                 imageOrientation: '',
@@ -4014,7 +4014,7 @@ createApp({
         },
         closeWebsiteContentModal() {
             if (this.websiteContentModal.imagePreviewUrl && this.websiteContentModal.imageFile) URL.revokeObjectURL(this.websiteContentModal.imagePreviewUrl);
-            this.websiteContentModal = { show: false, isEdit: false, collectionName: 'portfolio_web', id: '', form: { tag: '', title: '', desc: '', imgUrl: '', imgStoragePath: '', icon: '', name: '' }, imageFile: null, imagePreviewUrl: '', imageOrientation: '', uploading: false };
+            this.websiteContentModal = { show: false, isEdit: false, collectionName: 'portfolio_web', id: '', form: { tag: '', title: '', desc: '', imgUrl: '', imgStoragePath: '', icon: '', name: '', companyName: '', eventDate: '' }, imageFile: null, imagePreviewUrl: '', imageOrientation: '', uploading: false };
         },
         // Only PNG/JPEG — these become public marketing images on zenqor-tech, so no PDFs
         // or other formats. Magic-byte check mirrors validateClientDocumentFile so a
@@ -4085,9 +4085,11 @@ createApp({
             } else {
                 const tag = form.tag.trim();
                 const title = form.title.trim();
-                if (!tag || !title || !desc) { this.showNotify('Fill in Tag, Title and Description.'); return; }
+                const companyName = form.companyName.trim();
+                const eventDate = form.eventDate.trim();
+                if (!tag || !companyName || !title || !desc) { this.showNotify('Fill in Tag / Category, Company Name, Activity Title and Description.'); return; }
                 if (!this.websiteContentModal.imageFile && !form.imgUrl) { this.showNotify('Upload an image (PNG, JPG or JPEG).'); return; }
-                payload = { tag, title, desc };
+                payload = { tag, companyName, title, eventDate, desc };
             }
             const label = isServices ? payload.name : payload.title;
             this.websiteContentModal.uploading = !isServices && Boolean(this.websiteContentModal.imageFile);
