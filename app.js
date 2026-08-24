@@ -1091,6 +1091,17 @@ createApp({
                 .filter(email => staffRoleByEmail.has(email))
                 .map(email => ({ email, role: staffRoleByEmail.get(email) }));
         },
+        // The rest of unlinkedProjectClientEmails: saved on the client's Bill To
+        // record, not colliding with any staff account, just genuinely doesn't
+        // have a Client Portal login yet. No domain restriction applies to these —
+        // any domain (company domain, Gmail, whatever was saved in Client
+        // Information) works fine for a Client-role account. openClientPortalAccessForEmail()
+        // lets Director/Superadmin provision one for exactly this saved email in
+        // one click, right from this modal.
+        awaitingProjectClientEmails() {
+            const blocked = new Set(this.blockedProjectClientEmails.map(b => b.email));
+            return this.unlinkedProjectClientEmails.filter(email => !blocked.has(email));
+        },
         projectStaffOptions() {
             return this.employees.filter(employee => employee.email && employee.empNo).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         },
@@ -3554,6 +3565,29 @@ createApp({
             if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
             if (usr) { this.userModal.isEdit = true; this.userModal.form = { uid: usr.uid || usr.id || '', name: usr.name || '', email: usr.email || '', password: '', role: usr.role || 'Staff', customAccess: JSON.parse(JSON.stringify(usr.customAccess || {})) }; }
             else { this.userModal.isEdit = false; this.userModal.form = { uid: '', name: '', email: '', password: this.generateRandomPassword(8), role: 'Staff', customAccess: {} }; }
+            this.userModal.show = true;
+        },
+
+        // One-click provisioning for a Client Portal Access account, called from the
+        // New/Update Project modal for one of awaitingProjectClientEmails — an email
+        // already saved on the client's Bill To record (Client Information form) that
+        // has no login account yet. No domain restriction applies here: whatever was
+        // typed into Email Address / Additional Authorized Emails (company domain,
+        // Gmail, anything) is used exactly as saved — this just opens the same Add
+        // Portal Access form used elsewhere, pre-filled with that email and role
+        // 'Client', so Director/Superadmin only has to set a password and confirm.
+        openClientPortalAccessForEmail(email) {
+            if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
+            const customer = this.customers.find(item => item.id === this.projectModal.form.clientDirectoryId);
+            this.userModal.isEdit = false;
+            this.userModal.form = {
+                uid: '',
+                name: customer?.clientContactPerson || customer?.clientName || '',
+                email: String(email || '').trim().toLowerCase(),
+                password: this.generateRandomPassword(8),
+                role: 'Client',
+                customAccess: {}
+            };
             this.userModal.show = true;
         },
 
