@@ -4000,6 +4000,17 @@ createApp({
         openWebsiteContentModal(collectionName, item = null) {
             if (!this.hasModulePermission('website-content', 'edit')) { this.showNotify('You do not have permission to manage website content.'); return; }
             if (this.websiteContentModal.imagePreviewUrl && this.websiteContentModal.imageFile) URL.revokeObjectURL(this.websiteContentModal.imagePreviewUrl);
+            (this.websiteContentModal.mediaItems || []).forEach(media => { if (media.file && media.previewUrl) URL.revokeObjectURL(media.previewUrl); });
+            const isPortfolioWeb = collectionName === 'portfolio_web';
+            let mediaItems = [];
+            if (isPortfolioWeb) {
+                if (Array.isArray(item?.media) && item.media.length) {
+                    mediaItems = item.media.map(m => ({ type: m.type === 'video' ? 'video' : 'image', url: m.url || '', storagePath: m.storagePath || '', file: null, previewUrl: m.url || '' }));
+                } else if (item?.imgUrl) {
+                    // Legacy single-image item saved before the gallery feature existed.
+                    mediaItems = [{ type: 'image', url: item.imgUrl, storagePath: item.imgStoragePath || '', file: null, previewUrl: item.imgUrl }];
+                }
+            }
             this.websiteContentModal = {
                 show: true,
                 isEdit: Boolean(item),
@@ -4009,12 +4020,15 @@ createApp({
                 imageFile: null,
                 imagePreviewUrl: item?.imgUrl || '',
                 imageOrientation: '',
+                mediaItems,
+                removedMediaStoragePaths: [],
                 uploading: false
             };
         },
         closeWebsiteContentModal() {
             if (this.websiteContentModal.imagePreviewUrl && this.websiteContentModal.imageFile) URL.revokeObjectURL(this.websiteContentModal.imagePreviewUrl);
-            this.websiteContentModal = { show: false, isEdit: false, collectionName: 'portfolio_web', id: '', form: { tag: '', title: '', desc: '', imgUrl: '', imgStoragePath: '', icon: '', name: '', companyName: '', eventDate: '' }, imageFile: null, imagePreviewUrl: '', imageOrientation: '', uploading: false };
+            (this.websiteContentModal.mediaItems || []).forEach(media => { if (media.file && media.previewUrl) URL.revokeObjectURL(media.previewUrl); });
+            this.websiteContentModal = { show: false, isEdit: false, collectionName: 'portfolio_web', id: '', form: { tag: '', title: '', desc: '', imgUrl: '', imgStoragePath: '', icon: '', name: '', companyName: '', eventDate: '' }, imageFile: null, imagePreviewUrl: '', imageOrientation: '', mediaItems: [], removedMediaStoragePaths: [], uploading: false };
         },
         // Only PNG/JPEG — these become public marketing images on zenqor-tech, so no PDFs
         // or other formats. Magic-byte check mirrors validateClientDocumentFile so a
@@ -4069,10 +4083,64 @@ createApp({
             };
             probe.src = this.websiteContentModal.imagePreviewUrl;
         },
+        // Video companion to validateWebsiteContentImage — MP4 only (what virtually
+        // every phone/export tool produces), checked via the ISO-BMFF 'ftyp' box
+        // signature at byte offset 4 so a renamed non-video file can't slip through
+        // on extension alone. Capped larger than images since video is inherently
+        // bigger, but still bounded before it ever reaches Storage.
+        async validateWebsiteContentVideo(file) {
+            if (!file) throw new Error('No file was selected.');
+            if (file.size <= 0) throw new Error('The selected file is empty.');
+            if (file.size > 40 * 1024 * 1024) throw new Error('Video size must not exceed 40 MB.');
+
+            const extension = String(file.name || '').split('.').pop().toLowerCase();
+            if (extension !== 'mp4') throw new Error('Only MP4 video is allowed.');
+
+            const declaredType = String(file.type || '').toLowerCase();
+            if (declaredType && declaredType !== 'video/mp4') throw new Error('The file extension does not match its actual file type.');
+
+            const header = new Uint8Array(await file.slice(4, 8).arrayBuffer());
+            const boxType = header.length === 4 ? String.fromCharCode(header[0], header[1], header[2], header[3]) : '';
+            if (boxType !== 'ftyp') throw new Error('The selected file is not a valid MP4 — its content does not match its extension.');
+            return 'video/mp4';
+        },
+        // Dispatches to the image or video validator by extension — used by the
+        // Our Client gallery's multi-media uploader (images + MP4, up to 6 files).
+        async validateWebsiteContentMediaFile(file) {
+            const extension = String(file?.name || '').split('.').pop().toLowerCase();
+            if (extension === 'mp4') return { type: 'video', contentType: await this.validateWebsiteContentVideo(file) };
+            return { type: 'image', contentType: await this.validateWebsiteContentImage(file) };
+        },
+        async handleWebsiteContentMediaSelect(e) {
+            const files = Array.from(e.target.files || []);
+            e.target.value = ''; // lets the same file be re-selected later if removed
+            if (!files.length) return;
+            const MAX_MEDIA = 6;
+            for (const file of files) {
+                if (this.websiteContentModal.mediaItems.length >= MAX_MEDIA) { this.showNotify(`Up to ${MAX_MEDIA} media files per item.`); break; }
+                try {
+                    const { type } = await this.validateWebsiteContentMediaFile(file);
+                    this.websiteContentModal.mediaItems.push({ type, url: '', storagePath: '', file, previewUrl: URL.createObjectURL(file) });
+                } catch (error) {
+                    this.showNotify(error.message || 'Unable to use this file.');
+                }
+            }
+        },
+        removeWebsiteContentMedia(index) {
+            const media = this.websiteContentModal.mediaItems[index];
+            if (!media) return;
+            if (media.file && media.previewUrl) URL.revokeObjectURL(media.previewUrl);
+            // Already-uploaded (editing an existing item) — queue its Storage object
+            // for cleanup once the save actually goes through, not before, so an
+            // admin who removes something and then cancels doesn't lose real files.
+            if (!media.file && media.storagePath) this.websiteContentModal.removedMediaStoragePaths.push(media.storagePath);
+            this.websiteContentModal.mediaItems.splice(index, 1);
+        },
         async saveWebsiteContentItem() {
             if (!this.hasModulePermission('website-content', 'edit')) { this.showNotify('You do not have permission to manage website content.'); return; }
             const collectionName = this.websiteContentModal.collectionName;
             const isServices = collectionName === 'services';
+            const isPortfolioWeb = collectionName === 'portfolio_web';
             const form = this.websiteContentModal.form;
             const desc = form.desc.trim();
             let payload;
@@ -4088,14 +4156,41 @@ createApp({
                 const companyName = form.companyName.trim();
                 const eventDate = form.eventDate.trim();
                 if (!tag || !companyName || !title || !desc) { this.showNotify('Fill in Tag / Category, Company Name, Activity Title and Description.'); return; }
-                if (!this.websiteContentModal.imageFile && !form.imgUrl) { this.showNotify('Upload an image (PNG, JPG or JPEG).'); return; }
+                if (isPortfolioWeb) {
+                    if (!this.websiteContentModal.mediaItems.length) { this.showNotify('Attach at least one photo or video.'); return; }
+                } else if (!this.websiteContentModal.imageFile && !form.imgUrl) {
+                    this.showNotify('Upload an image (PNG, JPG or JPEG).'); return;
+                }
                 payload = { tag, companyName, title, eventDate, desc };
             }
             const label = isServices ? payload.name : payload.title;
-            this.websiteContentModal.uploading = !isServices && Boolean(this.websiteContentModal.imageFile);
+            this.websiteContentModal.uploading = isPortfolioWeb
+                ? this.websiteContentModal.mediaItems.some(media => media.file)
+                : (!isServices && Boolean(this.websiteContentModal.imageFile));
             try {
                 let oldStoragePath = '';
-                if (!isServices && this.websiteContentModal.imageFile) {
+                if (isPortfolioWeb) {
+                    // Upload every NEW file (media.file set) in order, keep already-uploaded
+                    // entries (from editing) as-is. media[0] doubles as the legacy
+                    // imgUrl/imgStoragePath so the admin list-view thumbnail and any older
+                    // reader that only knows about imgUrl keep working unchanged.
+                    const finalMedia = [];
+                    for (const media of this.websiteContentModal.mediaItems) {
+                        if (media.file) {
+                            const { contentType } = await this.validateWebsiteContentMediaFile(media.file);
+                            const safeName = String(media.file.name || 'media').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+                            const storagePath = `website_content/${collectionName}/${Date.now()}_${finalMedia.length}_${safeName}`;
+                            const fileRef = storageRef(storage, storagePath);
+                            await uploadBytes(fileRef, media.file, { contentType });
+                            finalMedia.push({ type: media.type, url: await getDownloadURL(fileRef), storagePath });
+                        } else {
+                            finalMedia.push({ type: media.type, url: media.url, storagePath: media.storagePath || '' });
+                        }
+                    }
+                    payload.media = finalMedia;
+                    payload.imgUrl = finalMedia[0].url;
+                    payload.imgStoragePath = finalMedia[0].storagePath || '';
+                } else if (!isServices && this.websiteContentModal.imageFile) {
                     const file = this.websiteContentModal.imageFile;
                     const contentType = await this.validateWebsiteContentImage(file);
                     const safeName = String(file.name || 'image').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
@@ -4122,10 +4217,15 @@ createApp({
                     this.logAudit('CREATE', `Added ${this.websiteContentLabel(collectionName)} item "${label}"`);
                     this.showNotify('Website content published to the live site.');
                 }
-                // Only clean up the previous Storage file once the new one is safely saved,
-                // and only if it was one we uploaded ourselves (external/seeded URLs have no path).
+                // Only clean up superseded Storage files once the new doc is safely saved,
+                // and only for ones we uploaded ourselves (external/seeded URLs have no path).
                 if (oldStoragePath && oldStoragePath !== payload.imgStoragePath) {
                     try { await deleteObject(storageRef(storage, oldStoragePath)); } catch (cleanupError) { console.warn('Old website content image cleanup failed:', cleanupError); }
+                }
+                if (isPortfolioWeb && this.websiteContentModal.removedMediaStoragePaths.length) {
+                    await Promise.all(this.websiteContentModal.removedMediaStoragePaths.map(async (path) => {
+                        try { await deleteObject(storageRef(storage, path)); } catch (cleanupError) { console.warn('Removed media cleanup failed:', cleanupError); }
+                    }));
                 }
                 this.closeWebsiteContentModal();
             } catch (error) {
@@ -4141,7 +4241,15 @@ createApp({
             if (!confirm(`Delete "${label}" from ${this.websiteContentLabel(collectionName)}? This removes it from the live site immediately.`)) return;
             try {
                 await deleteDoc(doc(db, collectionName, item.id));
-                if (item.imgStoragePath) { try { await deleteObject(storageRef(storage, item.imgStoragePath)); } catch (cleanupError) { console.warn('Website content image cleanup failed:', cleanupError); } }
+                // A gallery item (portfolio_web) can own several media files — delete
+                // every one of them, not just the cover. imgStoragePath is always
+                // media[0]'s own path, so a Set dedupes it automatically.
+                const storagePaths = new Set();
+                if (item.imgStoragePath) storagePaths.add(item.imgStoragePath);
+                if (Array.isArray(item.media)) item.media.forEach(media => { if (media.storagePath) storagePaths.add(media.storagePath); });
+                await Promise.all([...storagePaths].map(async (path) => {
+                    try { await deleteObject(storageRef(storage, path)); } catch (cleanupError) { console.warn('Website content media cleanup failed:', cleanupError); }
+                }));
                 this.logAudit('DELETE', `Deleted ${this.websiteContentLabel(collectionName)} item "${label}"`);
                 this.showNotify('Website content deleted.');
             } catch (error) {
