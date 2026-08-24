@@ -1072,6 +1072,25 @@ createApp({
             ].map(email => String(email || '').trim().toLowerCase()).filter(Boolean))]
                 .filter(email => !portalEmails.has(email));
         },
+        // Among unlinkedProjectClientEmails, flag the ones that can NEVER become a
+        // Client Portal account under that exact address because a non-Client
+        // (staff) account already owns it — almost always @zenq0r.com, since
+        // isOfficialEmail() requires every non-Client role to sign in with that
+        // domain. createUserWithEmailAndPassword always hits
+        // auth/email-already-in-use for these, and the pending_access fallback
+        // (savePortalUser) never activates because that uid's users/{uid} doc
+        // already exists (loadOrMigrateUserMetadata returns early for it) — so
+        // without this warning the "awaiting Client Portal account" message below
+        // is misleading: it reads as "not yet granted" when it's really
+        // "cannot be granted under this email at all".
+        blockedProjectClientEmails() {
+            const staffRoleByEmail = new Map(this.users
+                .filter(user => user.role && user.role !== 'Client')
+                .map(user => [String(user.email || '').trim().toLowerCase(), user.role]));
+            return this.unlinkedProjectClientEmails
+                .filter(email => staffRoleByEmail.has(email))
+                .map(email => ({ email, role: staffRoleByEmail.get(email) }));
+        },
         projectStaffOptions() {
             return this.employees.filter(employee => employee.email && employee.empNo).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         },
@@ -3637,6 +3656,24 @@ createApp({
                 this.userModal.form.email = email;
                 const photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.userModal.form.name)}&background=0B1E36&color=D4AF37`;
                 const existingRecord = this.users.find(user => (user.email || '').toLowerCase() === email);
+                // "Add New" (isNewUser) means the admin intends to create a DISTINCT
+                // account. If existingRecord is already found, that email is not free —
+                // it already resolves to a real users/{uid} doc (existingRecord.id is a
+                // genuine Firebase UID). Without this guard, the code below would still
+                // treat existingRecord's id as "the" userId (see possibleUid) and, once
+                // createUserWithEmailAndPassword predictably fails with
+                // auth/email-already-in-use, fall straight into `setDoc(doc(db, "users",
+                // userId), { role: this.userModal.form.role, name: ..., ... })` —
+                // silently overwriting that OTHER, real account's role/name/photo with
+                // whatever was just typed for this "new" one (and flipping the caller's
+                // own session role live if they happened to reuse their own email). Block
+                // it here instead: this is almost always a Director/Superadmin trying to
+                // grant Client Portal access using a @zenq0r.com email that already
+                // belongs to an existing staff account under a different role.
+                if (isNewUser && existingRecord) {
+                    this.showNotify(`Unable to create a new account: ${email} already belongs to an existing ${existingRecord.role || 'portal'} account (${existingRecord.name || email}). Edit that existing record instead of adding a new one, or use a different email.`);
+                    return;
+                }
                 const possibleUid = this.userModal.form.uid || existingRecord?.uid || existingRecord?.id || '';
                 let userId = this.isLikelyFirebaseUid(possibleUid) ? possibleUid : '';
                 let existingAuthenticationAccount = false;
@@ -3671,7 +3708,22 @@ createApp({
                     }, { merge: true });
                     this.userModal.show = false;
                     this.logAudit('CREATE', `Pending UID migration created for ${email}`);
-                    this.showNotify(existingAuthenticationAccount ? 'Existing Firebase account found. Access will activate automatically at the next login.' : 'Portal access is pending UID activation.');
+                    // If a users/{uid} doc already exists for this email (existingRecord,
+                    // computed above), this pending_access entry will NEVER be consumed:
+                    // loadOrMigrateUserMetadata() returns that existing doc immediately on
+                    // every future login and never reaches the pending_access migration
+                    // path. That's the normal case here — this branch runs precisely
+                    // because Firebase Auth already has an account for this email
+                    // (auth/email-already-in-use), and almost always that's an existing
+                    // staff account (role !== 'Client') on the @zenq0r.com domain. Telling
+                    // the admin "access will activate automatically" would be false in
+                    // that case, so say so plainly instead of leaving them to discover it
+                    // only when a Project's Client Portal Access link stays unresolved.
+                    if (existingRecord) {
+                        this.showNotify(`Unable to grant Client Portal access: ${email} already belongs to an active ${existingRecord.role || 'staff'} account. One email can only be one portal account — use a different email for this Client.`);
+                    } else {
+                        this.showNotify(existingAuthenticationAccount ? 'Existing Firebase account found. Access will activate automatically at the next login.' : 'Portal access is pending UID activation.');
+                    }
                     return;
                 }
                 await setDoc(doc(db, "users", userId), { email: email, name: this.userModal.form.name, photo: photoUrl, role: this.userModal.form.role, customAccess: this.userModal.form.customAccess || {}, ...(isNewUser ? { mustChangePassword: true } : {}) }, { merge: true });
@@ -3769,7 +3821,26 @@ createApp({
                 if (isNewRecord) newCust.createdAt = new Date().toISOString();
                 this.docForm.customerId = docId;
                 Object.assign(this.docForm, newCust);
-            await setDoc(doc(db, "customers", docId), newCust, { merge: true }); this.clientSavedForDocument = true; this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `Saved customer ${this.docForm.clientName}`); this.showNotify('Client saved. You can now add document items.'); return true;
+            await setDoc(doc(db, "customers", docId), newCust, { merge: true }); this.clientSavedForDocument = true; this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `Saved customer ${this.docForm.clientName}`);
+                // Email Address / Additional Authorized Emails save fine as plain contact
+                // info regardless of domain — but if one already belongs to an existing
+                // non-Client (staff) portal account, it can NEVER also become this client's
+                // Client Portal login (one email = one Firebase Auth account), so the
+                // "Client Portal Access" link on any Project created for this client will
+                // stay empty no matter how many times Portal Access is (re)created for it.
+                // Warn immediately here instead of leaving the director to discover it only
+                // when Project creation silently produces no linked account.
+                const staffEmailConflicts = [newCust.clientEmail, ...additionalClientEmails]
+                    .filter(Boolean)
+                    .map(email => this.users.find(user => user.role && user.role !== 'Client' && String(user.email || '').trim().toLowerCase() === email))
+                    .filter(Boolean);
+                if (staffEmailConflicts.length) {
+                    const list = staffEmailConflicts.map(user => `${user.email} (${user.role} staff account)`).join(', ');
+                    this.showNotify(`Client saved. Note: ${list} cannot be used for this client's Client Portal login — already an active staff account. Use a different email for Client Portal access.`);
+                } else {
+                    this.showNotify('Client saved. You can now add document items.');
+                }
+                return true;
             } catch (error) { console.error('Client save failed:', error); this.showNotify('Unable to save client information.'); return false; }
         },
         selectCustomerFromTable(cust) {
