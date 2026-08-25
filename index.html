@@ -1445,8 +1445,8 @@
                             </div>
                         </div>
 
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-                            <h3 class="text-sm font-extrabold text-brand-dark dark:text-white mb-4">My Claims &amp; Payslip History</h3>
+                        <div class="zq-card p-6">
+                            <h3 class="zq-text-section-title mb-4">My Claims &amp; Payslip History</h3>
                             <div class="overflow-x-auto">
                                 <table class="zq-table">
                                     <thead>
@@ -1480,6 +1480,7 @@
                                             <td class="text-right font-extrabold">{{ formatCurrency(p.amount) }}</td>
                                             <td class="text-center"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">PAID</span></td>
                                         </tr>
+                                        <tr v-if="!myClaims.length && !myPaymentVouchers.length && !myPayslips.length" class="zq-table-empty"><td colspan="5">No claims, vouchers or payslips yet.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1577,8 +1578,8 @@
                             </div>
                         </section>
 
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-                            <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Your Company Official Documents</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Your five most recent quotations and invoices.</p></div><button v-if="myClientDocs.length" type="button" @click="switchTab('client-portal')" class="rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">View All Documents <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
+                        <div class="zq-card p-6">
+                            <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="zq-text-section-title">Your Company Official Documents</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Your five most recent quotations and invoices.</p></div><button v-if="myClientDocs.length" type="button" @click="switchTab('client-portal')" class="zq-btn zq-btn-outline zq-btn-sm">View All Documents <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
                             <div class="overflow-x-auto">
                                 <table class="zq-table">
                                     <thead>
@@ -1598,7 +1599,7 @@
                                             <td class="font-bold text-brand-dark dark:text-white">{{ d.docNo }}</td>
                                             <td class="text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
                                             <td class="text-center"><span class="px-2 py-0.5 rounded font-bold" :class="d.status==='Paid'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'">{{ d.status || 'Unpaid' }}</span></td>
-                                            <td class="text-center"><button @click="viewRecord(d)" class="bg-brand-dark text-white px-3 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-print mr-1"></i>Print</button></td>
+                                            <td class="text-center"><button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print mr-1"></i>Print</button></td>
                                         </tr>
                                         <tr v-if="!clientRecentDocuments.length"><td colspan="6" class="py-10 text-center"><span class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand-blue dark:bg-blue-950/40 dark:text-blue-300"><i class="fa-regular fa-file-lines"></i></span><p class="mt-3 text-xs font-extrabold text-slate-600 dark:text-slate-300">No official documents yet</p><p class="mt-1 text-[10px] text-slate-400">Quotations and invoices issued to your company will appear here automatically.</p></td></tr>
                                     </tbody>
@@ -2617,8 +2618,8 @@
                         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 class="text-sm font-black text-slate-900 dark:text-white">Before contacting support</h3><div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"><div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/40"><i class="fa-solid fa-hashtag text-teal-600"></i><p class="mt-2 text-xs font-bold text-slate-800 dark:text-white">Include reference number</p><p class="mt-1 text-[10px] text-slate-500">Provide the project or document number.</p></div><div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/40"><i class="fa-solid fa-align-left text-teal-600"></i><p class="mt-2 text-xs font-bold text-slate-800 dark:text-white">Describe the issue</p><p class="mt-1 text-[10px] text-slate-500">Explain what happened and the expected result.</p></div><div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/40"><i class="fa-solid fa-image text-teal-600"></i><p class="mt-2 text-xs font-bold text-slate-800 dark:text-white">Attach evidence</p><p class="mt-1 text-[10px] text-slate-500">Include a screenshot when relevant.</p></div></div></section>
                     </div>
 
-                    <div v-if="currentTab === 'client-documents'" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 md:p-6">
-                        <div class="mb-5"><h3 class="text-sm font-black text-slate-900 dark:text-white"><i class="fa-solid fa-folder-open mr-2 text-teal-600"></i>Documents &amp; Billing</h3><p class="mt-1 text-[10px] text-slate-500">Review and print your official quotations and invoices.</p></div>
+                    <div v-if="currentTab === 'client-documents'" class="zq-card p-5 md:p-6">
+                        <div class="mb-5"><h3 class="zq-text-section-title"><i class="fa-solid fa-folder-open mr-2 text-teal-600"></i>Documents &amp; Billing</h3><p class="mt-1 text-[10px] text-slate-500">Review and print your official quotations and invoices.</p></div>
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <span class="text-xs font-bold text-slate-400">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s)</span>
                             <div class="flex flex-wrap items-center gap-2">
@@ -2659,7 +2660,7 @@
                                             <span :class="d.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'" class="px-2.5 py-1 rounded-full text-xs font-bold">{{ d.status || 'Unpaid' }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <button @click="viewRecord(d)" class="bg-brand-dark text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center space-x-1 mx-auto"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
+                                            <button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm mx-auto"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -3045,7 +3046,7 @@
                         <p v-if="auditRetention.error" class="mt-3 text-[11px] font-semibold text-red-600 dark:text-red-400">{{ auditRetention.error }}</p>
                     </div>
 
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                    <div class="zq-card p-6">
                         <div class="overflow-x-auto">
                             <table class="zq-table">
                                 <thead>
@@ -3057,7 +3058,7 @@
                                         <th>IP &amp; Browser</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs font-mono">
+                                <tbody class="font-mono">
                                     <tr v-for="log in auditLogs" :key="log.id">
                                         <td class="text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString('en-MY') }}</td>
                                         <td class="text-brand-dark dark:text-slate-200"><span class="block font-bold">{{ log.userName || log.user }}</span><span v-if="log.userName" class="block text-[10px] text-slate-400">{{ log.user }}</span><span v-if="log.role" class="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[9px]">{{ log.role }}</span></td>
@@ -3072,6 +3073,7 @@
                                         <td class="text-slate-700 dark:text-slate-300"><span class="block">{{ log.details }}</span><span v-if="log.module" class="mt-1 block text-[9px] uppercase tracking-wide text-slate-400">Module: {{ log.module }}</span><span v-if="log.uid" class="block text-[9px] text-slate-400">UID: {{ log.uid }}</span></td>
                                         <td class="text-slate-500 dark:text-slate-400 min-w-[220px]"><span class="block font-bold text-slate-700 dark:text-slate-300">{{ log.ip || 'Unavailable' }}</span><span class="block">{{ log.browser || 'Unknown Browser' }}</span><span v-if="log.os || log.device" class="block text-[10px]">{{ log.os || 'Unknown OS' }} · {{ log.device || 'Unknown Device' }}</span><span class="block max-w-xs truncate text-[9px] text-slate-400" :title="log.userAgent || log.browser">{{ log.userAgent || log.browser }}</span></td>
                                     </tr>
+                                    <tr v-if="!auditLogs.length" class="zq-table-empty"><td colspan="5">No audit events recorded yet.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3166,39 +3168,42 @@
 
                             <div v-if="canManageRBAC" class="pt-6 space-y-4 border-t border-slate-200 dark:border-slate-700">
                                 <div class="flex justify-between items-center">
-                                    <h3 class="text-sm font-extrabold text-brand-dark dark:text-white uppercase tracking-wide"><i class="fa-solid fa-users-viewfinder text-brand-blue mr-2"></i>PORTAL ACCESS MANAGEMENT (SUPERADMIN &amp; DIRECTOR)</h3>
-                                    <button type="button" @click="openUserAccessModal()" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
+                                    <h3 class="zq-text-section-title"><i class="fa-solid fa-users-viewfinder text-brand-blue mr-2"></i>Portal Access Management (Superadmin &amp; Director)</h3>
+                                    <button type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary">
                                         <i class="fa-solid fa-user-plus"></i><span>Add Access</span>
                                     </button>
                                 </div>
 
-                                <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                                <div class="overflow-x-auto">
                                     <table class="zq-table">
                                         <thead>
-                                            <tr class="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase">
-                                                <th class="p-3 border-b">Username</th>
-                                                <th class="p-3 border-b">Sign-In Email</th>
-                                                <th class="p-3 border-b">Role</th>
-                                                <th class="p-3 border-b text-center w-36">Actions</th>
+                                            <tr>
+                                                <th>Username</th>
+                                                <th>Sign-In Email</th>
+                                                <th>Role</th>
+                                                <th class="text-center w-36">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <tr v-for="(usr, uIdx) in users" :key="uIdx">
-                                                <td class="p-3 font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
-                                                <td class="p-3 font-medium text-slate-700 dark:text-slate-300">{{ usr.email }}</td>
-                                                <td class="p-3">
+                                                <td class="font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
+                                                <td class="font-medium text-slate-700 dark:text-slate-300">{{ usr.email }}</td>
+                                                <td>
                                                     <span class="bg-brand-gold/20 text-brand-dark dark:text-brand-gold font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">{{ getRoleDisplayName(usr.role) }}</span>
                                                 </td>
-                                                <td class="p-3 text-center space-x-1">
-                                                    <button v-if="usr.email !== 'admin@zenq0r.com'" type="button" @click="openUserAccessModal(usr)" class="bg-amber-50 text-amber-600 hover:bg-amber-100 p-1.5 rounded" title="Edit Access">
+                                                <td class="text-center">
+                                                    <div class="zq-table-actions">
+                                                    <button v-if="usr.email !== 'admin@zenq0r.com'" type="button" @click="openUserAccessModal(usr)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Access">
                                                         <i class="fa-solid fa-pen"></i>
                                                     </button>
-                                                    <button v-if="usr.email !== 'admin@zenq0r.com'" type="button" @click="deletePortalUser(usr.id, usr.email)" class="bg-red-50 text-red-600 hover:bg-red-100 p-1.5 rounded" title="Delete Access">
+                                                    <button v-if="usr.email !== 'admin@zenq0r.com'" type="button" @click="deletePortalUser(usr.id, usr.email)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Access">
                                                         <i class="fa-solid fa-trash"></i>
                                                     </button>
                                                     <span v-if="usr.email === 'admin@zenq0r.com'" class="text-[9px] font-bold uppercase text-slate-400">Protected Seed Account</span>
+                                                    </div>
                                                 </td>
                                             </tr>
+                                            <tr v-if="!users.length" class="zq-table-empty"><td colspan="4">No portal accounts found.</td></tr>
                                         </tbody>
                                     </table>
                                 </div>
