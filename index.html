@@ -239,12 +239,12 @@
                     </div>
 
                     <template v-if="!forgotPasswordFlow.sent">
-                        <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Reset Your Password</h2>
+                        <h2 class="zq-text-page-title">Reset Your Password</h2>
                         <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug">Enter the email linked to your account and we'll send you a link to reset your password.</p>
                     </template>
                     <template v-else>
                         <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300"><i class="fa-solid fa-envelope-circle-check text-xl"></i></div>
-                        <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Check Your Email</h2>
+                        <h2 class="zq-text-page-title">Check Your Email</h2>
                         <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug lowercase">If an account exists for {{ forgotPasswordFlow.email }}, a reset link is on its way.</p>
                     </template>
                 </div>
@@ -330,7 +330,7 @@
                     <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
                         <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
                     </div>
-                    <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">{{ authView === 'client' ? 'Client Portal Sign In' : 'Staff & Management Sign In' }}</h2>
+                    <h2 class="zq-text-page-title">{{ authView === 'client' ? 'Client Portal Sign In' : 'Staff & Management Sign In' }}</h2>
                     <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug">
                         {{ authView === 'client' ? 'Access your official documents and live project tracker.' : 'Access payroll, billing, claims and HR modules.' }}
                     </p>
@@ -561,8 +561,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Billing &amp; Documents</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Create and manage client quotations and invoices in a standard corporate format.</p>
+                                <h2 class="zq-text-page-title">Billing &amp; Documents</h2>
+                                <p class="zq-page-header-desc">Create and manage client quotations and invoices in a standard corporate format.</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
@@ -804,8 +804,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Payroll Management</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Automated statutory contribution engine for EPF, SOCSO, EIS and PCB, with MTD/YTD tracking.</p>
+                                <h2 class="zq-text-page-title">Payroll Management</h2>
+                                <p class="zq-page-header-desc">Automated statutory contribution engine for EPF, SOCSO, EIS and PCB, with MTD/YTD tracking.</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
@@ -938,8 +938,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Claims &amp; Payment Vouchers</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Submit and track expense claims and payment vouchers through the approval workflow.</p>
+                                <h2 class="zq-text-page-title">Claims &amp; Payment Vouchers</h2>
+                                <p class="zq-page-header-desc">Submit and track expense claims and payment vouchers through the approval workflow.</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
@@ -1408,8 +1408,8 @@
                     <div v-if="userProfile.role === 'Staff'" class="space-y-6">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Staff Employee Dashboard</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Welcome, {{ userProfile.name }}. View your latest payslips and expense claim status.</p>
+                                <h2 class="zq-text-page-title">Staff Employee Dashboard</h2>
+                                <p class="zq-page-header-desc">Welcome, {{ userProfile.name }}. View your latest payslips and expense claim status.</p>
                             </div>
                             <button @click="switchTab('claims')" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2.5 rounded-xl shadow-lg transition text-xs flex items-center space-x-2">
                                 <i class="fa-solid fa-file-circle-plus"></i><span>Submit New Claim</span>
@@ -1872,11 +1872,11 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Client Directory</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Maintain client company records used across quotations and invoices.</p>
+                                <h2 class="zq-text-page-title">Client Directory</h2>
+                                <p class="zq-page-header-desc">Maintain client company records used across quotations and invoices.</p>
                             </div>
                         </div>
-                        <button v-if="canManageClients && hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl shadow-lg transition text-xs flex items-center space-x-2">
+                        <button v-if="canManageClients && hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" class="zq-btn zq-btn-primary">
                             <i class="fa-solid fa-plus"></i><span>Create New Document</span>
                         </button>
                     </div>
@@ -1954,11 +1954,11 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Employee Management</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Maintain employee profiles, statutory contributions, and employment records.</p>
+                                <h2 class="zq-text-page-title">Employee Management</h2>
+                                <p class="zq-page-header-desc">Maintain employee profiles, statutory contributions, and employment records.</p>
                             </div>
                         </div>
-                        <button v-if="canManageEmployees" type="button" @click="openEmployeeModal()" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl shadow-lg transition text-xs flex items-center space-x-2">
+                        <button v-if="canManageEmployees" type="button" @click="openEmployeeModal()" class="zq-btn zq-btn-primary">
                             <i class="fa-solid fa-user-plus"></i><span>Add New Employee</span>
                         </button>
                     </div>
@@ -2051,8 +2051,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Enterprise Reports &amp; Data Export</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Export financial, employee, and document reports to CSV/Excel.</p>
+                                <h2 class="zq-text-page-title">Enterprise Reports &amp; Data Export</h2>
+                                <p class="zq-page-header-desc">Export financial, employee, and document reports to CSV/Excel.</p>
                             </div>
                         </div>
                     </div>
@@ -2136,8 +2136,8 @@
                                 <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">{{ userProfile.role === 'Client' ? 'My Project Tracker' : 'Project Activities' }}</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">{{ userProfile.role === 'Client' ? 'Follow your project progress across five workflow stages, in real time.' : 'Real-time project progress across five controlled workflow stages.' }}</p>
+                                <h2 class="zq-text-page-title">{{ userProfile.role === 'Client' ? 'My Project Tracker' : 'Project Activities' }}</h2>
+                                <p class="zq-page-header-desc">{{ userProfile.role === 'Client' ? 'Follow your project progress across five workflow stages, in real time.' : 'Real-time project progress across five controlled workflow stages.' }}</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
@@ -2850,11 +2850,11 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">Website Content</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Manage what's shown on zenqor-tech / www.zenq0r.com — changes go live immediately. Restricted to Superadmin, Director and IT.</p>
+                                <h2 class="zq-text-page-title">Website Content</h2>
+                                <p class="zq-page-header-desc">Manage what's shown on zenqor-tech / www.zenq0r.com — changes go live immediately. Restricted to Superadmin, Director and IT.</p>
                             </div>
                         </div>
-                        <button v-if="websiteContentTab !== 'site_text' && hasModulePermission('website-content', 'edit')" type="button" @click="openWebsiteContentModal(websiteContentTab)" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl shadow-lg transition text-xs flex items-center space-x-2">
+                        <button v-if="websiteContentTab !== 'site_text' && hasModulePermission('website-content', 'edit')" type="button" @click="openWebsiteContentModal(websiteContentTab)" class="zq-btn zq-btn-primary">
                             <i class="fa-solid fa-plus"></i><span>Add Item</span>
                         </button>
                     </div>
@@ -3014,11 +3014,11 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white tracking-tight">System Audit &amp; Security Logs</h2>
-                                <p class="text-slate-500 dark:text-slate-400 text-xs mt-0.5">Real-time user security and activity logs from Firebase.</p>
+                                <h2 class="zq-text-page-title">System Audit &amp; Security Logs</h2>
+                                <p class="zq-page-header-desc">Real-time user security and activity logs from Firebase.</p>
                             </div>
                         </div>
-                        <button type="button" @click="exportComplianceReport" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl shadow-lg transition text-xs flex items-center space-x-2">
+                        <button type="button" @click="exportComplianceReport" class="zq-btn zq-btn-primary">
                             <i class="fa-solid fa-shield-halved"></i><span>Export Compliance Report</span>
                         </button>
                     </div>

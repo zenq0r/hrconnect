@@ -865,7 +865,7 @@ html.dark {
 }
 
 /* ---- Typography scale (compact, enterprise — no oversized headings) ---- */
-.zq-text-page-title    { font-size: 1.25rem; line-height: 1.35; font-weight: 800; color: var(--zq-text); }
+.zq-text-page-title    { font-size: 1.25rem; line-height: 1.35; font-weight: 800; letter-spacing: -0.01em; color: var(--zq-text); }
 .zq-text-section-title { font-size: 1rem;    line-height: 1.4;  font-weight: 800; color: var(--zq-text); }
 .zq-text-card-title    { font-size: 0.875rem; line-height: 1.4; font-weight: 800; color: var(--zq-text); }
 .zq-text-body          { font-size: 0.8125rem; line-height: 1.55; color: var(--zq-text); }
@@ -930,7 +930,7 @@ html.dark {
 
 /* ---- Page header (breadcrumb / title / description / primary action) ---- */
 .zq-page-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--zq-space-4); margin-bottom: var(--zq-space-6); }
-.zq-page-header-desc { margin-top: 2px; }
+.zq-page-header-desc { margin-top: 2px; font-size: 0.75rem; color: var(--zq-text-muted); }
 
 /* ---- Sidebar nav item (was an 18x-duplicated inline Tailwind string —
    .sidebar-item-active above already handles the active-state look and
