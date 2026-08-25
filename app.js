@@ -2538,14 +2538,19 @@ createApp({
                 this.showNotify(this.getFirestoreWriteError(error, 'void this document'));
             }
         },
-        // Deleting a signed_documents record is restricted to Superadmin/Director only —
-        // matches firestore.rules' `allow delete: if isSuperadmin() || isDirector();` on
-        // this collection. Offered once a document is Voided, or directly from Completed
-        // (a fully-signed record) since firestore.rules already permits deletion from any
-        // status for these two roles — the UI just gates it with an extra-strength warning
-        // when deleting a Completed (already-signed) document.
+        // Same "Delete" button/click-handler for both roles — behavior branches
+        // internally: a Director deletes immediately (no extra sign-off, exactly
+        // like before), while a Superadmin can no longer delete on the spot and
+        // is routed into requestSignedDocumentDeletionApproval() instead. This
+        // matches firestore.rules: `allow delete: if isDirector();` on this
+        // collection now excludes Superadmin — see the deletionRequest clauses
+        // added alongside it for the approval hand-off.
         requestDeleteSignedDocument(docItem) {
-            if (!['Superadmin', 'Director'].includes(this.userProfile.role)) { this.showNotify('You do not have permission to delete this document.'); return; }
+            if (!this.canDeleteSignedDocuments) { this.showNotify('You do not have permission to delete this document.'); return; }
+            if (this.userProfile.role !== 'Director') {
+                this.requestSignedDocumentDeletionApproval(docItem);
+                return;
+            }
             const isCompleted = docItem.status === 'completed';
             this.requestConfirm({
                 title: isCompleted ? 'Permanently delete this SIGNED document?' : 'Permanently delete this document?',
@@ -2556,6 +2561,78 @@ createApp({
                 danger: true,
                 onConfirm: () => this.deleteSignedDocument(docItem)
             });
+        },
+        // Superadmin's half of the approval hand-off: instead of deleting, flag a
+        // pending deletionRequest on the document for a Director to review. The
+        // document itself is untouched until a Director approves (deletes) or
+        // rejects (clears the flag) it.
+        requestSignedDocumentDeletionApproval(docItem) {
+            if (this.userProfile.role !== 'Superadmin') { this.showNotify('You do not have permission to delete this document.'); return; }
+            if (docItem.deletionRequest && docItem.deletionRequest.status === 'pending') { this.showNotify('A deletion request for this document is already pending Director approval.'); return; }
+            const label = this.documentTemplates[docItem.templateId] ? this.documentTemplates[docItem.templateId].label.en : docItem.templateId;
+            this.requestConfirm({
+                title: 'Send this document for Director approval to delete?',
+                message: `As Superadmin, you can no longer delete "${label}" for ${docItem.clientName} directly — it will be sent to a Director for approval first. The document stays exactly as-is until a Director approves or rejects the request.`,
+                confirmLabel: 'Send for Approval',
+                danger: true,
+                onConfirm: () => this.submitSignedDocumentDeletionRequest(docItem)
+            });
+        },
+        async submitSignedDocumentDeletionRequest(docItem) {
+            try {
+                const now = new Date().toISOString();
+                const request = { status: 'pending', requestedByUid: this.userProfile.uid, requestedByName: this.userProfile.name, requestedByEmail: this.userProfile.email, requestedAt: now };
+                await updateDoc(doc(db, 'signed_documents', docItem.id), {
+                    deletionRequest: request,
+                    updatedAt: now,
+                    audit: [...(docItem.audit || []), { action: 'deletion_requested', byUid: this.userProfile.uid, byName: this.userProfile.name, byEmail: this.userProfile.email, byRole: this.userProfile.role, at: now }]
+                });
+                this.logAudit('REQUEST_DELETE_SIGNED_DOCUMENT', `Requested Director approval to delete ${this.documentTemplates[docItem.templateId] ? this.documentTemplates[docItem.templateId].label.en : docItem.templateId} for client ${docItem.clientName}`);
+                this.showNotify('Sent for Director approval. The document will be deleted once a Director approves it.');
+                await this.loadSignedDocuments();
+                if (this.signedDocumentModal.doc && this.signedDocumentModal.doc.id === docItem.id) {
+                    const refreshed = this.signedDocuments.items.find(d => d.id === docItem.id);
+                    if (refreshed) this.signedDocumentModal.doc = refreshed;
+                }
+            } catch (error) {
+                console.error('Request signed document deletion failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'request deletion approval for this document'));
+            }
+        },
+        // Director's half: approving simply performs the real delete (same
+        // deleteSignedDocument() used for a Director's own direct deletes).
+        approveSignedDocumentDeletion(docItem) {
+            if (this.userProfile.role !== 'Director') { this.showNotify('Only a Director can approve document deletion.'); return; }
+            const label = this.documentTemplates[docItem.templateId] ? this.documentTemplates[docItem.templateId].label.en : docItem.templateId;
+            const requestedBy = docItem.deletionRequest?.requestedByName || 'A Superadmin';
+            this.requestConfirm({
+                title: 'Approve and permanently delete this document?',
+                message: `${requestedBy} requested deletion of "${label}" for ${docItem.clientName}. Approving will permanently remove the document, its signatures and final PDF. This cannot be undone.`,
+                confirmLabel: 'Approve & Delete',
+                danger: true,
+                onConfirm: () => this.deleteSignedDocument(docItem)
+            });
+        },
+        async rejectSignedDocumentDeletionRequest(docItem) {
+            if (this.userProfile.role !== 'Director') { this.showNotify('Only a Director can reject a deletion request.'); return; }
+            try {
+                const now = new Date().toISOString();
+                await updateDoc(doc(db, 'signed_documents', docItem.id), {
+                    deletionRequest: null,
+                    updatedAt: now,
+                    audit: [...(docItem.audit || []), { action: 'deletion_request_rejected', byUid: this.userProfile.uid, byName: this.userProfile.name, byEmail: this.userProfile.email, byRole: this.userProfile.role, at: now }]
+                });
+                this.logAudit('REJECT_DELETE_SIGNED_DOCUMENT', `Rejected deletion request for ${this.documentTemplates[docItem.templateId] ? this.documentTemplates[docItem.templateId].label.en : docItem.templateId}, client ${docItem.clientName}`);
+                this.showNotify('Deletion request rejected — the document was kept.');
+                await this.loadSignedDocuments();
+                if (this.signedDocumentModal.doc && this.signedDocumentModal.doc.id === docItem.id) {
+                    const refreshed = this.signedDocuments.items.find(d => d.id === docItem.id);
+                    if (refreshed) this.signedDocumentModal.doc = refreshed;
+                }
+            } catch (error) {
+                console.error('Reject signed document deletion request failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'reject this deletion request'));
+            }
         },
         async deleteSignedDocument(docItem) {
             try {

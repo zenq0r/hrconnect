@@ -307,9 +307,25 @@ service cloud.firestore {
         resource.data.status == 'completed' &&
         request.resource.data.status == 'completed' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['finalPdf', 'updatedAt', 'audit'])
+      ) || (
+        // Superadmin can no longer delete signed_documents directly (see `allow
+        // delete` below, now Director-only) — instead they flag a pending
+        // deletionRequest here for a Director to review. Only allowed once the
+        // document is Completed/Voided, matching the UI's Delete-button gating.
+        isSuperadmin() &&
+        resource.data.status in ['completed', 'voided'] &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletionRequest', 'updatedAt', 'audit'])
+      ) || (
+        // Director reviews a pending deletionRequest — approval itself goes
+        // through `allow delete` below; this clause covers rejecting a request
+        // (clearing deletionRequest back to null) without deleting the document.
+        isDirector() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletionRequest', 'updatedAt', 'audit'])
       );
 
-      allow delete: if isSuperadmin() || isDirector();
+      // Deletion is Director-only — a Superadmin must route through the
+      // deletionRequest approval flow above instead of deleting directly.
+      allow delete: if isDirector();
     }
 
     // Password reset tokens for the custom (non-Firebase-hosted) reset flow — written and
