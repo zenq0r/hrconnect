@@ -948,3 +948,22 @@ html.dark {
     text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
     border: 1px dashed var(--zq-border); border-radius: var(--zq-radius-lg); background: var(--zq-surface-alt);
 }
+
+/* ---- Data table — subtle dividers, no per-cell borders, consistent row/cell
+   rhythm across every table in the app. Structure (unchanged): <table
+   class="zq-table"><thead><tr><th>...<tbody><tr>...<td>. Row-action buttons
+   use .zq-btn-icon inside a .zq-table-actions wrapper for 2-3 actions;
+   tables with 4+ actions get a real three-dot menu component in a later
+   pass instead of cramming more icon buttons into the row. ---- */
+.zq-table { width: 100%; text-align: left; border-collapse: collapse; }
+.zq-table thead th {
+    padding: 10px 12px; font-size: 0.6875rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--zq-text-muted); border-bottom: 1px solid var(--zq-border);
+    white-space: nowrap;
+}
+.zq-table tbody td { padding: 12px; font-size: 0.75rem; color: var(--zq-text); vertical-align: middle; }
+.zq-table tbody tr { border-bottom: 1px solid var(--zq-border); transition: background-color var(--zq-transition); }
+.zq-table tbody tr:last-child { border-bottom: none; }
+.zq-table tbody tr:hover { background: var(--zq-surface-alt); }
+.zq-table-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.zq-table-empty td { padding: var(--zq-space-8) var(--zq-space-4); text-align: center; color: var(--zq-text-muted); }

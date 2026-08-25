@@ -1881,26 +1881,26 @@
                         </button>
                     </div>
 
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                    <div class="zq-card p-6">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-sm font-extrabold text-brand-dark dark:text-white tracking-wide"><i class="fa-solid fa-users text-brand-blue mr-2"></i>REGISTERED CLIENT DIRECTORY</h3>
-                            <span class="text-xs text-slate-400 font-bold">Total Clients: {{ customers.length }}</span>
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-users text-brand-blue mr-2"></i>Registered Client Directory</h3>
+                            <span class="zq-text-small font-bold">Total Clients: {{ customers.length }}</span>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="zq-table">
                                 <thead>
-                                    <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
-                                        <th class="py-3 px-3 w-32">Reg No. / TIN</th>
-                                        <th class="py-3 px-3">Client / Company Name</th>
-                                        <th class="py-3 px-3">Contact &amp; Email</th>
-                                        <th class="py-3 px-3">Address &amp; Location</th>
-                                        <th class="py-3 px-3 text-center w-36">Actions</th>
+                                    <tr>
+                                        <th class="w-32">Reg No. / TIN</th>
+                                        <th>Client / Company Name</th>
+                                        <th>Contact &amp; Email</th>
+                                        <th>Address &amp; Location</th>
+                                        <th class="text-center w-36">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                    <tr v-for="(cust, idx) in customers" :key="idx" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                        <td class="py-3 px-3 font-bold text-brand-dark dark:text-slate-200">{{ cust.clientSSM || '-' }}</td>
-                                        <td class="py-3 px-3">
+                                <tbody>
+                                    <tr v-for="(cust, idx) in customers" :key="idx">
+                                        <td class="font-bold">{{ cust.clientSSM || '-' }}</td>
+                                        <td>
                                             <div class="flex items-start gap-2.5">
                                                 <div class="w-9 h-9 rounded-xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[11px] font-extrabold shrink-0">{{ getInitials(cust.clientName) }}</div>
                                                 <div class="min-w-0">
@@ -1914,30 +1914,30 @@
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-slate-700 dark:text-slate-300 block">{{ cust.clientContactPerson || '-' }}</span>
                                             <span class="text-slate-500 dark:text-slate-400 block"><i class="fa-solid fa-phone text-[10px] mr-1"></i>{{ cust.clientPhone }}</span>
                                             <span v-if="cust.clientEmail" class="text-slate-500 dark:text-slate-400 block"><i class="fa-solid fa-envelope text-[10px] mr-1"></i>{{ cust.clientEmail }}</span>
                                         </td>
-                                        <td class="py-3 px-3 text-slate-600 dark:text-slate-300">
+                                        <td class="text-slate-600 dark:text-slate-300">
                                             <span class="whitespace-pre-line">{{ formattedClientAddress(cust) || '—' }}</span>
                                         </td>
-                                        <td class="py-2.5 px-3 text-center">
-                                            <div class="flex items-center justify-center gap-1">
-                                            <button @click="openClientView(cust)" class="h-8 w-8 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition" title="View Client Information">
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                            <button @click="openClientView(cust)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Client Information">
                                                 <i class="fa-solid fa-eye"></i>
                                             </button>
-                                            <button v-if="canManageClients && hasAccess('doc-generator')" @click="requestClientAction('edit', cust)" class="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition" title="Edit Client">
+                                            <button v-if="canManageClients && hasAccess('doc-generator')" @click="requestClientAction('edit', cust)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Client">
                                                 <i class="fa-solid fa-pen"></i>
                                             </button>
-                                            <button v-if="canDeleteClients" @click="requestClientAction('delete', cust)" class="h-8 w-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition" title="Delete Client">
+                                            <button v-if="canDeleteClients" @click="requestClientAction('delete', cust)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Client">
                                                 <i class="fa-solid fa-trash"></i>
                                             </button>
                                             </div>
                                         </td>
                                     </tr>
-                                    <tr v-if="customers.length === 0">
-                                        <td colspan="5" class="py-8 text-center text-slate-400">No clients registered in the database.</td>
+                                    <tr v-if="customers.length === 0" class="zq-table-empty">
+                                        <td colspan="5">No clients registered in the database.</td>
                                     </tr>
                                 </tbody>
                             </table>
