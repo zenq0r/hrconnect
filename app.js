@@ -424,11 +424,13 @@ createApp({
             expandedClientGroups: new Set(),
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
+            clientDocumentsUnsubscribe: null,
 
             // Signed Documents module (Authorization Letter / Client Info Form / NDA / Service Agreement).
             // Field definitions + PDF layout live in documents-templates.js — see DOCUMENT_TEMPLATES import above.
             documentTemplates: DOCUMENT_TEMPLATES,
             signedDocuments: { items: [], loading: false, error: '', clientFilter: 'all', statusFilter: 'all' },
+            signedDocumentsUnsubscribe: null,
             newSignedDocumentModal: { show: false, clientDirectoryId: '', templateId: '', saving: false },
             signedDocumentModal: { show: false, mode: 'view', saving: false, doc: null, fields: {} },
             sigPad: {
@@ -2127,33 +2129,35 @@ createApp({
             }
             return contentType;
         },
-        async loadClientDocuments(clientDirectoryId, clientName = '', clientEmail = '') {
+        loadClientDocuments(clientDirectoryId, clientName = '', clientEmail = '') {
+            if (this.clientDocumentsUnsubscribe) { this.clientDocumentsUnsubscribe(); this.clientDocumentsUnsubscribe = null; }
             if (!clientDirectoryId) { this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' }; return; }
             this.clientDocuments.clientDirectoryId = clientDirectoryId;
             this.clientDocuments.clientName = clientName;
             this.clientDocuments.clientEmail = clientEmail;
             this.clientDocuments.loading = true;
             this.clientDocuments.error = '';
-            try {
-                const baseCol = collection(db, 'client_documents');
-                // Firestore Rules independently re-verify access via customerEmailMatches()
-                // against the linked customers record, so this query only needs to scope
-                // by clientDirectoryId — filtering on the primary contact's own clientEmail
-                // here would incorrectly hide these documents from an authorized secondary
-                // client contact (see customers/{id}.additionalClientEmails).
-                const q = query(baseCol, where('clientDirectoryId', '==', clientDirectoryId));
-                const snapshot = await getDocs(q);
+            // Firestore Rules independently re-verify access via customerEmailMatches()
+            // against the linked customers record, so this query only needs to scope
+            // by clientDirectoryId — filtering on the primary contact's own clientEmail
+            // here would incorrectly hide these documents from an authorized secondary
+            // client contact (see customers/{id}.additionalClientEmails).
+            const q = query(collection(db, 'client_documents'), where('clientDirectoryId', '==', clientDirectoryId));
+            // Live subscription (not a one-time getDocs): whoever else — staff or the
+            // client — has this same client's document list open sees an upload/delete
+            // from the other side appear immediately, no tab switch/refresh needed.
+            this.clientDocumentsUnsubscribe = onSnapshot(q, (snapshot) => {
                 if (this.clientDocuments.clientDirectoryId !== clientDirectoryId) return;
                 this.clientDocuments.items = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.uploadedAt || '').localeCompare(String(a.uploadedAt || '')));
-            } catch (error) {
+                this.clientDocuments.loading = false;
+            }, (error) => {
                 console.error('Load client documents failed:', error);
                 if (this.clientDocuments.clientDirectoryId !== clientDirectoryId) return;
                 this.clientDocuments.error = error && error.code === 'permission-denied'
                     ? "You don't have access to view these documents. If this looks wrong, please contact our team."
                     : 'Could not load documents right now — check your internet connection and try again.';
-            } finally {
-                if (this.clientDocuments.clientDirectoryId === clientDirectoryId) this.clientDocuments.loading = false;
-            }
+                this.clientDocuments.loading = false;
+            });
         },
         clientDocumentIcon(fileType) {
             return fileType === 'application/pdf' ? 'fa-file-pdf text-red-500' : 'fa-file-image text-blue-500';
@@ -2202,7 +2206,8 @@ createApp({
                     heading: 'New Document Shared With You',
                     message: `${this.userProfile.name} shared a new document, "${file.name}", in your Client Documents repository. Sign in to view or download it.`
                 });
-                await this.loadClientDocuments(clientDirectoryId, this.clientDocuments.clientName, this.clientDocuments.clientEmail);
+                // No manual reload — the live subscription set up by loadClientDocuments()
+                // already reflects this upload as soon as it commits.
             } catch (error) {
                 console.error('Client document upload failed:', error);
                 this.showNotify(error?.message || 'Unable to upload the document. Please try again.');
@@ -2255,7 +2260,8 @@ createApp({
                     }
                 }
                 await deleteDoc(doc(db, 'client_documents', item.id));
-                this.clientDocuments.items = this.clientDocuments.items.filter(d => d.id !== item.id);
+                // No manual list splice — the live subscription drops this item for every
+                // viewer (staff and client alike) the moment the delete commits.
                 this.logAudit('DELETE_DOCUMENT', `Removed "${item.fileName}" from client ${this.clientDocuments.clientName}`);
                 this.showNotify('Document removed.');
             } catch (error) {
@@ -2264,34 +2270,42 @@ createApp({
             }
         },
         // ===================== SIGNED DOCUMENTS MODULE =====================
-        async loadSignedDocuments() {
+        // Live subscription (not a one-time getDocs): a status change from any side —
+        // client signs, staff countersigns, Superadmin requests deletion, Director
+        // approves/rejects/voids — appears immediately for everyone else already on the
+        // Documents tab, no tab switch/refresh needed. Guarded so repeated calls (tab
+        // switches, post-write refreshes elsewhere in this module) don't tear down and
+        // re-create the listener once it's already live; the one exception is a Client
+        // account whose clientDirectoryId claim hasn't synced yet (q is null below), in
+        // which case no listener is set here so the next call can retry once it has.
+        loadSignedDocuments() {
+            if (this.signedDocumentsUnsubscribe) return;
             this.signedDocuments.loading = true;
             this.signedDocuments.error = '';
-            try {
-                const baseCol = collection(db, 'signed_documents');
-                // IMPORTANT: Firestore denies an ENTIRE list query if even one document
-                // matching the query's filters fails the read rule — not just that one
-                // document, the whole request. The read rule denies 'draft' documents to
-                // clients (they haven't been sent yet), so the query itself must exclude
-                // drafts too; otherwise a single pending draft for this client would make
-                // their ENTIRE Signed Documents list fail with permission-denied, hiding
-                // documents they actually do have access to.
-                const q = this.userProfile.role === 'Client'
-                    ? (this.userProfile.clientDirectoryId
-                        ? query(baseCol, where('clientDirectoryId', '==', this.userProfile.clientDirectoryId), where('status', 'in', ['awaiting_client', 'awaiting_zenqor', 'completed', 'voided']))
-                        : null)
-                    : baseCol;
-                if (!q) { this.signedDocuments.items = []; this.signedDocuments.loading = false; return; }
-                const snapshot = await getDocs(q);
+            const baseCol = collection(db, 'signed_documents');
+            // IMPORTANT: Firestore denies an ENTIRE list query if even one document
+            // matching the query's filters fails the read rule — not just that one
+            // document, the whole request. The read rule denies 'draft' documents to
+            // clients (they haven't been sent yet), so the query itself must exclude
+            // drafts too; otherwise a single pending draft for this client would make
+            // their ENTIRE Signed Documents list fail with permission-denied, hiding
+            // documents they actually do have access to.
+            const q = this.userProfile.role === 'Client'
+                ? (this.userProfile.clientDirectoryId
+                    ? query(baseCol, where('clientDirectoryId', '==', this.userProfile.clientDirectoryId), where('status', 'in', ['awaiting_client', 'awaiting_zenqor', 'completed', 'voided']))
+                    : null)
+                : baseCol;
+            if (!q) { this.signedDocuments.items = []; this.signedDocuments.loading = false; return; }
+            this.signedDocumentsUnsubscribe = onSnapshot(q, (snapshot) => {
                 this.signedDocuments.items = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-            } catch (error) {
+                this.signedDocuments.loading = false;
+            }, (error) => {
                 console.error('Load signed documents failed:', error);
                 this.signedDocuments.error = error && error.code === 'permission-denied'
                     ? "You don't have access to view these documents. If this looks wrong, please contact our team."
                     : 'Could not load documents right now — check your internet connection and try again.';
-            } finally {
                 this.signedDocuments.loading = false;
-            }
+            });
         },
         openNewSignedDocumentModal() {
             if (!this.canManageSignedDocuments) { this.showNotify('You do not have permission to create documents.'); return; }
@@ -5407,6 +5421,10 @@ createApp({
                 this.userProfile = { name: '', email: '', role: '', photo: '' };
                 this.unsubscribers.forEach(unsub => unsub && unsub());
                 this.unsubscribers = [];
+                if (this.clientDocumentsUnsubscribe) { this.clientDocumentsUnsubscribe(); this.clientDocumentsUnsubscribe = null; }
+                if (this.signedDocumentsUnsubscribe) { this.signedDocumentsUnsubscribe(); this.signedDocumentsUnsubscribe = null; }
+                this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' };
+                this.signedDocuments = { items: [], loading: false, error: '', clientFilter: 'all', statusFilter: 'all' };
                 this.projects = [];
                 this.projectActivities = [];
                 this.projectClientUpdates = [];
@@ -5434,6 +5452,8 @@ createApp({
         if (this.isLoggedIn) this.setCurrentEmployeePresence(false);
         this.stopPresenceTracking();
         this.unsubscribers.forEach(unsub => unsub && unsub());
+        if (this.clientDocumentsUnsubscribe) this.clientDocumentsUnsubscribe();
+        if (this.signedDocumentsUnsubscribe) this.signedDocumentsUnsubscribe();
         if (this.browserBackHandler) window.removeEventListener('popstate', this.browserBackHandler);
         if (this.appUpdateCheckInterval) clearInterval(this.appUpdateCheckInterval);
         if (this.appVisibilityHandler) document.removeEventListener('visibilitychange', this.appVisibilityHandler);
