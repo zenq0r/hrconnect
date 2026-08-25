@@ -748,7 +748,7 @@
                                 </button>
                             </div>
 
-                            <table class="w-full text-left border-collapse">
+                            <table class="zq-table">
                                 <thead>
                                     <tr class="bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 text-[11px] uppercase tracking-wider font-extrabold">
                                         <th class="p-3 border border-slate-200 dark:border-slate-600">Description / Product</th>
@@ -1193,41 +1193,41 @@
                         </div>
 
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="zq-table">
                                 <thead>
-                                    <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
-                                        <th v-if="userProfile.role !== 'Director'" class="py-3 px-3 w-8"></th>
-                                        <th class="py-3 px-3">Date &amp; Receipt No.</th>
-                                        <th class="py-3 px-3">Employee</th>
-                                        <th class="py-3 px-3">Category &amp; Sub-Category</th>
-                                         <th class="py-3 px-3 text-right">Amount (RM)</th>
-                                         <th class="py-3 px-3 text-center">Status</th>
-                                         <th class="py-3 px-3">Assigned To</th>
-                                         <th class="py-3 px-3 text-center w-36">Actions</th>
+                                    <tr>
+                                        <th v-if="userProfile.role !== 'Director'" class="w-8"></th>
+                                        <th>Date &amp; Receipt No.</th>
+                                        <th>Employee</th>
+                                        <th>Category &amp; Sub-Category</th>
+                                         <th class="text-right">Amount (RM)</th>
+                                         <th class="text-center">Status</th>
+                                         <th>Assigned To</th>
+                                         <th class="text-center w-36">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                    <tr v-for="clm in paginatedClaims" :key="clm.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                        <td v-if="userProfile.role !== 'Director'" class="py-3 px-3">
+                                <tbody>
+                                    <tr v-for="clm in paginatedClaims" :key="clm.id">
+                                        <td v-if="userProfile.role !== 'Director'">
                                             <input v-if="canApproveClaim(clm)" type="checkbox" :checked="selectedClaimIds.includes(clm.id)" @change="toggleClaimSelection(clm.id)" class="h-4 w-4 rounded border-slate-300 text-brand-gold focus:ring-brand-gold">
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-slate-800 dark:text-slate-200 block">{{ clm.expenseDate }}</span>
                                             <span class="inline-block mt-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-slate-600">Claim</span>
                                             <span class="text-slate-400 font-mono text-[10px] block">REF: {{ clm.receiptNo }}</span>
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-brand-dark dark:text-white block">{{ requesterNameLive(clm.empNo, clm.name) }}</span>
                                             <span class="text-slate-400 text-[10px] block">{{ clm.empNo }}</span>
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-brand-blue dark:text-blue-400 block">{{ clm.category }}</span>
                                             <span class="text-slate-500 dark:text-slate-300 block">{{ clm.subCategory }}</span>
                                         </td>
-                                        <td class="py-3 px-3 text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">
+                                        <td class="text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">
                                             {{ formatCurrency(clm.amount) }}
                                         </td>
-                                         <td class="py-3 px-3 text-center">
+                                         <td class="text-center">
                                             <span :class="{
                                                 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': clm.status && clm.status.startsWith('Pending'),
                                                 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': clm.status === 'Approved',
@@ -1236,11 +1236,11 @@
                                             <p v-if="clm.approvedByName" class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Approved by {{ approverNameLive(clm.approvedByUid, clm.approvedByName) }} ({{ clm.approvedByRole }})</p>
                                             <p v-if="clm.approvedAt" class="text-[10px] text-slate-400">{{ formatDateTime(clm.approvedAt) }}</p>
                                          </td>
-                                         <td class="py-3 px-3">
+                                         <td>
                                              <span class="font-bold text-slate-700 dark:text-slate-200 block">{{ clm.assignedToName || '-' }}</span>
                                              <span class="text-slate-400 text-[10px] block">{{ clm.assignedToRole || '-' }}</span>
                                          </td>
-                                         <td class="py-2.5 px-3 text-center">
+                                         <td class="text-center">
                                              <div class="flex items-center justify-center gap-1">
                                              <button type="button" @click="viewClaimRecord(clm)" class="h-8 w-8 rounded-lg bg-blue-50 text-brand-blue hover:bg-blue-100 transition" title="View Claim Record">
                                                  <i class="fa-solid fa-eye"></i>
@@ -1306,41 +1306,41 @@
                         </div>
 
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="zq-table">
                                 <thead>
-                                    <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
-                                        <th v-if="userProfile.role !== 'Director'" class="py-3 px-3 w-8"></th>
-                                        <th class="py-3 px-3">Date &amp; Voucher No.</th>
-                                        <th class="py-3 px-3">Payee</th>
-                                        <th class="py-3 px-3">Category &amp; Sub-Category</th>
-                                         <th class="py-3 px-3 text-right">Amount (RM)</th>
-                                         <th class="py-3 px-3 text-center">Status</th>
-                                         <th class="py-3 px-3">Assigned To</th>
-                                         <th class="py-3 px-3 text-center w-36">Actions</th>
+                                    <tr>
+                                        <th v-if="userProfile.role !== 'Director'" class="w-8"></th>
+                                        <th>Date &amp; Voucher No.</th>
+                                        <th>Payee</th>
+                                        <th>Category &amp; Sub-Category</th>
+                                         <th class="text-right">Amount (RM)</th>
+                                         <th class="text-center">Status</th>
+                                         <th>Assigned To</th>
+                                         <th class="text-center w-36">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                    <tr v-for="pv in paginatedVouchers" :key="pv.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                                        <td v-if="userProfile.role !== 'Director'" class="py-3 px-3">
+                                <tbody>
+                                    <tr v-for="pv in paginatedVouchers" :key="pv.id">
+                                        <td v-if="userProfile.role !== 'Director'">
                                             <input v-if="canApprovePaymentVoucher(pv)" type="checkbox" :checked="selectedVoucherIds.includes(pv.id)" @change="toggleVoucherSelection(pv.id)" class="h-4 w-4 rounded border-slate-300 text-brand-gold focus:ring-brand-gold">
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-slate-800 dark:text-slate-200 block">{{ pv.paymentDate }}</span>
                                             <span class="inline-block mt-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-amber-700">Voucher</span>
                                             <span class="text-slate-400 font-mono text-[10px] block">REF: {{ pv.voucherNo }}</span>
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-brand-dark dark:text-white block">{{ pv.payeeName }}</span>
                                             <span class="text-slate-400 text-[10px] block">{{ pv.payeeType }} · Requested by {{ requesterNameLive(pv.empNo, pv.name) }}</span>
                                         </td>
-                                        <td class="py-3 px-3">
+                                        <td>
                                             <span class="font-bold text-brand-blue dark:text-blue-400 block">{{ pv.category }}</span>
                                             <span class="text-slate-500 dark:text-slate-300 block">{{ pv.subCategory }}</span>
                                         </td>
-                                        <td class="py-3 px-3 text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">
+                                        <td class="text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">
                                             {{ formatCurrency(pv.amount) }}
                                         </td>
-                                         <td class="py-3 px-3 text-center">
+                                         <td class="text-center">
                                             <span :class="{
                                                 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': pv.status && pv.status.startsWith('Pending'),
                                                 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': pv.status === 'Approved',
@@ -1349,11 +1349,11 @@
                                             <p v-if="pv.approvedByName" class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Approved by {{ approverNameLive(pv.approvedByUid, pv.approvedByName) }} ({{ pv.approvedByRole }})</p>
                                             <p v-if="pv.approvedAt" class="text-[10px] text-slate-400">{{ formatDateTime(pv.approvedAt) }}</p>
                                          </td>
-                                         <td class="py-3 px-3">
+                                         <td>
                                              <span class="font-bold text-slate-700 dark:text-slate-200 block">{{ pv.assignedToName || '-' }}</span>
                                              <span class="text-slate-400 text-[10px] block">{{ pv.assignedToRole || '-' }}</span>
                                          </td>
-                                         <td class="py-2.5 px-3 text-center">
+                                         <td class="text-center">
                                              <div class="flex items-center justify-center gap-1">
                                              <button type="button" @click="viewClaimRecord(pv)" class="h-8 w-8 rounded-lg bg-blue-50 text-brand-blue hover:bg-blue-100 transition" title="View Voucher Record">
                                                  <i class="fa-solid fa-eye"></i>
@@ -1448,9 +1448,9 @@
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                             <h3 class="text-sm font-extrabold text-brand-dark dark:text-white mb-4">My Claims &amp; Payslip History</h3>
                             <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse">
+                                <table class="zq-table">
                                     <thead>
-                                        <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
+                                        <tr>
                                             <th class="py-3 px-4">Date</th>
                                             <th class="py-3 px-4">Type</th>
                                             <th class="py-3 px-4">Reference / Description</th>
@@ -1458,22 +1458,22 @@
                                             <th class="py-3 px-4 text-center">Status</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                        <tr v-for="c in myClaims" :key="c.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <tbody>
+                                        <tr v-for="c in myClaims" :key="c.id">
                                             <td class="py-3 px-4">{{ c.expenseDate }}</td>
                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold bg-purple-100 text-purple-800">Claim</span></td>
                                             <td class="py-3 px-4 font-bold">{{ c.category }} - {{ c.receiptNo }}</td>
                                             <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(c.amount) }}</td>
                                             <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': c.status==='Pending', 'bg-emerald-100 text-emerald-800': c.status==='Approved', 'bg-red-100 text-red-800': c.status==='Rejected'}">{{ c.status }}</span></td>
                                         </tr>
-                                        <tr v-for="v in myPaymentVouchers" :key="v.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                        <tr v-for="v in myPaymentVouchers" :key="v.id">
                                             <td class="py-3 px-4">{{ v.paymentDate }}</td>
                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">Voucher</span></td>
                                             <td class="py-3 px-4 font-bold">{{ v.category }} - {{ v.voucherNo }}</td>
                                             <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(v.amount) }}</td>
                                             <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': v.status && v.status.startsWith('Pending'), 'bg-emerald-100 text-emerald-800': v.status==='Approved', 'bg-red-100 text-red-800': v.status==='Rejected'}">{{ v.status }}</span></td>
                                         </tr>
-                                        <tr v-for="p in myPayslips" :key="p.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                        <tr v-for="p in myPayslips" :key="p.id">
                                             <td class="py-3 px-4">{{ p.date }}</td>
                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">Payslip</span></td>
                                             <td class="py-3 px-4 font-bold">{{ p.docNo }} ({{ p.raw?.month || 'Monthly Salary' }})</td>
@@ -1580,9 +1580,9 @@
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                             <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Your Company Official Documents</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Your five most recent quotations and invoices.</p></div><button v-if="myClientDocs.length" type="button" @click="switchTab('client-portal')" class="rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">View All Documents <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
                             <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse">
+                                <table class="zq-table">
                                     <thead>
-                                        <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
+                                        <tr>
                                             <th class="py-3 px-4">Date</th>
                                             <th class="py-3 px-4">Type</th>
                                             <th class="py-3 px-4">Document No.</th>
@@ -1591,8 +1591,8 @@
                                             <th class="py-3 px-4 text-center">Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                        <tr v-for="d in clientRecentDocuments" :key="d.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <tbody>
+                                        <tr v-for="d in clientRecentDocuments" :key="d.id">
                                             <td class="py-3 px-4">{{ d.date }}</td>
                                             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold" :class="d.type==='Invoice'?'bg-blue-100 text-blue-800':'bg-amber-100 text-amber-800'">{{ d.type }}</span></td>
                                             <td class="py-3 px-4 font-bold text-brand-dark dark:text-white">{{ d.docNo }}</td>
@@ -1801,9 +1801,9 @@
                             </div>
 
                             <div class="overflow-x-auto">
-                                <table class="w-full text-left border-collapse">
+                                <table class="zq-table">
                                     <thead>
-                                        <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
+                                        <tr>
                                             <th class="py-3 px-4">Date</th>
                                             <th class="py-3 px-4">Module</th>
                                             <th class="py-3 px-4">Ref No.</th>
@@ -1813,8 +1813,8 @@
                                              <th class="py-3 px-4 text-center w-36">Actions</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                        <tr v-for="item in paginatedActivities" :key="item.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <tbody>
+                                        <tr v-for="item in paginatedActivities" :key="item.id">
                                             <td class="py-3 px-4 text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
                                              <td class="py-3 px-4">
                                                  <span :class="item.tagClass" class="px-2.5 py-1 rounded-full text-[11px] font-bold">{{ item.type }}</span>
@@ -2635,9 +2635,9 @@
                             </div>
                         </div>
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="zq-table">
                                 <thead>
-                                    <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    <tr>
                                         <th class="py-3 px-4">Type</th>
                                         <th class="py-3 px-4">Document No.</th>
                                         <th class="py-3 px-4">Date</th>
@@ -2646,9 +2646,9 @@
                                         <th class="py-3 px-4 text-center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
+                                <tbody>
                                     <tr v-if="!filteredClientPortalDocs.length"><td colspan="6" class="py-12 text-center"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-xl text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-file-circle-plus"></i></div><p class="mt-3 text-xs font-black text-slate-700 dark:text-slate-200">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p><p class="mx-auto mt-1 max-w-sm text-[10px] leading-relaxed text-slate-500">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices will appear here automatically when issued by our team.' }}</p></td></tr>
-                                    <tr v-for="d in filteredClientPortalDocs" :key="d.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <tr v-for="d in filteredClientPortalDocs" :key="d.id">
                                         <td class="py-3 px-4">
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold" :class="d.type === 'Invoice' ? 'bg-teal-50 dark:bg-teal-950/40 text-brand-blue dark:text-teal-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"><i class="fa-solid" :class="d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-pen'"></i>{{ d.type }}</span>
                                         </td>
@@ -3047,9 +3047,9 @@
 
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                         <div class="overflow-x-auto">
-                            <table class="w-full text-left border-collapse">
+                            <table class="zq-table">
                                 <thead>
-                                    <tr class="border-b border-slate-100 dark:border-slate-700 text-xs font-bold uppercase tracking-wider text-slate-400">
+                                    <tr>
                                         <th class="py-3 px-4">Timestamp</th>
                                         <th class="py-3 px-4">User</th>
                                         <th class="py-3 px-4">Action</th>
@@ -3058,7 +3058,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs font-mono">
-                                    <tr v-for="log in auditLogs" :key="log.id" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                    <tr v-for="log in auditLogs" :key="log.id">
                                         <td class="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString('en-MY') }}</td>
                                         <td class="py-3 px-4 text-brand-dark dark:text-slate-200"><span class="block font-bold">{{ log.userName || log.user }}</span><span v-if="log.userName" class="block text-[10px] text-slate-400">{{ log.user }}</span><span v-if="log.role" class="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[9px]">{{ log.role }}</span></td>
                                         <td class="py-3 px-4">
@@ -3173,7 +3173,7 @@
                                 </div>
 
                                 <div class="overflow-x-auto border border-slate-200 dark:border-slate-700 rounded-xl">
-                                    <table class="w-full text-left border-collapse">
+                                    <table class="zq-table">
                                         <thead>
                                             <tr class="bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase">
                                                 <th class="p-3 border-b">Username</th>
@@ -3182,8 +3182,8 @@
                                                 <th class="p-3 border-b text-center w-36">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs">
-                                            <tr v-for="(usr, uIdx) in users" :key="uIdx" class="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                                        <tbody>
+                                            <tr v-for="(usr, uIdx) in users" :key="uIdx">
                                                 <td class="p-3 font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
                                                 <td class="p-3 font-medium text-slate-700 dark:text-slate-300">{{ usr.email }}</td>
                                                 <td class="p-3">
