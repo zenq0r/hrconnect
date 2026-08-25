@@ -1241,18 +1241,18 @@
                                              <span class="text-slate-400 text-[10px] block">{{ clm.assignedToRole || '-' }}</span>
                                          </td>
                                          <td class="text-center">
-                                             <div class="flex items-center justify-center gap-1">
-                                             <button type="button" @click="viewClaimRecord(clm)" class="h-8 w-8 rounded-lg bg-blue-50 text-brand-blue hover:bg-blue-100 transition" title="View Claim Record">
+                                             <div class="zq-table-actions">
+                                             <button type="button" @click="viewClaimRecord(clm)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Claim Record">
                                                  <i class="fa-solid fa-eye"></i>
                                              </button>
-                                             <button v-if="canEditClaim(clm)" type="button" @click="editClaimRecord(clm)" class="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition" title="Edit Claim Record">
+                                             <button v-if="canEditClaim(clm)" type="button" @click="editClaimRecord(clm)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Claim Record">
                                                  <i class="fa-solid fa-pen"></i>
                                              </button>
                                              </div>
                                          </td>
                                     </tr>
-                                    <tr v-if="filteredSortedClaims.length === 0">
-                                        <td colspan="8" class="py-8 text-center text-slate-400">No expense claim records found.</td>
+                                    <tr v-if="filteredSortedClaims.length === 0" class="zq-table-empty">
+                                        <td colspan="8">No expense claim records found.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1354,18 +1354,18 @@
                                              <span class="text-slate-400 text-[10px] block">{{ pv.assignedToRole || '-' }}</span>
                                          </td>
                                          <td class="text-center">
-                                             <div class="flex items-center justify-center gap-1">
-                                             <button type="button" @click="viewClaimRecord(pv)" class="h-8 w-8 rounded-lg bg-blue-50 text-brand-blue hover:bg-blue-100 transition" title="View Voucher Record">
+                                             <div class="zq-table-actions">
+                                             <button type="button" @click="viewClaimRecord(pv)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Voucher Record">
                                                  <i class="fa-solid fa-eye"></i>
                                              </button>
-                                             <button v-if="canEditPaymentVoucher(pv)" type="button" @click="editPaymentVoucher(pv)" class="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition" title="Edit Voucher Record">
+                                             <button v-if="canEditPaymentVoucher(pv)" type="button" @click="editPaymentVoucher(pv)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Voucher Record">
                                                  <i class="fa-solid fa-pen"></i>
                                              </button>
                                              </div>
                                          </td>
                                     </tr>
-                                    <tr v-if="filteredSortedVouchers.length === 0">
-                                        <td colspan="8" class="py-8 text-center text-slate-400">No payment voucher records found.</td>
+                                    <tr v-if="filteredSortedVouchers.length === 0" class="zq-table-empty">
+                                        <td colspan="8">No payment voucher records found.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1451,34 +1451,34 @@
                                 <table class="zq-table">
                                     <thead>
                                         <tr>
-                                            <th class="py-3 px-4">Date</th>
-                                            <th class="py-3 px-4">Type</th>
-                                            <th class="py-3 px-4">Reference / Description</th>
-                                            <th class="py-3 px-4 text-right">Amount (RM)</th>
-                                            <th class="py-3 px-4 text-center">Status</th>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Reference / Description</th>
+                                            <th class="text-right">Amount (RM)</th>
+                                            <th class="text-center">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr v-for="c in myClaims" :key="c.id">
-                                            <td class="py-3 px-4">{{ c.expenseDate }}</td>
-                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold bg-purple-100 text-purple-800">Claim</span></td>
-                                            <td class="py-3 px-4 font-bold">{{ c.category }} - {{ c.receiptNo }}</td>
-                                            <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(c.amount) }}</td>
-                                            <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': c.status==='Pending', 'bg-emerald-100 text-emerald-800': c.status==='Approved', 'bg-red-100 text-red-800': c.status==='Rejected'}">{{ c.status }}</span></td>
+                                            <td>{{ c.expenseDate }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold bg-purple-100 text-purple-800">Claim</span></td>
+                                            <td class="font-bold">{{ c.category }} - {{ c.receiptNo }}</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(c.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': c.status==='Pending', 'bg-emerald-100 text-emerald-800': c.status==='Approved', 'bg-red-100 text-red-800': c.status==='Rejected'}">{{ c.status }}</span></td>
                                         </tr>
                                         <tr v-for="v in myPaymentVouchers" :key="v.id">
-                                            <td class="py-3 px-4">{{ v.paymentDate }}</td>
-                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">Voucher</span></td>
-                                            <td class="py-3 px-4 font-bold">{{ v.category }} - {{ v.voucherNo }}</td>
-                                            <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(v.amount) }}</td>
-                                            <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': v.status && v.status.startsWith('Pending'), 'bg-emerald-100 text-emerald-800': v.status==='Approved', 'bg-red-100 text-red-800': v.status==='Rejected'}">{{ v.status }}</span></td>
+                                            <td>{{ v.paymentDate }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">Voucher</span></td>
+                                            <td class="font-bold">{{ v.category }} - {{ v.voucherNo }}</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(v.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': v.status && v.status.startsWith('Pending'), 'bg-emerald-100 text-emerald-800': v.status==='Approved', 'bg-red-100 text-red-800': v.status==='Rejected'}">{{ v.status }}</span></td>
                                         </tr>
                                         <tr v-for="p in myPayslips" :key="p.id">
-                                            <td class="py-3 px-4">{{ p.date }}</td>
-                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">Payslip</span></td>
-                                            <td class="py-3 px-4 font-bold">{{ p.docNo }} ({{ p.raw?.month || 'Monthly Salary' }})</td>
-                                            <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(p.amount) }}</td>
-                                            <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">PAID</span></td>
+                                            <td>{{ p.date }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">Payslip</span></td>
+                                            <td class="font-bold">{{ p.docNo }} ({{ p.raw?.month || 'Monthly Salary' }})</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(p.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">PAID</span></td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -1583,22 +1583,22 @@
                                 <table class="zq-table">
                                     <thead>
                                         <tr>
-                                            <th class="py-3 px-4">Date</th>
-                                            <th class="py-3 px-4">Type</th>
-                                            <th class="py-3 px-4">Document No.</th>
-                                            <th class="py-3 px-4 text-right">Amount (RM)</th>
-                                            <th class="py-3 px-4 text-center">Status</th>
-                                            <th class="py-3 px-4 text-center">Action</th>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Document No.</th>
+                                            <th class="text-right">Amount (RM)</th>
+                                            <th class="text-center">Status</th>
+                                            <th class="text-center">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr v-for="d in clientRecentDocuments" :key="d.id">
-                                            <td class="py-3 px-4">{{ d.date }}</td>
-                                            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded font-bold" :class="d.type==='Invoice'?'bg-blue-100 text-blue-800':'bg-amber-100 text-amber-800'">{{ d.type }}</span></td>
-                                            <td class="py-3 px-4 font-bold text-brand-dark dark:text-white">{{ d.docNo }}</td>
-                                            <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
-                                            <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded font-bold" :class="d.status==='Paid'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'">{{ d.status || 'Unpaid' }}</span></td>
-                                            <td class="py-3 px-4 text-center"><button @click="viewRecord(d)" class="bg-brand-dark text-white px-3 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-print mr-1"></i>Print</button></td>
+                                            <td>{{ d.date }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold" :class="d.type==='Invoice'?'bg-blue-100 text-blue-800':'bg-amber-100 text-amber-800'">{{ d.type }}</span></td>
+                                            <td class="font-bold text-brand-dark dark:text-white">{{ d.docNo }}</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold" :class="d.status==='Paid'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'">{{ d.status || 'Unpaid' }}</span></td>
+                                            <td class="text-center"><button @click="viewRecord(d)" class="bg-brand-dark text-white px-3 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-print mr-1"></i>Print</button></td>
                                         </tr>
                                         <tr v-if="!clientRecentDocuments.length"><td colspan="6" class="py-10 text-center"><span class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand-blue dark:bg-blue-950/40 dark:text-blue-300"><i class="fa-regular fa-file-lines"></i></span><p class="mt-3 text-xs font-extrabold text-slate-600 dark:text-slate-300">No official documents yet</p><p class="mt-1 text-[10px] text-slate-400">Quotations and invoices issued to your company will appear here automatically.</p></td></tr>
                                     </tbody>
@@ -1804,35 +1804,35 @@
                                 <table class="zq-table">
                                     <thead>
                                         <tr>
-                                            <th class="py-3 px-4">Date</th>
-                                            <th class="py-3 px-4">Module</th>
-                                            <th class="py-3 px-4">Ref No.</th>
-                                             <th class="py-3 px-4">Recipient / Employee</th>
-                                             <th class="py-3 px-4 text-right">Amount (RM)</th>
-                                             <th class="py-3 px-4">Status</th>
-                                             <th class="py-3 px-4 text-center w-36">Actions</th>
+                                            <th>Date</th>
+                                            <th>Module</th>
+                                            <th>Ref No.</th>
+                                             <th>Recipient / Employee</th>
+                                             <th class="text-right">Amount (RM)</th>
+                                             <th>Status</th>
+                                             <th class="text-center w-36">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <tr v-for="item in paginatedActivities" :key="item.id">
-                                            <td class="py-3 px-4 text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
-                                             <td class="py-3 px-4">
+                                            <td class="text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
+                                             <td>
                                                  <span :class="item.tagClass" class="px-2.5 py-1 rounded-full text-[11px] font-bold">{{ item.type }}</span>
                                              </td>
-                                            <td class="py-3 px-4 font-bold text-brand-dark dark:text-slate-100">{{ item.docNo }}</td>
-                                            <td class="py-3 px-4 font-medium text-slate-700 dark:text-slate-200">{{ item.name }}</td>
-                                             <td class="py-3 px-4 text-right font-extrabold text-brand-dark dark:text-slate-100">{{ formatCurrency(item.amount) }}</td>
-                                             <td class="py-3 px-4"><span :class="getActivityStatus(item).className" class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase">{{ getActivityStatus(item).label }}</span><p class="text-[10px] text-slate-400 mt-1">{{ getActivityStatus(item).detail }}</p></td>
-                                             <td class="py-2.5 px-4 text-center">
-                                                 <div class="flex items-center justify-center gap-1">
-                                                 <button type="button" @click="(item.isClaim || item.isVoucher) ? viewClaimRecord(item) : viewRecord(item)" class="h-8 w-8 rounded-lg bg-blue-50 text-brand-blue hover:bg-blue-100 transition" title="View Record"><i class="fa-solid fa-eye"></i></button>
-                                                <button v-if="(item.isDoc && canManageDocuments) || (item.isPay && canManagePayroll)" type="button" @click="editRecord(item)" class="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition" title="Edit Record"><i class="fa-solid fa-pen"></i></button>
-                                                <button v-if="(item.isDoc && canDeleteDocuments) || (item.isPay && canDeletePayroll)" type="button" @click="confirmDeleteRecord(item)" class="h-8 w-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition" title="Delete Record"><i class="fa-solid fa-trash"></i></button>
+                                            <td class="font-bold text-brand-dark dark:text-slate-100">{{ item.docNo }}</td>
+                                            <td class="font-medium text-slate-700 dark:text-slate-200">{{ item.name }}</td>
+                                             <td class="text-right font-extrabold text-brand-dark dark:text-slate-100">{{ formatCurrency(item.amount) }}</td>
+                                             <td><span :class="getActivityStatus(item).className" class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase">{{ getActivityStatus(item).label }}</span><p class="text-[10px] text-slate-400 mt-1">{{ getActivityStatus(item).detail }}</p></td>
+                                             <td class="text-center">
+                                                 <div class="zq-table-actions">
+                                                 <button type="button" @click="(item.isClaim || item.isVoucher) ? viewClaimRecord(item) : viewRecord(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Record"><i class="fa-solid fa-eye"></i></button>
+                                                <button v-if="(item.isDoc && canManageDocuments) || (item.isPay && canManagePayroll)" type="button" @click="editRecord(item)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Record"><i class="fa-solid fa-pen"></i></button>
+                                                <button v-if="(item.isDoc && canDeleteDocuments) || (item.isPay && canDeletePayroll)" type="button" @click="confirmDeleteRecord(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Record"><i class="fa-solid fa-trash"></i></button>
                                                  </div>
                                             </td>
                                         </tr>
-                                        <tr v-if="filteredRecentActivities.length === 0">
-                                            <td colspan="7" class="py-10 text-center text-slate-400">
+                                        <tr v-if="filteredRecentActivities.length === 0" class="zq-table-empty">
+                                            <td colspan="7">
                                                 <i class="fa-regular fa-folder-open text-xl text-slate-300"></i>
                                                 <p class="mt-2 text-xs font-bold">{{ (recentActivityFilter !== 'all' || recentActivityAttentionOnly || searchQuery) ? 'No records match your current filter.' : 'No records found.' }}</p>
                                                 <button v-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly" type="button" @click="recentActivityFilter = 'all'; recentActivityAttentionOnly = false" class="mt-2 text-[10px] font-bold text-brand-blue hover:underline">Clear filters</button>
@@ -2373,9 +2373,9 @@
                                             <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
                                             <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}</p></div>
                                             <div class="flex shrink-0 gap-1.5">
-                                                <button type="button" @click="viewClientDocument(item)" class="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
-                                                <button type="button" @click="downloadClientDocument(item)" class="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
-                                                <button v-if="canManageDocuments" type="button" @click="requestDeleteClientDocument(item)" class="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Remove"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                                                <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                                                <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
+                                                <button v-if="canManageDocuments" type="button" @click="requestDeleteClientDocument(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Remove"><i class="fa-solid fa-trash text-[11px]"></i></button>
                                             </div>
                                         </div>
                                     </div>
@@ -2638,27 +2638,27 @@
                             <table class="zq-table">
                                 <thead>
                                     <tr>
-                                        <th class="py-3 px-4">Type</th>
-                                        <th class="py-3 px-4">Document No.</th>
-                                        <th class="py-3 px-4">Date</th>
-                                        <th class="py-3 px-4 text-right">Amount (RM)</th>
-                                        <th class="py-3 px-4 text-center">Status</th>
-                                        <th class="py-3 px-4 text-center">Actions</th>
+                                        <th>Type</th>
+                                        <th>Document No.</th>
+                                        <th>Date</th>
+                                        <th class="text-right">Amount (RM)</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr v-if="!filteredClientPortalDocs.length"><td colspan="6" class="py-12 text-center"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-xl text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-file-circle-plus"></i></div><p class="mt-3 text-xs font-black text-slate-700 dark:text-slate-200">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p><p class="mx-auto mt-1 max-w-sm text-[10px] leading-relaxed text-slate-500">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices will appear here automatically when issued by our team.' }}</p></td></tr>
                                     <tr v-for="d in filteredClientPortalDocs" :key="d.id">
-                                        <td class="py-3 px-4">
+                                        <td>
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold" :class="d.type === 'Invoice' ? 'bg-teal-50 dark:bg-teal-950/40 text-brand-blue dark:text-teal-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"><i class="fa-solid" :class="d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-pen'"></i>{{ d.type }}</span>
                                         </td>
-                                        <td class="py-3 px-4 font-bold text-brand-dark dark:text-slate-100">{{ d.docNo }}</td>
-                                        <td class="py-3 px-4 text-slate-600 dark:text-slate-300">{{ d.date }}</td>
-                                        <td class="py-3 px-4 text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
-                                        <td class="py-3 px-4 text-center">
+                                        <td class="font-bold text-brand-dark dark:text-slate-100">{{ d.docNo }}</td>
+                                        <td class="text-slate-600 dark:text-slate-300">{{ d.date }}</td>
+                                        <td class="text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
+                                        <td class="text-center">
                                             <span :class="d.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'" class="px-2.5 py-1 rounded-full text-xs font-bold">{{ d.status || 'Unpaid' }}</span>
                                         </td>
-                                        <td class="py-3 px-4 text-center">
+                                        <td class="text-center">
                                             <button @click="viewRecord(d)" class="bg-brand-dark text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center space-x-1 mx-auto"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
                                         </td>
                                     </tr>
@@ -2885,8 +2885,8 @@
                                     <p v-else-if="websiteContentTab !== 'services'" class="mt-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>No Company Name set yet</p>
                                     <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 flex-1 line-clamp-3">{{ item.desc }}</p>
                                     <div class="mt-3 flex items-center justify-end gap-1.5 border-t border-slate-100 dark:border-slate-700 pt-3">
-                                        <button v-if="hasModulePermission('website-content', 'edit')" @click="openWebsiteContentModal(websiteContentTab, item)" class="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                                        <button v-if="hasModulePermission('website-content', 'delete')" @click="deleteWebsiteContentItem(websiteContentTab, item)" class="h-8 w-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                        <button v-if="hasModulePermission('website-content', 'edit')" @click="openWebsiteContentModal(websiteContentTab, item)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                        <button v-if="hasModulePermission('website-content', 'delete')" @click="deleteWebsiteContentItem(websiteContentTab, item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete"><i class="fa-solid fa-trash"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -2915,8 +2915,8 @@
                                     <p v-if="row.override" class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">MS: {{ row.override.ms || '—' }}</p>
                                 </div>
                                 <div class="flex items-center gap-1.5 shrink-0">
-                                    <button v-if="hasModulePermission('website-content', 'edit')" @click="openSiteTextModal(row)" class="h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                                    <button v-if="row.override && hasModulePermission('website-content', 'delete')" @click="resetSiteTextOverride(row.key)" class="h-8 w-8 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition" title="Reset to default"><i class="fa-solid fa-rotate-left"></i></button>
+                                    <button v-if="hasModulePermission('website-content', 'edit')" @click="openSiteTextModal(row)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                    <button v-if="row.override && hasModulePermission('website-content', 'delete')" @click="resetSiteTextOverride(row.key)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Reset to default"><i class="fa-solid fa-rotate-left"></i></button>
                                 </div>
                             </div>
                             <div v-if="!filteredSiteTextRows().length" class="p-10 text-center text-xs font-bold text-slate-400">No matching text fields.</div>
@@ -3050,18 +3050,18 @@
                             <table class="zq-table">
                                 <thead>
                                     <tr>
-                                        <th class="py-3 px-4">Timestamp</th>
-                                        <th class="py-3 px-4">User</th>
-                                        <th class="py-3 px-4">Action</th>
-                                        <th class="py-3 px-4">Activity / Target</th>
-                                        <th class="py-3 px-4">IP &amp; Browser</th>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Action</th>
+                                        <th>Activity / Target</th>
+                                        <th>IP &amp; Browser</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-100 dark:divide-slate-700 text-xs font-mono">
                                     <tr v-for="log in auditLogs" :key="log.id">
-                                        <td class="py-3 px-4 text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString('en-MY') }}</td>
-                                        <td class="py-3 px-4 text-brand-dark dark:text-slate-200"><span class="block font-bold">{{ log.userName || log.user }}</span><span v-if="log.userName" class="block text-[10px] text-slate-400">{{ log.user }}</span><span v-if="log.role" class="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[9px]">{{ log.role }}</span></td>
-                                        <td class="py-3 px-4">
+                                        <td class="text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString('en-MY') }}</td>
+                                        <td class="text-brand-dark dark:text-slate-200"><span class="block font-bold">{{ log.userName || log.user }}</span><span v-if="log.userName" class="block text-[10px] text-slate-400">{{ log.user }}</span><span v-if="log.role" class="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[9px]">{{ log.role }}</span></td>
+                                        <td>
                                             <span :class="{
                                                 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300': log.action === 'LOGIN',
                                                 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300': log.action === 'CREATE',
@@ -3069,8 +3069,8 @@
                                                 'bg-red-100 dark:bg-red-950/40 text-red-800 dark:text-red-300': log.action === 'DELETE'
                                             }" class="px-2 py-0.5 rounded text-[10px] font-bold">{{ log.action }}</span>
                                         </td>
-                                        <td class="py-3 px-4 text-slate-700 dark:text-slate-300"><span class="block">{{ log.details }}</span><span v-if="log.module" class="mt-1 block text-[9px] uppercase tracking-wide text-slate-400">Module: {{ log.module }}</span><span v-if="log.uid" class="block text-[9px] text-slate-400">UID: {{ log.uid }}</span></td>
-                                        <td class="py-3 px-4 text-slate-500 dark:text-slate-400 min-w-[220px]"><span class="block font-bold text-slate-700 dark:text-slate-300">{{ log.ip || 'Unavailable' }}</span><span class="block">{{ log.browser || 'Unknown Browser' }}</span><span v-if="log.os || log.device" class="block text-[10px]">{{ log.os || 'Unknown OS' }} · {{ log.device || 'Unknown Device' }}</span><span class="block max-w-xs truncate text-[9px] text-slate-400" :title="log.userAgent || log.browser">{{ log.userAgent || log.browser }}</span></td>
+                                        <td class="text-slate-700 dark:text-slate-300"><span class="block">{{ log.details }}</span><span v-if="log.module" class="mt-1 block text-[9px] uppercase tracking-wide text-slate-400">Module: {{ log.module }}</span><span v-if="log.uid" class="block text-[9px] text-slate-400">UID: {{ log.uid }}</span></td>
+                                        <td class="text-slate-500 dark:text-slate-400 min-w-[220px]"><span class="block font-bold text-slate-700 dark:text-slate-300">{{ log.ip || 'Unavailable' }}</span><span class="block">{{ log.browser || 'Unknown Browser' }}</span><span v-if="log.os || log.device" class="block text-[10px]">{{ log.os || 'Unknown OS' }} · {{ log.device || 'Unknown Device' }}</span><span class="block max-w-xs truncate text-[9px] text-slate-400" :title="log.userAgent || log.browser">{{ log.userAgent || log.browser }}</span></td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -3344,9 +3344,9 @@
                                 <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
                                 <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}</p></div>
                                 <div class="flex shrink-0 gap-1.5">
-                                    <button type="button" @click="viewClientDocument(item)" class="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
-                                    <button type="button" @click="downloadClientDocument(item)" class="h-8 w-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
-                                    <button v-if="canManageDocuments" type="button" @click="requestDeleteClientDocument(item)" class="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Remove"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                                    <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                                    <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
+                                    <button v-if="canManageDocuments" type="button" @click="requestDeleteClientDocument(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Remove"><i class="fa-solid fa-trash text-[11px]"></i></button>
                                 </div>
                             </div>
                         </div>
