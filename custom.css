@@ -777,3 +777,164 @@ input[type="url"] {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* ============================================================
+   ZENQOR DESIGN SYSTEM (ZQ) — v1
+   ============================================================
+   Foundation layer for the enterprise UI modernization. Additive only:
+   nothing existing references these classes yet, so shipping this adds
+   zero visual/behavioral risk. Modules are migrated to it incrementally.
+
+   Tokens live as CSS custom properties so light/dark and any future
+   palette tweak is a one-place edit instead of hunting `dark:` variants
+   across index.html. Brand colors match the existing Tailwind
+   `brand.*` config in index.html — not reinvented, just made reusable
+   outside Tailwind's utility-class context (this project loads Tailwind
+   via the browser CDN build, so `@apply` isn't available here; these
+   are hand-written CSS rules instead).
+   ============================================================ */
+
+:root {
+    /* Brand + surface */
+    --zq-primary: #18212F;         /* brand-dark */
+    --zq-primary-hover: #0f151e;
+    --zq-accent: #0F766E;          /* brand-blue */
+    --zq-accent-hover: #0c5b55;
+    --zq-gold: #E76F51;            /* brand-gold */
+    --zq-surface: #ffffff;
+    --zq-surface-alt: #f8fafc;     /* slate-50 */
+    --zq-surface-elevated: #ffffff;
+    --zq-border: #e2e8f0;          /* slate-200 */
+    --zq-text: #1e293b;            /* slate-800 */
+    --zq-text-muted: #64748b;      /* slate-500 */
+    --zq-text-on-primary: #ffffff;
+
+    /* Status (never color-only — every badge below also carries a dot + label) */
+    --zq-success: #059669;
+    --zq-success-bg: #ecfdf5;
+    --zq-warning: #b45309;
+    --zq-warning-bg: #fffbeb;
+    --zq-error: #dc2626;
+    --zq-error-bg: #fef2f2;
+    --zq-info: #1d4ed8;
+    --zq-info-bg: #eff6ff;
+    --zq-neutral: #475569;
+    --zq-neutral-bg: #f1f5f9;
+
+    /* Radius scale — deliberately restrained, no pill-everything */
+    --zq-radius-sm: 6px;
+    --zq-radius-md: 8px;
+    --zq-radius-lg: 12px;
+    --zq-radius-full: 9999px;
+
+    /* Shadow scale — subtle only */
+    --zq-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --zq-shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+    /* Spacing aliases (mirrors Tailwind's default 4/8/12/16/20/24/32/40/48/64 scale,
+       already used via p-1..p-16 utilities — kept here only for hand-written rules
+       in this file that don't go through a Tailwind class). */
+    --zq-space-1: 4px;  --zq-space-2: 8px;  --zq-space-3: 12px; --zq-space-4: 16px;
+    --zq-space-5: 20px; --zq-space-6: 24px; --zq-space-8: 32px; --zq-space-10: 40px;
+    --zq-space-12: 48px; --zq-space-16: 64px;
+
+    --zq-transition: 180ms ease;
+}
+
+html.dark {
+    --zq-primary: #1f2b3d;
+    --zq-primary-hover: #16202e;
+    --zq-accent: #14b8a6;
+    --zq-accent-hover: #0d9488;
+    --zq-surface: #1e293b;         /* slate-800 */
+    --zq-surface-alt: #0f172a;     /* slate-900 */
+    --zq-surface-elevated: #253247;
+    --zq-border: #334155;          /* slate-700 */
+    --zq-text: #f1f5f9;
+    --zq-text-muted: #94a3b8;
+    --zq-text-on-primary: #ffffff;
+
+    --zq-success: #34d399;   --zq-success-bg: rgba(16, 185, 129, 0.12);
+    --zq-warning: #fbbf24;   --zq-warning-bg: rgba(217, 119, 6, 0.14);
+    --zq-error: #f87171;     --zq-error-bg: rgba(220, 38, 38, 0.14);
+    --zq-info: #60a5fa;      --zq-info-bg: rgba(37, 99, 235, 0.14);
+    --zq-neutral: #cbd5e1;   --zq-neutral-bg: rgba(148, 163, 184, 0.14);
+
+    --zq-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
+    --zq-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.32);
+}
+
+/* ---- Typography scale (compact, enterprise — no oversized headings) ---- */
+.zq-text-page-title    { font-size: 1.25rem; line-height: 1.35; font-weight: 800; color: var(--zq-text); }
+.zq-text-section-title { font-size: 1rem;    line-height: 1.4;  font-weight: 800; color: var(--zq-text); }
+.zq-text-card-title    { font-size: 0.875rem; line-height: 1.4; font-weight: 800; color: var(--zq-text); }
+.zq-text-body          { font-size: 0.8125rem; line-height: 1.55; color: var(--zq-text); }
+.zq-text-small         { font-size: 0.6875rem; line-height: 1.5; color: var(--zq-text-muted); }
+.zq-text-label         { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--zq-text-muted); }
+.zq-text-caption       { font-size: 0.625rem; line-height: 1.4; color: var(--zq-text-muted); }
+
+/* ---- Button system ---- */
+.zq-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 36px; padding: 0 14px; border-radius: var(--zq-radius-md);
+    font-size: 0.75rem; font-weight: 700; white-space: nowrap; border: 1px solid transparent;
+    cursor: pointer; transition: background-color var(--zq-transition), border-color var(--zq-transition),
+        color var(--zq-transition), box-shadow var(--zq-transition), opacity var(--zq-transition);
+    user-select: none;
+}
+.zq-btn:focus-visible { outline: 2px solid var(--zq-accent); outline-offset: 2px; }
+.zq-btn:disabled, .zq-btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.zq-btn.is-loading { color: transparent !important; pointer-events: none; position: relative; }
+.zq-btn.is-loading::after {
+    content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid currentColor; border-right-color: transparent; color: inherit;
+    animation: zq-spin 0.6s linear infinite;
+}
+.zq-btn-primary  { background: var(--zq-primary); color: var(--zq-text-on-primary); }
+.zq-btn-primary:hover:not(:disabled)  { background: var(--zq-primary-hover); }
+.zq-btn-primary:active:not(:disabled) { transform: translateY(0.5px); }
+.zq-btn-secondary { background: var(--zq-accent); color: #ffffff; }
+.zq-btn-secondary:hover:not(:disabled) { background: var(--zq-accent-hover); }
+.zq-btn-outline  { background: transparent; border-color: var(--zq-border); color: var(--zq-text); }
+.zq-btn-outline:hover:not(:disabled)  { background: var(--zq-surface-alt); }
+.zq-btn-ghost    { background: transparent; color: var(--zq-text-muted); }
+.zq-btn-ghost:hover:not(:disabled)    { background: var(--zq-surface-alt); color: var(--zq-text); }
+.zq-btn-destructive { background: var(--zq-error-bg); color: var(--zq-error); }
+.zq-btn-destructive:hover:not(:disabled) { background: var(--zq-error); color: #ffffff; }
+.zq-btn-info { background: var(--zq-info-bg); color: var(--zq-info); }
+.zq-btn-info:hover:not(:disabled) { background: var(--zq-info); color: #ffffff; }
+.zq-btn-sm   { height: 30px; padding: 0 10px; font-size: 0.6875rem; }
+.zq-btn-icon { height: 32px; width: 32px; padding: 0; border-radius: var(--zq-radius-sm); }
+.zq-btn-icon.zq-btn-sm { height: 28px; width: 28px; }
+
+@keyframes zq-spin { to { transform: rotate(360deg); } }
+
+/* ---- Status badge (dot + label — never color-only) ---- */
+.zq-badge {
+    display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px;
+    border-radius: var(--zq-radius-full); font-size: 0.625rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap;
+}
+.zq-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.zq-badge-success { background: var(--zq-success-bg); color: var(--zq-success); }
+.zq-badge-warning  { background: var(--zq-warning-bg); color: var(--zq-warning); }
+.zq-badge-error    { background: var(--zq-error-bg);   color: var(--zq-error); }
+.zq-badge-info     { background: var(--zq-info-bg);    color: var(--zq-info); }
+.zq-badge-neutral  { background: var(--zq-neutral-bg); color: var(--zq-neutral); }
+
+/* ---- Card ---- */
+.zq-card {
+    background: var(--zq-surface); border: 1px solid var(--zq-border);
+    border-radius: var(--zq-radius-lg); box-shadow: var(--zq-shadow-sm);
+}
+
+/* ---- Page header (breadcrumb / title / description / primary action) ---- */
+.zq-page-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--zq-space-4); margin-bottom: var(--zq-space-6); }
+.zq-page-header-desc { margin-top: 2px; }
+
+/* ---- Empty state ---- */
+.zq-empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
+    border: 1px dashed var(--zq-border); border-radius: var(--zq-radius-lg); background: var(--zq-surface-alt);
+}
