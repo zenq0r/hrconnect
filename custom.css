@@ -932,6 +932,16 @@ html.dark {
 .zq-page-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--zq-space-4); margin-bottom: var(--zq-space-6); }
 .zq-page-header-desc { margin-top: 2px; }
 
+/* ---- Sidebar nav item (was an 18x-duplicated inline Tailwind string —
+   .sidebar-item-active above already handles the active-state look and
+   is left untouched; this only replaces the repeated static layout
+   classes every nav <button> carried) ---- */
+.zq-nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: var(--zq-radius-lg);
+    text-align: left; transition: background-color var(--zq-transition), color var(--zq-transition);
+}
+
 /* ---- Empty state ---- */
 .zq-empty-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;

@@ -423,10 +423,10 @@
                 </div>
 
                 <nav class="flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold">
-                    <button v-if="userProfile.role !== 'Client' && hasAccess('dashboard')" type="button" @click="switchTab('dashboard')" :class="{'sidebar-item-active': currentTab === 'dashboard', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'dashboard'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="userProfile.role !== 'Client' && hasAccess('dashboard')" type="button" @click="switchTab('dashboard')" :class="{'sidebar-item-active': currentTab === 'dashboard', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'dashboard'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-chart-pie w-5 text-center"></i><span>Dashboard</span>
                     </button>
-                    <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-portal')" :class="{'sidebar-item-active': currentTab === 'client-portal', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-portal'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-portal')" :class="{'sidebar-item-active': currentTab === 'client-portal', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-portal'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-house-chimney w-5 text-center"></i><span>Dashboard</span>
                     </button>
 
@@ -434,38 +434,38 @@
                         <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</p>
                     </div>
 
-                    <button v-if="hasAccess('project-activities')" type="button" @click="switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('project-activities')" type="button" @click="switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>
                     <template v-if="userProfile.role === 'Client'">
-                        <button type="button" @click="switchTab('client-documents')" :class="{'sidebar-item-active': currentTab === 'client-documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-documents'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-cyan-400/15 px-2 py-0.5 text-[9px] text-cyan-300">{{ clientPortalDocs.length }}</span></button>
-                        <button type="button" @click="switchTab('client-updates')" :class="{'sidebar-item-active': currentTab === 'client-updates', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-updates'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientRecentUpdates.length" class="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] text-amber-300">{{ clientRecentUpdates.length }}</span></button>
+                        <button type="button" @click="switchTab('client-documents')" :class="{'sidebar-item-active': currentTab === 'client-documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-documents'}" class="zq-nav-item w-full"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-cyan-400/15 px-2 py-0.5 text-[9px] text-cyan-300">{{ clientPortalDocs.length }}</span></button>
+                        <button type="button" @click="switchTab('client-updates')" :class="{'sidebar-item-active': currentTab === 'client-updates', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-updates'}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientRecentUpdates.length" class="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] text-amber-300">{{ clientRecentUpdates.length }}</span></button>
                     </template>
-                    <button v-if="hasAccess('documents')" type="button" @click="switchTab('documents')" :class="{'sidebar-item-active': currentTab === 'documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'documents'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('documents')" type="button" @click="switchTab('documents')" :class="{'sidebar-item-active': currentTab === 'documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'documents'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-file-signature w-5 text-center"></i><span>Signed Documents</span>
                     </button>
-                    <button v-if="hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i><span>Billing &amp; Documents</span>
                     </button>
-                    <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="{'sidebar-item-active': currentTab === 'payslip-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'payslip-generator'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="{'sidebar-item-active': currentTab === 'payslip-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'payslip-generator'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-money-check-dollar w-5 text-center"></i><span>Payroll Management</span>
                     </button>
-                    <button v-if="hasAccess('claims')" type="button" @click="switchTab('claims')" :class="{'sidebar-item-active': currentTab === 'claims', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'claims'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('claims')" type="button" @click="switchTab('claims')" :class="{'sidebar-item-active': currentTab === 'claims', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'claims'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-receipt w-5 text-center"></i><span>Claims &amp; Vouchers</span>
                     </button>
-                    <button v-if="hasAccess('client-directory')" type="button" @click="switchTab('client-directory')" :class="{'sidebar-item-active': currentTab === 'client-directory', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-directory'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('client-directory')" type="button" @click="switchTab('client-directory')" :class="{'sidebar-item-active': currentTab === 'client-directory', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-directory'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-address-book w-5 text-center"></i><span>Client Directory</span>
                     </button>
-                    <button v-if="hasAccess('hr-employees')" type="button" @click="switchTab('hr-employees')" :class="{'sidebar-item-active': currentTab === 'hr-employees', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'hr-employees'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('hr-employees')" type="button" @click="switchTab('hr-employees')" :class="{'sidebar-item-active': currentTab === 'hr-employees', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'hr-employees'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-users-gear w-5 text-center"></i><span>HR Employees</span>
                     </button>
-                    <button v-if="hasAccess('reports')" type="button" @click="switchTab('reports')" :class="{'sidebar-item-active': currentTab === 'reports', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'reports'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('reports')" type="button" @click="switchTab('reports')" :class="{'sidebar-item-active': currentTab === 'reports', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'reports'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-chart-line w-5 text-center"></i><span>Reports & Analytics</span>
                     </button>
-                    <button v-if="userProfile.role !== 'Client' && hasAccess('client-portal')" type="button" @click="switchTab('client-portal')" :class="{'sidebar-item-active': currentTab === 'client-portal', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-portal'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="userProfile.role !== 'Client' && hasAccess('client-portal')" type="button" @click="switchTab('client-portal')" :class="{'sidebar-item-active': currentTab === 'client-portal', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-portal'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-user-tie w-5 text-center"></i><span>Client Portal</span>
                     </button>
-                    <button v-if="hasAccess('website-content')" type="button" @click="switchTab('website-content')" :class="{'sidebar-item-active': currentTab === 'website-content', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'website-content'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('website-content')" type="button" @click="switchTab('website-content')" :class="{'sidebar-item-active': currentTab === 'website-content', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'website-content'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-photo-film w-5 text-center"></i><span>Website Content</span>
                     </button>
 
@@ -473,16 +473,16 @@
                         <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Account' : 'System & Admin' }}</p>
                     </div>
 
-                    <button v-if="hasAccess('audit-logs')" type="button" @click="switchTab('audit-logs')" :class="{'sidebar-item-active': currentTab === 'audit-logs', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'audit-logs'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('audit-logs')" type="button" @click="switchTab('audit-logs')" :class="{'sidebar-item-active': currentTab === 'audit-logs', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'audit-logs'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-shield-halved w-5 text-center"></i><span>Audit & Security Log</span>
                     </button>
-                    <button v-if="hasAccess('settings')" type="button" @click="switchTab('settings')" :class="{'sidebar-item-active': currentTab === 'settings', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'settings'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('settings')" type="button" @click="switchTab('settings')" :class="{'sidebar-item-active': currentTab === 'settings', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'settings'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-gear w-5 text-center"></i><span>Settings</span>
                     </button>
-                    <button v-if="hasAccess('profile')" type="button" @click="switchTab('profile')" :class="{'sidebar-item-active': currentTab === 'profile', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'profile'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3">
+                    <button v-if="hasAccess('profile')" type="button" @click="switchTab('profile')" :class="{'sidebar-item-active': currentTab === 'profile', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'profile'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-user-shield w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'Account & Security' : 'Profile & RBAC' }}</span>
                     </button>
-                    <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-support')" :class="{'sidebar-item-active': currentTab === 'client-support', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-support'}" class="w-full text-left px-3.5 py-2.5 rounded-xl transition flex items-center space-x-3"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
+                    <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-support')" :class="{'sidebar-item-active': currentTab === 'client-support', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-support'}" class="zq-nav-item w-full"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
                 </nav>
 
                 <div class="p-3 border-t border-slate-800">
@@ -556,7 +556,7 @@
                 <div v-show="currentTab === 'doc-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -799,7 +799,7 @@
                 <div v-show="currentTab === 'payslip-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -933,7 +933,7 @@
                 <div v-show="currentTab === 'claims'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -1867,7 +1867,7 @@
                 <div v-show="currentTab === 'client-directory'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -1949,7 +1949,7 @@
                 <div v-show="currentTab === 'hr-employees'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -2046,7 +2046,7 @@
                 <div v-show="currentTab === 'reports'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -2132,7 +2132,7 @@
                 <div v-show="currentTab === 'project-activities'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
@@ -2672,7 +2672,7 @@
                 <div v-show="currentTab === 'documents'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex flex-wrap items-center justify-between gap-3">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
@@ -2845,7 +2845,7 @@
                 <div v-show="currentTab === 'website-content'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -3009,7 +3009,7 @@
                 <div v-show="currentTab === 'audit-logs'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
@@ -3082,7 +3082,7 @@
                 <div v-show="['settings', 'profile'].includes(currentTab)" class="p-4 md:p-8 max-w-4xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs transition flex items-center space-x-1.5 shrink-0 shadow-sm" title="Open Navigation Menu">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i>
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
