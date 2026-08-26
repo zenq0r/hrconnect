@@ -468,6 +468,8 @@ createApp({
                 isEdit: false,
                 form: { id: '', projectRef: '', title: '', clientDirectoryId: '', clientPortalUid: '', clientName: '', clientEmail: '', clientSSM: '', clientTier: 'Standard', ownerEmpNo: '', ownerName: '', ownerEmail: '', ownerPhoto: '', ownerPosition: '', ownerDepartment: '', ownerAssignedAt: '', ownerPresenceStatus: 'Offline', ownerPresenceUpdatedAt: '', ownerLastSeen: '', status: 'Project Planning', startDate: '', targetDate: '', description: '' }
             },
+            // confirmStep: null (picker) -> 'handover' or 'complete' (confirmation sub-view)
+            markProjectDoneModal: { show: false, project: null, newOwnerEmpNo: '', confirmStep: null, saving: false },
             employees: [],
             customers: [],
             users: [],
@@ -1665,6 +1667,80 @@ createApp({
             } catch (error) {
                 console.error('Project stage update failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'update the project stage'));
+            }
+        },
+        openMarkProjectDoneModal(project) {
+            if (!this.canEditProject(project)) { this.showNotify('You do not have permission to update this project.'); return; }
+            this.markProjectDoneModal = { show: true, project, newOwnerEmpNo: '', confirmStep: null, saving: false };
+        },
+        closeMarkProjectDoneModal() {
+            this.markProjectDoneModal = { show: false, project: null, newOwnerEmpNo: '', confirmStep: null, saving: false };
+        },
+        requestMarkProjectDone() {
+            this.markProjectDoneModal.confirmStep = this.markProjectDoneModal.newOwnerEmpNo ? 'handover' : 'complete';
+        },
+        async confirmMarkProjectDone() {
+            const modal = this.markProjectDoneModal;
+            const project = modal.project;
+            if (!project || !this.canEditProject(project)) { this.showNotify('You do not have permission to update this project.'); return; }
+            modal.saving = true;
+            const nowIso = new Date().toISOString();
+            try {
+                if (modal.newOwnerEmpNo) {
+                    const newOwner = this.projectStaffOptions.find(emp => emp.empNo === modal.newOwnerEmpNo);
+                    if (!newOwner) { this.showNotify('Selected staff member could not be found.'); modal.saving = false; return; }
+                    const newOwnerEmail = String(newOwner.email || '').trim().toLowerCase();
+                    const existingHistory = Array.isArray(project.handoverHistory) ? project.handoverHistory : [];
+                    const handoverHistory = [
+                        ...existingHistory,
+                        {
+                            fromEmpNo: project.ownerEmpNo || '', fromName: project.ownerName || '', fromEmail: project.ownerEmail || '',
+                            toEmpNo: newOwner.empNo, toName: newOwner.name || '', toEmail: newOwnerEmail,
+                            handedOverByUid: this.userProfile.uid, handedOverByEmail: this.userProfile.email, handedOverAt: nowIso
+                        }
+                    ];
+                    await updateDoc(doc(db, 'projects', project.id), {
+                        ownerEmpNo: newOwner.empNo,
+                        ownerName: newOwner.name || '',
+                        ownerEmail: newOwnerEmail,
+                        ownerPhoto: this.employeePhotoByEmail(newOwner.email) || '',
+                        ownerPosition: newOwner.position || '',
+                        ownerDepartment: newOwner.dept || '',
+                        ownerAssignedAt: nowIso,
+                        ownerPresenceStatus: newOwner.presenceStatus || 'Offline',
+                        ownerPresenceUpdatedAt: newOwner.presenceUpdatedAt || '',
+                        ownerLastSeen: newOwner.lastSeen || '',
+                        handoverHistory,
+                        updatedAt: nowIso, updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email
+                    });
+                    this.logAudit('UPDATE', `Handed over project ${project.projectRef} from ${project.ownerName || 'Unassigned'} to ${newOwner.name}`);
+                    this.showNotify(`Project handed over to ${newOwner.name}.`);
+                    if (newOwnerEmail) this.notifyByEmail({
+                        to: newOwnerEmail,
+                        subject: `Project Handed Over To You — ${project.projectRef}`,
+                        heading: 'A Project Has Been Assigned To You',
+                        message: `${this.userProfile.name} has handed over "${project.title}" (${project.projectRef}) to you. Sign in to the portal to continue this project.`
+                    });
+                } else {
+                    await updateDoc(doc(db, 'projects', project.id), {
+                        status: 'Completed & Done',
+                        completedAt: nowIso, completedByUid: this.userProfile.uid, completedByEmail: this.userProfile.email,
+                        updatedAt: nowIso, updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email
+                    });
+                    this.logAudit('UPDATE', `Marked project ${project.projectRef} as Completed & Done`);
+                    this.showNotify('Project marked as Done.');
+                    if (project.clientEmail) this.notifyByEmail({
+                        to: project.clientEmail,
+                        subject: `Project Update — ${project.projectRef}: Completed & Done`,
+                        heading: 'Your Project Has Been Updated',
+                        message: `Your project "${project.title}" (${project.projectRef}) has moved to the "Completed & Done" stage.`
+                    });
+                }
+                this.closeMarkProjectDoneModal();
+            } catch (error) {
+                console.error('Mark project done failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'update the project'));
+                modal.saving = false;
             }
         },
         async deleteProject(project) {
@@ -5360,6 +5436,7 @@ createApp({
         // Checked topmost (highest z-index) first, in case more than one is ever open.
         this.globalEscapeHandler = (event) => {
             if (event.key !== 'Escape') return;
+            if (this.markProjectDoneModal.show && this.markProjectDoneModal.project) { this.closeMarkProjectDoneModal(); return; }
             if (this.appConfirm.show) { this.resolveAppConfirm(false); return; }
             if (this.clientView.show) { this.closeClientView(); return; }
             if (this.clientUpdateModal.show && this.clientUpdateModal.project) { this.closeClientUpdateModal(); return; }

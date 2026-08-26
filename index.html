@@ -2317,6 +2317,7 @@
                                                             <button type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon zq-btn-sm" title="Edit project"><i class="fa-solid fa-pen text-[10px]"></i></button>
                                                             <button type="button" @click="moveProject(project, -1)" :disabled="stageIndex === 0" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to previous stage"><i class="fa-solid fa-arrow-left text-[10px]"></i></button>
                                                             <button type="button" @click="moveProject(project, 1)" :disabled="stageIndex === projectStages.length - 1" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to next stage"><i class="fa-solid fa-arrow-right text-[10px]"></i></button>
+                                                            <button v-if="project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(project)" class="zq-btn zq-btn-success zq-btn-icon zq-btn-sm" title="Assign / Mark Done"><i class="fa-solid fa-check text-[10px]"></i></button>
                                                         </template>
                                                         <button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Delete project"><i class="fa-solid fa-trash text-[10px]"></i></button>
                                                     </div>
@@ -2357,7 +2358,7 @@
                                         <td><p class="font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || '—' }}</p><p v-if="project.ownerPosition" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ project.ownerPosition }}</p><p v-if="project.ownerEmail" class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ project.ownerEmail }}</p><p v-if="project.ownerAssignedAt" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Assigned {{ formatDateTime(project.ownerAssignedAt) }}</p><p v-if="project.ownerEmpNo" class="mt-2 flex items-center gap-1.5 text-[10px]"><span :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 rounded-full"></span><span :class="isProjectPicOnline(project) ? 'font-bold text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'">{{ projectPicPresenceDetail(project) }}</span></p></td>
                                         <td class="font-bold text-slate-700 dark:text-slate-200">{{ project.targetDate || '—' }}</td>
                                         <td><span :class="['bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300','bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300','bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300','bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300','bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'][projectStages.indexOf(project.status)] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'" class="inline-flex rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase whitespace-nowrap">{{ project.status }}</span></td>
-                                        <td><div class="zq-table-actions"><button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View details"><i class="fa-regular fa-eye"></i></button><button v-if="canEditProject(project)" type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit project"><i class="fa-solid fa-pen"></i></button><button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete project"><i class="fa-solid fa-trash"></i></button></div></td>
+                                        <td><div class="zq-table-actions"><button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View details"><i class="fa-regular fa-eye"></i></button><button v-if="canEditProject(project)" type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit project"><i class="fa-solid fa-pen"></i></button><button v-if="canEditProject(project) && project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(project)" class="zq-btn zq-btn-success zq-btn-icon" title="Assign / Mark Done"><i class="fa-solid fa-check"></i></button><button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete project"><i class="fa-solid fa-trash"></i></button></div></td>
                                     </tr>
                                     <tr v-if="!filteredProjects.length" class="zq-table-empty">
                                         <td colspan="6">
@@ -2506,7 +2507,7 @@
                                     </div>
                                 </section>
                             </div>
-                            <div class="zq-modal-footer"><button v-if="canManageProjects" type="button" @click="deleteProjectFromPreview" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button><button v-if="canEditProject(projectPreview.project)" type="button" @click="editProjectFromPreview" class="zq-btn zq-btn-info"><i class="fa-solid fa-pen mr-1.5"></i>Edit Project</button><button type="button" @click="closeProjectDetails" class="zq-btn zq-btn-primary">Close</button></div>
+                            <div class="zq-modal-footer"><button v-if="canManageProjects" type="button" @click="deleteProjectFromPreview" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button><button v-if="canEditProject(projectPreview.project)" type="button" @click="editProjectFromPreview" class="zq-btn zq-btn-info"><i class="fa-solid fa-pen mr-1.5"></i>Edit Project</button><button v-if="canEditProject(projectPreview.project) && projectPreview.project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(projectPreview.project)" class="zq-btn zq-btn-success"><i class="fa-solid fa-check mr-1.5"></i>Assign / Mark Done</button><button type="button" @click="closeProjectDetails" class="zq-btn zq-btn-primary">Close</button></div>
                         </div>
                     </div>
 
@@ -2600,6 +2601,62 @@
                                 </div>
                             </div>
                         </form>
+                    </div>
+                </div>
+
+                <!-- ASSIGN / MARK DONE — project handover to a new PIC, or full completion -->
+                <div v-if="markProjectDoneModal.show && markProjectDoneModal.project" class="zq-modal-overlay z-[103]" role="dialog" aria-modal="true" aria-label="Assign / Mark Done" @click.self="closeMarkProjectDoneModal">
+                    <div class="zq-modal zq-modal-sm">
+                        <div class="zq-modal-header">
+                            <h3 class="zq-modal-title">Assign / Mark Done</h3>
+                            <button type="button" @click="closeMarkProjectDoneModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+
+                        <template v-if="markProjectDoneModal.confirmStep === null">
+                            <div class="zq-modal-body">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ markProjectDoneModal.project.projectRef }} — {{ markProjectDoneModal.project.title }}</p>
+                                <label class="zq-label">Current PIC</label>
+                                <input type="text" :value="markProjectDoneModal.project.ownerName || 'Unassigned'" readonly class="zq-input mt-1.5">
+                                <label for="handover-new-owner" class="zq-label mt-4">Hand off to (optional)</label>
+                                <select id="handover-new-owner" v-model="markProjectDoneModal.newOwnerEmpNo" class="zq-select mt-1.5">
+                                    <option value="">-- No new staff, mark this project Done --</option>
+                                    <option v-for="emp in projectStaffOptions.filter(e => e.empNo !== markProjectDoneModal.project.ownerEmpNo)" :key="emp.empNo" :value="emp.empNo">{{ emp.name }} · {{ emp.position || 'NO POSITION' }}</option>
+                                </select>
+                                <p class="zq-help-text">Choose a colleague to hand this project to, or leave blank to mark it fully Done.</p>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="closeMarkProjectDoneModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                <button type="button" @click="requestMarkProjectDone" class="zq-btn zq-btn-success"><i class="fa-solid fa-check mr-1.5"></i>Mark Done</button>
+                            </div>
+                        </template>
+
+                        <template v-else-if="markProjectDoneModal.confirmStep === 'handover'">
+                            <div class="zq-modal-body">
+                                <div class="flex items-center gap-3">
+                                    <span class="zq-confirm-icon is-info"><i class="fa-solid fa-right-left"></i></span>
+                                    <h3 class="zq-modal-title">Confirm Handover?</h3>
+                                </div>
+                                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">This project will be handed over to <strong>{{ projectStaffOptions.find(e => e.empNo === markProjectDoneModal.newOwnerEmpNo)?.name }}</strong>. It will continue at its current stage under their assignment and cannot be marked Completed until they mark it done.</p>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="markProjectDoneModal.confirmStep = null" :disabled="markProjectDoneModal.saving" class="zq-btn zq-btn-outline">Back</button>
+                                <button type="button" @click="confirmMarkProjectDone" :disabled="markProjectDoneModal.saving" :class="{ 'is-loading': markProjectDoneModal.saving }" class="zq-btn zq-btn-primary">Confirm Handover</button>
+                            </div>
+                        </template>
+
+                        <template v-else>
+                            <div class="zq-modal-body">
+                                <div class="flex items-center gap-3">
+                                    <span class="zq-confirm-icon is-warning"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                    <h3 class="zq-modal-title">Mark Done Without Assign?</h3>
+                                </div>
+                                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">No new staff has been assigned to this project. Are you sure you want to mark this project as Done without assigning it to another staff member?</p>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="markProjectDoneModal.confirmStep = null" :disabled="markProjectDoneModal.saving" class="zq-btn zq-btn-outline">Cancel</button>
+                                <button type="button" @click="confirmMarkProjectDone" :disabled="markProjectDoneModal.saving" :class="{ 'is-loading': markProjectDoneModal.saving }" class="zq-btn zq-btn-primary">Confirm / Mark Done</button>
+                            </div>
+                        </template>
                     </div>
                 </div>
 

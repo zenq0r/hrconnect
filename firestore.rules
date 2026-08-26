@@ -510,7 +510,8 @@ service cloud.firestore {
           request.resource.data.updatedByEmail == request.auth.token.email &&
           hasValidProjectStage(request.resource.data) &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-            'status', 'startDate', 'targetDate', 'description', 'updatedAt', 'updatedByUid', 'updatedByEmail'
+            'status', 'startDate', 'targetDate', 'description', 'updatedAt', 'updatedByUid', 'updatedByEmail',
+            'completedAt', 'completedByUid', 'completedByEmail'
           ])
       ) || (
         (isAdmin() || isHR()) &&
@@ -530,6 +531,24 @@ service cloud.firestore {
         resource.data.ownerEmail == request.auth.token.email &&
         request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerPhoto'])
+      ) || (
+        // Project handover: the CURRENT owner hands the project to a new PIC.
+        // Only owner-identity + the handover trail may change — status, dates,
+        // description and client info are untouched, so a handover can never
+        // change the project's workflow stage. (Admin-triggered handover
+        // already works via the unrestricted isProjectManager() branch above.)
+        isAuthenticated() && !isClient() &&
+          resource.data.ownerEmail == request.auth.token.email &&
+          request.resource.data.ownerEmpNo is string &&
+          request.resource.data.ownerEmpNo != resource.data.ownerEmpNo &&
+          request.resource.data.updatedByUid == request.auth.uid &&
+          request.resource.data.updatedByEmail == request.auth.token.email &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'ownerEmpNo', 'ownerName', 'ownerEmail', 'ownerPhoto', 'ownerPosition',
+            'ownerDepartment', 'ownerAssignedAt', 'ownerPresenceStatus',
+            'ownerPresenceUpdatedAt', 'ownerLastSeen', 'handoverHistory',
+            'updatedAt', 'updatedByUid', 'updatedByEmail'
+          ])
       );
       allow delete: if isProjectManager();
     }
