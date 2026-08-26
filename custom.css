@@ -1078,12 +1078,31 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 @keyframes zq-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 .zq-drawer-lg { max-width: 42rem; }
 
-/* ---- Empty state ---- */
+/* ---- Empty state (Step 13) — one shell for every "no data" / "no
+   results" message, full-size for a table/page section or .-compact for
+   a card/widget. Structure:
+   <div class="zq-empty-state"><i class="zq-empty-state-icon fa-solid ..."></i>
+     <p class="zq-empty-state-title">Title</p>
+     <p class="zq-empty-state-text">One short explanatory sentence.</p>
+     <div class="zq-empty-state-action"><button class="zq-btn ...">...</button></div>
+   </div>
+   The icon is decorative (aria-hidden) — title + text alone must carry the
+   full meaning, so screen readers and icon-less scanning both work. ---- */
 .zq-empty-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
     border: 1px dashed var(--zq-border); border-radius: var(--zq-radius-lg); background: var(--zq-surface-alt);
 }
+.zq-empty-state-compact { padding: var(--zq-space-5) var(--zq-space-3); gap: var(--zq-space-1); }
+.zq-empty-state-icon {
+    font-size: 1.5rem; color: var(--zq-text-muted); opacity: 0.6; margin-bottom: var(--zq-space-1);
+}
+.zq-empty-state-compact .zq-empty-state-icon { font-size: 1.125rem; margin-bottom: 0; }
+.zq-empty-state-title { font-size: 0.8125rem; font-weight: 800; color: var(--zq-text); }
+.zq-empty-state-compact .zq-empty-state-title { font-size: 0.75rem; }
+.zq-empty-state-text { max-width: 32rem; font-size: 0.75rem; line-height: 1.5; color: var(--zq-text-muted); }
+.zq-empty-state-compact .zq-empty-state-text { font-size: 0.6875rem; }
+.zq-empty-state-action { margin-top: var(--zq-space-2); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--zq-space-2); }
 
 /* ---- Data table — subtle dividers, no per-cell borders, consistent row/cell
    rhythm across every table in the app. Structure (unchanged): <table

@@ -548,7 +548,11 @@
                                         <span :class="!n.read ? 'bg-brand-blue' : 'bg-slate-300'" class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"></span>
                                         <div class="min-w-0"><p class="text-slate-700 dark:text-slate-200">{{ n.message }}</p><p class="mt-0.5 text-[9px] text-slate-400">{{ formatDateTime(n.timestamp) }}</p></div>
                                     </div>
-                                    <div v-if="!notificationsLog.length" class="px-4 py-8 text-center text-xs text-slate-400">No notifications yet.</div>
+                                    <div v-if="!notificationsLog.length" class="zq-empty-state zq-empty-state-compact">
+                                        <i class="fa-regular fa-bell zq-empty-state-icon" aria-hidden="true"></i>
+                                        <p class="zq-empty-state-title">No notifications yet</p>
+                                        <p class="zq-empty-state-text">You'll see updates here as they happen.</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1261,7 +1265,14 @@
                                          </td>
                                     </tr>
                                     <tr v-if="filteredSortedClaims.length === 0" class="zq-table-empty">
-                                        <td colspan="8">No expense claim records found.</td>
+                                        <td colspan="8">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-receipt zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ claimsHistory.length ? 'No matching claim records' : 'No expense claims yet' }}</p>
+                                                <p class="zq-empty-state-text">{{ claimsHistory.length ? 'No claims match your current search.' : 'Submitted expense claims will appear here for review and approval.' }}</p>
+                                                <div v-if="claimsHistory.length && searchQuery" class="zq-empty-state-action"><button type="button" @click="searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear search</button></div>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1374,7 +1385,14 @@
                                          </td>
                                     </tr>
                                     <tr v-if="filteredSortedVouchers.length === 0" class="zq-table-empty">
-                                        <td colspan="8">No payment voucher records found.</td>
+                                        <td colspan="8">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-money-check-dollar zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ paymentVouchers.length ? 'No matching voucher records' : 'No payment vouchers yet' }}</p>
+                                                <p class="zq-empty-state-text">{{ paymentVouchers.length ? 'No payment vouchers match your current search.' : 'Payment vouchers will appear here for review and approval.' }}</p>
+                                                <div v-if="paymentVouchers.length && searchQuery" class="zq-empty-state-action"><button type="button" @click="searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear search</button></div>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1483,7 +1501,15 @@
                                             <td class="text-right font-extrabold">{{ formatCurrency(p.amount) }}</td>
                                             <td class="text-center"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">PAID</span></td>
                                         </tr>
-                                        <tr v-if="!myClaims.length && !myPaymentVouchers.length && !myPayslips.length" class="zq-table-empty"><td colspan="5">No claims, vouchers or payslips yet.</td></tr>
+                                        <tr v-if="!myClaims.length && !myPaymentVouchers.length && !myPayslips.length" class="zq-table-empty">
+                                            <td colspan="5">
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-solid fa-receipt zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">No records yet</p>
+                                                    <p class="zq-empty-state-text">Your claims, payment vouchers and payslips will appear here once submitted or issued.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1544,7 +1570,7 @@
                             <div class="lg:col-span-2 zq-card p-5">
                                 <div class="mb-4 flex items-center justify-between"><div><h3 class="zq-text-section-title">Recent Project Updates</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Latest messages from your project team.</p></div><span class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-[9px] font-bold text-brand-blue dark:text-blue-300">{{ clientRecentUpdates.length }} recent</span></div>
                                 <div v-if="clientRecentUpdates.length" class="space-y-3"><button v-for="update in clientRecentUpdates" :key="`dashboard-update-${update.id}`" type="button" @click="switchTab('project-activities')" class="flex w-full items-start gap-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3 text-left transition hover:border-brand-blue hover:bg-blue-50/40 dark:hover:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="update.senderRole === 'Client' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' : 'bg-blue-100 text-brand-blue dark:bg-blue-950/50 dark:text-blue-300'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-reply' : 'fa-bullhorn'"></i></span><span class="min-w-0"><span class="flex flex-wrap items-center gap-1.5"><span class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ update.projectRef }}</span><span class="text-[9px] text-slate-400">· {{ update.updateType }}</span></span><span class="mt-1 block truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{{ update.message }}</span><span class="mt-1 block text-[9px] text-slate-400">{{ formatDateTime(update.createdAt || update.updateDate) }}</span></span></button></div>
-                                <div v-else class="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 px-5 py-6 text-center"><i class="fa-regular fa-comments text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400">Project updates will appear here once your project starts.</p></div>
+                                <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No updates yet</p><p class="zq-empty-state-text">Project updates will appear here once your project starts.</p></div>
                             </div>
                             <div class="relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-sm"><div class="relative z-10"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300"><i class="fa-solid fa-shield-halved"></i></span><h3 class="mt-4 text-sm font-extrabold">Your workspace is protected</h3><p class="mt-2 text-[10px] leading-relaxed text-slate-300">Secure sign-in, trusted-device verification and role-based access help protect your company records.</p><div class="mt-4 space-y-2 text-[10px] font-semibold"><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Identity verified</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Private company workspace</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Activity securely logged</p></div></div><i class="fa-solid fa-fingerprint absolute -bottom-8 -right-5 text-[110px] text-white/5"></i></div>
                         </section>
@@ -1600,7 +1626,15 @@
                                             <td class="text-center"><span class="px-2 py-0.5 rounded font-bold" :class="d.status==='Paid'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'">{{ d.status || 'Unpaid' }}</span></td>
                                             <td class="text-center"><button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print mr-1"></i>Print</button></td>
                                         </tr>
-                                        <tr v-if="!clientRecentDocuments.length"><td colspan="6" class="py-10 text-center"><span class="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-brand-blue dark:bg-blue-950/40 dark:text-blue-300"><i class="fa-regular fa-file-lines"></i></span><p class="mt-3 text-xs font-extrabold text-slate-600 dark:text-slate-300">No official documents yet</p><p class="mt-1 text-[10px] text-slate-400">Quotations and invoices issued to your company will appear here automatically.</p></td></tr>
+                                        <tr v-if="!clientRecentDocuments.length" class="zq-table-empty">
+                                            <td colspan="6">
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-regular fa-file-lines zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">No official documents yet</p>
+                                                    <p class="zq-empty-state-text">Quotations and invoices issued to your company will appear here automatically.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -1691,6 +1725,15 @@
                                 </button>
                             </div>
                         </div>
+                        <div v-else class="zq-card p-5">
+                            <h3 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients</h3>
+                            <div class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-star zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No Priority-tier clients yet</p>
+                                <p class="zq-empty-state-text">Clients set to the Priority tier in the Client Directory will appear here.</p>
+                                <div v-if="hasAccess('client-directory')" class="zq-empty-state-action"><button type="button" @click="switchTab('client-directory')" class="zq-btn zq-btn-outline zq-btn-sm">View Client Directory</button></div>
+                            </div>
+                        </div>
 
                         <!-- EMPLOYEE WORKLOAD WIDGET — cross-system insight: HR staff load measured against live Client project/activity assignments -->
                         <div v-if="employeeWorkload.length" class="zq-card p-5">
@@ -1711,6 +1754,15 @@
                                     </div>
                                     <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black" :class="w.total >= 4 ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200'">{{ w.total }}</span>
                                 </button>
+                            </div>
+                        </div>
+                        <div v-else class="zq-card p-5">
+                            <h3 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients</h3>
+                            <div class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-gauge-high zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No active workload right now</p>
+                                <p class="zq-empty-state-text">Staff members with active project or activity assignments will appear here.</p>
+                                <div v-if="hasAccess('hr-employees')" class="zq-empty-state-action"><button type="button" @click="switchTab('hr-employees')" class="zq-btn zq-btn-outline zq-btn-sm">View Employee Management</button></div>
                             </div>
                         </div>
 
@@ -1833,9 +1885,17 @@
                                         </tr>
                                         <tr v-if="filteredRecentActivities.length === 0" class="zq-table-empty">
                                             <td colspan="7">
-                                                <i class="fa-regular fa-folder-open text-xl text-slate-300"></i>
-                                                <p class="mt-2 text-xs font-bold">{{ (recentActivityFilter !== 'all' || recentActivityAttentionOnly || searchQuery) ? 'No records match your current filter.' : 'No records found.' }}</p>
-                                                <button v-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly" type="button" @click="recentActivityFilter = 'all'; recentActivityAttentionOnly = false" class="zq-filter-reset mt-2 mx-auto hover:underline">Clear filters</button>
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">{{ (recentActivityFilter !== 'all' || recentActivityAttentionOnly || searchQuery) ? 'No matching activities' : 'No activity yet' }}</p>
+                                                    <p class="zq-empty-state-text">
+                                                        <template v-if="(recentActivityFilter !== 'all' || recentActivityAttentionOnly) && searchQuery">No records match your activity filters and your search for "{{ searchQuery }}".</template>
+                                                        <template v-else-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly">No records match your current activity filters.</template>
+                                                        <template v-else-if="searchQuery">No records match your search for "{{ searchQuery }}". Clear it from the search bar above.</template>
+                                                        <template v-else>Activity across documents, payroll, claims and vouchers will appear here.</template>
+                                                    </p>
+                                                    <div v-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly" class="zq-empty-state-action"><button type="button" @click="recentActivityFilter = 'all'; recentActivityAttentionOnly = false" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear activity filters</button></div>
+                                                </div>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -1937,7 +1997,14 @@
                                         </td>
                                     </tr>
                                     <tr v-if="customers.length === 0" class="zq-table-empty">
-                                        <td colspan="5">No clients registered in the database.</td>
+                                        <td colspan="5">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-users zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No clients yet</p>
+                                                <p class="zq-empty-state-text">Client records are created automatically the first time you generate a quotation or invoice for them.</p>
+                                                <div v-if="canManageClients && hasAccess('doc-generator')" class="zq-empty-state-action"><button type="button" @click="switchTab('doc-generator')" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Create New Document</span></button></div>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -2034,7 +2101,14 @@
                                         </td>
                                     </tr>
                                     <tr v-if="employees.length === 0" class="zq-table-empty">
-                                        <td colspan="6">No employees registered in the database.</td>
+                                        <td colspan="6">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-users-gear zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No employees yet</p>
+                                                <p class="zq-empty-state-text">Add your first employee to begin managing profiles, statutory contributions and payroll.</p>
+                                                <div v-if="canManageEmployees" class="zq-empty-state-action"><button type="button" @click="openEmployeeModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-user-plus"></i><span>Add New Employee</span></button></div>
+                                            </div>
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -2100,7 +2174,7 @@
                                         <span class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">{{ r.clientName }}</span>
                                         <span class="shrink-0 text-xs font-extrabold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(r.revenue) }}</span>
                                     </div>
-                                    <p v-if="!revenuePerClientTop.length" class="text-[10px] text-slate-400">No paid invoices yet.</p>
+                                    <p v-if="!revenuePerClientTop.length" class="zq-empty-state-text">No paid invoices yet — client revenue will rank here once invoices are paid.</p>
                                 </div>
                             </div>
                             <div>
@@ -2110,7 +2184,7 @@
                                         <span class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">{{ s.clientName }}</span>
                                         <span class="shrink-0 text-xs font-extrabold text-brand-blue">{{ s.staffCount }} staff</span>
                                     </div>
-                                    <p v-if="!staffPerClientTop.length" class="text-[10px] text-slate-400">No project assignments yet.</p>
+                                    <p v-if="!staffPerClientTop.length" class="zq-empty-state-text">No project assignments yet — staff engagement will rank here once projects are assigned.</p>
                                 </div>
                             </div>
                             <div>
@@ -2190,9 +2264,10 @@
                                 <button type="button" @click="openProjectDetails(project)" class="rounded-lg bg-brand-dark px-3 py-1.5 text-[10px] font-bold text-white hover:bg-brand-blue"><i class="fa-regular fa-eye mr-1"></i>View Details</button>
                             </div>
                         </div>
-                        <div v-if="!projects.length" class="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white/60 dark:bg-slate-800/60 p-14 text-center">
-                            <i class="fa-regular fa-folder-open text-2xl text-slate-300 dark:text-slate-600"></i>
-                            <p class="mt-3 text-xs font-bold text-slate-400 dark:text-slate-500">No project has been assigned to your account yet.</p>
+                        <div v-if="!projects.length" class="zq-empty-state" style="padding: var(--zq-space-16) var(--zq-space-4);">
+                            <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">No projects assigned yet</p>
+                            <p class="zq-empty-state-text">Projects assigned to your account will appear here with real-time progress.</p>
                         </div>
                     </div>
 
@@ -2259,9 +2334,9 @@
                                             </div>
                                         </div>
                                     </article>
-                                    <div v-if="!getProjectsByStage(stage).length" class="flex min-h-[150px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white/60 dark:bg-slate-800/60 p-5 text-center">
-                                        <i class="fa-regular fa-folder-open text-xl text-slate-300 dark:text-slate-600"></i>
-                                        <p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">No project in this stage</p>
+                                    <div v-if="!getProjectsByStage(stage).length" class="zq-empty-state zq-empty-state-compact" style="min-height: 150px;">
+                                        <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                        <p class="zq-empty-state-title">No projects here</p>
                                     </div>
                                 </div>
                             </section>
@@ -2282,7 +2357,17 @@
                                         <td><span :class="['bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300','bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300','bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300','bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300','bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'][projectStages.indexOf(project.status)] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'" class="inline-flex rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase whitespace-nowrap">{{ project.status }}</span></td>
                                         <td><div class="zq-table-actions"><button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View details"><i class="fa-regular fa-eye"></i></button><button v-if="canEditProject(project)" type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit project"><i class="fa-solid fa-pen"></i></button><button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete project"><i class="fa-solid fa-trash"></i></button></div></td>
                                     </tr>
-                                    <tr v-if="!filteredProjects.length" class="zq-table-empty"><td colspan="6"><i class="fa-regular fa-folder-open text-2xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-xs font-bold text-slate-400 dark:text-slate-500">No project activity found</p></td></tr>
+                                    <tr v-if="!filteredProjects.length" class="zq-table-empty">
+                                        <td colspan="6">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ projects.length ? 'No matching projects' : 'No projects yet' }}</p>
+                                                <p class="zq-empty-state-text">{{ projects.length ? 'No projects match your current scope or search.' : 'Projects will appear here once they are created.' }}</p>
+                                                <div v-if="projects.length && (projectScopeFilter !== 'all' || searchQuery)" class="zq-empty-state-action"><button type="button" @click="projectScopeFilter = 'all'; searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear filters</button></div>
+                                                <div v-else-if="!projects.length && canManageProjects" class="zq-empty-state-action"><button type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Project</span></button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -2367,7 +2452,11 @@
                                     </div>
                                     <div v-if="clientDocuments.loading" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-8 text-center"><i class="fa-solid fa-spinner fa-spin text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">Loading documents…</p></div>
                                     <div v-else-if="clientDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-8 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ clientDocuments.error }}</p><button type="button" @click="loadClientDocuments(clientDocuments.clientDirectoryId, clientDocuments.clientName, clientDocuments.clientEmail)" class="mt-3 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"><i class="fa-solid fa-rotate-right mr-1.5"></i>Try Again</button></div>
-                                    <div v-else-if="!clientDocuments.items.length" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-8 text-center"><i class="fa-regular fa-folder-open text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">No documents uploaded yet</p></div>
+                                    <div v-else-if="!clientDocuments.items.length" class="zq-empty-state zq-empty-state-compact">
+                        <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                        <p class="zq-empty-state-title">No documents uploaded yet</p>
+                        <p class="zq-empty-state-text">{{ canUploadClientDocuments ? 'Use Upload Document above to add the first one.' : 'Documents shared with this client will appear here.' }}</p>
+                    </div>
                                     <div v-else class="space-y-2">
                                         <div v-for="item in clientDocuments.items" :key="item.id" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
                                             <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
@@ -2382,7 +2471,7 @@
                                 </section>
                                 <section v-if="userProfile.role !== 'Client'">
                                     <div class="mb-3 flex items-center justify-between gap-3"><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Activity Issues</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Scheduled actions, assignees and due dates for this project.</p></div><button v-if="canManageProjectActivities(projectPreview.project)" type="button" @click="openActivityModal(projectPreview.project)" class="rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-calendar-plus mr-1.5"></i>Schedule Activity</button></div>
-                                    <div class="space-y-2"><article v-for="activity in projectActivitiesFor(projectPreview.project.id)" :key="activity.id" class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ activity.activityType }}</span><span :class="projectActivityDueState(activity).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p v-if="activity.details" class="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{{ activity.details }}</p><p class="mt-2 text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user-check mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ activity.assignedName }} · {{ activity.assignedPosition || 'NO POSITION' }}</p></div><div class="shrink-0 text-left sm:text-right"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Due Date</p><p class="mt-1 text-xs font-extrabold text-slate-700 dark:text-slate-200">{{ activity.dueDate }}</p><div class="mt-3 flex flex-wrap gap-1.5 sm:justify-end"><button v-if="activity.status !== 'Done' && canCompleteProjectActivity(activity)" type="button" @click="markProjectActivityDone(activity)" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700" title="Complete activity"><i class="fa-solid fa-check mr-1"></i>Mark Done</button><button v-if="canEditProjectActivity(activity)" type="button" @click="openActivityModal(projectPreview.project, activity)" class="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="Edit activity"><i class="fa-solid fa-pen text-[10px]"></i></button><button v-if="canDeleteProjectActivity(activity)" type="button" @click="deleteProjectActivity(activity)" class="h-7 w-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Delete activity"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div></div></article><div v-if="!projectActivitiesFor(projectPreview.project.id).length" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-8 text-center"><i class="fa-regular fa-calendar-xmark text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">No activity issue scheduled</p></div></div>
+                                    <div class="space-y-2"><article v-for="activity in projectActivitiesFor(projectPreview.project.id)" :key="activity.id" class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ activity.activityType }}</span><span :class="projectActivityDueState(activity).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p v-if="activity.details" class="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{{ activity.details }}</p><p class="mt-2 text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user-check mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ activity.assignedName }} · {{ activity.assignedPosition || 'NO POSITION' }}</p></div><div class="shrink-0 text-left sm:text-right"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Due Date</p><p class="mt-1 text-xs font-extrabold text-slate-700 dark:text-slate-200">{{ activity.dueDate }}</p><div class="mt-3 flex flex-wrap gap-1.5 sm:justify-end"><button v-if="activity.status !== 'Done' && canCompleteProjectActivity(activity)" type="button" @click="markProjectActivityDone(activity)" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700" title="Complete activity"><i class="fa-solid fa-check mr-1"></i>Mark Done</button><button v-if="canEditProjectActivity(activity)" type="button" @click="openActivityModal(projectPreview.project, activity)" class="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="Edit activity"><i class="fa-solid fa-pen text-[10px]"></i></button><button v-if="canDeleteProjectActivity(activity)" type="button" @click="deleteProjectActivity(activity)" class="h-7 w-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Delete activity"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div></div></article><div v-if="!projectActivitiesFor(projectPreview.project.id).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-calendar-xmark zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No activity issues scheduled</p><p class="zq-empty-state-text">Scheduled actions for this project will appear here.</p></div></div>
                                 </section>
                                 <section>
                                     <div class="mb-3 flex items-center justify-between gap-3"><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Activity History</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Two-way conversation between your team and the client for this project.</p></div><button v-if="canSendClientUpdate(projectPreview.project)" type="button" @click="openClientUpdateModal(projectPreview.project)" class="rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-paper-plane mr-1.5"></i>Send Client Update</button></div>
@@ -2406,7 +2495,7 @@
                                                 </div>
                                             </div>
                                         </article>
-                                        <div v-if="!clientUpdatesFor(projectPreview.project.id).length" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-5 py-8 text-center"><i class="fa-regular fa-message text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">No Client update has been shared</p></div>
+                                        <div v-if="!clientUpdatesFor(projectPreview.project.id).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-message zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No updates shared yet</p><p class="zq-empty-state-text">Messages between your team and the client will appear here.</p></div>
                                     </div>
 
                                     <div v-if="canReplyAsClient(projectPreview.project)" class="mt-2.5 flex items-end gap-2">
@@ -2586,10 +2675,10 @@
                                 </div>
                             </button>
                         </div>
-                        <div v-else class="overflow-hidden rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-5 py-8 text-center dark:border-slate-700 dark:bg-slate-800/60">
-                            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white text-xl text-brand-blue shadow-sm dark:bg-slate-800"><i class="fa-solid fa-rocket"></i></div>
-                            <h4 class="mt-4 text-sm font-black text-slate-900 dark:text-white">Your next project will appear here</h4>
-                            <p class="mx-auto mt-1 max-w-md text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Once our team assigns a project to your account, you can follow every milestone and update in real time.</p>
+                        <div v-else class="zq-empty-state">
+                            <i class="fa-solid fa-rocket zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">Your next project will appear here</p>
+                            <p class="zq-empty-state-text">Once our team assigns a project to your account, you can follow every milestone and update in real time.</p>
                         </div>
                     </div>
 
@@ -2599,7 +2688,7 @@
                             <div v-if="clientUpdatesTimeline.length" class="space-y-3">
                                 <div v-for="update in clientUpdatesTimeline" :key="`portal-update-${update.id}`" class="flex gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-xs text-brand-blue shadow-sm dark:bg-slate-800"><i class="fa-solid fa-bolt"></i></span><div class="min-w-0"><p class="text-xs font-extrabold text-slate-800 dark:text-slate-100">{{ update.title || update.status || 'Project update' }}</p><p class="mt-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{{ update.message || update.details || 'A new update is available for your project.' }}</p><p class="mt-1.5 text-[9px] font-bold text-brand-blue">{{ formatDateTime(update.createdAt || update.updateDate) }}</p></div></div>
                             </div>
-                            <div v-else class="rounded-xl bg-slate-50 px-4 py-6 text-center dark:bg-slate-700/40"><i class="fa-solid fa-satellite-dish text-xl text-brand-blue"></i><p class="mt-2 text-xs font-bold text-slate-700 dark:text-slate-200">All caught up</p><p class="mt-1 text-[10px] text-slate-500">New project updates will be shown here automatically.</p></div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-solid fa-satellite-dish zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">All caught up</p><p class="zq-empty-state-text">New project updates will be shown here automatically.</p></div>
                         </section>
                         <aside class="overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-lg border border-white/5">
                             <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-lg"><i class="fa-solid fa-shield-heart"></i></span><h3 class="mt-4 text-base font-black">Need help with an update?</h3><p class="mt-2 text-[11px] leading-relaxed text-slate-300">Open the dedicated Support Centre or reply through the relevant project tracker.</p><button type="button" @click="switchTab('client-support')" class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black text-brand-dark shadow transition hover:-translate-y-0.5"><i class="fa-solid fa-headset"></i>Open Support Centre</button>
@@ -2648,7 +2737,16 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-if="!filteredClientPortalDocs.length"><td colspan="6" class="py-12 text-center"><div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-xl text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-file-circle-plus"></i></div><p class="mt-3 text-xs font-black text-slate-700 dark:text-slate-200">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p><p class="mx-auto mt-1 max-w-sm text-[10px] leading-relaxed text-slate-500">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices will appear here automatically when issued by our team.' }}</p></td></tr>
+                                    <tr v-if="!filteredClientPortalDocs.length" class="zq-table-empty">
+                                        <td colspan="6">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-file-circle-plus zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p>
+                                                <p class="zq-empty-state-text">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices will appear here automatically when issued by our team.' }}</p>
+                                                <div v-if="clientPortalDocs.length && (clientPortalFilter.type !== 'all' || clientPortalFilter.status !== 'all')" class="zq-empty-state-action"><button type="button" @click="clientPortalFilter.type = 'all'; clientPortalFilter.status = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
                                     <tr v-for="d in filteredClientPortalDocs" :key="d.id">
                                         <td>
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold" :class="d.type === 'Invoice' ? 'bg-teal-50 dark:bg-teal-950/40 text-brand-blue dark:text-teal-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"><i class="fa-solid" :class="d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-pen'"></i>{{ d.type }}</span>
@@ -2708,7 +2806,13 @@
 
                         <div v-if="signedDocuments.loading" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-10 text-center"><i class="fa-solid fa-spinner fa-spin text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">Loading documents…</p></div>
                         <div v-else-if="signedDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-10 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ signedDocuments.error }}</p></div>
-                        <div v-else-if="!visibleSignedDocuments.length" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-10 text-center"><i class="fa-regular fa-folder-open text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">No documents yet</p></div>
+                        <div v-else-if="!visibleSignedDocuments.length" class="zq-empty-state">
+                            <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">{{ userProfile.role !== 'Client' && signedDocuments.items.length ? 'No matching documents' : 'No documents yet' }}</p>
+                            <p class="zq-empty-state-text">{{ userProfile.role !== 'Client' && signedDocuments.items.length ? 'No documents match your client or status filter.' : 'Signed documents will appear here once created.' }}</p>
+                            <div v-if="userProfile.role !== 'Client' && signedDocuments.items.length && (signedDocuments.clientFilter !== 'all' || signedDocuments.statusFilter !== 'all')" class="zq-empty-state-action"><button type="button" @click="signedDocuments.clientFilter = 'all'; signedDocuments.statusFilter = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
+                            <div v-else-if="!signedDocuments.items.length && canManageSignedDocuments" class="zq-empty-state-action"><button type="button" @click="openNewSignedDocumentModal" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>New Document</span></button></div>
+                        </div>
                         <div v-else class="space-y-3">
                             <div v-for="d in visibleSignedDocuments" :key="d.id" class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 dark:border-slate-700 p-4">
                                 <div class="flex items-center gap-3">
@@ -2883,9 +2987,11 @@
                     <template v-if="websiteContentTab !== 'site_text'">
                         <p class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Once this list has at least one item, the public page shows ONLY these items — its built-in sample content is fully replaced, not merged.</p>
 
-                        <div v-if="!websiteContent[websiteContentTab].length" class="bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 p-10 text-center">
-                            <i class="fa-solid fa-photo-film text-3xl text-slate-300 dark:text-slate-600"></i>
-                            <p class="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400">No items published yet — the public page is currently showing its built-in sample content for {{ websiteContentLabel(websiteContentTab) }}.</p>
+                        <div v-if="!websiteContent[websiteContentTab].length" class="zq-empty-state">
+                            <i class="fa-solid fa-photo-film zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">No items published yet</p>
+                            <p class="zq-empty-state-text">The public page is currently showing its built-in sample content for {{ websiteContentLabel(websiteContentTab) }}.</p>
+                            <div v-if="hasModulePermission('website-content', 'edit')" class="zq-empty-state-action"><button type="button" @click="openWebsiteContentModal(websiteContentTab)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Item</span></button></div>
                         </div>
                         <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             <div v-for="item in websiteContent[websiteContentTab]" :key="item.id" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
@@ -2941,7 +3047,12 @@
                                     <button v-if="row.override && hasModulePermission('website-content', 'delete')" @click="resetSiteTextOverride(row.key)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Reset to default"><i class="fa-solid fa-rotate-left"></i></button>
                                 </div>
                             </div>
-                            <div v-if="!filteredSiteTextRows().length" class="p-10 text-center text-xs font-bold text-slate-400">No matching text fields.</div>
+                            <div v-if="!filteredSiteTextRows().length" class="zq-empty-state">
+                                <i class="fa-solid fa-magnifying-glass zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No matching text fields</p>
+                                <p class="zq-empty-state-text">Try a different section or search term.</p>
+                                <div class="zq-empty-state-action"><button type="button" @click="siteTextFilter.group = 'all'; siteTextFilter.search = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
+                            </div>
                         </div>
                     </template>
 
@@ -3094,7 +3205,15 @@
                                         <td class="text-slate-700 dark:text-slate-300"><span class="block">{{ log.details }}</span><span v-if="log.module" class="mt-1 block text-[9px] uppercase tracking-wide text-slate-400">Module: {{ log.module }}</span><span v-if="log.uid" class="block text-[9px] text-slate-400">UID: {{ log.uid }}</span></td>
                                         <td class="text-slate-500 dark:text-slate-400 min-w-[220px]"><span class="block font-bold text-slate-700 dark:text-slate-300">{{ log.ip || 'Unavailable' }}</span><span class="block">{{ log.browser || 'Unknown Browser' }}</span><span v-if="log.os || log.device" class="block text-[10px]">{{ log.os || 'Unknown OS' }} · {{ log.device || 'Unknown Device' }}</span><span class="block max-w-xs truncate text-[9px] text-slate-400" :title="log.userAgent || log.browser">{{ log.userAgent || log.browser }}</span></td>
                                     </tr>
-                                    <tr v-if="!auditLogs.length" class="zq-table-empty"><td colspan="5">No audit events recorded yet.</td></tr>
+                                    <tr v-if="!auditLogs.length" class="zq-table-empty">
+                                        <td colspan="5">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-shield-halved zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No audit events yet</p>
+                                                <p class="zq-empty-state-text">Security and compliance events will be recorded here automatically as they happen.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3183,7 +3302,7 @@
                                             <li v-for="(note, idx) in entry.notes" :key="idx" class="flex items-start gap-2 text-[11px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-circle text-[4px] mt-1.5 text-slate-400 shrink-0"></i><span>{{ note }}</span></li>
                                         </ul>
                                     </div>
-                                    <p v-if="!appChangelog.length" class="text-xs text-slate-400">No update history recorded yet.</p>
+                                    <p v-if="!appChangelog.length" class="zq-empty-state-text">No update history yet — new releases will be listed here as they're published.</p>
                                 </div>
                             </div>
 
@@ -3224,7 +3343,16 @@
                                                     </div>
                                                 </td>
                                             </tr>
-                                            <tr v-if="!users.length" class="zq-table-empty"><td colspan="4">No portal accounts found.</td></tr>
+                                            <tr v-if="!users.length" class="zq-table-empty">
+                                                <td colspan="4">
+                                                    <div class="zq-empty-state zq-empty-state-compact">
+                                                        <i class="fa-solid fa-users-viewfinder zq-empty-state-icon" aria-hidden="true"></i>
+                                                        <p class="zq-empty-state-title">No portal accounts yet</p>
+                                                        <p class="zq-empty-state-text">Grant portal access to give someone a login for this system.</p>
+                                                        <div class="zq-empty-state-action"><button type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-user-plus"></i><span>Add Access</span></button></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
                                         </tbody>
                                     </table>
                                 </div>
@@ -3365,7 +3493,11 @@
                         </div>
                         <div v-if="clientDocuments.loading" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-8 text-center"><i class="fa-solid fa-spinner fa-spin text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">Loading documents…</p></div>
                         <div v-else-if="clientDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-8 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ clientDocuments.error }}</p><button type="button" @click="loadClientDocuments(clientDocuments.clientDirectoryId, clientDocuments.clientName, clientDocuments.clientEmail)" class="mt-3 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"><i class="fa-solid fa-rotate-right mr-1.5"></i>Try Again</button></div>
-                        <div v-else-if="!clientDocuments.items.length" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-8 text-center"><i class="fa-regular fa-folder-open text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">No documents uploaded yet</p></div>
+                        <div v-else-if="!clientDocuments.items.length" class="zq-empty-state zq-empty-state-compact">
+                        <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                        <p class="zq-empty-state-title">No documents uploaded yet</p>
+                        <p class="zq-empty-state-text">{{ canUploadClientDocuments ? 'Use Upload Document above to add the first one.' : 'Documents shared with this client will appear here.' }}</p>
+                    </div>
                         <div v-else class="space-y-2">
                             <div v-for="item in clientDocuments.items" :key="item.id" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
                                 <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
