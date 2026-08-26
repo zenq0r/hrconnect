@@ -1,14 +1,5 @@
 {
-  "indexes": [
-    {
-      "collectionGroup": "signed_documents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "clientDirectoryId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
-      ]
-    }
-  ],
+  "indexes": [],
   "fieldOverrides": [
     {
       "collectionGroup": "audit_logs",

@@ -31,7 +31,6 @@
     <script src="https://unpkg.com/vue@3.4.38/dist/vue.global.prod.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
@@ -450,9 +449,6 @@
                         <button type="button" @click="switchTab('client-documents')" :class="{'sidebar-item-active': currentTab === 'client-documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-documents'}" class="zq-nav-item w-full"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-cyan-400/15 px-2 py-0.5 text-[9px] text-cyan-300">{{ clientPortalDocs.length }}</span></button>
                         <button type="button" @click="switchTab('client-updates')" :class="{'sidebar-item-active': currentTab === 'client-updates', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-updates'}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientRecentUpdates.length" class="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] text-amber-300">{{ clientRecentUpdates.length }}</span></button>
                     </template>
-                    <button v-if="hasAccess('documents')" type="button" @click="switchTab('documents')" :class="{'sidebar-item-active': currentTab === 'documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'documents'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-file-signature w-5 text-center"></i><span>Signed Documents</span>
-                    </button>
                     <button v-if="hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i><span>Billing &amp; Documents</span>
                     </button>
@@ -470,9 +466,6 @@
                     </button>
                     <button v-if="hasAccess('reports')" type="button" @click="switchTab('reports')" :class="{'sidebar-item-active': currentTab === 'reports', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'reports'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-chart-line w-5 text-center"></i><span>Reports & Analytics</span>
-                    </button>
-                    <button v-if="userProfile.role !== 'Client' && hasAccess('client-portal')" type="button" @click="switchTab('client-portal')" :class="{'sidebar-item-active': currentTab === 'client-portal', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-portal'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-user-tie w-5 text-center"></i><span>Client Portal</span>
                     </button>
                     <button v-if="hasAccess('website-content')" type="button" @click="switchTab('website-content')" :class="{'sidebar-item-active': currentTab === 'website-content', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'website-content'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-photo-film w-5 text-center"></i><span>Website Content</span>
@@ -2892,203 +2885,6 @@
                     </div>
                 </div>
 
-                <!-- SIGNED DOCUMENTS MODULE (Authorization Letter / Client Info Form / NDA / Service Agreement) -->
-                <div v-show="currentTab === 'documents'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-                    <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
-                            </button>
-                            <div>
-                                <p class="text-[9px] font-black uppercase tracking-[0.2em] text-teal-600">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</p>
-                                <h2 class="mt-1 text-xl font-black text-slate-900 dark:text-white">Signed Documents</h2>
-                                <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Fill in, sign and finalize your Authorization Letter, Client Information Form, NDA and Service Agreement online.</p>
-                            </div>
-                        </div>
-                        <button v-if="canManageSignedDocuments" type="button" @click="openNewSignedDocumentModal" class="zq-btn zq-btn-primary"><i class="fa-solid fa-plus"></i><span>New Document</span></button>
-                    </div>
-
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 md:p-6">
-                        <div v-if="userProfile.role !== 'Client'" class="zq-toolbar">
-                            <div class="zq-toolbar-main">
-                                <label for="signed-doc-client-filter" class="sr-only">Filter by client</label>
-                                <select id="signed-doc-client-filter" v-model="signedDocuments.clientFilter" class="zq-select zq-filter-select">
-                                    <option value="all">All Clients</option>
-                                    <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.clientName }}</option>
-                                </select>
-                                <label for="signed-doc-status-filter" class="sr-only">Filter by status</label>
-                                <select id="signed-doc-status-filter" v-model="signedDocuments.statusFilter" class="zq-select zq-filter-select">
-                                    <option value="all">All Statuses</option>
-                                    <option value="draft">Draft</option>
-                                    <option value="awaiting_client">Awaiting Client</option>
-                                    <option value="awaiting_zenqor">Awaiting Zenqor</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="voided">Voided</option>
-                                </select>
-                                <button v-if="signedDocuments.clientFilter !== 'all' || signedDocuments.statusFilter !== 'all'" type="button" @click="signedDocuments.clientFilter = 'all'; signedDocuments.statusFilter = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button>
-                            </div>
-                        </div>
-
-                        <div v-if="signedDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
-                        <div v-else-if="signedDocuments.error" class="zq-error-state">
-                            <i class="fa-solid fa-triangle-exclamation zq-error-state-icon" aria-hidden="true"></i>
-                            <p class="zq-error-state-text">{{ signedDocuments.error }}</p>
-                            <div class="zq-empty-state-action"><button type="button" @click="loadSignedDocuments" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-rotate-right"></i><span>Try Again</span></button></div>
-                        </div>
-                        <div v-else-if="!visibleSignedDocuments.length" class="zq-empty-state">
-                            <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
-                            <p class="zq-empty-state-title">{{ userProfile.role !== 'Client' && signedDocuments.items.length ? 'No matching documents' : 'No documents yet' }}</p>
-                            <p class="zq-empty-state-text">{{ userProfile.role !== 'Client' && signedDocuments.items.length ? 'No documents match your client or status filter.' : 'Signed documents will appear here once created.' }}</p>
-                            <div v-if="userProfile.role !== 'Client' && signedDocuments.items.length && (signedDocuments.clientFilter !== 'all' || signedDocuments.statusFilter !== 'all')" class="zq-empty-state-action"><button type="button" @click="signedDocuments.clientFilter = 'all'; signedDocuments.statusFilter = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
-                            <div v-else-if="!signedDocuments.items.length && canManageSignedDocuments" class="zq-empty-state-action"><button type="button" @click="openNewSignedDocumentModal" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>New Document</span></button></div>
-                        </div>
-                        <div v-else class="space-y-3">
-                            <div v-for="d in visibleSignedDocuments" :key="d.id" class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                                <div class="flex items-center gap-3">
-                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 dark:text-teal-300"><i class="fa-solid" :class="documentTemplates[d.templateId] ? documentTemplates[d.templateId].icon : 'fa-file'"></i></span>
-                                    <div>
-                                        <p class="text-xs font-black text-slate-900 dark:text-white">{{ documentTemplates[d.templateId] ? documentTemplates[d.templateId].label.en : d.templateId }}</p>
-                                        <p class="mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">{{ d.clientName }}<span v-if="d.referenceNo"> · {{ d.referenceNo }}</span> · Updated {{ formatDateTime(d.updatedAt) }}</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-2">
-                                    <span class="px-2.5 py-1 rounded-full text-[10px] font-bold" :class="signedDocumentStatusClass(d.status)">{{ signedDocumentStatusLabel(d.status) }}</span>
-                                    <span v-if="d.deletionRequest && d.deletionRequest.status === 'pending'" :title="'Requested by ' + (d.deletionRequest.requestedByName || 'Superadmin')" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"><i class="fa-solid fa-hourglass-half mr-1"></i>Deletion Requested</span>
-                                    <button type="button" @click="openSignedDocument(d)" class="rounded-lg bg-brand-dark text-white px-3 py-1.5 text-[10px] font-bold hover:bg-slate-800"><i class="fa-solid fa-eye mr-1"></i>{{ d.status === 'completed' || d.status === 'voided' ? 'View' : 'Open' }}</button>
-                                    <button v-if="d.finalPdf && d.finalPdf.downloadURL" type="button" @click="printSignedDocumentPdf(d)" class="rounded-lg bg-slate-700 text-white px-3 py-1.5 text-[10px] font-bold hover:bg-slate-800"><i class="fa-solid fa-print mr-1"></i>Print</button>
-                                    <button v-if="d.finalPdf && d.finalPdf.downloadURL" type="button" @click="downloadSignedDocumentPdf(d)" class="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-[10px] font-bold hover:bg-emerald-700"><i class="fa-solid fa-download mr-1"></i>PDF</button>
-                                    <button v-if="canManageSignedDocuments && d.status !== 'voided' && d.status !== 'completed'" type="button" @click="requestVoidSignedDocument(d)" class="rounded-lg bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 px-3 py-1.5 text-[10px] font-bold hover:bg-red-100"><i class="fa-solid fa-ban mr-1"></i>Void</button>
-                                    <button v-if="canDeleteSignedDocuments && d.status === 'completed'" type="button" @click="regenerateSignedDocumentPdf(d)" title="Re-render this PDF from its stored data using the latest document layout" class="rounded-lg bg-slate-600 text-white px-3 py-1.5 text-[10px] font-bold hover:bg-slate-700"><i class="fa-solid fa-arrows-rotate mr-1"></i>Regenerate PDF</button>
-                                    <template v-if="canDeleteSignedDocuments && (d.status === 'voided' || d.status === 'completed')">
-                                        <template v-if="userProfile.role === 'Director' && d.deletionRequest && d.deletionRequest.status === 'pending'">
-                                            <button type="button" @click="approveSignedDocumentDeletion(d)" :title="'Approve deletion requested by ' + (d.deletionRequest.requestedByName || 'Superadmin')" class="rounded-lg bg-red-600 text-white px-3 py-1.5 text-[10px] font-bold hover:bg-red-700"><i class="fa-solid fa-check mr-1"></i>Approve &amp; Delete</button>
-                                            <button type="button" @click="rejectSignedDocumentDeletionRequest(d)" class="rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-3 py-1.5 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-xmark mr-1"></i>Reject</button>
-                                        </template>
-                                        <button v-else-if="userProfile.role === 'Superadmin' && d.deletionRequest && d.deletionRequest.status === 'pending'" type="button" disabled title="Waiting for Director approval" class="rounded-lg bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 px-3 py-1.5 text-[10px] font-bold cursor-not-allowed"><i class="fa-solid fa-hourglass-half mr-1"></i>Approval Pending</button>
-                                        <button v-else type="button" @click="requestDeleteSignedDocument(d)" :title="userProfile.role === 'Director' ? 'Permanently delete this document' : 'Superadmin deletions require Director approval'" class="rounded-lg bg-red-600 text-white px-3 py-1.5 text-[10px] font-bold hover:bg-red-700"><i class="fa-solid fa-trash mr-1"></i>{{ userProfile.role === 'Director' ? 'Delete' : 'Request Delete' }}</button>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- New Signed Document Modal -->
-                <div v-if="newSignedDocumentModal.show" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" aria-label="New Signed Document" @click.self="closeNewSignedDocumentModal">
-                    <div class="zq-modal">
-                        <div class="zq-modal-header">
-                            <h3 class="zq-modal-title">New Signed Document</h3>
-                            <button type="button" @click="closeNewSignedDocumentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
-                        </div>
-                        <div class="zq-modal-body">
-                        <label class="zq-label">Client</label>
-                        <select v-model="newSignedDocumentModal.clientDirectoryId" class="zq-input mb-4">
-                            <option value="">Select a client…</option>
-                            <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.clientName }}</option>
-                        </select>
-                        <label class="zq-label mb-2">Document Template</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <button v-for="tpl in documentTemplates" :key="tpl.id" type="button" @click="newSignedDocumentModal.templateId = tpl.id" class="text-left rounded-xl border p-3 transition" :class="newSignedDocumentModal.templateId === tpl.id ? 'border-brand-blue bg-teal-50 dark:bg-teal-950/30' : 'border-slate-200 dark:border-slate-600 hover:border-teal-300'">
-                                <i class="fa-solid mr-1.5 text-teal-600" :class="tpl.icon"></i><span class="text-[11px] font-bold text-slate-800 dark:text-slate-100">{{ tpl.label.en }}</span>
-                                <p class="mt-1 text-[10px] text-slate-400">{{ tpl.label.ms }}</p>
-                            </button>
-                        </div>
-                        </div>
-                        <div class="zq-modal-footer">
-                            <button type="button" @click="createSignedDocument" :disabled="newSignedDocumentModal.saving" class="zq-btn zq-btn-secondary w-full">{{ newSignedDocumentModal.saving ? 'Creating…' : 'Create Document' }}</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Fill / Sign / View Signed Document Modal -->
-                <div v-if="signedDocumentModal.show && signedDocumentModal.doc" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" :aria-label="documentTemplates[signedDocumentModal.doc.templateId] ? documentTemplates[signedDocumentModal.doc.templateId].label.en : 'Signed Document'" @click.self="closeSignedDocumentModal">
-                    <div class="zq-modal zq-modal-xl">
-                        <div class="zq-modal-header">
-                            <div>
-                                <h3 class="zq-modal-title">{{ documentTemplates[signedDocumentModal.doc.templateId] ? documentTemplates[signedDocumentModal.doc.templateId].label.en : '' }}</h3>
-                                <p class="mt-1 text-[10px] text-slate-500">{{ signedDocumentModal.doc.clientName }}<span v-if="signedDocumentModal.doc.referenceNo"> · {{ signedDocumentModal.doc.referenceNo }}</span></p>
-                                <span class="mt-2 inline-block px-2.5 py-1 rounded-full text-[10px] font-bold" :class="signedDocumentStatusClass(signedDocumentModal.doc.status)">{{ signedDocumentStatusLabel(signedDocumentModal.doc.status) }}</span>
-                            </div>
-                            <button type="button" @click="closeSignedDocumentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
-                        </div>
-                        <div class="zq-modal-body">
-
-                        <!-- Plain HTML form: label on the left, input field on the right, per
-                             row — the PDF (master template) is only used to generate the final
-                             output at Finalize/Regenerate time, never shown while filling. -->
-                        <div v-for="section in activeTemplateSections" :key="section" class="mb-5">
-                            <h4 class="text-[11px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-1">{{ section }}</h4>
-                            <div>
-                                <div v-for="field in activeTemplateFieldConfig.filter(f => f.section === section)" :key="field.id" class="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-1 sm:gap-4 sm:items-start py-2.5 border-b border-slate-100 dark:border-slate-700/60 last:border-0">
-                                    <label class="text-xs font-bold text-slate-600 dark:text-slate-300 sm:pt-2">{{ field.label.en }} <span class="block text-slate-400 font-normal text-[10px]">{{ field.label.ms }}</span><span v-if="field.required" class="text-red-500"> *</span></label>
-
-                                    <template v-if="!canEditSignedField(field)">
-                                        <p v-if="field.type === 'checkbox'" class="text-xs text-slate-700 dark:text-slate-200 sm:pt-2">{{ signedDocumentModal.fields[field.id] ? 'Yes / Ya' : 'No / Tidak' }}</p>
-                                        <p v-else-if="field.type === 'checkboxGroup'" class="text-xs text-slate-700 dark:text-slate-200 sm:pt-2">{{ (signedDocumentModal.fields[field.id] || []).join(', ') || '—' }}</p>
-                                        <p v-else class="whitespace-pre-wrap text-xs text-slate-700 dark:text-slate-200 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2">{{ signedDocumentModal.fields[field.id] || '—' }}</p>
-                                    </template>
-                                    <template v-else>
-                                        <textarea v-if="field.type === 'textarea'" v-model="signedDocumentModal.fields[field.id]" rows="3" class="zq-input"></textarea>
-                                        <input v-else-if="field.type === 'date'" type="date" v-model="signedDocumentModal.fields[field.id]" class="zq-input">
-                                        <label v-else-if="field.type === 'checkbox'" class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 sm:pt-2"><input type="checkbox" v-model="signedDocumentModal.fields[field.id]" class="zq-checkbox"> <span>{{ field.label.en }}</span></label>
-                                        <div v-else-if="field.type === 'checkboxGroup'" class="flex flex-wrap gap-1.5 sm:pt-1">
-                                            <button v-for="opt in field.options" :key="opt" type="button" @click="toggleCheckboxGroupValue(field.id, opt)" class="rounded-full px-2.5 py-1 text-[10px] font-bold border transition" :class="(signedDocumentModal.fields[field.id] || []).includes(opt) ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'">{{ opt }}</button>
-                                        </div>
-                                        <input v-else type="text" v-model="signedDocumentModal.fields[field.id]" class="zq-input">
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Existing signatures -->
-                        <div v-if="signedDocumentModal.doc.signatures && (signedDocumentModal.doc.signatures.client || signedDocumentModal.doc.signatures.zenqor)" class="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <div v-if="signedDocumentModal.doc.signatures.client" class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-                                <p class="text-[10px] font-bold text-slate-500 mb-1">Client Signature</p>
-                                <img :src="signedDocumentModal.doc.signatures.client.dataUrl" class="h-14 object-contain" alt="Client signature">
-                                <p class="mt-1 text-[10px] text-slate-400">{{ signedDocumentModal.doc.signatures.client.signedByName }} — {{ formatDateTime(signedDocumentModal.doc.signatures.client.signedAt) }}</p>
-                            </div>
-                            <div v-if="signedDocumentModal.doc.signatures.zenqor" class="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
-                                <p class="text-[10px] font-bold text-slate-500 mb-1">Zenqor Signature</p>
-                                <img :src="signedDocumentModal.doc.signatures.zenqor.dataUrl" class="h-14 object-contain" alt="Zenqor signature">
-                                <p class="mt-1 text-[10px] text-slate-400">{{ signedDocumentModal.doc.signatures.zenqor.signedByName }} — {{ formatDateTime(signedDocumentModal.doc.signatures.zenqor.signedAt) }}</p>
-                            </div>
-                        </div>
-
-                        <!-- Client signature pad -->
-                        <div v-if="userProfile.role === 'Client' && signedDocumentModal.doc.status === 'awaiting_client'" class="mb-5">
-                            <div class="flex items-center justify-between mb-1"><label class="block text-[10px] font-bold text-slate-500">Draw Your Signature / Lukis Tandatangan Anda <span class="text-red-500">*</span></label><button type="button" @click="sigPadClear('client')" class="text-[10px] font-bold text-slate-400 hover:text-red-500">Clear</button></div>
-                            <canvas ref="sigCanvas_client" @pointerdown="sigPadPointerDown('client', $event)" @pointermove="sigPadPointerMove('client', $event)" @pointerup="sigPadPointerUp('client')" @pointerleave="sigPadPointerUp('client')" class="w-full h-40 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white touch-none"></canvas>
-                        </div>
-
-                        <!-- Zenqor signature pad -->
-                        <div v-if="canManageSignedDocuments && signedDocumentModal.doc.status === 'awaiting_zenqor'" class="mb-5">
-                            <div class="flex items-center justify-between mb-1"><label class="block text-[10px] font-bold text-slate-500">Draw Zenqor's Signature / Lukis Tandatangan Zenqor <span class="text-red-500">*</span></label><button type="button" @click="sigPadClear('zenqor')" class="text-[10px] font-bold text-slate-400 hover:text-red-500">Clear</button></div>
-                            <canvas ref="sigCanvas_zenqor" @pointerdown="sigPadPointerDown('zenqor', $event)" @pointermove="sigPadPointerMove('zenqor', $event)" @pointerup="sigPadPointerUp('zenqor')" @pointerleave="sigPadPointerUp('zenqor')" class="w-full h-40 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white touch-none"></canvas>
-                        </div>
-
-                        </div>
-
-                        <!-- Actions -->
-                        <div class="zq-modal-footer">
-                            <button v-if="canManageSignedDocuments && signedDocumentModal.doc.status === 'draft'" type="button" @click="saveSignedDocumentFields" :disabled="signedDocumentModal.saving" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 disabled:opacity-60">Save Draft</button>
-                            <button v-if="canManageSignedDocuments && (signedDocumentModal.doc.status === 'draft' || signedDocumentModal.doc.status === 'awaiting_client')" type="button" @click="sendSignedDocumentToClient" :disabled="signedDocumentModal.saving" class="rounded-xl bg-brand-blue px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800 disabled:opacity-60"><i class="fa-solid fa-paper-plane mr-1.5"></i>{{ signedDocumentModal.saving ? 'Sending…' : (signedDocumentModal.doc.status === 'draft' ? 'Send to Client' : 'Save Changes') }}</button>
-                            <button v-if="userProfile.role === 'Client' && signedDocumentModal.doc.status === 'awaiting_client'" type="button" @click="submitClientSignature" :disabled="signedDocumentModal.saving" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"><i class="fa-solid fa-signature mr-1.5"></i>{{ signedDocumentModal.saving ? 'Submitting…' : 'Submit & Sign' }}</button>
-                            <button v-if="canManageSignedDocuments && signedDocumentModal.doc.status === 'awaiting_zenqor'" type="button" @click="finalizeZenqorSignature" :disabled="signedDocumentModal.saving" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"><i class="fa-solid fa-check-double mr-1.5"></i>{{ signedDocumentModal.saving ? 'Finalizing…' : 'Finalize & Countersign' }}</button>
-                            <button v-if="signedDocumentModal.doc.finalPdf && signedDocumentModal.doc.finalPdf.downloadURL" type="button" @click="printSignedDocumentPdf(signedDocumentModal.doc)" class="rounded-xl bg-slate-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800"><i class="fa-solid fa-print mr-1.5"></i>Print</button>
-                            <button v-if="signedDocumentModal.doc.finalPdf && signedDocumentModal.doc.finalPdf.downloadURL" type="button" @click="downloadSignedDocumentPdf(signedDocumentModal.doc)" class="rounded-xl bg-slate-800 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-900"><i class="fa-solid fa-download mr-1.5"></i>Download PDF</button>
-                            <button v-if="canDeleteSignedDocuments && signedDocumentModal.doc.status === 'completed'" type="button" @click="regenerateSignedDocumentPdf(signedDocumentModal.doc)" title="Re-render this PDF from its stored data using the latest document layout" class="rounded-xl bg-slate-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-700"><i class="fa-solid fa-arrows-rotate mr-1.5"></i>Regenerate PDF</button>
-                            <template v-if="canDeleteSignedDocuments && (signedDocumentModal.doc.status === 'voided' || signedDocumentModal.doc.status === 'completed')">
-                                <template v-if="userProfile.role === 'Director' && signedDocumentModal.doc.deletionRequest && signedDocumentModal.doc.deletionRequest.status === 'pending'">
-                                    <button type="button" @click="approveSignedDocumentDeletion(signedDocumentModal.doc)" :title="'Approve deletion requested by ' + (signedDocumentModal.doc.deletionRequest.requestedByName || 'Superadmin')" class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-red-700"><i class="fa-solid fa-check mr-1.5"></i>Approve &amp; Delete</button>
-                                    <button type="button" @click="rejectSignedDocumentDeletionRequest(signedDocumentModal.doc)" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-xmark mr-1.5"></i>Reject</button>
-                                </template>
-                                <button v-else-if="userProfile.role === 'Superadmin' && signedDocumentModal.doc.deletionRequest && signedDocumentModal.doc.deletionRequest.status === 'pending'" type="button" disabled title="Waiting for Director approval" class="rounded-xl bg-amber-100 dark:bg-amber-950/40 px-4 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-300 cursor-not-allowed"><i class="fa-solid fa-hourglass-half mr-1.5"></i>Approval Pending</button>
-                                <button v-else type="button" @click="requestDeleteSignedDocument(signedDocumentModal.doc)" :title="userProfile.role === 'Director' ? 'Permanently delete this document' : 'Superadmin deletions require Director approval'" class="rounded-xl bg-red-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-red-700"><i class="fa-solid fa-trash mr-1.5"></i>{{ userProfile.role === 'Director' ? 'Delete' : 'Request Delete' }}</button>
-                            </template>
-                            <button type="button" @click="closeSignedDocumentModal" class="rounded-xl border border-slate-200 dark:border-slate-600 px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300">Close</button>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- WEBSITE CONTENT MODULE (zenqor-tech Portfolio, Services, Page Text) -->
                 <div v-show="currentTab === 'website-content'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">

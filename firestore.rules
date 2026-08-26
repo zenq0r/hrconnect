@@ -254,80 +254,6 @@ service cloud.firestore {
       allow delete: if isSuperadmin() || isDirector() || isHR() || isAccount();
     }
 
-    // Signed Documents — Authorization Letter / Client Information Form / NDA / Service
-    // Agreement, filled and e-signed online by both the client and Zenqor staff. Status
-    // state machine: draft -> awaiting_client -> awaiting_zenqor -> completed (or voided),
-    // modeled on the payment_vouchers status-gated allow update chain above. A document is
-    // permanently locked (no further writes from any clause) once status == 'completed'.
-    function isSignedDocumentManager() { return isSuperadmin() || isDirector() || isHR() || isAccount(); }
-    function isOwningSignedDocumentClient(clientDirectoryId) {
-      return isClient() && customerEmailMatches(get(/databases/$(database)/documents/customers/$(clientDirectoryId)).data, request.auth.token.email);
-    }
-    match /signed_documents/{docId} {
-      allow read: if isAuthenticated() && (
-        isSignedDocumentManager() ||
-        (isOwningSignedDocumentClient(resource.data.clientDirectoryId) && resource.data.status != 'draft')
-      );
-
-      allow create: if isAuthenticated() && isSignedDocumentManager() &&
-        request.resource.data.status == 'draft' &&
-        request.resource.data.createdByUid == request.auth.uid;
-
-      allow update: if (
-        // Zenqor staff prefill / send-to-client, while the client has not yet taken their turn.
-        isSignedDocumentManager() &&
-        resource.data.status in ['draft', 'awaiting_client'] &&
-        request.resource.data.status in ['draft', 'awaiting_client'] &&
-        request.resource.data.clientDirectoryId == resource.data.clientDirectoryId
-      ) || (
-        // Client fills their fields and submits their signature.
-        isOwningSignedDocumentClient(resource.data.clientDirectoryId) &&
-        resource.data.status == 'awaiting_client' &&
-        request.resource.data.status in ['awaiting_client', 'awaiting_zenqor'] &&
-        request.resource.data.clientDirectoryId == resource.data.clientDirectoryId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fields', 'signatures', 'status', 'updatedAt', 'audit'])
-      ) || (
-        // Zenqor staff reviews, fills remaining fields, countersigns and finalizes.
-        isSignedDocumentManager() &&
-        resource.data.status == 'awaiting_zenqor' &&
-        request.resource.data.status in ['awaiting_zenqor', 'completed'] &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['fields', 'signatures', 'status', 'updatedAt', 'audit', 'finalPdf', 'lockedAt', 'referenceNo'])
-      ) || (
-        // Void — admin/director escape hatch, any pre-completion status.
-        isSignedDocumentManager() &&
-        resource.data.status != 'completed' &&
-        request.resource.data.status == 'voided' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'audit'])
-      ) || (
-        // Regenerate PDF — Superadmin/Director may re-render an already
-        // completed document's PDF from its already-locked fields/signatures
-        // (e.g. after a PDF layout/content fix), without touching any legal
-        // content (fields, signatures, status all stay exactly as signed).
-        (isSuperadmin() || isDirector()) &&
-        resource.data.status == 'completed' &&
-        request.resource.data.status == 'completed' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['finalPdf', 'updatedAt', 'audit'])
-      ) || (
-        // Superadmin can no longer delete signed_documents directly (see `allow
-        // delete` below, now Director-only) — instead they flag a pending
-        // deletionRequest here for a Director to review. Only allowed once the
-        // document is Completed/Voided, matching the UI's Delete-button gating.
-        isSuperadmin() &&
-        resource.data.status in ['completed', 'voided'] &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletionRequest', 'updatedAt', 'audit'])
-      ) || (
-        // Director reviews a pending deletionRequest — approval itself goes
-        // through `allow delete` below; this clause covers rejecting a request
-        // (clearing deletionRequest back to null) without deleting the document.
-        isDirector() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletionRequest', 'updatedAt', 'audit'])
-      );
-
-      // Deletion is Director-only — a Superadmin must route through the
-      // deletionRequest approval flow above instead of deleting directly.
-      allow delete: if isDirector();
-    }
-
     // Password reset tokens for the custom (non-Firebase-hosted) reset flow — written and
     // read exclusively by the /api/*.js serverless functions via the Admin SDK, which
     // bypasses these rules entirely. No client, staff or otherwise, should ever touch this
@@ -663,18 +589,6 @@ service cloud.firestore {
       // Audit events are written only by /api/audit-log through the Admin SDK.
       // Client writes are denied so users cannot forge identity, IP, or device metadata.
       allow create, update, delete: if false;
-    }
-
-    // Signed Documents master PDF templates (Authorization Letter, and future
-    // coordinate-overlay templates) — file bytes live in Storage at
-    // document_templates/{templateId}/{version}/master.pdf, this collection only
-    // tracks version/status/storage-path metadata. Readable by any signed-in
-    // portal user (staff AND clients need to load the master PDF while filling
-    // it — it's a blank form, not sensitive data); only Superadmin/Director may
-    // publish a new version.
-    match /document_templates/{templateId} {
-      allow read: if isAuthenticated();
-      allow write: if isSuperadmin() || isDirector();
     }
 
     // ============================================================

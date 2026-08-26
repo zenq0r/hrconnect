@@ -51,30 +51,6 @@ service firebase.storage {
       allow delete: if isStaffDocumentManager();
     }
 
-    // Signed Documents module — generated final PDFs + hand-drawn signature PNGs
-    // for the Authorization Letter / Client Information Form / NDA / Service
-    // Agreement workflow. Metadata lives in Firestore's signed_documents collection.
-    match /signed_documents/{clientDirectoryId}/{docId}/{fileName} {
-      allow read: if isStaffReader() || isOwningClient(clientDirectoryId);
-      allow write: if (isStaffDocumentManager() || isOwningClient(clientDirectoryId)) &&
-        request.resource.size <= 10 * 1024 * 1024 &&
-        request.resource.contentType in ['application/pdf', 'image/png'];
-      allow delete: if isStaffDocumentManager();
-    }
-
-    // Signed Documents master PDF templates (coordinate-overlay engine) — the
-    // actual uploaded template files, e.g. document_templates/authorization_letter/1/master.pdf.
-    // Metadata/active-version pointer lives in Firestore's document_templates
-    // collection. Any signed-in user may read (it's a blank form, not client
-    // data); only Superadmin/Director may publish a new master file.
-    match /document_templates/{templateId}/{version}/{fileName} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn() && userRole() in ['Superadmin', 'Director'] &&
-        request.resource.size <= 10 * 1024 * 1024 &&
-        request.resource.contentType == 'application/pdf';
-      allow delete: if isSignedIn() && userRole() in ['Superadmin', 'Director'];
-    }
-
     // Public zenqor-tech Portfolio gallery images (Digital Systems / Licensing &
     // Permits). Publicly readable — these are marketing images shown to anonymous
     // site visitors — but only content admins may upload/replace/remove them.
