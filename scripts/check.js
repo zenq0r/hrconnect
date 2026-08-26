@@ -1,6 +1,7 @@
 const { execFileSync } = require('child_process');
 const { readdirSync, statSync } = require('fs');
 const { join } = require('path');
+const { reportForFile } = require('./check-template-nesting');
 
 function findJavaScript(dir) {
     return readdirSync(dir).flatMap(name => {
@@ -12,4 +13,8 @@ function findJavaScript(dir) {
 
 for (const file of findJavaScript(process.cwd())) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'inherit' });
+}
+
+if (!reportForFile('index.html')) {
+    process.exit(1);
 }
