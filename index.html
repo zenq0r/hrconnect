@@ -2293,6 +2293,7 @@
                                                         <span :class="isClientOnline(group.clientDirectoryId) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 shrink-0 rounded-full" :title="clientPresenceDetail(group.clientDirectoryId)"></span>
                                                         <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-300">{{ group.projects.length }}</span>
                                                     </div>
+                                                    <p v-if="group.projects.length === 1" class="mt-0.5 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-diagram-project mr-1 text-slate-400 dark:text-slate-500"></i>{{ group.projects[0].title }}</p>
                                                     <p class="mt-1 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ clientSsmForId(group.clientDirectoryId) || '—' }}</p>
                                                     <p v-if="isNewProjectGroup(group)" class="mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-sparkles mr-1"></i>New project · Added {{ formatDateTime(clientGroupNewestCreatedAt(group)) }}</p>
                                                 </div>
