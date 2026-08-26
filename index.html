@@ -513,7 +513,8 @@
                         <div class="relative w-full max-w-sm">
                             <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-2.5 text-slate-400 text-xs"></i>
                             <label for="global-search" class="sr-only">Search System</label>
-                            <input id="global-search" name="search" type="text" v-model="searchQuery" :placeholder="userProfile.role === 'Client' ? 'Search your projects, documents...' : 'Search Documents, Employees, TIN, ID...'" class="w-full pl-9 pr-4 py-1.5 bg-slate-100 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-brand-gold focus:outline-none transition">
+                            <input id="global-search" name="search" type="text" v-model="searchQuery" :placeholder="userProfile.role === 'Client' ? 'Search your projects, documents...' : 'Search Documents, Employees, TIN, ID...'" class="w-full pl-9 pr-8 py-1.5 bg-slate-100 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-brand-gold focus:outline-none transition">
+                            <button v-if="searchQuery" type="button" @click="searchQuery = ''" class="zq-search-clear !flex !right-2" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                     </div>
 
@@ -1174,13 +1175,13 @@
 
                     <!-- ===================== EXPENSE CLAIM RECORDS TABLE ===================== -->
                     <div v-if="claimFormMode === 'Claim'" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div class="zq-toolbar">
                             <h3 class="text-sm font-extrabold text-brand-dark dark:text-white tracking-wide flex items-center"><i class="fa-solid fa-list-check text-brand-blue mr-2"></i>CLAIM RECORDS &amp; APPROVAL STATUS</h3>
 
-                            <div class="flex items-center space-x-3">
-                                <div class="flex items-center space-x-1.5">
+                            <div class="zq-toolbar-actions">
+                                <div class="flex items-center gap-1.5">
                                     <label for="claims-sort" class="text-xs font-semibold text-slate-400">Sort By:</label>
-                                    <select id="claims-sort" name="claimsSort" v-model="claimsSortOption" class="p-1.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white rounded-lg text-xs font-bold focus:ring-2 focus:ring-brand-gold">
+                                    <select id="claims-sort" name="claimsSort" v-model="claimsSortOption" class="zq-select zq-filter-select">
                                         <option value="latest">Latest Date (Default)</option>
                                         <option value="oldest">Oldest Date</option>
                                         <option value="category">Category</option>
@@ -1287,13 +1288,13 @@
 
                     <!-- ===================== PAYMENT VOUCHER RECORDS TABLE ===================== -->
                     <div v-else class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
-                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                        <div class="zq-toolbar">
                             <h3 class="text-sm font-extrabold text-brand-dark dark:text-white tracking-wide flex items-center"><i class="fa-solid fa-list-check text-brand-blue mr-2"></i>PAYMENT VOUCHER RECORDS &amp; APPROVAL STATUS</h3>
 
-                            <div class="flex items-center space-x-3">
-                                <div class="flex items-center space-x-1.5">
+                            <div class="zq-toolbar-actions">
+                                <div class="flex items-center gap-1.5">
                                     <label for="vouchers-sort" class="text-xs font-semibold text-slate-400">Sort By:</label>
-                                    <select id="vouchers-sort" name="vouchersSort" v-model="vouchersSortOption" class="p-1.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white rounded-lg text-xs font-bold focus:ring-2 focus:ring-brand-gold">
+                                    <select id="vouchers-sort" name="vouchersSort" v-model="vouchersSortOption" class="zq-select zq-filter-select">
                                         <option value="latest">Latest Date (Default)</option>
                                         <option value="oldest">Oldest Date</option>
                                         <option value="category">Category</option>
@@ -1720,11 +1721,11 @@
                                     <h3 class="zq-text-section-title">
                                         <i class="fa-solid fa-chart-line text-brand-blue mr-2"></i>Financial &amp; Revenue Trend
                                     </h3>
-                                    <div class="flex items-center space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl text-xs font-bold shrink-0">
-                                        <button @click="setChartFilter('daily')" :class="chartTimeFilter === 'daily' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-2.5 py-1 rounded-lg transition">Daily</button>
-                                        <button @click="setChartFilter('weekly')" :class="chartTimeFilter === 'weekly' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-2.5 py-1 rounded-lg transition">Weekly</button>
-                                        <button @click="setChartFilter('monthly')" :class="chartTimeFilter === 'monthly' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-2.5 py-1 rounded-lg transition">Monthly</button>
-                                        <button @click="setChartFilter('yearly')" :class="chartTimeFilter === 'yearly' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-2.5 py-1 rounded-lg transition">Yearly</button>
+                                    <div class="zq-segmented-control shrink-0" role="group" aria-label="Chart time period">
+                                        <button type="button" @click="setChartFilter('daily')" :class="{ 'is-active': chartTimeFilter === 'daily' }" :aria-pressed="chartTimeFilter === 'daily'">Daily</button>
+                                        <button type="button" @click="setChartFilter('weekly')" :class="{ 'is-active': chartTimeFilter === 'weekly' }" :aria-pressed="chartTimeFilter === 'weekly'">Weekly</button>
+                                        <button type="button" @click="setChartFilter('monthly')" :class="{ 'is-active': chartTimeFilter === 'monthly' }" :aria-pressed="chartTimeFilter === 'monthly'">Monthly</button>
+                                        <button type="button" @click="setChartFilter('yearly')" :class="{ 'is-active': chartTimeFilter === 'yearly' }" :aria-pressed="chartTimeFilter === 'yearly'">Yearly</button>
                                     </div>
                                 </div>
                                 <div class="h-64 relative">
@@ -1768,14 +1769,14 @@
                         <!-- RECENT ACTIVITIES TABLE WITH SORT OPTIONS -->
                         <div class="zq-card p-6">
                             <div v-if="userProfile.role === 'Account' && financePendingClaims.length" class="mb-4 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"><i class="fa-solid fa-bell text-base"></i><span><strong>Finance notification:</strong> {{ financePendingClaims.length }} claim(s) and/or payment voucher(s) are pending Finance approval.</span></div>
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+                            <div class="zq-toolbar">
                                 <h3 class="zq-text-section-title">Recent Activities &amp; Document List</h3>
 
-                                <div class="flex flex-wrap items-center gap-3">
+                                <div class="zq-toolbar-actions">
                                     <!-- DROPDOWN POKOK PILIHAN SORT -->
-                                    <div class="flex items-center space-x-1.5">
+                                    <div class="flex items-center gap-1.5">
                                         <label for="table-sort" class="text-xs font-semibold text-slate-400">Sort By:</label>
-                                        <select id="table-sort" name="tableSort" v-model="sortOption" class="p-1.5 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white rounded-lg text-xs font-bold focus:ring-2 focus:ring-brand-gold">
+                                        <select id="table-sort" name="tableSort" v-model="sortOption" class="zq-select zq-filter-select">
                                             <option value="latest">Latest Date (Default)</option>
                                             <option value="oldest">Oldest Date</option>
                                             <option value="module">Category (Payslip > Quotation > Invoice)</option>
@@ -1788,15 +1789,15 @@
                             </div>
 
                             <div class="mb-4 flex flex-wrap items-center gap-2">
-                                <div class="flex flex-wrap items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-1 text-[11px] font-bold">
-                                    <button type="button" @click="recentActivityFilter = 'all'" :class="recentActivityFilter === 'all' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">All</button>
-                                    <button type="button" @click="recentActivityFilter = 'Invoice'" :class="recentActivityFilter === 'Invoice' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Invoices</button>
-                                    <button type="button" @click="recentActivityFilter = 'Quotation'" :class="recentActivityFilter === 'Quotation' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Quotations</button>
-                                    <button type="button" @click="recentActivityFilter = 'Payslip'" :class="recentActivityFilter === 'Payslip' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Payslips</button>
-                                    <button type="button" @click="recentActivityFilter = 'Claim'" :class="recentActivityFilter === 'Claim' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Claims</button>
-                                    <button type="button" @click="recentActivityFilter = 'Payment Voucher'" :class="recentActivityFilter === 'Payment Voucher' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Vouchers</button>
+                                <div class="zq-filter-chip-group" role="group" aria-label="Filter by module">
+                                    <button type="button" @click="recentActivityFilter = 'all'" :class="{ 'is-active': recentActivityFilter === 'all' }" :aria-pressed="recentActivityFilter === 'all'" class="zq-filter-chip">All</button>
+                                    <button type="button" @click="recentActivityFilter = 'Invoice'" :class="{ 'is-active': recentActivityFilter === 'Invoice' }" :aria-pressed="recentActivityFilter === 'Invoice'" class="zq-filter-chip">Invoices</button>
+                                    <button type="button" @click="recentActivityFilter = 'Quotation'" :class="{ 'is-active': recentActivityFilter === 'Quotation' }" :aria-pressed="recentActivityFilter === 'Quotation'" class="zq-filter-chip">Quotations</button>
+                                    <button type="button" @click="recentActivityFilter = 'Payslip'" :class="{ 'is-active': recentActivityFilter === 'Payslip' }" :aria-pressed="recentActivityFilter === 'Payslip'" class="zq-filter-chip">Payslips</button>
+                                    <button type="button" @click="recentActivityFilter = 'Claim'" :class="{ 'is-active': recentActivityFilter === 'Claim' }" :aria-pressed="recentActivityFilter === 'Claim'" class="zq-filter-chip">Claims</button>
+                                    <button type="button" @click="recentActivityFilter = 'Payment Voucher'" :class="{ 'is-active': recentActivityFilter === 'Payment Voucher' }" :aria-pressed="recentActivityFilter === 'Payment Voucher'" class="zq-filter-chip">Vouchers</button>
                                 </div>
-                                <button type="button" @click="recentActivityAttentionOnly = !recentActivityAttentionOnly" :class="recentActivityAttentionOnly ? 'bg-amber-500 text-white border-amber-500' : 'bg-white dark:bg-slate-700 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'" class="rounded-xl border px-3 py-1.5 text-[11px] font-bold transition flex items-center gap-1.5"><i class="fa-solid fa-triangle-exclamation"></i>Needs Attention Only</button>
+                                <button type="button" @click="recentActivityAttentionOnly = !recentActivityAttentionOnly" :class="{ 'is-active': recentActivityAttentionOnly }" :aria-pressed="recentActivityAttentionOnly" class="zq-filter-button"><i class="fa-solid fa-triangle-exclamation"></i>Needs Attention Only</button>
                             </div>
 
                             <div class="overflow-x-auto">
@@ -1834,7 +1835,7 @@
                                             <td colspan="7">
                                                 <i class="fa-regular fa-folder-open text-xl text-slate-300"></i>
                                                 <p class="mt-2 text-xs font-bold">{{ (recentActivityFilter !== 'all' || recentActivityAttentionOnly || searchQuery) ? 'No records match your current filter.' : 'No records found.' }}</p>
-                                                <button v-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly" type="button" @click="recentActivityFilter = 'all'; recentActivityAttentionOnly = false" class="mt-2 text-[10px] font-bold text-brand-blue hover:underline">Clear filters</button>
+                                                <button v-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly" type="button" @click="recentActivityFilter = 'all'; recentActivityAttentionOnly = false" class="zq-filter-reset mt-2 mx-auto hover:underline">Clear filters</button>
                                             </td>
                                         </tr>
                                     </tbody>
@@ -2060,28 +2061,28 @@
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
                             <div class="w-12 h-12 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-file-excel"></i></div>
                             <h3 class="text-base font-bold text-brand-dark dark:text-white">Payroll Report</h3>
-                            <button type="button" @click="exportCSV('payroll')" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                            <button type="button" @click="exportCSV('payroll')" class="zq-btn zq-btn-outline w-full">
                                 <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
                             </button>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
                             <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-users"></i></div>
                             <h3 class="text-base font-bold text-brand-dark dark:text-white">Employee Directory</h3>
-                            <button type="button" @click="exportCSV('employees')" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                            <button type="button" @click="exportCSV('employees')" class="zq-btn zq-btn-outline w-full">
                                 <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
                             </button>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
                             <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-file-invoice"></i></div>
                             <h3 class="text-base font-bold text-brand-dark dark:text-white">Invoice &amp; Quotation Report</h3>
-                            <button type="button" @click="exportCSV('docs')" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                            <button type="button" @click="exportCSV('docs')" class="zq-btn zq-btn-outline w-full">
                                 <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
                             </button>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
                             <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-receipt"></i></div>
                             <h3 class="text-base font-bold text-brand-dark dark:text-white">Claims &amp; Payment Vouchers</h3>
-                            <button type="button" @click="exportCSV('claims')" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-2 rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                            <button type="button" @click="exportCSV('claims')" class="zq-btn zq-btn-outline w-full">
                                 <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
                             </button>
                         </div>
@@ -2140,15 +2141,15 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <div v-if="userProfile.role !== 'Client'" class="flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 shadow-sm" aria-label="Project scope selection">
-                                <button type="button" @click="projectScopeFilter = 'all'" :class="projectScopeFilter === 'all' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'" class="rounded-lg px-3 py-2 text-xs font-bold transition">All Projects</button>
-                                <button type="button" @click="projectScopeFilter = 'mine'" :class="projectScopeFilter === 'mine' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'" class="rounded-lg px-3 py-2 text-xs font-bold transition"><i class="fa-solid fa-user mr-1.5"></i>My Projects</button>
+                            <div v-if="userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project scope selection">
+                                <button type="button" @click="projectScopeFilter = 'all'" :class="{ 'is-active': projectScopeFilter === 'all' }" :aria-pressed="projectScopeFilter === 'all'">All Projects</button>
+                                <button type="button" @click="projectScopeFilter = 'mine'" :class="{ 'is-active': projectScopeFilter === 'mine' }" :aria-pressed="projectScopeFilter === 'mine'"><i class="fa-solid fa-user mr-1.5"></i>My Projects</button>
                             </div>
-                            <div v-if="userProfile.role !== 'Client'" class="flex rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-1 shadow-sm" aria-label="Project view selection">
-                                <button type="button" @click="projectViewMode = 'board'" :class="projectViewMode === 'board' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'" class="rounded-lg px-3 py-2 text-xs font-bold transition"><i class="fa-solid fa-table-columns mr-1.5"></i>Board</button>
-                                <button type="button" @click="projectViewMode = 'list'" :class="projectViewMode === 'list' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'" class="rounded-lg px-3 py-2 text-xs font-bold transition"><i class="fa-solid fa-list mr-1.5"></i>List</button>
+                            <div v-if="userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project view selection">
+                                <button type="button" @click="projectViewMode = 'board'" :class="{ 'is-active': projectViewMode === 'board' }" :aria-pressed="projectViewMode === 'board'"><i class="fa-solid fa-table-columns mr-1.5"></i>Board</button>
+                                <button type="button" @click="projectViewMode = 'list'" :class="{ 'is-active': projectViewMode === 'list' }" :aria-pressed="projectViewMode === 'list'"><i class="fa-solid fa-list mr-1.5"></i>List</button>
                             </div>
-                            <button v-if="canManageProjects" type="button" @click="openProjectModal()" class="bg-brand-blue hover:bg-teal-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2">
+                            <button v-if="canManageProjects" type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary">
                                 <i class="fa-solid fa-plus"></i><span>Add Project</span>
                             </button>
                         </div>
@@ -2622,15 +2623,15 @@
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <span class="text-xs font-bold text-slate-400">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s)</span>
                             <div class="flex flex-wrap items-center gap-2">
-                                <div class="flex rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-1 text-xs font-bold">
-                                    <button type="button" @click="clientPortalFilter.type = 'all'" :class="clientPortalFilter.type === 'all' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">All</button>
-                                    <button type="button" @click="clientPortalFilter.type = 'Quotation'" :class="clientPortalFilter.type === 'Quotation' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Quotations</button>
-                                    <button type="button" @click="clientPortalFilter.type = 'Invoice'" :class="clientPortalFilter.type === 'Invoice' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Invoices</button>
+                                <div class="zq-filter-chip-group" role="group" aria-label="Filter by document type">
+                                    <button type="button" @click="clientPortalFilter.type = 'all'" :class="{ 'is-active': clientPortalFilter.type === 'all' }" :aria-pressed="clientPortalFilter.type === 'all'" class="zq-filter-chip">All</button>
+                                    <button type="button" @click="clientPortalFilter.type = 'Quotation'" :class="{ 'is-active': clientPortalFilter.type === 'Quotation' }" :aria-pressed="clientPortalFilter.type === 'Quotation'" class="zq-filter-chip">Quotations</button>
+                                    <button type="button" @click="clientPortalFilter.type = 'Invoice'" :class="{ 'is-active': clientPortalFilter.type === 'Invoice' }" :aria-pressed="clientPortalFilter.type === 'Invoice'" class="zq-filter-chip">Invoices</button>
                                 </div>
-                                <div class="flex rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 p-1 text-xs font-bold">
-                                    <button type="button" @click="clientPortalFilter.status = 'all'" :class="clientPortalFilter.status === 'all' ? 'bg-brand-dark text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">All</button>
-                                    <button type="button" @click="clientPortalFilter.status = 'Paid'" :class="clientPortalFilter.status === 'Paid' ? 'bg-emerald-600 text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Paid</button>
-                                    <button type="button" @click="clientPortalFilter.status = 'Unpaid'" :class="clientPortalFilter.status === 'Unpaid' ? 'bg-red-600 text-white shadow' : 'text-slate-600 dark:text-slate-300'" class="px-2.5 py-1.5 rounded-lg transition">Unpaid</button>
+                                <div class="zq-filter-chip-group" role="group" aria-label="Filter by payment status">
+                                    <button type="button" @click="clientPortalFilter.status = 'all'" :class="{ 'is-active': clientPortalFilter.status === 'all' }" :aria-pressed="clientPortalFilter.status === 'all'" class="zq-filter-chip">All</button>
+                                    <button type="button" @click="clientPortalFilter.status = 'Paid'" :class="{ 'is-active': clientPortalFilter.status === 'Paid' }" :aria-pressed="clientPortalFilter.status === 'Paid'" class="zq-filter-chip is-success">Paid</button>
+                                    <button type="button" @click="clientPortalFilter.status = 'Unpaid'" :class="{ 'is-active': clientPortalFilter.status === 'Unpaid' }" :aria-pressed="clientPortalFilter.status === 'Unpaid'" class="zq-filter-chip is-danger">Unpaid</button>
                                 </div>
                             </div>
                         </div>
@@ -2681,23 +2682,28 @@
                                 <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Fill in, sign and finalize your Authorization Letter, Client Information Form, NDA and Service Agreement online.</p>
                             </div>
                         </div>
-                        <button v-if="canManageSignedDocuments" type="button" @click="openNewSignedDocumentModal" class="rounded-xl bg-brand-blue px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800 shadow-lg transition"><i class="fa-solid fa-plus mr-1.5"></i>New Document</button>
+                        <button v-if="canManageSignedDocuments" type="button" @click="openNewSignedDocumentModal" class="zq-btn zq-btn-primary"><i class="fa-solid fa-plus"></i><span>New Document</span></button>
                     </div>
 
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 md:p-6">
-                        <div v-if="userProfile.role !== 'Client'" class="mb-4 flex flex-wrap items-center gap-2">
-                            <select v-model="signedDocuments.clientFilter" class="rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-200">
-                                <option value="all">All Clients</option>
-                                <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.clientName }}</option>
-                            </select>
-                            <select v-model="signedDocuments.statusFilter" class="rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-2 text-[11px] font-bold text-slate-600 dark:text-slate-200">
-                                <option value="all">All Statuses</option>
-                                <option value="draft">Draft</option>
-                                <option value="awaiting_client">Awaiting Client</option>
-                                <option value="awaiting_zenqor">Awaiting Zenqor</option>
-                                <option value="completed">Completed</option>
-                                <option value="voided">Voided</option>
-                            </select>
+                        <div v-if="userProfile.role !== 'Client'" class="zq-toolbar">
+                            <div class="zq-toolbar-main">
+                                <label for="signed-doc-client-filter" class="sr-only">Filter by client</label>
+                                <select id="signed-doc-client-filter" v-model="signedDocuments.clientFilter" class="zq-select zq-filter-select">
+                                    <option value="all">All Clients</option>
+                                    <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.clientName }}</option>
+                                </select>
+                                <label for="signed-doc-status-filter" class="sr-only">Filter by status</label>
+                                <select id="signed-doc-status-filter" v-model="signedDocuments.statusFilter" class="zq-select zq-filter-select">
+                                    <option value="all">All Statuses</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="awaiting_client">Awaiting Client</option>
+                                    <option value="awaiting_zenqor">Awaiting Zenqor</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="voided">Voided</option>
+                                </select>
+                                <button v-if="signedDocuments.clientFilter !== 'all' || signedDocuments.statusFilter !== 'all'" type="button" @click="signedDocuments.clientFilter = 'all'; signedDocuments.statusFilter = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button>
+                            </div>
                         </div>
 
                         <div v-if="signedDocuments.loading" class="rounded-xl border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900/40 px-5 py-10 text-center"><i class="fa-solid fa-spinner fa-spin text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400 dark:text-slate-500">Loading documents…</p></div>
@@ -2903,11 +2909,20 @@
                     <!-- Page Text overrides (content/site_text) -->
                     <template v-else>
                         <p class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>This overrides copy on ANY zenqor-tech page (Home, About, Contact, Legal, FAQ, etc). Leave a field un-overridden and the site keeps its built-in default text.</p>
-                        <div class="flex flex-wrap items-center gap-3">
-                            <select v-model="siteTextFilter.group" class="rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2 text-xs outline-none focus:border-brand-blue">
-                                <option v-for="g in siteTextGroups()" :key="g" :value="g">{{ g === 'all' ? 'All Sections' : g }}</option>
-                            </select>
-                            <input v-model="siteTextFilter.search" type="text" placeholder="Search by key or label..." class="flex-1 min-w-[200px] rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2 text-xs outline-none focus:border-brand-blue">
+                        <div class="zq-toolbar">
+                            <div class="zq-toolbar-main">
+                                <label for="site-text-group-filter" class="sr-only">Filter by section</label>
+                                <select id="site-text-group-filter" v-model="siteTextFilter.group" class="zq-select zq-filter-select">
+                                    <option v-for="g in siteTextGroups()" :key="g" :value="g">{{ g === 'all' ? 'All Sections' : g }}</option>
+                                </select>
+                                <div class="zq-search">
+                                    <i class="fa-solid fa-magnifying-glass zq-search-icon"></i>
+                                    <label for="site-text-search" class="sr-only">Search by key or label</label>
+                                    <input id="site-text-search" v-model="siteTextFilter.search" type="text" placeholder="Search by key or label..." class="zq-input zq-search-input">
+                                    <button v-if="siteTextFilter.search" type="button" @click="siteTextFilter.search = ''" class="zq-search-clear !flex" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <button v-if="siteTextFilter.group !== 'all' || siteTextFilter.search" type="button" @click="siteTextFilter.group = 'all'; siteTextFilter.search = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button>
+                            </div>
                         </div>
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm divide-y divide-slate-100 dark:divide-slate-700">
                             <div v-for="row in filteredSiteTextRows()" :key="row.key" class="p-4 flex items-start justify-between gap-4">

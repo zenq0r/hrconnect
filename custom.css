@@ -1103,3 +1103,104 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-table tbody tr:hover { background: var(--zq-surface-alt); }
 .zq-table-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .zq-table-empty td { padding: var(--zq-space-8) var(--zq-space-4); text-align: center; color: var(--zq-text-muted); }
+
+/* ---- Search & filter toolbar system (Step 12) — one consistent shell for
+   every record-list toolbar (search + filter selects/pills + sort +
+   export + primary action), plus a shared segmented-control for the
+   period/view/scope toggles that were previously hand-duplicated per
+   module (Daily/Weekly/Monthly/Yearly, Board/List, All/My Projects, etc).
+   Structure: <div class="zq-toolbar"><div class="zq-toolbar-main">search +
+   filters</div><div class="zq-toolbar-actions">export / add</div></div> ---- */
+.zq-toolbar {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+    gap: var(--zq-space-3); margin-bottom: var(--zq-space-4);
+}
+.zq-toolbar-main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--zq-space-2); flex: 1 1 auto; min-width: 0; }
+.zq-toolbar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--zq-space-2); flex-shrink: 0; }
+
+/* Search input with a leading icon, sharing .zq-input's border/focus look. */
+.zq-search { position: relative; min-width: 0; flex: 1 1 220px; max-width: 320px; }
+.zq-search-input.zq-input { padding-left: 34px; }
+.zq-search-input.zq-input:not(:placeholder-shown) ~ .zq-search-clear { display: inline-flex; }
+.zq-search-icon {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    color: var(--zq-text-muted); font-size: 0.75rem; pointer-events: none;
+}
+.zq-search-clear {
+    display: none; position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    height: 22px; width: 22px; align-items: center; justify-content: center;
+    border-radius: var(--zq-radius-sm); color: var(--zq-text-muted); background: transparent;
+}
+.zq-search-clear:hover { background: var(--zq-surface-alt); color: var(--zq-text); }
+
+/* Filter/sort selects — reuse .zq-select's look, sized for a toolbar
+   rather than a full-width form field. */
+.zq-filter-select.zq-select { width: auto; min-width: 140px; }
+
+/* Standalone filter toggle buttons (e.g. a single "Needs Attention Only"
+   switch) — pill-shaped, with an active state that isn't color alone
+   (bold weight + a real border color change), so state reads without
+   relying on hue. */
+.zq-filter-button {
+    display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+    border-radius: var(--zq-radius-full); border: 1px solid var(--zq-border); background: var(--zq-surface);
+    color: var(--zq-text-muted); font-size: 0.6875rem; font-weight: 700; white-space: nowrap;
+    transition: background-color var(--zq-transition), color var(--zq-transition), border-color var(--zq-transition);
+}
+.zq-filter-button:hover { background: var(--zq-surface-alt); color: var(--zq-text); }
+.zq-filter-button.is-active {
+    background: var(--zq-warning-bg); color: var(--zq-warning); border-color: var(--zq-warning); font-weight: 800;
+}
+.zq-filter-button:focus-visible, .zq-filter-chip:focus-visible, .zq-segmented-control button:focus-visible {
+    outline: 2px solid var(--zq-accent); outline-offset: 2px;
+}
+
+/* Filter chips — a row of mutually-exclusive pill options inside a shared
+   track (module-type filters, doc type/status pills). Visually distinct
+   from .zq-segmented-control's contiguous-block look: chips keep their
+   own rounded pill shape and gap, which reads better for option sets with
+   more than 3-4 choices. */
+.zq-filter-chip-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 4px; border-radius: var(--zq-radius-lg); border: 1px solid var(--zq-border); background: var(--zq-surface-alt); }
+.zq-filter-chip {
+    display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: var(--zq-radius-full);
+    font-size: 0.6875rem; font-weight: 700; color: var(--zq-text-muted); background: transparent; white-space: nowrap;
+    transition: background-color var(--zq-transition), color var(--zq-transition);
+}
+.zq-filter-chip:hover { color: var(--zq-text); }
+.zq-filter-chip.is-active { background: var(--zq-primary); color: var(--zq-text-on-primary); }
+/* Semantic exception — used only where the underlying states are
+   genuinely success/danger (e.g. Paid/Unpaid), not a generic selection. */
+.zq-filter-chip.is-active.is-success { background: var(--zq-success-bg); color: var(--zq-success); }
+.zq-filter-chip.is-active.is-danger { background: var(--zq-error-bg); color: var(--zq-error); }
+
+/* Small numeric badge on a filter trigger showing how many are active. */
+.zq-filter-count {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 4px;
+    border-radius: var(--zq-radius-full); background: var(--zq-accent); color: #fff; font-size: 0.625rem; font-weight: 800;
+}
+
+/* One-click reset back to a filter's existing default value(s). */
+.zq-filter-reset {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 0.6875rem; font-weight: 700;
+    color: var(--zq-text-muted); background: transparent; padding: 0 4px; height: 32px;
+}
+.zq-filter-reset:hover:not(:disabled) { color: var(--zq-error); }
+.zq-filter-reset:disabled { color: var(--zq-text-muted); opacity: 0.5; cursor: not-allowed; }
+
+/* Segmented control — a single bordered strip of mutually-exclusive
+   options (period toggles, view-mode/scope switches). Fixed track/button
+   heights keep the strip from jumping size when the active label changes
+   selection to selection. */
+.zq-segmented-control {
+    display: inline-flex; align-items: stretch; padding: 3px; border-radius: var(--zq-radius-lg);
+    background: var(--zq-surface-alt); border: 1px solid var(--zq-border); gap: 2px;
+}
+.zq-segmented-control button {
+    display: inline-flex; align-items: center; justify-content: center; height: 28px; padding: 0 12px;
+    border-radius: var(--zq-radius-md); font-size: 0.6875rem; font-weight: 700; color: var(--zq-text-muted);
+    background: transparent; white-space: nowrap; transition: background-color var(--zq-transition), color var(--zq-transition);
+}
+.zq-segmented-control button:hover:not(.is-active) { color: var(--zq-text); }
+.zq-segmented-control button.is-active {
+    background: var(--zq-primary); color: var(--zq-text-on-primary); font-weight: 800; box-shadow: var(--zq-shadow-sm);
+}
