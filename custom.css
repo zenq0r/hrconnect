@@ -1029,13 +1029,9 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-alert-success { background: var(--zq-success-bg); color: var(--zq-success); }
 
 /* ---- Error state (Step 15) — same shell as .zq-loading-state /
-   .zq-empty-state, for a failed-to-load panel (network/Firestore error)
-   with room for a retry action. ---- */
-.zq-error-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
-    border: 1px dashed var(--zq-error); border-radius: var(--zq-radius-lg); background: var(--zq-error-bg);
-}
+   .zq-empty-state (that shared shape is defined once, further down, via a
+   combined selector); only the error tint is set here. For a failed-to-
+   load panel (network/Firestore error) with room for a retry action. ---- */
 .zq-error-state-icon { font-size: 1.5rem; color: var(--zq-error); }
 .zq-error-state-text { font-size: 0.75rem; font-weight: 700; color: var(--zq-error); }
 
@@ -1137,11 +1133,12 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
    </div>
    The icon is decorative (aria-hidden) — title + text alone must carry the
    full meaning, so screen readers and icon-less scanning both work. ---- */
-.zq-empty-state {
+.zq-empty-state, .zq-loading-state, .zq-error-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
     border: 1px dashed var(--zq-border); border-radius: var(--zq-radius-lg); background: var(--zq-surface-alt);
 }
+.zq-error-state { border-color: var(--zq-error); background: var(--zq-error-bg); }
 .zq-empty-state-compact { padding: var(--zq-space-5) var(--zq-space-3); gap: var(--zq-space-1); }
 .zq-empty-state-icon {
     font-size: 1.5rem; color: var(--zq-text-muted); opacity: 0.6; margin-bottom: var(--zq-space-1);
@@ -1153,14 +1150,10 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-empty-state-compact .zq-empty-state-text { font-size: 0.6875rem; }
 .zq-empty-state-action { margin-top: var(--zq-space-2); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--zq-space-2); }
 
-/* ---- Loading state (Step 14) — same shell as .zq-empty-state, for the
-   "waiting on Firestore/Storage" panels that were previously copy-pasted
-   verbatim in three places. Icon is expected to be `.fa-spin` itself. ---- */
-.zq-loading-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
-    border: 1px dashed var(--zq-border); border-radius: var(--zq-radius-lg); background: var(--zq-surface-alt);
-}
+/* ---- Loading state (Step 14) — shares its shell with .zq-empty-state /
+   .zq-error-state (combined selector above); for the "waiting on
+   Firestore/Storage" panels that were previously copy-pasted verbatim in
+   three places. Icon is expected to be `.fa-spin` itself. ---- */
 .zq-loading-state-icon { font-size: 1.25rem; color: var(--zq-text-muted); }
 .zq-loading-state-text { font-size: 0.75rem; font-weight: 700; color: var(--zq-text-muted); }
 
