@@ -97,56 +97,64 @@
         </transition>
 
         <!-- IDLE TIMEOUT WARNING -->
-        <div v-if="isLoggedIn && idleWarningVisible" class="fixed inset-0 z-[93] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 no-print">
-            <div class="w-full max-w-sm rounded-xl bg-white dark:bg-slate-800 p-6 shadow-2xl">
-                <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300"><i class="fa-solid fa-hourglass-half"></i></div>
-                <h3 class="text-base font-extrabold text-brand-dark dark:text-white">Still there?</h3>
-                <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">You've been inactive for a while. For your security, this session will sign out automatically in about 1 minute unless you stay active.</p>
-                <div class="mt-6 flex justify-end gap-2">
-                    <button type="button" @click="handleLogout" class="rounded-lg bg-slate-100 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Sign Out Now</button>
-                    <button type="button" @click="staySignedIn" class="rounded-lg bg-brand-dark px-4 py-2 text-xs font-bold text-white hover:bg-brand-blue">I'm Still Here</button>
+        <div v-if="isLoggedIn && idleWarningVisible" class="zq-modal-overlay z-[93] no-print" role="dialog" aria-modal="true" aria-label="Session Timeout Warning">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <span class="zq-confirm-icon is-warning"><i class="fa-solid fa-hourglass-half"></i></span>
+                    <h3 class="zq-modal-title mt-4">Still there?</h3>
+                    <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">You've been inactive for a while. For your security, this session will sign out automatically in about 1 minute unless you stay active.</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="handleLogout" class="zq-btn zq-btn-outline">Sign Out Now</button>
+                    <button type="button" @click="staySignedIn" class="zq-btn zq-btn-primary">I'm Still Here</button>
                 </div>
             </div>
         </div>
 
         <!-- LOGOUT CONFIRMATION -->
-        <div v-if="logoutConfirm" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 no-print" @click.self="logoutConfirm = false">
-            <div class="w-full max-w-sm rounded-xl bg-white dark:bg-slate-800 p-6 shadow-2xl">
-                <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300"><i class="fa-solid fa-right-from-bracket"></i></div>
-                <h3 class="text-base font-extrabold text-brand-dark dark:text-white">Sign out from the portal?</h3>
-                <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Are you sure you want to end this session? Any unsaved changes may be lost.</p>
-                <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-left dark:border-slate-700">
-                    <input type="checkbox" v-model="forgetTrustedDeviceOnLogout" class="zq-checkbox mt-0.5">
-                    <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Sign out and forget trusted devices</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Require a new 6-digit OTP on every device at the next sign-in.</span></span>
-                </label>
-                <div class="mt-6 flex justify-end gap-2">
-                    <button type="button" @click="logoutConfirm = false" class="rounded-lg bg-slate-100 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">No</button>
-                    <button type="button" @click="handleLogout" class="rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700">Yes, Sign Out</button>
+        <div v-if="logoutConfirm" class="zq-modal-overlay z-[90] no-print" role="dialog" aria-modal="true" aria-label="Sign out from the portal?" @click.self="logoutConfirm = false">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <span class="zq-confirm-icon is-danger"><i class="fa-solid fa-right-from-bracket"></i></span>
+                    <h3 class="zq-modal-title mt-4">Sign out from the portal?</h3>
+                    <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Are you sure you want to end this session? Any unsaved changes may be lost.</p>
+                    <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-left dark:border-slate-700">
+                        <input type="checkbox" v-model="forgetTrustedDeviceOnLogout" class="zq-checkbox mt-0.5">
+                        <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Sign out and forget trusted devices</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Require a new 6-digit OTP on every device at the next sign-in.</span></span>
+                    </label>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="logoutConfirm = false" class="zq-btn zq-btn-outline">No</button>
+                    <button type="button" @click="handleLogout" class="zq-btn zq-btn-destructive">Yes, Sign Out</button>
                 </div>
             </div>
         </div>
 
         <!-- POST-LOGOUT DESTINATION CHOICE -->
-        <div v-if="postLogoutChoice" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 no-print" @click.self="stayOnPortal">
-            <div class="w-full max-w-sm rounded-xl bg-white dark:bg-slate-800 p-6 shadow-2xl">
-                <div class="mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/40 text-brand-blue dark:text-blue-300"><i class="fa-solid fa-circle-check"></i></div>
-                <h3 class="text-base font-extrabold text-brand-dark dark:text-white">You have been signed out</h3>
-                <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Do you want to stay here to sign back in to the Portal, or return to the main Zenqor Technologies website?</p>
-                <div class="mt-6 flex flex-col gap-2">
-                    <button type="button" @click="stayOnPortal" class="w-full rounded-lg bg-brand-blue px-4 py-2 text-xs font-bold text-white hover:bg-blue-700">Stay on Portal</button>
-                    <button type="button" @click="goToMainSite" class="w-full rounded-lg bg-slate-100 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Back to Main Website</button>
+        <div v-if="postLogoutChoice" class="zq-modal-overlay z-[90] no-print" role="dialog" aria-modal="true" aria-label="You have been signed out" @click.self="stayOnPortal">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <span class="zq-confirm-icon is-info"><i class="fa-solid fa-circle-check"></i></span>
+                    <h3 class="zq-modal-title mt-4">You have been signed out</h3>
+                    <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Do you want to stay here to sign back in to the Portal, or return to the main Zenqor Technologies website?</p>
+                </div>
+                <div class="zq-modal-footer !flex-col !items-stretch">
+                    <button type="button" @click="stayOnPortal" class="zq-btn zq-btn-secondary">Stay on Portal</button>
+                    <button type="button" @click="goToMainSite" class="zq-btn zq-btn-outline">Back to Main Website</button>
                 </div>
             </div>
         </div>
 
         <!-- ONBOARDING / WHAT'S NEW (version-driven, tracked per user in Firestore) -->
-        <div v-if="isLoggedIn && showOnboarding" class="fixed inset-0 z-[92] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm p-4 no-print" @click.self="dismissOnboarding">
-            <div class="w-full max-w-md rounded-2xl bg-white dark:bg-slate-800 shadow-2xl overflow-hidden">
-                <div class="bg-brand-dark px-6 py-5 text-white">
-                    <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-gold">{{ onboardingMode === 'whatsnew' ? `Updated · v${latestChangelog?.version}` : 'Welcome' }}</p>
-                    <h3 class="mt-1 text-lg font-extrabold">{{ onboardingMode === 'whatsnew' ? (latestChangelog?.title || "What's New") : `Hi ${userProfile.name}, glad to have you here!` }}</h3>
+        <div v-if="isLoggedIn && showOnboarding" class="zq-modal-overlay z-[92] no-print" role="dialog" aria-modal="true" :aria-label="onboardingMode === 'whatsnew' ? (latestChangelog?.title || &quot;What's New&quot;) : 'Welcome'" @click.self="dismissOnboarding">
+            <div class="zq-modal">
+                <div class="zq-modal-header zq-modal-header-brand">
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-gold">{{ onboardingMode === 'whatsnew' ? `Updated · v${latestChangelog?.version}` : 'Welcome' }}</p>
+                        <h3 class="zq-modal-title mt-1">{{ onboardingMode === 'whatsnew' ? (latestChangelog?.title || "What's New") : `Hi ${userProfile.name}, glad to have you here!` }}</h3>
+                    </div>
                 </div>
-                <div class="p-6">
+                <div class="zq-modal-body">
                     <template v-if="onboardingMode === 'whatsnew'">
                         <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">This portal was just updated. Here's what's new since your last visit:</p>
                         <ul class="space-y-3 text-xs text-slate-700 dark:text-slate-200">
@@ -168,7 +176,7 @@
                             </template>
                         </ul>
                     </template>
-                    <button type="button" @click="dismissOnboarding" class="mt-6 w-full rounded-xl bg-brand-dark px-4 py-2.5 text-xs font-bold text-white hover:bg-brand-blue">Got it, let's start</button>
+                    <button type="button" @click="dismissOnboarding" class="zq-btn zq-btn-primary w-full mt-6">Got it, let's start</button>
                 </div>
             </div>
         </div>
@@ -2410,43 +2418,43 @@
                         </div>
                     </div>
 
-                    <div v-if="activityModal.show && activityModal.project" class="fixed inset-0 z-[98] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" @click.self="closeActivityModal">
-                        <form @submit.prevent="saveProjectActivity" class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl">
-                            <header class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 bg-brand-dark px-6 py-5 text-white"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ activityModal.project.projectRef }}</p><h3 class="mt-1 text-lg font-extrabold">{{ activityModal.isEdit ? 'Edit Project Activity' : 'Schedule Project Activity' }}</h3><p class="mt-1 text-[10px] text-slate-300">{{ activityModal.project.title }}</p></div><button type="button" @click="closeActivityModal" class="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20"><i class="fa-solid fa-xmark"></i></button></header>
-                            <div class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+                    <div v-if="activityModal.show && activityModal.project" class="zq-modal-overlay z-[98]" role="dialog" aria-modal="true" :aria-label="activityModal.isEdit ? 'Edit Project Activity' : 'Schedule Project Activity'" @click.self="closeActivityModal">
+                        <form @submit.prevent="saveProjectActivity" class="zq-modal zq-modal-lg">
+                            <header class="zq-modal-header zq-modal-header-brand"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ activityModal.project.projectRef }}</p><h3 class="zq-modal-title mt-1">{{ activityModal.isEdit ? 'Edit Project Activity' : 'Schedule Project Activity' }}</h3><p class="zq-modal-description !text-slate-300">{{ activityModal.project.title }}</p></div><button type="button" @click="closeActivityModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+                            <div class="zq-modal-body grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <label class="zq-label">Activity Type *<select v-model="activityModal.form.activityType" required class="zq-input mt-1.5"><option v-for="type in activityTypes" :key="type" :value="type">{{ type }}</option></select></label>
                                 <label class="zq-label">Due Date *<input v-model="activityModal.form.dueDate" type="date" required class="zq-input mt-1.5"></label>
                                 <label class="zq-label md:col-span-2">Summary *<input v-model="activityModal.form.summary" type="text" required placeholder="SHORT ACTION OR ISSUE SUMMARY" class="zq-input mt-1.5"></label>
                                 <label class="zq-label md:col-span-2">Assigned To *<select v-model="activityModal.form.assignedEmpNo" @change="selectActivityAssignee" required class="zq-input mt-1.5"><option value="">-- Select Employee --</option><option v-for="employee in projectStaffOptions" :key="`activity-${employee.empNo}`" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="activityModal.form.assignedEmpNo" class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><b>{{ activityModal.form.assignedName }}</b> · {{ activityModal.form.assignedPosition || 'NO POSITION' }} · <span class="lowercase">{{ activityModal.form.assignedEmail }}</span></div></label>
                                 <label class="zq-label md:col-span-2">Activity Details<textarea v-model="activityModal.form.details" rows="5" placeholder="DOCUMENTS REQUIRED, FOLLOW-UP INSTRUCTIONS OR ISSUE DETAILS" class="zq-input mt-1.5"></textarea></label>
                             </div>
-                            <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4"><button type="button" @click="closeActivityModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button><button type="submit" class="rounded-xl bg-brand-blue px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i :class="activityModal.isEdit ? 'fa-pen-to-square' : 'fa-calendar-check'" class="fa-solid mr-1.5"></i>{{ activityModal.isEdit ? 'Save Changes' : 'Schedule Activity' }}</button></div>
+                            <div class="zq-modal-footer"><button type="button" @click="closeActivityModal" class="zq-btn zq-btn-ghost">Cancel</button><button type="submit" class="zq-btn zq-btn-secondary"><i :class="activityModal.isEdit ? 'fa-pen-to-square' : 'fa-calendar-check'" class="fa-solid mr-1.5"></i>{{ activityModal.isEdit ? 'Save Changes' : 'Schedule Activity' }}</button></div>
                         </form>
                     </div>
 
-                    <div v-if="clientUpdateModal.show && clientUpdateModal.project" class="fixed inset-0 z-[99] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" @click.self="closeClientUpdateModal">
-                        <form @submit.prevent="saveClientUpdate" class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl">
-                            <header class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 bg-brand-dark px-6 py-5 text-white"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ clientUpdateModal.project.projectRef }}</p><h3 class="mt-1 text-lg font-extrabold">{{ clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update' }}</h3><p class="mt-1 text-[10px] text-slate-300">This message will appear in the Client Activity History.</p></div><button type="button" @click="closeClientUpdateModal" class="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20"><i class="fa-solid fa-xmark"></i></button></header>
-                            <div class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
+                    <div v-if="clientUpdateModal.show && clientUpdateModal.project" class="zq-modal-overlay z-[99]" role="dialog" aria-modal="true" :aria-label="clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update'" @click.self="closeClientUpdateModal">
+                        <form @submit.prevent="saveClientUpdate" class="zq-modal zq-modal-lg">
+                            <header class="zq-modal-header zq-modal-header-brand"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ clientUpdateModal.project.projectRef }}</p><h3 class="zq-modal-title mt-1">{{ clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update' }}</h3><p class="zq-modal-description !text-slate-300">This message will appear in the Client Activity History.</p></div><button type="button" @click="closeClientUpdateModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+                            <div class="zq-modal-body grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <label class="zq-label">Update Type *<select v-model="clientUpdateModal.form.updateType" required class="zq-input mt-1.5"><option v-for="type in clientUpdateTypes" :key="type" :value="type">{{ type }}</option></select></label>
                                 <label class="zq-label">Update Date *<input v-model="clientUpdateModal.form.updateDate" type="date" required class="zq-input mt-1.5"></label>
                                 <label class="zq-label md:col-span-2">Client Message *<textarea v-model="clientUpdateModal.form.message" rows="6" required placeholder="WRITE ONLY INFORMATION APPROVED FOR CLIENT VIEW" class="zq-input mt-1.5"></textarea><span class="mt-1.5 block text-[9px] font-semibold text-amber-700 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Do not include internal notes, passwords or confidential employee information.</span></label>
                             </div>
-                            <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4"><button type="button" @click="closeClientUpdateModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button><button type="submit" class="rounded-xl bg-brand-blue px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i :class="clientUpdateModal.isEdit ? 'fa-floppy-disk' : 'fa-paper-plane'" class="fa-solid mr-1.5"></i>{{ clientUpdateModal.isEdit ? 'Save Changes' : 'Send to Client' }}</button></div>
+                            <div class="zq-modal-footer"><button type="button" @click="closeClientUpdateModal" class="zq-btn zq-btn-ghost">Cancel</button><button type="submit" class="zq-btn zq-btn-secondary"><i :class="clientUpdateModal.isEdit ? 'fa-floppy-disk' : 'fa-paper-plane'" class="fa-solid mr-1.5"></i>{{ clientUpdateModal.isEdit ? 'Save Changes' : 'Send to Client' }}</button></div>
                         </form>
                     </div>
 
-                    <div v-if="projectModal.show" class="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" @click.self="closeProjectModal">
-                        <form @submit.prevent="saveProject" class="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-2xl">
-                            <div class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 pb-4">
-                                <div><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Activities</p><h3 class="mt-1 text-lg font-extrabold text-brand-dark dark:text-white">{{ projectModal.isEdit ? 'Update Project' : 'Add New Project' }}</h3></div>
-                                <button type="button" @click="closeProjectModal" class="h-9 w-9 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                    <div v-if="projectModal.show" class="zq-modal-overlay z-[95]" role="dialog" aria-modal="true" :aria-label="projectModal.isEdit ? 'Update Project' : 'Add New Project'" @click.self="closeProjectModal">
+                        <form @submit.prevent="saveProject" class="zq-modal zq-modal-lg">
+                            <div class="zq-modal-header">
+                                <div><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Activities</p><h3 class="zq-modal-title mt-1">{{ projectModal.isEdit ? 'Update Project' : 'Add New Project' }}</h3></div>
+                                <button type="button" @click="closeProjectModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                             </div>
-
-                            <p v-if="projectModal.isEdit && !canManageProjects" class="mt-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-circle-info mr-1.5"></i>As the assigned Person In Charge, you can update the workflow stage, schedule and description below. Reference, title, client and PIC linkage can only be changed by Director or Superadmin.</p>
+                            <div class="zq-modal-body">
+                            <p v-if="projectModal.isEdit && !canManageProjects" class="mb-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-circle-info mr-1.5"></i>As the assigned Person In Charge, you can update the workflow stage, schedule and description below. Reference, title, client and PIC linkage can only be changed by Director or Superadmin.</p>
 
                             <section class="mt-5">
-                                <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Identity</h4>
+                                <h4 class="zq-form-section-title">Project Identity</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <label class="zq-label">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="zq-input mt-1.5 uppercase"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-500">Locked after creation to keep linked activities and client updates consistent.</span></label>
                                     <label class="zq-label">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" class="zq-input mt-1.5 uppercase"></label>
@@ -2454,7 +2462,7 @@
                             </section>
 
                             <section class="mt-5">
-                                <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client &amp; Person In Charge</h4>
+                                <h4 class="zq-form-section-title">Client &amp; Person In Charge</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <template v-if="canManageProjects">
                                         <label class="zq-label">Client Name — Client Directory *<select v-model="projectModal.form.clientDirectoryId" @change="selectProjectClientDirectory" required class="zq-input mt-1.5"><option value="">-- Select Client Directory --</option><option v-for="client in customers" :key="client.id" :value="client.id">{{ client.clientName }}{{ client.clientSSM ? ` · ${client.clientSSM}` : '' }}</option></select><span v-if="projectModal.form.clientName" class="mt-1.5 block text-[10px] font-semibold text-brand-blue">Linked: {{ projectModal.form.clientName }}</span></label>
@@ -2480,22 +2488,23 @@
                             </section>
 
                             <section class="mt-5">
-                                <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Workflow &amp; Schedule</h4>
+                                <h4 class="zq-form-section-title">Workflow &amp; Schedule</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <label class="zq-label">Workflow Stage *<select v-model="projectModal.form.status" required class="zq-input mt-1.5"><option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option></select></label>
                                     <div></div>
                                     <label class="zq-label">Start Date<input v-model="projectModal.form.startDate" type="date" class="zq-input mt-1.5"></label>
                                     <label class="zq-label">Target Date<input v-model="projectModal.form.targetDate" type="date" class="zq-input mt-1.5"></label>
-                                    <label class="zq-label md:col-span-2">Project Description<textarea v-model="projectModal.form.description" rows="4" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs uppercase outline-none focus:border-brand-blue"></textarea></label>
+                                    <label class="zq-label md:col-span-2">Project Description<textarea v-model="projectModal.form.description" rows="4" class="zq-input mt-1.5 uppercase"></textarea></label>
                                 </div>
                             </section>
 
-                            <div class="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 dark:border-slate-700 pt-4">
-                                <button v-if="projectModal.isEdit && canManageProjects" type="button" @click="deleteProjectFromModal" class="rounded-xl bg-red-50 dark:bg-red-950/40 px-4 py-2.5 text-xs font-bold text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button>
+                            </div>
+                            <div class="zq-modal-footer !justify-between">
+                                <button v-if="projectModal.isEdit && canManageProjects" type="button" @click="deleteProjectFromModal" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button>
                                 <div v-else></div>
                                 <div class="flex flex-wrap gap-2">
-                                    <button type="button" @click="closeProjectModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
-                                    <button type="submit" class="rounded-xl bg-brand-dark px-5 py-2.5 text-xs font-bold text-white hover:bg-brand-blue"><i class="fa-solid fa-floppy-disk mr-2"></i>Save Project</button>
+                                    <button type="button" @click="closeProjectModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                    <button type="submit" class="zq-btn zq-btn-primary"><i class="fa-solid fa-floppy-disk mr-2"></i>Save Project</button>
                                 </div>
                             </div>
                         </form>
@@ -2726,39 +2735,44 @@
                 </div>
 
                 <!-- New Signed Document Modal -->
-                <div v-if="newSignedDocumentModal.show" class="fixed inset-0 z-[97] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" @click.self="closeNewSignedDocumentModal">
-                    <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-2xl">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-sm font-black text-slate-900 dark:text-white">New Signed Document</h3>
-                            <button type="button" @click="closeNewSignedDocumentModal" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                <div v-if="newSignedDocumentModal.show" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" aria-label="New Signed Document" @click.self="closeNewSignedDocumentModal">
+                    <div class="zq-modal">
+                        <div class="zq-modal-header">
+                            <h3 class="zq-modal-title">New Signed Document</h3>
+                            <button type="button" @click="closeNewSignedDocumentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                         </div>
-                        <label class="block text-[10px] font-bold text-slate-500 mb-1">Client</label>
-                        <select v-model="newSignedDocumentModal.clientDirectoryId" class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 mb-4">
+                        <div class="zq-modal-body">
+                        <label class="zq-label">Client</label>
+                        <select v-model="newSignedDocumentModal.clientDirectoryId" class="zq-input mb-4">
                             <option value="">Select a client…</option>
                             <option v-for="c in customers" :key="c.id" :value="c.id">{{ c.clientName }}</option>
                         </select>
-                        <label class="block text-[10px] font-bold text-slate-500 mb-2">Document Template</label>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5">
+                        <label class="zq-label mb-2">Document Template</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <button v-for="tpl in documentTemplates" :key="tpl.id" type="button" @click="newSignedDocumentModal.templateId = tpl.id" class="text-left rounded-xl border p-3 transition" :class="newSignedDocumentModal.templateId === tpl.id ? 'border-brand-blue bg-teal-50 dark:bg-teal-950/30' : 'border-slate-200 dark:border-slate-600 hover:border-teal-300'">
                                 <i class="fa-solid mr-1.5 text-teal-600" :class="tpl.icon"></i><span class="text-[11px] font-bold text-slate-800 dark:text-slate-100">{{ tpl.label.en }}</span>
                                 <p class="mt-1 text-[10px] text-slate-400">{{ tpl.label.ms }}</p>
                             </button>
                         </div>
-                        <button type="button" @click="createSignedDocument" :disabled="newSignedDocumentModal.saving" class="w-full rounded-xl bg-brand-blue px-4 py-3 text-xs font-bold text-white hover:bg-teal-800 disabled:opacity-60">{{ newSignedDocumentModal.saving ? 'Creating…' : 'Create Document' }}</button>
+                        </div>
+                        <div class="zq-modal-footer">
+                            <button type="button" @click="createSignedDocument" :disabled="newSignedDocumentModal.saving" class="zq-btn zq-btn-secondary w-full">{{ newSignedDocumentModal.saving ? 'Creating…' : 'Create Document' }}</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Fill / Sign / View Signed Document Modal -->
-                <div v-if="signedDocumentModal.show && signedDocumentModal.doc" class="fixed inset-0 z-[97] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm" @click.self="closeSignedDocumentModal">
-                    <div class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 p-6 shadow-2xl">
-                        <div class="flex items-start justify-between mb-2 sticky top-0 bg-white dark:bg-slate-800 pb-3 z-10">
+                <div v-if="signedDocumentModal.show && signedDocumentModal.doc" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" :aria-label="documentTemplates[signedDocumentModal.doc.templateId] ? documentTemplates[signedDocumentModal.doc.templateId].label.en : 'Signed Document'" @click.self="closeSignedDocumentModal">
+                    <div class="zq-modal zq-modal-xl">
+                        <div class="zq-modal-header">
                             <div>
-                                <h3 class="text-sm font-black text-slate-900 dark:text-white">{{ documentTemplates[signedDocumentModal.doc.templateId] ? documentTemplates[signedDocumentModal.doc.templateId].label.en : '' }}</h3>
+                                <h3 class="zq-modal-title">{{ documentTemplates[signedDocumentModal.doc.templateId] ? documentTemplates[signedDocumentModal.doc.templateId].label.en : '' }}</h3>
                                 <p class="mt-1 text-[10px] text-slate-500">{{ signedDocumentModal.doc.clientName }}<span v-if="signedDocumentModal.doc.referenceNo"> · {{ signedDocumentModal.doc.referenceNo }}</span></p>
                                 <span class="mt-2 inline-block px-2.5 py-1 rounded-full text-[10px] font-bold" :class="signedDocumentStatusClass(signedDocumentModal.doc.status)">{{ signedDocumentStatusLabel(signedDocumentModal.doc.status) }}</span>
                             </div>
-                            <button type="button" @click="closeSignedDocumentModal" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                            <button type="button" @click="closeSignedDocumentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
                         </div>
+                        <div class="zq-modal-body">
 
                         <div v-for="section in activeTemplateSections" :key="section" class="mb-5">
                             <h4 class="text-[11px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-1">{{ section }}</h4>
@@ -2810,8 +2824,10 @@
                             <canvas ref="sigCanvas_zenqor" @pointerdown="sigPadPointerDown('zenqor', $event)" @pointermove="sigPadPointerMove('zenqor', $event)" @pointerup="sigPadPointerUp('zenqor')" @pointerleave="sigPadPointerUp('zenqor')" class="w-full h-40 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-600 bg-white touch-none"></canvas>
                         </div>
 
+                        </div>
+
                         <!-- Actions -->
-                        <div class="flex flex-wrap justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                        <div class="zq-modal-footer">
                             <button v-if="canManageSignedDocuments && signedDocumentModal.doc.status === 'draft'" type="button" @click="saveSignedDocumentFields" :disabled="signedDocumentModal.saving" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 disabled:opacity-60">Save Draft</button>
                             <button v-if="canManageSignedDocuments && (signedDocumentModal.doc.status === 'draft' || signedDocumentModal.doc.status === 'awaiting_client')" type="button" @click="sendSignedDocumentToClient" :disabled="signedDocumentModal.saving" class="rounded-xl bg-brand-blue px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800 disabled:opacity-60"><i class="fa-solid fa-paper-plane mr-1.5"></i>{{ signedDocumentModal.saving ? 'Sending…' : (signedDocumentModal.doc.status === 'draft' ? 'Send to Client' : 'Save Changes') }}</button>
                             <button v-if="userProfile.role === 'Client' && signedDocumentModal.doc.status === 'awaiting_client'" type="button" @click="submitClientSignature" :disabled="signedDocumentModal.saving" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-60"><i class="fa-solid fa-signature mr-1.5"></i>{{ signedDocumentModal.saving ? 'Submitting…' : 'Submit & Sign' }}</button>
@@ -2914,17 +2930,17 @@
                         </div>
                     </template>
 
-                    <div v-if="websiteContentModal.show" class="fixed inset-0 z-[99] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" @click.self="closeWebsiteContentModal">
-                        <form @submit.prevent="saveWebsiteContentItem" class="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl">
-                            <header class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 bg-brand-dark px-6 py-5 text-white">
+                    <div v-if="websiteContentModal.show" class="zq-modal-overlay z-[99]" role="dialog" aria-modal="true" :aria-label="websiteContentModal.isEdit ? 'Edit Item' : 'Add New Item'" @click.self="closeWebsiteContentModal">
+                        <form @submit.prevent="saveWebsiteContentItem" class="zq-modal">
+                            <header class="zq-modal-header zq-modal-header-brand">
                                 <div>
                                     <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ websiteContentLabel(websiteContentModal.collectionName) }}</p>
-                                    <h3 class="mt-1 text-lg font-extrabold">{{ websiteContentModal.isEdit ? 'Edit Item' : 'Add New Item' }}</h3>
-                                    <p class="mt-1 text-[10px] text-slate-300">Publishes live on zenqor-tech / www.zenq0r.com immediately on save.</p>
+                                    <h3 class="zq-modal-title mt-1">{{ websiteContentModal.isEdit ? 'Edit Item' : 'Add New Item' }}</h3>
+                                    <p class="zq-modal-description !text-slate-300">Publishes live on zenqor-tech / www.zenq0r.com immediately on save.</p>
                                 </div>
-                                <button type="button" @click="closeWebsiteContentModal" class="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20"><i class="fa-solid fa-xmark"></i></button>
+                                <button type="button" @click="closeWebsiteContentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                             </header>
-                            <div class="grid grid-cols-1 gap-4 p-6">
+                            <div class="zq-modal-body grid grid-cols-1 gap-4">
                                 <template v-if="websiteContentModal.collectionName === 'services'">
                                     <label class="zq-label">Icon (Font Awesome class) *<input v-model="websiteContentModal.form.icon" required placeholder="e.g. fas fa-building" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Browse icons at fontawesome.com — copy the class, e.g. "fas fa-stamp".</span></label>
                                     <div v-if="websiteContentModal.form.icon" class="flex h-16 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"><i :class="websiteContentModal.form.icon" class="text-2xl text-brand-blue dark:text-teal-300"></i></div>
@@ -2958,7 +2974,7 @@
                                         </div>
                                     </template>
                                     <template v-else>
-                                        <label class="zq-label">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
+                                        <label class="zq-label">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="zq-input mt-1.5 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
                                         <div v-if="websiteContentModal.imagePreviewUrl" class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
                                             <img :src="websiteContentModal.imagePreviewUrl" class="max-h-56 w-full object-contain">
                                             <span v-if="websiteContentModal.imageOrientation" class="absolute right-2 top-2 rounded-full bg-slate-950/70 px-2.5 py-1 text-[9px] font-extrabold uppercase text-white">{{ websiteContentModal.imageOrientation }}</span>
@@ -2966,31 +2982,31 @@
                                     </template>
                                 </template>
                             </div>
-                            <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
-                                <button type="button" @click="closeWebsiteContentModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
-                                <button type="submit" :disabled="websiteContentModal.uploading" class="rounded-xl bg-brand-blue px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-800 disabled:opacity-60 disabled:cursor-not-allowed"><i :class="websiteContentModal.uploading ? 'fa-spinner fa-spin' : 'fa-floppy-disk'" class="fa-solid mr-1.5"></i>{{ websiteContentModal.uploading ? 'Uploading...' : (websiteContentModal.isEdit ? 'Save Changes' : 'Publish') }}</button>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="closeWebsiteContentModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                <button type="submit" :disabled="websiteContentModal.uploading" class="zq-btn zq-btn-secondary"><i :class="websiteContentModal.uploading ? 'fa-spinner fa-spin' : 'fa-floppy-disk'" class="fa-solid mr-1.5"></i>{{ websiteContentModal.uploading ? 'Uploading...' : (websiteContentModal.isEdit ? 'Save Changes' : 'Publish') }}</button>
                             </div>
                         </form>
                     </div>
 
-                    <div v-if="siteTextModal.show" class="fixed inset-0 z-[99] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" @click.self="closeSiteTextModal">
-                        <form @submit.prevent="saveSiteTextOverride" class="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl">
-                            <header class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 bg-brand-dark px-6 py-5 text-white">
+                    <div v-if="siteTextModal.show" class="zq-modal-overlay z-[99]" role="dialog" aria-modal="true" :aria-label="siteTextModal.label" @click.self="closeSiteTextModal">
+                        <form @submit.prevent="saveSiteTextOverride" class="zq-modal">
+                            <header class="zq-modal-header zq-modal-header-brand">
                                 <div>
                                     <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">Page Text</p>
-                                    <h3 class="mt-1 text-lg font-extrabold">{{ siteTextModal.label }}</h3>
-                                    <p class="mt-1 text-[10px] font-mono text-slate-300">{{ siteTextModal.key }}</p>
+                                    <h3 class="zq-modal-title mt-1">{{ siteTextModal.label }}</h3>
+                                    <p class="zq-modal-description font-mono !text-slate-300">{{ siteTextModal.key }}</p>
                                 </div>
-                                <button type="button" @click="closeSiteTextModal" class="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20"><i class="fa-solid fa-xmark"></i></button>
+                                <button type="button" @click="closeSiteTextModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                             </header>
-                            <div class="grid grid-cols-1 gap-4 p-6">
+                            <div class="zq-modal-body grid grid-cols-1 gap-4">
                                 <p class="text-[10px] text-slate-500 dark:text-slate-400">Leave both blank to keep the site's built-in default text for this field. This overrides the live site immediately — HTML tags (e.g. &lt;br&gt;, &lt;strong&gt;) are preserved if the default text uses them.</p>
                                 <label class="zq-label">English<textarea v-model="siteTextModal.form.en" rows="5" class="zq-input mt-1.5"></textarea></label>
                                 <label class="zq-label">Bahasa Malaysia<textarea v-model="siteTextModal.form.ms" rows="5" class="zq-input mt-1.5"></textarea></label>
                             </div>
-                            <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
-                                <button type="button" @click="closeSiteTextModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
-                                <button type="submit" class="rounded-xl bg-brand-blue px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-floppy-disk mr-1.5"></i>Save</button>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="closeSiteTextModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                <button type="submit" class="zq-btn zq-btn-secondary"><i class="fa-solid fa-floppy-disk mr-1.5"></i>Save</button>
                             </div>
                         </form>
                     </div>
@@ -3206,7 +3222,7 @@
         </div>
 
         <!-- CLAIM RECORD PREVIEW -->
-        <div v-if="claimPreview.show && claimPreview.claim" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 no-print">
+        <div v-if="claimPreview.show && claimPreview.claim" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 no-print" role="dialog" aria-modal="true" aria-label="Claim Record Preview">
             <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                 <div class="sticky top-0 z-10 flex items-center justify-between bg-brand-dark text-white px-6 py-4 rounded-t-2xl">
                     <div><p class="text-[10px] font-bold tracking-widest text-brand-gold uppercase">Read-only</p><h3 class="text-base font-extrabold"><i class="fa-solid fa-receipt mr-2 text-brand-gold"></i>{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Claim' }} Record Preview</h3></div>
@@ -3272,7 +3288,7 @@
         </div>
 
         <!-- IMAGE ATTACHMENT PREVIEW -->
-        <div v-if="attachmentPreview.show" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 no-print" @click.self="attachmentPreview.show = false">
+        <div v-if="attachmentPreview.show" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 no-print" role="dialog" aria-modal="true" :aria-label="attachmentPreview.label" @click.self="attachmentPreview.show = false">
             <div class="w-full max-w-5xl overflow-hidden rounded-xl bg-white dark:bg-slate-800 shadow-2xl">
                 <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-4 py-3">
                     <div class="flex items-center gap-2 text-sm font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-image text-brand-blue"></i>{{ attachmentPreview.label }}</div>
@@ -3285,7 +3301,7 @@
         </div>
 
         <!-- READ-ONLY RECORD PREVIEW -->
-        <div v-if="recordPreview.show" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex flex-col p-3 md:p-6 no-print">
+        <div v-if="recordPreview.show" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex flex-col p-3 md:p-6 no-print" role="dialog" aria-modal="true" aria-label="Read-only PDF Preview">
             <div class="flex items-center justify-between bg-slate-800 text-white px-4 py-3 rounded-t-xl max-w-5xl w-full mx-auto">
                 <div class="flex items-center gap-2 text-sm font-bold"><i class="fa-solid fa-file-pdf text-red-400"></i> Read-only PDF Preview</div>
                 <button type="button" @click="recordPreview.show = false" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-bold"><i class="fa-solid fa-xmark mr-1"></i>Close</button>
@@ -3296,13 +3312,14 @@
         </div>
 
         <!-- CLIENT INFORMATION VIEW -->
-        <div v-if="clientView.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[102] flex items-center justify-center p-4 no-print" @click.self="closeClientView()">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-                <div class="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-4">
-                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="mt-1 text-lg font-extrabold text-brand-dark dark:text-white">Client Information</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Registered company and contact information.</p></div>
-                    <button type="button" @click="closeClientView()" aria-label="Close client information" class="rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        <div v-if="clientView.show" class="zq-drawer-overlay z-[102] no-print" role="dialog" aria-modal="true" aria-label="Client Information" @click.self="closeClientView()">
+            <div class="zq-drawer zq-drawer-lg">
+                <div class="zq-modal-header">
+                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="zq-modal-title mt-1">Client Information</h3><p class="zq-modal-description">Registered company and contact information.</p></div>
+                    <button type="button" @click="closeClientView()" aria-label="Close client information" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-5 text-xs">
+                <div class="zq-modal-body">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
                             <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p></div>
@@ -3347,7 +3364,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex justify-end"><button type="button" @click="closeClientView()" class="rounded-xl bg-brand-dark px-5 py-2 text-xs font-bold text-white hover:bg-brand-blue">Close</button></div>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="closeClientView()" class="zq-btn zq-btn-primary">Close</button></div>
             </div>
         </div>
 

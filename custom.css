@@ -1041,6 +1041,13 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
     transition: background-color var(--zq-transition), color var(--zq-transition);
 }
 .zq-modal-close:hover { background: var(--zq-surface-alt); color: var(--zq-text); }
+/* Branded variant — used by a few project-context workflow modals that
+   show a project-ref badge; keeps the header on-brand instead of every
+   modal defaulting to a plain light header. */
+.zq-modal-header-brand { background: var(--zq-primary); color: #fff; border-bottom-color: transparent; }
+.zq-modal-header-brand .zq-modal-title { color: #fff; }
+.zq-modal-header-brand .zq-modal-close { color: rgba(255,255,255,0.7); }
+.zq-modal-header-brand .zq-modal-close:hover { background: rgba(255,255,255,0.15); color: #fff; }
 .zq-modal-body { padding: 20px; overflow-y: auto; flex: 1 1 auto; }
 .zq-modal-footer {
     display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px;
@@ -1055,6 +1062,7 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 }
 .zq-confirm-icon.is-danger { background: var(--zq-error-bg); color: var(--zq-error); }
 .zq-confirm-icon.is-warning { background: var(--zq-warning-bg); color: var(--zq-warning); }
+.zq-confirm-icon.is-info { background: var(--zq-info-bg); color: var(--zq-info); }
 
 /* ---- Drawer — slide-in from the right, for quick read-mostly
    inspection panels (record/detail views), not multi-step workflows. ---- */
