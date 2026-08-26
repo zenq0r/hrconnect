@@ -130,7 +130,11 @@ const clientInfoFormFields = [
     { id: 'buyerAddress', label: { en: 'Buyer / Billing Address', ms: 'Alamat Pembeli / Bil' }, type: 'textarea', owner: 'client_fills', section: 'C. Billing & e-Invoice Information', required: false, defaultValue: '' },
     { id: 'preferredInvoiceMethod', label: { en: 'Preferred Invoice Method', ms: 'Kaedah Invois Pilihan' }, type: 'checkboxGroup', owner: 'client_fills', section: 'C. Billing & e-Invoice Information', required: false, defaultValue: [], options: ['Email', 'e-Invoice / MyInvois', 'Client Portal', 'Other / Lain-lain'] },
 
-    { id: 'serviceRequired', label: { en: 'Service Required', ms: 'Perkhidmatan Diperlukan' }, type: 'checkboxGroup', owner: 'client_fills', section: 'D. Service / Project Information', required: true, defaultValue: [], options: ['IT Services', 'Software / System', 'Website', 'Technical Support', 'Consultation', 'Maintenance', 'Other'] },
+    // Options corrected to match Client_Information_Form.pdf's actual printed
+    // checkboxes (the field previously listed generic IT-service options that
+    // do not exist anywhere on the master PDF — a real content mismatch, not
+    // a stylistic choice, found while building the coordinate-overlay map).
+    { id: 'serviceRequired', label: { en: 'Service Required', ms: 'Perkhidmatan Diperlukan' }, type: 'checkboxGroup', owner: 'client_fills', section: 'D. Service / Project Information', required: true, defaultValue: [], options: ['Business License Application', 'Premise License', 'Signboard License', 'Permit Application', 'License Renewal', 'License Amendment / Update', 'PBT / Local Authority Approval', 'Other'] },
     { id: 'projectName', label: { en: 'Project / Service Name', ms: 'Nama Projek / Perkhidmatan' }, type: 'text', owner: 'client_fills', section: 'D. Service / Project Information', required: false, defaultValue: '' },
     { id: 'estimatedBudget', label: { en: 'Estimated Budget', ms: 'Anggaran Bajet' }, type: 'text', owner: 'client_fills', section: 'D. Service / Project Information', required: false, defaultValue: '' },
     { id: 'expectedStartDate', label: { en: 'Expected Start Date', ms: 'Tarikh Mula Dijangka' }, type: 'date', owner: 'client_fills', section: 'D. Service / Project Information', required: false, defaultValue: '' },
@@ -167,6 +171,137 @@ const clientInfoFormFields = [
     { id: 'officeRemarks', label: { en: 'Remarks', ms: 'Catatan' }, type: 'textarea', owner: 'zenqor_fills_after', section: 'I. For Office Use Only', required: false, defaultValue: '' }
 ];
 
+// Coordinate overlay map — measured from Client_Information_Form.pdf's own
+// text layer (pdfjs-dist getTextContent), including its "☐" checkbox glyph
+// runs (used directly for checkbox/checkboxGroup coordinates, not inferred).
+// `type: 'checkbox'`/`'checkboxGroup'` route through buildOverlayPdfForDocument's
+// drawCheckMark instead of drawText. `privacyContact` has NO entry here — no
+// matching field exists anywhere on the master PDF's Section G (verified
+// page-by-page), so it is intentionally left unmapped rather than guessed;
+// it still exists in clientInfoFormFields and works exactly as before on any
+// other template, it simply has nothing to overlay for this one.
+const clientInfoFormFieldMap = [
+    // A. Client / Company Information
+    { id: 'clientType', page: 0, type: 'checkboxGroup', options: [
+        { value: 'Individual / Individu', x: 169.82, y: 593.5, width: 7.34, height: 8.52 },
+        { value: 'Enterprise / Milikan Tunggal', x: 264.41, y: 593.5, width: 7.34, height: 8.52 },
+        { value: 'Partnership / Perkongsian', x: 391.99, y: 593.5, width: 7.34, height: 8.52 },
+        { value: 'Sdn. Bhd.', x: 169.82, y: 580.42, width: 7.34, height: 8.52 },
+        { value: 'Other / Lain-lain', x: 264.53, y: 580.42, width: 7.34, height: 8.52 }
+    ]},
+    { id: 'legalName', page: 0, x: 45, y: 525, width: 230, height: 14, fontSize: 8 },
+    { id: 'tradingName', page: 0, x: 303, y: 525, width: 230, height: 14, fontSize: 8 },
+    { id: 'brnNricPassport', page: 0, x: 45, y: 490, width: 230, height: 14, fontSize: 8 },
+    { id: 'tin', page: 0, x: 303, y: 490, width: 230, height: 14, fontSize: 8 },
+    { id: 'sstNo', page: 0, x: 45, y: 444, width: 230, height: 11, fontSize: 8 },
+    { id: 'industry', page: 0, x: 303, y: 444, width: 230, height: 14, fontSize: 8 },
+    { id: 'registeredAddress', page: 0, x: 45, y: 424, width: 490, height: 50, fontSize: 8, multiline: true },
+    { id: 'correspondenceSameAsRegistered', page: 0, type: 'checkbox', x: 169.82, y: 365.57, width: 6.92, height: 8.04 },
+    { id: 'correspondenceAddress', page: 0, x: 45, y: 345, width: 490, height: 70, fontSize: 8, multiline: true },
+
+    // B. Primary Contact Information
+    { id: 'contactPersonName', page: 0, x: 45, y: 213, width: 230, height: 14, fontSize: 8 },
+    { id: 'designation', page: 0, x: 303, y: 213, width: 230, height: 14, fontSize: 8 },
+    { id: 'department', page: 0, x: 45, y: 180, width: 230, height: 14, fontSize: 8 },
+    { id: 'mobileNo', page: 0, x: 303, y: 180, width: 230, height: 14, fontSize: 8 },
+    { id: 'officeNo', page: 0, x: 45, y: 122, width: 230, height: 14, fontSize: 8 },
+    { id: 'contactEmail', page: 0, x: 303, y: 122, width: 230, height: 14, fontSize: 8 },
+    { id: 'website', page: 0, x: 45, y: 95, width: 230, height: 11, fontSize: 8 },
+    { id: 'preferredContactMethod', page: 0, x: 303, y: 95, width: 230, height: 11, fontSize: 8 },
+
+    // C. Billing & e-Invoice Information
+    { id: 'billingName', page: 1, x: 45, y: 584, width: 230, height: 14, fontSize: 8 },
+    { id: 'billingEmail', page: 1, x: 303, y: 590, width: 230, height: 14, fontSize: 8 },
+    { id: 'buyerTin', page: 1, x: 45, y: 550, width: 230, height: 14, fontSize: 8 },
+    { id: 'buyerBrn', page: 1, x: 303, y: 545, width: 230, height: 11, fontSize: 8 },
+    { id: 'buyerSst', page: 1, x: 45, y: 505, width: 230, height: 11, fontSize: 8 },
+    { id: 'buyerContactNo', page: 1, x: 303, y: 508, width: 230, height: 14, fontSize: 8 },
+    { id: 'buyerAddress', page: 1, x: 45, y: 484, width: 490, height: 55, fontSize: 8, multiline: true },
+    { id: 'preferredInvoiceMethod', page: 1, type: 'checkboxGroup', options: [
+        { value: 'Email', x: 173.18, y: 415.75, width: 7.34, height: 8.52 },
+        { value: 'e-Invoice / MyInvois', x: 214.25, y: 415.75, width: 7.34, height: 8.52 },
+        { value: 'Client Portal', x: 309.07, y: 415.75, width: 7.34, height: 8.52 },
+        { value: 'Other / Lain-lain', x: 375.07, y: 415.75, width: 7.34, height: 8.52 }
+    ]},
+
+    // D. Service / Project Information
+    { id: 'serviceRequired', page: 1, type: 'checkboxGroup', options: [
+        { value: 'Business License Application', x: 169.82, y: 343.13, width: 7.34, height: 8.52 },
+        { value: 'Premise License', x: 302.95, y: 343.13, width: 7.34, height: 8.52 },
+        { value: 'Signboard License', x: 388.75, y: 343.13, width: 7.34, height: 8.52 },
+        { value: 'Permit Application', x: 169.82, y: 330.05, width: 7.34, height: 8.52 },
+        { value: 'License Renewal', x: 302.11, y: 330.05, width: 7.34, height: 8.52 },
+        { value: 'License Amendment / Update', x: 390.43, y: 330.05, width: 7.34, height: 8.52 },
+        { value: 'PBT / Local Authority Approval', x: 169.82, y: 317.09, width: 7.34, height: 8.52 },
+        { value: 'Other', x: 302.83, y: 317.09, width: 7.34, height: 8.52 }
+    ]},
+    { id: 'projectName', page: 1, x: 45, y: 260, width: 230, height: 14, fontSize: 8 },
+    { id: 'estimatedBudget', page: 1, x: 303, y: 260, width: 230, height: 14, fontSize: 8 },
+    { id: 'expectedStartDate', page: 1, x: 45, y: 222, width: 230, height: 11, fontSize: 8 },
+    { id: 'expectedCompletionDate', page: 1, x: 303, y: 222, width: 230, height: 11, fontSize: 8 },
+    { id: 'briefRequirements', page: 1, x: 45, y: 200, width: 490, height: 140, fontSize: 8, multiline: true },
+
+    // E. Authorised Representative
+    { id: 'authRepName', page: 2, x: 45, y: 638, width: 230, height: 14, fontSize: 8 },
+    { id: 'authRepDesignation', page: 2, x: 303, y: 638, width: 230, height: 14, fontSize: 8 },
+    { id: 'authRepContactNo', page: 2, x: 45, y: 603, width: 230, height: 11, fontSize: 8 },
+    { id: 'authRepEmail', page: 2, x: 303, y: 603, width: 230, height: 11, fontSize: 8 },
+    { id: 'authorisedToApprove', page: 2, type: 'checkboxGroup', options: [
+        { value: 'Quotation', x: 169.82, y: 591.1, width: 7.34, height: 8.52 },
+        { value: 'Purchase / Order', x: 226.49, y: 591.1, width: 7.34, height: 8.52 },
+        { value: 'Project Changes', x: 310.99, y: 591.1, width: 7.34, height: 8.52 },
+        { value: 'Invoice / Payment', x: 393.55, y: 591.1, width: 7.34, height: 8.52 },
+        { value: 'All of the above', x: 480.7, y: 591.1, width: 7.34, height: 8.52 }
+    ]},
+
+    // F. Supporting Documents & Additional Information
+    { id: 'documentsAttached', page: 2, type: 'checkboxGroup', options: [
+        { value: 'SSM / Registration', x: 169.82, y: 518.35, width: 7.34, height: 8.52 },
+        { value: 'SST Certificate', x: 260.57, y: 518.35, width: 7.34, height: 8.52 },
+        { value: 'Purchase Order', x: 337.39, y: 518.35, width: 7.34, height: 8.52 },
+        { value: 'Company Profile', x: 417.07, y: 518.35, width: 7.34, height: 8.52 },
+        { value: 'Other', x: 499.66, y: 518.35, width: 7.34, height: 8.52 }
+    ]},
+    { id: 'referralSource', page: 2, x: 45, y: 462, width: 230, height: 11, fontSize: 8 },
+    { id: 'clientReference', page: 2, x: 303, y: 462, width: 230, height: 11, fontSize: 8 },
+    { id: 'additionalNotes', page: 2, x: 45, y: 436, width: 490, height: 80, fontSize: 8, multiline: true },
+
+    // G. Personal Data Protection Notice & Consent
+    { id: 'pdpaConsent', page: 2, type: 'checkbox', x: 42.24, y: 113.3, width: 6.92, height: 8.04 },
+
+    // H. Client Declaration & Authorisation
+    { id: 'declarationName', page: 3, x: 45, y: 573, width: 230, height: 14, fontSize: 8 },
+    { id: 'declarationDesignation', page: 3, x: 303, y: 573, width: 230, height: 14, fontSize: 8 },
+    { id: 'declarationDate', page: 3, x: 303, y: 525, width: 230, height: 14, fontSize: 8 },
+    { id: 'companyStampNote', page: 3, x: 45, y: 470, width: 230, height: 14, fontSize: 8 },
+    { id: 'officialEmailContact', page: 3, x: 303, y: 495, width: 230, height: 14, fontSize: 8 },
+
+    // I. For Office Use Only
+    { id: 'clientId', page: 3, x: 45, y: 393, width: 230, height: 11, fontSize: 8 },
+    { id: 'accountRefNo', page: 3, x: 303, y: 393, width: 230, height: 11, fontSize: 8 },
+    { id: 'clientStatus', page: 3, type: 'checkboxGroup', options: [
+        { value: 'New / Baru', x: 169.82, y: 380.33, width: 7.34, height: 8.52 },
+        { value: 'Active / Aktif', x: 231.65, y: 380.33, width: 7.34, height: 8.52 },
+        { value: 'Existing / Sedia Ada', x: 298.13, y: 380.33, width: 7.34, height: 8.52 },
+        { value: 'Inactive / Tidak Aktif', x: 394.03, y: 380.33, width: 7.34, height: 8.52 }
+    ]},
+    { id: 'handledBy', page: 3, x: 45, y: 317, width: 230, height: 11, fontSize: 8 },
+    { id: 'dateReceived', page: 3, x: 303, y: 317, width: 230, height: 11, fontSize: 8 },
+    { id: 'verifiedBy', page: 3, x: 45, y: 283, width: 230, height: 11, fontSize: 8 },
+    { id: 'verificationDate', page: 3, x: 303, y: 283, width: 230, height: 11, fontSize: 8 },
+    { id: 'officeRemarks', page: 3, x: 45, y: 257, width: 490, height: 30, fontSize: 8, multiline: true }
+];
+
+// CIF's master PDF has only ONE signature line (the client's declaration,
+// Section H) — no Zenqor countersignature area on the physical form, unlike
+// the other three templates. Only `client` is listed here on purpose: the
+// existing awaiting_zenqor/finalizeZenqorSignature step in the workflow still
+// runs (Zenqor's internal approval), it just has nothing to draw for this
+// template, matching what the real document actually shows.
+const clientInfoFormSignatureBoxes = {
+    client: { page: 3, x: 45, y: 525, width: 230, height: 25 }
+};
+
 // ---------------------------------------------------------------
 // 3. NDA LETTER (Perjanjian Kerahsiaan)
 // ---------------------------------------------------------------
@@ -187,6 +322,30 @@ const ndaFields = [
     { id: 'clientRepPosition', label: { en: 'Client Representative Position', ms: 'Jawatan Wakil Pihak Penerima' }, type: 'text', owner: 'client_fills', section: 'Client Signature Block', required: true, defaultValue: '' },
     { id: 'clientSignDate', label: { en: 'Date', ms: 'Tarikh' }, type: 'date', owner: 'client_fills', section: 'Client Signature Block', required: true, defaultValue: '' }
 ];
+
+// Coordinate overlay map — measured from NDA_Letter.pdf's own text layer
+// (pdfjs-dist getTextContent), same methodology as authorizationLetterFieldMap
+// above. Unlike Authorization Letter, the NDA master PDF's "Nama:"/"Jawatan:"
+// under Zenqor's own signature column are BLANK (not pre-printed) — matches
+// zenqorRepName/zenqorRepPosition being owner: zenqor_editable here, so both
+// get real field-map entries.
+const ndaFieldMap = [
+    { id: 'effectiveDate', page: 0, x: 319, y: 730.06, width: 130, height: 9.96, fontSize: 9 },
+    { id: 'receivingCompanyName', page: 0, x: 391, y: 660.10, width: 150, height: 9.96, fontSize: 9 },
+    { id: 'receivingRegNo', page: 0, x: 391, y: 637.90, width: 150, height: 9.96, fontSize: 9 },
+    { id: 'receivingAddress', page: 0, x: 391, y: 614, width: 150, height: 40, fontSize: 8, multiline: true },
+    { id: 'confidentialitySurvivalPeriod', page: 1, x: 66, y: 166.7, width: 88, height: 9.96, fontSize: 9 },
+    { id: 'zenqorRepName', page: 2, x: 88, y: 260.18, width: 195, height: 9.96, fontSize: 9 },
+    { id: 'zenqorRepPosition', page: 2, x: 93, y: 235.46, width: 190, height: 9.96, fontSize: 9 },
+    { id: 'zenqorSignDate', page: 2, x: 95, y: 210.62, width: 190, height: 9.96, fontSize: 9 },
+    { id: 'clientRepName', page: 2, x: 337, y: 260.18, width: 195, height: 9.96, fontSize: 9 },
+    { id: 'clientRepPosition', page: 2, x: 342, y: 235.46, width: 190, height: 9.96, fontSize: 9 },
+    { id: 'clientSignDate', page: 2, x: 344, y: 210.62, width: 190, height: 9.96, fontSize: 9 }
+];
+const ndaSignatureBoxes = {
+    zenqor: { page: 2, x: 55.8, y: 295, width: 230, height: 35 },
+    client: { page: 2, x: 305.21, y: 295, width: 230, height: 35 }
+};
 
 // ---------------------------------------------------------------
 // 4. SERVICE AGREEMENT (Perjanjian Perkhidmatan)
@@ -223,6 +382,50 @@ const serviceAgreementFields = [
     { id: 'clientSignatoryTitleStamp', label: { en: 'Title / Official Stamp', ms: 'Jawatan / Cap Rasmi' }, type: 'text', owner: 'client_fills', section: 'Client Signature Block', required: false, defaultValue: '' },
     { id: 'clientSignDate', label: { en: 'Date', ms: 'Tarikh' }, type: 'date', owner: 'client_fills', section: 'Client Signature Block', required: true, defaultValue: '' }
 ];
+
+// Coordinate overlay map — measured from Service-agreement.pdf's own text
+// layer (pdfjs-dist getTextContent). Page size here is US Letter (612x792),
+// not A4 like the other three templates — buildOverlayPdfForDocument and the
+// fill UI both read each page's actual dimensions from the loaded PDF/canvas,
+// so no hardcoded-A4 assumption anywhere needs changing for this.
+// zenqorSignatoryName/zenqorSignatoryTitle have no entries — already printed
+// as static text (owner: zenqor_prefilled). The static "Official Email"
+// value in Zenqor's own column (admin@zenq0r.com) is master-PDF content,
+// not a field — left exactly as-is per instruction, not migrated.
+// `agreementDate`'s exact cell is a judgment call: this row's Zenqor-column
+// cell is blank in the master (unlike every other row in this table, which
+// has Zenqor's real static info already printed) and the field config has
+// only one shared value for it, so it's placed in that one blank cell —
+// flagged in the completion report rather than silently assumed.
+const serviceAgreementFieldMap = [
+    { id: 'agreementRefSuffix', page: 0, x: 172, y: 587.26, width: 40, height: 9, fontSize: 8 },
+    { id: 'documentDate', page: 0, x: 373, y: 587.26, width: 89, height: 9, fontSize: 8 },
+    { id: 'agreementDate', page: 0, x: 168.38, y: 132, width: 165, height: 9.96, fontSize: 8 },
+    { id: 'clientCompanyName', page: 0, x: 390, y: 368.81, width: 165, height: 9.96, fontSize: 8 },
+    { id: 'clientRegNo', page: 0, x: 390, y: 317.33, width: 165, height: 9.96, fontSize: 8 },
+    { id: 'clientBusinessAddress', page: 0, x: 390, y: 283.61, width: 165, height: 24, fontSize: 8, multiline: true },
+    { id: 'clientContactPerson', page: 0, x: 390, y: 238, width: 165, height: 9.96, fontSize: 8 },
+    { id: 'clientPhone', page: 0, x: 390, y: 199.58, width: 165, height: 9, fontSize: 8 },
+    { id: 'clientEmail', page: 0, x: 390, y: 166.34, width: 165, height: 9, fontSize: 8 },
+    { id: 'phase1_workStage', page: 2, x: 123, y: 165.02, width: 165, height: 20, fontSize: 8, multiline: true },
+    { id: 'phase1_amount', page: 2, x: 292, y: 165.02, width: 80, height: 11, fontSize: 8 },
+    { id: 'phase1_milestone', page: 2, x: 377, y: 165.02, width: 178, height: 20, fontSize: 8, multiline: true },
+    { id: 'phase2_workStage', page: 2, x: 123, y: 131.90, width: 165, height: 20, fontSize: 8, multiline: true },
+    { id: 'phase2_amount', page: 2, x: 292, y: 131.90, width: 80, height: 11, fontSize: 8 },
+    { id: 'phase2_milestone', page: 2, x: 377, y: 131.90, width: 178, height: 20, fontSize: 8, multiline: true },
+    { id: 'phase3_workStage', page: 2, x: 123, y: 98.66, width: 165, height: 20, fontSize: 8, multiline: true },
+    { id: 'phase3_amount', page: 2, x: 292, y: 98.66, width: 80, height: 11, fontSize: 8 },
+    { id: 'phase3_milestone', page: 2, x: 377, y: 98.66, width: 178, height: 20, fontSize: 8, multiline: true },
+    { id: 'totalAmount', page: 3, x: 292, y: 665, width: 80, height: 9.96, fontSize: 8 },
+    { id: 'zenqorSignDate', page: 5, x: 85, y: 193.82, width: 145, height: 9.96, fontSize: 8 },
+    { id: 'clientSignatoryName', page: 5, x: 345, y: 260.21, width: 145, height: 9.96, fontSize: 8 },
+    { id: 'clientSignatoryTitleStamp', page: 5, x: 405, y: 227.06, width: 83, height: 9.96, fontSize: 7.5 },
+    { id: 'clientSignDate', page: 5, x: 340, y: 193.82, width: 145, height: 9.96, fontSize: 8 }
+];
+const serviceAgreementSignatureBoxes = {
+    zenqor: { page: 5, x: 58.68, y: 300, width: 165, height: 28 },
+    client: { page: 5, x: 313.13, y: 300, width: 165, height: 28 }
+};
 
 // ---------------------------------------------------------------
 // PDF DOCUMENT FLOW — reproduces the ACTUAL wording, clause order and
@@ -594,18 +797,24 @@ export const DOCUMENT_TEMPLATES = {
         label: { en: 'Client Information Form', ms: 'Borang Maklumat Pelanggan' },
         icon: 'fa-address-card',
         fieldConfig: clientInfoFormFields,
-        pdfBlocks: clientInfoFormPdfBlocks
+        pdfBlocks: clientInfoFormPdfBlocks,
+        fieldMap: clientInfoFormFieldMap,
+        signatureBoxes: clientInfoFormSignatureBoxes
     },
     nda: {
         id: 'nda',
         label: { en: 'Non-Disclosure Agreement', ms: 'Perjanjian Kerahsiaan' },
         icon: 'fa-user-secret',
         fieldConfig: ndaFields,
-        pdfBlocks: ndaPdfBlocks
+        pdfBlocks: ndaPdfBlocks,
+        fieldMap: ndaFieldMap,
+        signatureBoxes: ndaSignatureBoxes
     },
     service_agreement: {
         id: 'service_agreement',
         label: { en: 'Service Agreement', ms: 'Perjanjian Perkhidmatan' },
+        fieldMap: serviceAgreementFieldMap,
+        signatureBoxes: serviceAgreementSignatureBoxes,
         icon: 'fa-file-contract',
         fieldConfig: serviceAgreementFields,
         pdfBlocks: serviceAgreementPdfBlocks
@@ -1048,10 +1257,35 @@ export async function buildOverlayPdfForDocument(templateId, fields, signatures,
     const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
     const pages = pdfDoc.getPages();
 
+    // Draws an "X" centered in a checkbox's mapped box — same visual convention
+    // regardless of whether it's a lone `checkbox` field or one option within a
+    // `checkboxGroup`.
+    const drawCheckMark = (page, box) => {
+        const pad = Math.min(box.width, box.height) * 0.22;
+        const size = Math.min(box.width, box.height) - pad * 2;
+        const x1 = box.x + pad, y1 = box.y + pad, x2 = box.x + box.width - pad, y2 = box.y + box.height - pad;
+        page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: Math.max(1, size * 0.18) });
+        page.drawLine({ start: { x: x1, y: y2 }, end: { x: x2, y: y1 }, thickness: Math.max(1, size * 0.18) });
+    };
+
     tpl.fieldMap.forEach(f => {
         const page = pages[f.page];
         if (!page) return;
         const raw = safeFields[f.id];
+
+        if (f.type === 'checkbox') {
+            if (raw === true) drawCheckMark(page, f);
+            return;
+        }
+        if (f.type === 'checkboxGroup') {
+            const selected = Array.isArray(raw) ? raw : [];
+            (f.options || []).forEach(opt => {
+                const optPage = pages[opt.page !== undefined ? opt.page : f.page];
+                if (optPage && selected.includes(opt.value)) drawCheckMark(optPage, opt);
+            });
+            return;
+        }
+
         const value = raw === undefined || raw === null ? '' : String(raw);
         if (!value) return;
         if (f.multiline) {

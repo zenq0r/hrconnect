@@ -767,6 +767,30 @@ createApp({
             tpl.fieldMap.forEach(f => { byId[f.id] = f; });
             return byId;
         },
+        // Flattens the field map into one overlay-box item per rendered PDF
+        // page position — a plain text/date/textarea field is one item, but a
+        // checkboxGroup field (e.g. clientType) expands into one item PER
+        // option, since each option is its own physical checkbox on the PDF.
+        // A field with no fieldMap entry (e.g. CIF's privacyContact, which has
+        // no matching location on the master PDF) simply produces no item.
+        activeTemplateOverlayItems() {
+            if (!this.activeTemplateFieldMapById) return [];
+            const items = [];
+            this.activeTemplateFieldConfig.forEach(field => {
+                const f = this.activeTemplateFieldMapById[field.id];
+                if (!f) return;
+                if (f.type === 'checkboxGroup') {
+                    (f.options || []).forEach(opt => {
+                        items.push({ key: field.id + '::' + opt.value, field, kind: 'checkboxGroupOption', optionValue: opt.value, page: opt.page !== undefined ? opt.page : f.page, x: opt.x, y: opt.y, width: opt.width, height: opt.height });
+                    });
+                } else if (f.type === 'checkbox') {
+                    items.push({ key: field.id, field, kind: 'checkbox', page: f.page, x: f.x, y: f.y, width: f.width, height: f.height });
+                } else {
+                    items.push({ key: field.id, field, kind: 'text', multiline: !!f.multiline, page: f.page, x: f.x, y: f.y, width: f.width, height: f.height, fontSize: f.fontSize });
+                }
+            });
+            return items;
+        },
         visibleSignedDocuments() {
             let items = this.signedDocuments.items;
             if (this.userProfile.role === 'Client') {
@@ -2523,21 +2547,24 @@ createApp({
                 this.pdfOverlay.loading = false;
             }
         },
-        // Converts a field-map entry's PDF-point coordinates (origin bottom-left,
-        // matching pdf-lib) into a CSS absolute-position style over that page's
-        // rendered <canvas> (origin top-left) — recomputed reactively off
-        // pdfOverlay.pages so it stays aligned regardless of render width/zoom.
-        overlayFieldStyle(fieldMapEntry) {
-            const page = this.pdfOverlay.pages[fieldMapEntry.page];
+        // Converts a flattened overlay item's PDF-point coordinates (origin
+        // bottom-left, matching pdf-lib) into a CSS absolute-position style over
+        // that page's rendered <canvas> (origin top-left) — recomputed reactively
+        // off pdfOverlay.pages so it stays aligned regardless of render width/zoom.
+        overlayFieldStyle(item) {
+            const page = this.pdfOverlay.pages[item.page];
             if (!page || !page.width) return { display: 'none' };
             const scale = page.width / page.pdfWidth;
             return {
-                left: (fieldMapEntry.x * scale) + 'px',
-                top: ((page.pdfHeight - fieldMapEntry.y - fieldMapEntry.height) * scale) + 'px',
-                width: (fieldMapEntry.width * scale) + 'px',
-                height: (fieldMapEntry.height * scale) + 'px',
-                fontSize: Math.max(8, fieldMapEntry.fontSize * scale * 0.92) + 'px'
+                left: (item.x * scale) + 'px',
+                top: ((page.pdfHeight - item.y - item.height) * scale) + 'px',
+                width: (item.width * scale) + 'px',
+                height: (item.height * scale) + 'px',
+                fontSize: Math.max(8, (item.fontSize || 10) * scale * 0.92) + 'px'
             };
+        },
+        toggleCheckboxValue(fieldId) {
+            this.signedDocumentModal.fields[fieldId] = !this.signedDocumentModal.fields[fieldId];
         },
         // Whether the CURRENT logged-in user may edit a given field right now, based on
         // its `owner` and the document's current status — mirrors the ownership boundary
