@@ -579,10 +579,10 @@
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" @click="printDocumentModule" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
+                            <button type="button" @click="printDocumentModule" class="zq-btn zq-btn-outline">
                                 <i class="fa-solid fa-file-pdf"></i><span>Preview / Print PDF</span>
                             </button>
-                            <button type="button" @click="resetDocForm" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition" title="Clear Form">
+                            <button type="button" @click="resetDocForm" class="zq-btn zq-btn-destructive zq-btn-icon" title="Clear Form">
                                 <i class="fa-solid fa-rotate-left"></i>
                             </button>
                         </div>
@@ -598,11 +598,11 @@
                             </div>
                             <div class="flex items-center space-x-2">
                                 <label for="doc-client-select" class="sr-only">Select Client</label>
-                                <select id="doc-client-select" name="docClientSelect" @change="selectCustomerForDoc($event)" class="p-2 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white w-full sm:w-60 focus:ring-2 focus:ring-brand-gold">
+                                <select id="doc-client-select" name="docClientSelect" @change="selectCustomerForDoc($event)" class="zq-select w-full sm:w-60">
                                     <option value="">-- Auto-Fill Client --</option>
                                     <option v-for="cust in customers" :key="cust.id" :value="cust.id">{{ cust.clientName }}{{ cust.clientSSM ? ` · ${cust.clientSSM}` : '' }}</option>
                                 </select>
-                                <button v-if="canManageClients" type="button" @click="saveCustomerToDatabase" class="bg-brand-gold hover:bg-yellow-400 text-brand-dark font-extrabold px-3 py-2 rounded-xl text-xs shadow transition">
+                                <button v-if="canManageClients" type="button" @click="saveCustomerToDatabase" class="zq-btn zq-btn-secondary">
                                     Save Client
                                 </button>
                             </div>
@@ -635,7 +635,7 @@
                                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                         <div><label for="doc-client-phone" class="zq-label">Phone Number *</label><input id="doc-client-phone" name="clientPhone" type="text" v-model="docForm.clientPhone" @input="clientSavedForDocument = false" required placeholder="+60 13-XXXX XXX" class="zq-input"></div>
                                         <div><label for="doc-client-email" class="zq-label">Email Address</label><input id="doc-client-email" name="clientEmail" type="email" v-model="docForm.clientEmail" @input="clientSavedForDocument = false" placeholder="email@company.com" class="zq-input"></div>
-                                        <div><label for="doc-client-contact" class="zq-label">Contact Person</label><input id="doc-client-contact" name="clientContact" type="text" v-model="docForm.clientContactPerson" @input="clientSavedForDocument = false" placeholder="Officer Name" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50 font-semibold"></div>
+                                        <div><label for="doc-client-contact" class="zq-label">Contact Person</label><input id="doc-client-contact" name="clientContact" type="text" v-model="docForm.clientContactPerson" @input="clientSavedForDocument = false" placeholder="Officer Name" class="zq-input font-semibold"></div>
                                         <div><label for="doc-client-position" class="zq-label">Position</label><input id="doc-client-position" name="clientPosition" type="text" v-model="docForm.clientPosition" @input="clientSavedForDocument = false" placeholder="EXECUTIVE / DIRECTOR" class="zq-input"></div>
                                     </div>
                                 </div>
@@ -665,12 +665,12 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 border-t border-slate-100 dark:border-slate-700 pt-5">
                             <div>
                                 <label for="doc-type" class="zq-label">DOCUMENT TYPE</label>
-                                <select id="doc-type" name="docType" v-model="docForm.type" @change="generateDocNo" :disabled="!!editingDocId" class="w-full p-2 border rounded-xl text-xs font-extrabold bg-white dark:bg-slate-700 dark:text-white border-slate-300 dark:border-slate-600">
+                                <select id="doc-type" name="docType" v-model="docForm.type" @change="generateDocNo" :disabled="!!editingDocId" class="zq-select font-extrabold">
                                     <option value="Quotation">Quotation</option>
                                     <option value="Invoice">Invoice</option>
                                 </select>
                             </div>
-                            <div><label for="doc-no" class="zq-label">DOCUMENT NO.</label><input id="doc-no" name="docNo" type="text" v-model="docForm.docNo" readonly class="w-full p-2 border rounded-xl bg-slate-100 dark:bg-slate-700 dark:text-white font-extrabold text-xs text-brand-dark"></div>
+                            <div><label for="doc-no" class="zq-label">DOCUMENT NO.</label><input id="doc-no" name="docNo" type="text" v-model="docForm.docNo" readonly class="zq-input font-extrabold text-brand-dark dark:text-white"></div>
                             <div><label for="doc-date" class="zq-label">DOCUMENT DATE</label><input id="doc-date" name="docDate" type="date" v-model="docForm.date" class="zq-input"></div>
                             <div><label for="doc-due-date" class="zq-label">{{ docForm.type === 'Invoice' ? 'DUE DATE' : 'VALID UNTIL' }}</label><input id="doc-due-date" name="dueDate" type="date" v-model="docForm.dueDate" class="zq-input"></div>
                             <div>
@@ -741,11 +741,11 @@
                                     <p class="text-[10px] text-slate-400 dark:text-slate-500 truncate">{{ docForm.paymentAttachment ? 'Receipt Attached' : 'No file selected' }}</p>
                                 </div>
                                 <div class="flex items-center space-x-1 shrink-0">
-                                    <label for="doc-attachment" :class="attachmentUploadState.payment ? 'opacity-60 pointer-events-none' : ''" class="bg-brand-dark hover:bg-brand-blue text-white px-2.5 py-1.5 rounded-lg text-[11px] font-bold cursor-pointer transition">
+                                    <label for="doc-attachment" :class="attachmentUploadState.payment ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer">
                                         <span>{{ attachmentUploadState.payment ? 'Uploading...' : 'Select' }}</span>
                                         <input id="doc-attachment" name="attachment" type="file" @change="handleAttachmentUpload" :disabled="attachmentUploadState.payment" accept=".png,.jpeg,.jpg,image/png,image/jpeg" class="hidden">
                                     </label>
-                                    <button v-if="docForm.paymentAttachment" type="button" @click="openAttachment(docForm.paymentAttachment, 'Payment attachment')" class="bg-emerald-600 text-white px-2 py-1.5 rounded-lg text-[11px] font-bold" title="View attachment">
+                                    <button v-if="docForm.paymentAttachment" type="button" @click="openAttachment(docForm.paymentAttachment, 'Payment attachment')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View attachment">
                                         <i class="fa-solid fa-eye"></i>
                                     </button>
                                 </div>
@@ -756,7 +756,7 @@
                         <div v-else class="border-t border-slate-100 dark:border-slate-700 pt-4">
                             <div class="flex justify-between items-center mb-3">
                                 <h3 class="text-xs font-extrabold uppercase tracking-wider text-brand-gold">LIST OF ITEMS &amp; SERVICES</h3>
-                                <button type="button" @click="clearAllDocItems" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-1 rounded-lg text-xs transition flex items-center space-x-1">
+                                <button type="button" @click="clearAllDocItems" class="zq-btn zq-btn-destructive zq-btn-sm">
                                     <i class="fa-solid fa-trash-can"></i><span>Clear All Items</span>
                                 </button>
                             </div>
@@ -773,33 +773,33 @@
                                 </thead>
                                 <tbody>
                                     <tr v-for="(item, idx) in docForm.items" :key="idx" class="border-b dark:border-slate-700">
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-desc-' + idx" class="sr-only">Description</label><input :id="'item-desc-' + idx" :name="'itemDesc_' + idx" type="text" v-model="item.desc" placeholder="Service description / payment phase..." class="w-full p-1.5 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-xs font-medium"></td>
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-qty-' + idx" class="sr-only">Quantity</label><input :id="'item-qty-' + idx" :name="'itemQty_' + idx" type="number" v-model="item.qty" min="1" class="w-full p-1.5 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-center text-xs font-bold"></td>
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-price-' + idx" class="sr-only">Unit Price</label><input :id="'item-price-' + idx" :name="'itemPrice_' + idx" type="number" v-model="item.price" step="0.01" class="w-full p-1.5 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-right text-xs font-semibold"></td>
+                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-desc-' + idx" class="sr-only">Description</label><input :id="'item-desc-' + idx" :name="'itemDesc_' + idx" type="text" v-model="item.desc" placeholder="Service description / payment phase..." class="zq-input font-medium"></td>
+                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-qty-' + idx" class="sr-only">Quantity</label><input :id="'item-qty-' + idx" :name="'itemQty_' + idx" type="number" v-model="item.qty" min="1" class="zq-input text-center font-bold"></td>
+                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-price-' + idx" class="sr-only">Unit Price</label><input :id="'item-price-' + idx" :name="'itemPrice_' + idx" type="number" v-model="item.price" step="0.01" class="zq-input text-right font-semibold"></td>
                                         <td class="p-2 border dark:border-slate-600 text-right font-extrabold text-xs bg-slate-50 dark:bg-slate-700/50 dark:text-white">{{ formatCurrency(item.qty * item.price) }}</td>
-                                        <td class="p-2 border dark:border-slate-600 text-center"><button type="button" @click="removeDocItem(idx)" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash text-xs"></i></button></td>
+                                        <td class="p-2 border dark:border-slate-600 text-center"><button type="button" @click="removeDocItem(idx)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Remove item"><i class="fa-solid fa-trash text-xs"></i></button></td>
                                     </tr>
                                 </tbody>
                             </table>
-                            
+
                             <div class="flex justify-between items-center mt-3">
-                                <button type="button" @click="addDocItem" class="bg-slate-100 dark:bg-slate-700 dark:text-white hover:bg-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition">+ Add Item</button>
+                                <button type="button" @click="addDocItem" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Item</span></button>
                             </div>
                         </div>
 
                         <div class="flex flex-col sm:flex-row items-end justify-between border-t border-slate-100 dark:border-slate-700 pt-5 gap-4">
                             <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                                <button type="button" @click="printDocumentModule" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-5 py-2.5 rounded-xl shadow transition text-xs flex items-center space-x-1.5">
+                                <button type="button" @click="printDocumentModule" class="zq-btn zq-btn-outline">
                                     <i class="fa-solid fa-print"></i><span>Print Document</span>
                                 </button>
-                                <button v-if="canManageDocuments" type="button" @click="saveDocRecord" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl shadow transition text-xs flex items-center space-x-1.5">
+                                <button v-if="canManageDocuments" type="button" @click="saveDocRecord" class="zq-btn zq-btn-primary">
                                     <i class="fa-solid fa-floppy-disk"></i><span>Save Document</span>
                                 </button>
                             </div>
 
                             <div class="w-full sm:w-72 space-y-1.5 text-xs font-semibold">
                                 <div class="flex justify-between text-slate-600 dark:text-slate-300"><span>Subtotal:</span><span class="font-bold">RM {{ docSubtotal.toFixed(2) }}</span></div>
-                                <div class="flex justify-between items-center text-slate-600 dark:text-slate-300"><label for="doc-discount" class="cursor-pointer">Discount (-):</label><input id="doc-discount" name="docDiscount" type="number" v-model="docForm.discount" step="0.01" class="w-20 p-1 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded text-right text-xs"></div>
+                                <div class="flex justify-between items-center text-slate-600 dark:text-slate-300"><label for="doc-discount" class="cursor-pointer">Discount (-):</label><input id="doc-discount" name="docDiscount" type="number" v-model="docForm.discount" step="0.01" class="zq-input w-20 text-right"></div>
                                 <div class="flex justify-between text-slate-600 dark:text-slate-300"><span>SST (8%):</span><span class="font-bold">RM {{ docSST.toFixed(2) }}</span></div>
                                 <div class="flex justify-between text-sm font-extrabold text-brand-dark dark:text-white border-t border-slate-300 dark:border-slate-600 pt-2"><span>Grand Total:</span><span class="text-brand-gold">RM {{ docGrandTotal.toFixed(2) }}</span></div>
                             </div>
