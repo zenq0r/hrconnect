@@ -942,6 +942,22 @@ html.dark {
     text-align: left; transition: background-color var(--zq-transition), color var(--zq-transition);
 }
 
+/* ---- Dashboard KPI card (Step 9) — compact label/value/context/icon
+   card used across the executive dashboard's KPI grid. Value font-size
+   stays a per-instance Tailwind class (text-xl vs text-lg) since the
+   currency-value cards deliberately run one size smaller to avoid
+   wrapping — this only tokenizes the shared shape/spacing/hover. ---- */
+.zq-kpi-card {
+    min-width: 0; border-radius: var(--zq-radius-lg); border: 1px solid var(--zq-border);
+    background: var(--zq-surface-alt); padding: 14px;
+    transition: border-color var(--zq-transition), box-shadow var(--zq-transition), transform var(--zq-transition);
+}
+.zq-kpi-card:hover { border-color: var(--zq-accent); box-shadow: var(--zq-shadow-sm); transform: translateY(-1px); }
+.zq-kpi-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.zq-kpi-card-value { margin-top: 8px; font-weight: 900; line-height: 1; color: var(--zq-text); }
+.zq-kpi-card-label { margin-top: 8px; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.3; color: var(--zq-text-muted); }
+.zq-kpi-card-context { margin-top: 4px; font-size: 0.625rem; font-weight: 700; }
+
 /* ---- Empty state ---- */
 .zq-empty-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;

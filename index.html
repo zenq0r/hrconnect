@@ -1394,13 +1394,13 @@
                 <!-- DASHBOARD MODULE -->
                 <div v-show="currentTab === 'dashboard'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
 
-                    <section v-if="userProfile.role !== 'Client'" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live project workflow overview.</p></div><button type="button" @click="switchTab('project-activities')" class="rounded-lg bg-brand-dark px-3 py-2 text-[10px] font-bold text-white hover:bg-brand-blue">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
+                    <section v-if="userProfile.role !== 'Client'" class="zq-card p-5">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 class="zq-text-section-title">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live project workflow overview.</p></div><button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
                         <div class="project-summary-grid"><button v-for="(stage, stageIndex) in projectStages" :key="`internal-dashboard-${stage}`" type="button" @click="switchTab('project-activities')" class="project-summary-card rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md"><div class="flex items-center justify-between gap-3"><span :class="['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][stageIndex]" class="h-2.5 w-2.5 rounded-full"></span><span class="text-2xl font-black leading-none text-brand-dark dark:text-white">{{ getProjectsByStage(stage).length }}</span></div><p class="mt-3 text-[10px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">{{ stage }}</p><p class="mt-2 text-[9px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-600">Step {{ stageIndex + 1 }} of 5</p></button></div>
                     </section>
 
-                    <section v-if="myPendingProjectActivities.length" class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h3 class="text-sm font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-bell mr-2 text-amber-500"></i>My Assigned Project Activities</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Activities requiring your action, ordered by due date.</p></div><div class="flex flex-wrap items-center gap-2 text-[9px] font-bold"><span class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-1 text-red-700 dark:text-red-300">Overdue</span><span class="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-1 text-amber-700 dark:text-amber-300">Today</span><span class="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-emerald-700 dark:text-emerald-300">Next 3 Days</span><span class="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-1 text-blue-700 dark:text-blue-300">Scheduled</span><span class="rounded-full bg-slate-900 dark:bg-slate-700 px-2.5 py-1 text-white">{{ myPendingProjectActivities.length }} Open</span></div></div>
+                    <section v-if="myPendingProjectActivities.length" class="zq-card p-5">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h3 class="zq-text-section-title"><i class="fa-solid fa-bell mr-2 text-amber-500"></i>My Assigned Project Activities</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Activities requiring your action, ordered by due date.</p></div><div class="flex flex-wrap items-center gap-2 text-[9px] font-bold"><span class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-1 text-red-700 dark:text-red-300">Overdue</span><span class="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-1 text-amber-700 dark:text-amber-300">Today</span><span class="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-emerald-700 dark:text-emerald-300">Next 3 Days</span><span class="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-1 text-blue-700 dark:text-blue-300">Scheduled</span><span class="rounded-full bg-slate-900 dark:bg-slate-700 px-2.5 py-1 text-white">{{ myPendingProjectActivities.length }} Open</span></div></div>
                         <div class="grid grid-cols-1 gap-3 md:grid-cols-2"><article v-for="activity in myPendingProjectActivities.slice(0, 6)" :key="`dashboard-activity-${activity.id}`" :class="projectActivityDueState(activity).borderClass" class="rounded-xl border-l-4 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ activity.projectRef }} · {{ activity.activityType }}</p><p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400"><span :class="projectActivityDueState(activity).dotClass" class="h-2 w-2 rounded-full"></span>Due {{ activity.dueDate }}</p></div><span :class="projectActivityDueState(activity).className" class="shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><div class="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3"><p class="truncate text-[9px] text-slate-400 dark:text-slate-500">{{ activity.projectTitle }}</p><button type="button" @click="markProjectActivityDone(activity)" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700"><i class="fa-solid fa-check mr-1"></i>Mark Done</button></div></article></div>
                     </section>
                     
@@ -1411,37 +1411,31 @@
                                 <h2 class="zq-text-page-title">Staff Employee Dashboard</h2>
                                 <p class="zq-page-header-desc">Welcome, {{ userProfile.name }}. View your latest payslips and expense claim status.</p>
                             </div>
-                            <button @click="switchTab('claims')" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2.5 rounded-xl shadow-lg transition text-xs flex items-center space-x-2">
+                            <button @click="switchTab('claims')" class="zq-btn zq-btn-primary">
                                 <i class="fa-solid fa-file-circle-plus"></i><span>Submit New Claim</span>
                             </button>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Latest Net Salary</p>
-                                    <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">{{ formatCurrency(myLatestNetSalary) }}</h3>
-                                    <p class="text-[10px] text-slate-400 mt-1">Last Generated Payslip</p>
-                                </div>
-                                <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-lg text-emerald-600 dark:text-emerald-400 truncate">{{ formatCurrency(myLatestNetSalary) }}</h3>
+                                <p class="zq-kpi-card-label truncate">Latest Net Salary</p>
+                                <p class="zq-kpi-card-context text-slate-400 truncate">Last Generated Payslip</p>
                             </div>
 
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pending Claims</p>
-                                    <h3 class="text-2xl font-extrabold text-amber-500 mt-1">{{ myPendingClaimsCount }}</h3>
-                                    <p class="text-[10px] text-amber-600 font-bold mt-1">Status: Pending</p>
-                                </div>
-                                <div class="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-clock-rotate-left text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-xl text-amber-500 truncate">{{ myPendingClaimsCount }}</h3>
+                                <p class="zq-kpi-card-label truncate">Pending Claims</p>
+                                <p class="zq-kpi-card-context text-amber-600 truncate">Status: Pending</p>
                             </div>
 
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Approved Claims (YTD)</p>
-                                    <h3 class="text-2xl font-extrabold text-brand-dark dark:text-white mt-1">{{ formatCurrency(myApprovedClaimsAmount) }}</h3>
-                                    <p class="text-[10px] text-emerald-600 font-bold mt-1">Status: Approved</p>
-                                </div>
-                                <div class="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-brand-blue flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-receipt"></i></div>
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(myApprovedClaimsAmount) }}</h3>
+                                <p class="zq-kpi-card-label truncate">Approved Claims (YTD)</p>
+                                <p class="zq-kpi-card-context text-emerald-600 truncate">Status: Approved</p>
                             </div>
                         </div>
 
@@ -1501,37 +1495,33 @@
                             <i class="fa-solid fa-building absolute -right-4 -bottom-6 text-[120px] text-white/5"></i>
                         </div>
 
-                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Documents</p>
-                                    <h3 class="text-2xl font-extrabold text-brand-dark dark:text-white mt-1">{{ myClientDocs.length }}</h3>
-                                    <p class="text-[10px] text-slate-400 mt-1">Quotations &amp; Invoices</p>
-                                </div>
-                                <div class="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-900/40 text-brand-blue flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-file-invoice"></i></div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-file-invoice text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ myClientDocs.length }}</h3>
+                                <p class="zq-kpi-card-label truncate">Total Documents</p>
+                                <p class="zq-kpi-card-context text-slate-400 truncate">Quotations &amp; Invoices</p>
                             </div>
 
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Unpaid Invoices</p>
-                                    <h3 class="text-2xl font-extrabold text-red-500 mt-1">{{ formatCurrency(myUnpaidInvoicesAmount) }}</h3>
-                                    <p class="text-[10px] text-red-500 font-bold mt-1">{{ myUnpaidInvoicesCount }} Invois Unpaid</p>
-                                </div>
-                                <div class="w-11 h-11 rounded-xl bg-red-50 dark:bg-red-900/40 text-red-500 flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-circle-exclamation"></i></div>
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span><i class="fa-solid fa-circle-exclamation text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-lg text-red-500 truncate">{{ formatCurrency(myUnpaidInvoicesAmount) }}</h3>
+                                <p class="zq-kpi-card-label truncate">Unpaid Invoices</p>
+                                <p class="zq-kpi-card-context text-red-500 truncate">{{ myUnpaidInvoicesCount }} Invois Unpaid</p>
                             </div>
 
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div>
-                                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total Paid Amount</p>
-                                    <h3 class="text-2xl font-extrabold text-emerald-600 mt-1">{{ formatCurrency(myPaidInvoicesAmount) }}</h3>
-                                    <p class="text-[10px] text-emerald-600 font-bold mt-1">Status: Paid</p>
-                                </div>
-                                <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-sack-dollar"></i></div>
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-lg text-emerald-600 truncate">{{ formatCurrency(myPaidInvoicesAmount) }}</h3>
+                                <p class="zq-kpi-card-label truncate">Total Paid Amount</p>
+                                <p class="zq-kpi-card-context text-emerald-600 truncate">Status: Paid</p>
                             </div>
 
-                            <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
-                                <div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Active Projects</p><h3 class="text-2xl font-extrabold text-violet-600 dark:text-violet-400 mt-1">{{ clientActiveProjectsCount }}</h3><p class="text-[10px] text-slate-400 mt-1">{{ projects.length }} total project(s)</p></div>
-                                <div class="w-11 h-11 rounded-xl bg-violet-50 dark:bg-violet-900/40 text-violet-600 dark:text-violet-300 flex items-center justify-center text-lg font-bold"><i class="fa-solid fa-diagram-project"></i></div>
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span><i class="fa-solid fa-diagram-project text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                <h3 class="zq-kpi-card-value text-xl text-violet-600 dark:text-violet-400 truncate">{{ clientActiveProjectsCount }}</h3>
+                                <p class="zq-kpi-card-label truncate">Active Projects</p>
+                                <p class="zq-kpi-card-context text-slate-400 truncate">{{ projects.length }} total project(s)</p>
                             </div>
                         </div>
 
@@ -1542,18 +1532,18 @@
                         </section>
 
                         <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                            <div class="lg:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
-                                <div class="mb-4 flex items-center justify-between"><div><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Recent Project Updates</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Latest messages from your project team.</p></div><span class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-[9px] font-bold text-brand-blue dark:text-blue-300">{{ clientRecentUpdates.length }} recent</span></div>
+                            <div class="lg:col-span-2 zq-card p-5">
+                                <div class="mb-4 flex items-center justify-between"><div><h3 class="zq-text-section-title">Recent Project Updates</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Latest messages from your project team.</p></div><span class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-[9px] font-bold text-brand-blue dark:text-blue-300">{{ clientRecentUpdates.length }} recent</span></div>
                                 <div v-if="clientRecentUpdates.length" class="space-y-3"><button v-for="update in clientRecentUpdates" :key="`dashboard-update-${update.id}`" type="button" @click="switchTab('project-activities')" class="flex w-full items-start gap-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3 text-left transition hover:border-brand-blue hover:bg-blue-50/40 dark:hover:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="update.senderRole === 'Client' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' : 'bg-blue-100 text-brand-blue dark:bg-blue-950/50 dark:text-blue-300'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-reply' : 'fa-bullhorn'"></i></span><span class="min-w-0"><span class="flex flex-wrap items-center gap-1.5"><span class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ update.projectRef }}</span><span class="text-[9px] text-slate-400">· {{ update.updateType }}</span></span><span class="mt-1 block truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{{ update.message }}</span><span class="mt-1 block text-[9px] text-slate-400">{{ formatDateTime(update.createdAt || update.updateDate) }}</span></span></button></div>
                                 <div v-else class="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 px-5 py-6 text-center"><i class="fa-regular fa-comments text-xl text-slate-300 dark:text-slate-600"></i><p class="mt-2 text-[10px] font-bold text-slate-400">Project updates will appear here once your project starts.</p></div>
                             </div>
                             <div class="relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-sm"><div class="relative z-10"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300"><i class="fa-solid fa-shield-halved"></i></span><h3 class="mt-4 text-sm font-extrabold">Your workspace is protected</h3><p class="mt-2 text-[10px] leading-relaxed text-slate-300">Secure sign-in, trusted-device verification and role-based access help protect your company records.</p><div class="mt-4 space-y-2 text-[10px] font-semibold"><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Identity verified</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Private company workspace</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Activity securely logged</p></div></div><i class="fa-solid fa-fingerprint absolute -bottom-8 -right-5 text-[110px] text-white/5"></i></div>
                         </section>
 
-                        <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+                        <section class="zq-card p-5">
                             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live workflow status for projects assigned to your Client Portal account.</p></div>
-                                <button type="button" @click="switchTab('project-activities')" class="rounded-lg bg-brand-dark px-3 py-2 text-[10px] font-bold text-white hover:bg-brand-blue">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button>
+                                <div><h3 class="zq-text-section-title">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live workflow status for projects assigned to your Client Portal account.</p></div>
+                                <button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button>
                             </div>
                             <div class="space-y-3">
                                 <button v-for="project in projects.slice(0, 3)" :key="`client-dashboard-track-${project.id}`" type="button" @click="openProjectDetails(project)" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
@@ -1611,78 +1601,78 @@
                     <!-- 3. VIEW EKSEKUTIF (SUPERADMIN / HR / ACCOUNT / IT / OWNER) -->
                     <div v-else class="space-y-6">
                         <!-- KAD KPI EKSEKUTIF — satu bekas seragam dengan Project Progress & Priority Clients -->
-                        <section class="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 shadow-sm">
+                        <section class="zq-card p-5">
                             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <h2 class="text-sm font-extrabold text-brand-dark dark:text-white">Enterprise Executive Dashboard</h2>
+                                    <h2 class="zq-text-section-title">Enterprise Executive Dashboard</h2>
                                     <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Real-time monitoring of financial KPIs, HR, corporate documents, and system activities.</p>
                                 </div>
-                                <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-bold text-slate-500 dark:text-slate-300"><i class="fa-solid fa-circle-check text-emerald-500 mr-1"></i>Live data</span>
+                                <span class="zq-badge zq-badge-success shrink-0">Live data</span>
                             </div>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <!-- 1. Total Employees -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-xl font-black leading-none text-brand-dark dark:text-white truncate">{{ employees.length }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Total Employees</p>
-                                    <p class="mt-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate">{{ activeEmployeesCount }} Active</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ employees.length }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Total Employees</p>
+                                    <p class="zq-kpi-card-context text-emerald-600 dark:text-emerald-400 truncate">{{ activeEmployeesCount }} Active</p>
                                 </div>
                                 <!-- 2. Total Clients -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-xl font-black leading-none text-brand-dark dark:text-white truncate">{{ customers.length }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Total Clients</p>
-                                    <p class="mt-1 text-[9px] font-bold text-brand-gold truncate">{{ priorityClients.length }} Priority</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ customers.length }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Total Clients</p>
+                                    <p class="zq-kpi-card-context text-brand-gold truncate">{{ priorityClients.length }} Priority</p>
                                 </div>
                                 <!-- 3. Total Quotations -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-xl font-black leading-none text-brand-dark dark:text-white truncate">{{ totalQuotations }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Total Quotations</p>
-                                    <p class="mt-1 text-[9px] font-bold text-indigo-600 dark:text-indigo-400 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalQuotations }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Total Quotations</p>
+                                    <p class="zq-kpi-card-context text-indigo-600 dark:text-indigo-400 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
                                 </div>
                                 <!-- 4. Total Invoices -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-xl font-black leading-none text-brand-dark dark:text-white truncate">{{ totalInvoices }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Total Invoices</p>
-                                    <p class="mt-1 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalInvoices }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Total Invoices</p>
+                                    <p class="zq-kpi-card-context text-emerald-600 dark:text-emerald-400 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
                                 </div>
                                 <!-- 5. Revenue (Paid) -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-lg font-black leading-none text-emerald-600 dark:text-emerald-400 truncate">{{ formatCurrency(totalRevenuePaid) }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Revenue (Paid)</p>
-                                    <p class="mt-1 text-[9px] font-bold text-slate-400 truncate">Collected Inflow</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-lg text-emerald-600 dark:text-emerald-400 truncate">{{ formatCurrency(totalRevenuePaid) }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Revenue (Paid)</p>
+                                    <p class="zq-kpi-card-context text-slate-400 truncate">Collected Inflow</p>
                                 </div>
                                 <!-- 6. Pending Receivables -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-lg font-black leading-none text-orange-500 dark:text-orange-400 truncate">{{ formatCurrency(totalRevenuePending) }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Pending Receivables</p>
-                                    <p class="mt-1 text-[9px] font-bold text-red-500 truncate">{{ unpaidInvoicesCount }} Invoices Unpaid</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-lg text-orange-500 dark:text-orange-400 truncate">{{ formatCurrency(totalRevenuePending) }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Pending Receivables</p>
+                                    <p class="zq-kpi-card-context text-red-500 truncate">{{ unpaidInvoicesCount }} Invoices Unpaid</p>
                                 </div>
                                 <!-- 7. Total Payroll (Net) -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-lg font-black leading-none text-brand-dark dark:text-white truncate">{{ formatCurrency(totalPayrollNet) }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Total Payroll (Net)</p>
-                                    <p class="mt-1 text-[9px] font-bold text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(totalPayrollNet) }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Total Payroll (Net)</p>
+                                    <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
                                 </div>
                                 <!-- 8. Total Claims (Approved) -->
-                                <div class="min-w-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3.5 py-3 transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex items-center justify-between gap-2"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="mt-2 text-lg font-black leading-none text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(totalApprovedClaimsAmount) }}</h3>
-                                    <p class="mt-2 text-[9px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">Claims &amp; Vouchers (Approved)</p>
-                                    <p class="mt-1 text-[9px] font-bold text-amber-500 truncate">{{ pendingClaimsCount }} Pending Approval</p>
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
+                                    <h3 class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(totalApprovedClaimsAmount) }}</h3>
+                                    <p class="zq-kpi-card-label truncate">Claims &amp; Vouchers (Approved)</p>
+                                    <p class="zq-kpi-card-context text-amber-500 truncate">{{ pendingClaimsCount }} Pending Approval</p>
                                 </div>
                             </div>
                         </section>
 
                         <!-- PRIORITY CLIENTS WIDGET -->
-                        <div v-if="priorityClients.length" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+                        <div v-if="priorityClients.length" class="zq-card p-5">
                             <div class="mb-3 flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-extrabold text-brand-dark dark:text-white flex items-center gap-2"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">{{ priorityClients.length }}</span></h3>
+                                <h3 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">{{ priorityClients.length }}</span></h3>
                                 <button type="button" @click="switchTab('client-directory')" v-if="hasAccess('client-directory')" class="text-[10px] font-bold text-brand-blue hover:underline">View Client Directory</button>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1694,9 +1684,9 @@
                         </div>
 
                         <!-- EMPLOYEE WORKLOAD WIDGET — cross-system insight: HR staff load measured against live Client project/activity assignments -->
-                        <div v-if="employeeWorkload.length" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+                        <div v-if="employeeWorkload.length" class="zq-card p-5">
                             <div class="mb-3 flex items-center justify-between gap-3">
-                                <h3 class="text-sm font-extrabold text-brand-dark dark:text-white flex items-center gap-2"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients<span v-if="overloadedEmployeeCount" class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{{ overloadedEmployeeCount }} Overloaded</span></h3>
+                                <h3 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients<span v-if="overloadedEmployeeCount" class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{{ overloadedEmployeeCount }} Overloaded</span></h3>
                                 <button type="button" @click="switchTab('hr-employees')" v-if="hasAccess('hr-employees')" class="text-[10px] font-bold text-brand-blue hover:underline">View Employee Management</button>
                             </div>
                             <p class="text-[10px] text-slate-400 dark:text-slate-500 mb-3">Active project and activity assignments per staff member — a view only possible because HR and Client records share one system.</p>
@@ -1717,9 +1707,9 @@
 
                         <!-- REAL DATA CHARTS -->
                         <div v-if="portalDataReady && !['Staff', 'Client'].includes(userProfile.role)" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                            <div class="zq-card p-6">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                                    <h3 class="text-sm font-extrabold text-brand-dark dark:text-white">
+                                    <h3 class="zq-text-section-title">
                                         <i class="fa-solid fa-chart-line text-brand-blue mr-2"></i>Financial &amp; Revenue Trend
                                     </h3>
                                     <div class="flex items-center space-x-1 bg-slate-100 dark:bg-slate-700 p-1 rounded-xl text-xs font-bold shrink-0">
@@ -1733,15 +1723,15 @@
                                     <canvas id="revenueChart"></canvas>
                                 </div>
                             </div>
-                            <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
-                                <h3 class="text-sm font-extrabold text-brand-dark dark:text-white mb-4"><i class="fa-solid fa-chart-pie text-brand-gold mr-2"></i>Document &amp; Invoice Status Distribution</h3>
+                            <div class="zq-card p-6">
+                                <h3 class="zq-text-section-title mb-4"><i class="fa-solid fa-chart-pie text-brand-gold mr-2"></i>Document &amp; Invoice Status Distribution</h3>
                                 <div class="h-64 relative flex items-center justify-center">
                                     <canvas id="statusChart"></canvas>
                                 </div>
                             </div>
-                            <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                            <div class="lg:col-span-2 zq-card p-6">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h3 class="text-sm font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-bars-progress text-rose-500 mr-2"></i>Claims &amp; Payment Voucher Pipeline</h3>
+                                    <h3 class="zq-text-section-title"><i class="fa-solid fa-bars-progress text-rose-500 mr-2"></i>Claims &amp; Payment Voucher Pipeline</h3>
                                     <span class="text-[11px] font-bold text-slate-400">{{ claimsPipelineTotal }} total record{{ claimsPipelineTotal === 1 ? '' : 's' }}</span>
                                 </div>
                                 <div class="h-8 relative">
@@ -1768,10 +1758,10 @@
                         </div>
 
                         <!-- RECENT ACTIVITIES TABLE WITH SORT OPTIONS -->
-                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                        <div class="zq-card p-6">
                             <div v-if="userProfile.role === 'Account' && financePendingClaims.length" class="mb-4 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"><i class="fa-solid fa-bell text-base"></i><span><strong>Finance notification:</strong> {{ financePendingClaims.length }} claim(s) and/or payment voucher(s) are pending Finance approval.</span></div>
                             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-                                <h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Recent Activities &amp; Document List</h3>
+                                <h3 class="zq-text-section-title">Recent Activities &amp; Document List</h3>
 
                                 <div class="flex flex-wrap items-center gap-3">
                                     <!-- DROPDOWN POKOK PILIHAN SORT -->
