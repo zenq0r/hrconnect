@@ -3988,8 +3988,35 @@ createApp({
         },
 
         async deletePortalUser(uid, email) {
-            if (confirm(`Are you sure you want to delete portal access for: ${email}?`)) {
-                try { await deleteDoc(doc(db, "users", uid)); this.logAudit('DELETE', `Deleted user metadata for ${email}`); this.showNotify('User record deleted.'); } catch (error) { console.error('Portal user deletion failed:', error); this.showNotify('Unable to delete portal access.'); }
+            if (!confirm(`Are you sure you want to delete portal access for: ${email}?`)) return;
+            try {
+                // Delete the Firebase Authentication account FIRST (via Admin SDK — the
+                // client SDK can only ever delete the currently signed-in user's own
+                // account) so access is revoked even if the Firestore cleanup below
+                // fails for some reason; a retry then just cleans up the leftover
+                // Firestore doc (the endpoint treats an already-deleted Auth account as
+                // success, not an error). Without this step, the Auth account
+                // (Identifier/Providers/Created/Signed In/User UID in the Firebase
+                // Console) would otherwise linger indefinitely after "deleting" someone
+                // here, since deleteDoc alone only ever removed the Firestore record.
+                if (auth.currentUser) {
+                    const idToken = await auth.currentUser.getIdToken();
+                    const resp = await fetch('/api/delete-portal-user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                        body: JSON.stringify({ uid })
+                    });
+                    if (!resp.ok) {
+                        const errBody = await resp.json().catch(() => ({}));
+                        throw new Error(errBody.error || 'Unable to delete the Firebase Authentication account.');
+                    }
+                }
+                await deleteDoc(doc(db, "users", uid));
+                this.logAudit('DELETE', `Deleted user metadata for ${email}`);
+                this.showNotify('User record and Firebase Authentication account deleted.');
+            } catch (error) {
+                console.error('Portal user deletion failed:', error);
+                this.showNotify(error?.message || 'Unable to delete portal access.');
             }
         },
 
