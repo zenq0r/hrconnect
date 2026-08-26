@@ -1652,10 +1652,14 @@ createApp({
             this.projectModal.form.clientName = customer.clientName || '';
             this.projectModal.form.clientSSM = customer.clientSSM || '';
             this.projectModal.form.clientTier = customer.clientTier || 'Standard';
-            const authorizedEmails = [customer.clientEmail, ...(Array.isArray(customer.additionalClientEmails) ? customer.additionalClientEmails : [])]
-                .map(email => String(email || '').trim().toLowerCase()).filter(Boolean);
-            const matchingAccess = this.projectClientAccessUsers.find(user => authorizedEmails.includes(String(user.email || '').trim().toLowerCase()))
-                || this.projectClientAccessUsers.find(user => String(user.name || '').trim().toLowerCase() === String(customer.clientName || '').trim().toLowerCase());
+            // projectClientAccessUsers is already filtered down to exactly this
+            // customer's authorized emails (it re-derives the same authorizedEmails
+            // set from projectModal.form.clientDirectoryId, which was just set
+            // above), so this find() only ever searches an already-authorized pool
+            // by email — there is deliberately no name-based fallback here. A
+            // company name is not unique or stable enough to safely stand in for a
+            // real portal-account match (see the docs/customerId fix).
+            const matchingAccess = this.projectClientAccessUsers.find(user => String(user.email || '').trim());
             this.projectModal.form.clientPortalUid = matchingAccess?.id || '';
             this.projectModal.form.clientEmail = matchingAccess?.email || '';
         },
