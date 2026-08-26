@@ -1009,6 +1009,29 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 
 .zq-help-text { margin-top: 4px; font-size: 0.6875rem; color: var(--zq-text-muted); }
 .zq-error-text { margin-top: 4px; font-size: 0.6875rem; font-weight: 700; color: var(--zq-error); }
+.zq-success-text { margin-top: 4px; font-size: 0.6875rem; font-weight: 700; color: var(--zq-success); }
+
+/* ---- Alert banner (Step 15) — a centered inline error/message banner,
+   for form-level (not per-field) errors: "wrong password", "link
+   expired", a failed submit. Was hand-rolled identically at 4+ call
+   sites. .zq-error-text stays for per-field messages under a single
+   input; this is for a standalone block above/below a form. ---- */
+.zq-alert {
+    text-align: center; font-size: 0.75rem; font-weight: 600; padding: 10px; border-radius: var(--zq-radius-md);
+}
+.zq-alert-error { background: var(--zq-error-bg); color: var(--zq-error); }
+.zq-alert-success { background: var(--zq-success-bg); color: var(--zq-success); }
+
+/* ---- Error state (Step 15) — same shell as .zq-loading-state /
+   .zq-empty-state, for a failed-to-load panel (network/Firestore error)
+   with room for a retry action. ---- */
+.zq-error-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
+    border: 1px dashed var(--zq-error); border-radius: var(--zq-radius-lg); background: var(--zq-error-bg);
+}
+.zq-error-state-icon { font-size: 1.5rem; color: var(--zq-error); }
+.zq-error-state-text { font-size: 0.75rem; font-weight: 700; color: var(--zq-error); }
 
 .zq-checkbox, .zq-radio {
     height: 16px; width: 16px; border: 1px solid var(--zq-border); accent-color: var(--zq-accent); cursor: pointer;

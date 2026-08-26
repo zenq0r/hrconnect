@@ -222,7 +222,7 @@
                             <label for="reset-confirm-password" class="zq-label">Confirm New Password</label>
                             <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
                         </div>
-                        <div v-if="passwordResetFlow.error" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ passwordResetFlow.error }}</div>
+                        <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
                         <button type="submit" :disabled="passwordResetFlow.loading" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider disabled:opacity-60">
                             {{ passwordResetFlow.loading ? 'Updating…' : 'Update Password' }}
                         </button>
@@ -263,7 +263,7 @@
                         <input id="forgot-email" name="email" type="email" v-model="forgotPasswordFlow.email" required autocomplete="username" placeholder="Your registered email" class="zq-input font-medium">
                     </div>
 
-                    <div v-if="forgotPasswordFlow.error" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ forgotPasswordFlow.error }}</div>
+                    <div v-if="forgotPasswordFlow.error" class="zq-alert zq-alert-error">{{ forgotPasswordFlow.error }}</div>
 
                     <button type="submit" :disabled="forgotPasswordFlow.loading" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider disabled:opacity-60">
                         {{ forgotPasswordFlow.loading ? 'Sending…' : 'Send Reset Link' }}
@@ -366,7 +366,7 @@
                         </a>
                     </div>
 
-                    <div v-if="loginError" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ loginError }}</div>
+                    <div v-if="loginError" class="zq-alert zq-alert-error">{{ loginError }}</div>
 
                     <button type="submit" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider">
                         {{ authView === 'client' ? 'Client Sign In' : 'Staff Sign In' }}
@@ -384,7 +384,7 @@
                     </div>
                     <form @submit.prevent="verifyLoginOtp" class="space-y-3">
                         <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending" placeholder="000000" autocomplete="one-time-code" class="w-full text-center text-2xl font-black tracking-[0.5em] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none">
-                        <div v-if="loginOtp.error" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ loginOtp.error }}</div>
+                        <div v-if="loginOtp.error" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
                         <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-left dark:border-slate-600">
                             <input type="checkbox" v-model="loginOtp.trustDevice" class="zq-checkbox mt-0.5">
                             <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Trust this device</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Skip OTP on this browser for {{ pendingLoginContext && ['Superadmin', 'Director', 'HR', 'Account', 'IT'].includes(pendingLoginContext.role) ? '7 days' : '30 days' }}. Do not use on a shared device.</span></span>
@@ -2805,7 +2805,11 @@
                         </div>
 
                         <div v-if="signedDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
-                        <div v-else-if="signedDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-10 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ signedDocuments.error }}</p></div>
+                        <div v-else-if="signedDocuments.error" class="zq-error-state">
+                            <i class="fa-solid fa-triangle-exclamation zq-error-state-icon" aria-hidden="true"></i>
+                            <p class="zq-error-state-text">{{ signedDocuments.error }}</p>
+                            <div class="zq-empty-state-action"><button type="button" @click="loadSignedDocuments" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-rotate-right"></i><span>Try Again</span></button></div>
+                        </div>
                         <div v-else-if="!visibleSignedDocuments.length" class="zq-empty-state">
                             <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
                             <p class="zq-empty-state-title">{{ userProfile.role !== 'Client' && signedDocuments.items.length ? 'No matching documents' : 'No documents yet' }}</p>
@@ -3174,8 +3178,8 @@
                                 <button type="button" @click="saveAuditRetention" :disabled="auditRetention.saving || auditRetention.loading" class="rounded-xl bg-brand-gold px-4 py-2.5 text-xs font-extrabold text-brand-dark shadow transition hover:brightness-105 disabled:opacity-50">{{ auditRetention.saving ? 'Saving…' : 'Save Retention' }}</button>
                             </div>
                         </div>
-                        <p v-if="auditRetention.message" class="mt-3 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{{ auditRetention.message }}</p>
-                        <p v-if="auditRetention.error" class="mt-3 text-[11px] font-semibold text-red-600 dark:text-red-400">{{ auditRetention.error }}</p>
+                        <p v-if="auditRetention.message" class="zq-success-text mt-3">{{ auditRetention.message }}</p>
+                        <p v-if="auditRetention.error" class="zq-error-text mt-3">{{ auditRetention.error }}</p>
                     </div>
 
                     <div class="zq-card p-6">
@@ -3278,7 +3282,7 @@
                                             <input id="prof-photo" name="profPhoto" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" @change="handleProfilePhotoUpload" :disabled="profilePhotoUpload.loading" class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-dark file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-brand-blue disabled:opacity-60">
                                             <p class="mt-2 text-[10px] text-slate-500">PNG, JPEG or JPG only. Maximum file size: 2 MB. The image is saved securely in Firebase Storage.</p>
                                             <p v-if="profilePhotoUpload.loading" class="mt-1 text-[10px] font-bold text-brand-blue">Uploading and saving photo…</p>
-                                            <p v-if="profilePhotoUpload.error" class="mt-1 text-[10px] font-bold text-red-600">{{ profilePhotoUpload.error }}</p>
+                                            <p v-if="profilePhotoUpload.error" class="zq-error-text">{{ profilePhotoUpload.error }}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -3705,7 +3709,7 @@
                         <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required minlength="8" class="zq-input">
                     </div>
 
-                    <p v-if="changePasswordModal.error" class="zq-error-text text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ changePasswordModal.error }}</p>
+                    <p v-if="changePasswordModal.error" class="zq-alert zq-alert-error">{{ changePasswordModal.error }}</p>
                 </div>
                 <div class="zq-modal-footer">
                     <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="zq-btn zq-btn-ghost">Batal</button>
