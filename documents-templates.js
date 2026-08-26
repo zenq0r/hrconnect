@@ -58,6 +58,46 @@ const authorizationLetterFields = [
 ];
 
 // ---------------------------------------------------------------
+// Authorization Letter — coordinate overlay map (PDF-native points,
+// origin bottom-left, matching both pdfjs-dist's getTextContent() output
+// and pdf-lib's page.drawText() input — no flipping needed). Measured
+// directly from authorization_letter.pdf's own text layer (pdfjs-dist
+// getTextContent, one-off extraction script, not OCR/guessed) against
+// every blank line, table cell and signature area on both pages. `page`
+// is 0-indexed. zenqorSigName/zenqorSigPosition have no entries here —
+// they're already printed as static text in the master PDF itself.
+// ---------------------------------------------------------------
+const authorizationLetterFieldMap = [
+    { id: 'refKami', page: 0, x: 108, y: 746.62, width: 128, height: 11.04, fontSize: 10 },
+    { id: 'tarikhSurat', page: 0, x: 400, y: 746.62, width: 120, height: 11.04, fontSize: 10 },
+    { id: 'refTuan', page: 0, x: 107, y: 729.10, width: 128, height: 11.04, fontSize: 10 },
+    { id: 'lampiran', page: 0, x: 398, y: 729.10, width: 122, height: 11.04, fontSize: 10 },
+    { id: 'appointerName', page: 0, x: 65, y: 533.18, width: 106, height: 11.04, fontSize: 10 },
+    { id: 'appointerPosition', page: 0, x: 211, y: 533.18, width: 107, height: 11.04, fontSize: 10 },
+    { id: 'appointerCompany', page: 0, x: 346, y: 533.18, width: 107, height: 11.04, fontSize: 10 },
+    { id: 'appointerRegNo', page: 0, x: 80.5, y: 520.46, width: 107, height: 11.04, fontSize: 10 },
+    { id: 'clientCompanyName', page: 0, x: 270, y: 390.12, width: 270, height: 14, fontSize: 10 },
+    { id: 'clientRegNo', page: 0, x: 270, y: 369.94, width: 270, height: 14, fontSize: 10 },
+    { id: 'clientRegisteredAddress', page: 0, x: 270, y: 350.02, width: 270, height: 18, fontSize: 8.5, multiline: true },
+    { id: 'clientSignatoryNameTitle', page: 0, x: 270, y: 330.10, width: 270, height: 14, fontSize: 10 },
+    { id: 'matterType', page: 0, x: 270, y: 189, width: 270, height: 22, fontSize: 9, multiline: true },
+    { id: 'matterAgency', page: 0, x: 270, y: 159, width: 270, height: 22, fontSize: 9, multiline: true },
+    { id: 'matterLocation', page: 0, x: 270, y: 129, width: 270, height: 34, fontSize: 9, multiline: true },
+    { id: 'validityStart', page: 1, x: 222.58, y: 386.04, width: 55, height: 11.04, fontSize: 10 },
+    { id: 'validityEnd', page: 1, x: 307.56, y: 386.04, width: 55, height: 11.04, fontSize: 10 },
+    { id: 'clientSigName', page: 1, x: 70, y: 195.89, width: 150, height: 11.04, fontSize: 10 },
+    { id: 'clientSigPosition', page: 1, x: 80, y: 182.21, width: 140, height: 11.04, fontSize: 10 },
+    { id: 'clientCompanyStampNote', page: 1, x: 100, y: 165.65, width: 120, height: 11.04, fontSize: 9 }
+];
+
+// Where the captured signature-pad PNGs get drawn on the master PDF —
+// separate from the field map since signatures aren't text fields.
+const authorizationLetterSignatureBoxes = {
+    client: { page: 1, x: 36, y: 215, width: 165, height: 35 },
+    zenqor: { page: 1, x: 225.46, y: 215, width: 165, height: 35 }
+};
+
+// ---------------------------------------------------------------
 // 2. CLIENT INFORMATION FORM (Borang Maklumat Pelanggan)
 // ---------------------------------------------------------------
 const clientInfoFormFields = [
@@ -541,7 +581,13 @@ export const DOCUMENT_TEMPLATES = {
         label: { en: 'Authorization Letter', ms: 'Surat Wakil Kuasa' },
         icon: 'fa-file-signature',
         fieldConfig: authorizationLetterFields,
-        pdfBlocks: authorizationLetterPdfBlocks
+        pdfBlocks: authorizationLetterPdfBlocks,
+        // Presence of fieldMap is what selects the coordinate-overlay engine
+        // (buildOverlayPdfForDocument) over the legacy generate-from-scratch
+        // renderer (buildPdfForDocument/pdfBlocks) — see documents-templates.js
+        // header comment and app.js's finalizeZenqorSignature/regenerateSignedDocumentPdf.
+        fieldMap: authorizationLetterFieldMap,
+        signatureBoxes: authorizationLetterSignatureBoxes
     },
     client_info_form: {
         id: 'client_info_form',
@@ -977,6 +1023,64 @@ export async function buildPdfForDocument(templateId, fields, signatures, meta) 
     }
     for (const b of tpl.pdfBlocks) {
         await drawBlock(b);
+    }
+
+    return pdfDoc.save();
+}
+
+// ---------------------------------------------------------------
+// COORDINATE-OVERLAY RENDERER — for templates that carry a real master
+// PDF file (Firebase Storage) plus a `fieldMap`/`signatureBoxes` (see
+// authorization_letter above). Unlike buildPdfForDocument (which draws an
+// entirely new PDF from the pdfBlocks flow), this LOADS the actual master
+// PDF bytes and draws each field's value directly at its measured
+// coordinates — the generated PDF is the real master file with values
+// overlaid, not a re-creation. templateId must resolve to a template with
+// a non-empty fieldMap; other templates keep using buildPdfForDocument.
+// ---------------------------------------------------------------
+export async function buildOverlayPdfForDocument(templateId, fields, signatures, masterPdfBytes) {
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const tpl = DOCUMENT_TEMPLATES[templateId];
+    if (!tpl || !tpl.fieldMap) throw new Error('This template does not use the coordinate-overlay renderer.');
+    const safeFields = fields || {};
+
+    const pdfDoc = await PDFDocument.load(masterPdfBytes);
+    const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const pages = pdfDoc.getPages();
+
+    tpl.fieldMap.forEach(f => {
+        const page = pages[f.page];
+        if (!page) return;
+        const raw = safeFields[f.id];
+        const value = raw === undefined || raw === null ? '' : String(raw);
+        if (!value) return;
+        if (f.multiline) {
+            const lines = wrapText(font, value, f.fontSize, f.width);
+            const lineHeight = f.fontSize * 1.15;
+            let ly = f.y;
+            for (const line of lines) {
+                if (f.y - ly >= f.height) break; // don't draw past this field's box into the next one
+                page.drawText(line, { x: f.x, y: ly, size: f.fontSize, font });
+                ly -= lineHeight;
+            }
+        } else {
+            page.drawText(value, { x: f.x, y: f.y, size: f.fontSize, font });
+        }
+    });
+
+    if (tpl.signatureBoxes && signatures) {
+        for (const [role, box] of Object.entries(tpl.signatureBoxes)) {
+            const sig = signatures[role];
+            if (!sig || !sig.dataUrl) continue;
+            const page = pages[box.page];
+            if (!page) continue;
+            const pngBytes = Uint8Array.from(atob(sig.dataUrl.split(',')[1]), c => c.charCodeAt(0));
+            const png = await pdfDoc.embedPng(pngBytes);
+            const scale = Math.min(box.width / png.width, box.height / png.height);
+            const w = png.width * scale;
+            const h = png.height * scale;
+            page.drawImage(png, { x: box.x + (box.width - w) / 2, y: box.y + (box.height - h) / 2, width: w, height: h });
+        }
     }
 
     return pdfDoc.save();

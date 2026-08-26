@@ -8,6 +8,7 @@ import {
     storage,
     collection,
     doc,
+    getDoc,
     setDoc,
     updateDoc,
     deleteDoc,
@@ -28,7 +29,7 @@ import {
     getDownloadURL,
     deleteObject
 } from "./firebase-config.js";
-import { DOCUMENT_TEMPLATES, defaultFieldValues, requiredFieldsMissing, prefillFromCustomer, buildPdfForDocument } from "./documents-templates.js";
+import { DOCUMENT_TEMPLATES, defaultFieldValues, requiredFieldsMissing, prefillFromCustomer, buildPdfForDocument, buildOverlayPdfForDocument } from "./documents-templates.js";
 
 const { createApp } = Vue;
 
@@ -437,6 +438,11 @@ createApp({
                 client: { hasStrokes: false, drawing: false, ctx: null },
                 zenqor: { hasStrokes: false, drawing: false, ctx: null }
             },
+            // Coordinate-overlay PDF fill view (templates with a fieldMap, e.g.
+            // authorization_letter) — pages[i] = { width, height } of that page's
+            // rendered <canvas> in CSS px, used to scale each field's PDF-point
+            // coordinates (see documents-templates.js's fieldMap) into on-screen position.
+            pdfOverlay: { loading: false, error: '', pages: [] },
             // Public-site content management: Firestore-backed content consumed directly by
             // zenqor-tech — Portfolio galleries (portfolio_web = Digital Systems,
             // portfolio_gaming = Licensing & Permits), the Services page, and page-text
@@ -749,6 +755,17 @@ createApp({
             const seen = [];
             this.activeTemplateFieldConfig.forEach(f => { if (!seen.includes(f.section)) seen.push(f.section); });
             return seen;
+        },
+        // The current document's coordinate field-map (if its template has one),
+        // keyed by field id for O(1) lookup from the overlay template — null for
+        // templates that still use the plain field-list view.
+        activeTemplateFieldMapById() {
+            const templateId = this.signedDocumentModal.doc ? this.signedDocumentModal.doc.templateId : null;
+            const tpl = templateId ? this.documentTemplates[templateId] : null;
+            if (!tpl || !tpl.fieldMap) return null;
+            const byId = {};
+            tpl.fieldMap.forEach(f => { byId[f.id] = f; });
+            return byId;
         },
         visibleSignedDocuments() {
             let items = this.signedDocuments.items;
@@ -2388,6 +2405,30 @@ createApp({
             this.newSignedDocumentModal = { show: true, clientDirectoryId: '', templateId: '', saving: false };
         },
         closeNewSignedDocumentModal() { this.newSignedDocumentModal.show = false; },
+        // Coordinate-overlay templates (those with a fieldMap, e.g. authorization_letter)
+        // have a real master PDF registered in Firestore's document_templates
+        // collection; other templates still use the legacy generate-from-scratch
+        // renderer and have no such registration — returns null for those.
+        async getActiveMasterTemplate(templateId) {
+            const tpl = DOCUMENT_TEMPLATES[templateId];
+            if (!tpl || !tpl.fieldMap) return null;
+            const snap = await getDoc(doc(db, 'document_templates', templateId));
+            return snap.exists() ? snap.data() : null;
+        },
+        // Single entry point for producing a signed_documents PDF — branches to the
+        // coordinate-overlay renderer (loads + overlays the real master PDF) for
+        // templates that have one registered, otherwise falls back to the legacy
+        // generate-from-scratch renderer. Used by both finalizeZenqorSignature and
+        // regenerateSignedDocumentPdf so they can never drift onto different engines.
+        async renderSignedDocumentPdf(templateId, fields, signatures, meta) {
+            const master = await this.getActiveMasterTemplate(templateId);
+            if (master) {
+                if (!master.downloadURL) throw new Error('The active master template has no downloadable file.');
+                const masterBytes = await fetch(master.downloadURL, { cache: 'no-store' }).then(r => r.arrayBuffer());
+                return buildOverlayPdfForDocument(templateId, fields, signatures, masterBytes);
+            }
+            return buildPdfForDocument(templateId, fields, signatures, meta);
+        },
         async createSignedDocument() {
             const { clientDirectoryId, templateId } = this.newSignedDocumentModal;
             if (!clientDirectoryId) { this.showNotify('Please select a client.'); return; }
@@ -2398,9 +2439,10 @@ createApp({
             try {
                 const docId = doc(collection(db, 'signed_documents')).id;
                 const now = new Date().toISOString();
+                const activeMaster = await this.getActiveMasterTemplate(templateId);
                 const record = {
                     templateId,
-                    templateVersion: 1,
+                    templateVersion: activeMaster ? activeMaster.version : 1,
                     status: 'draft',
                     clientDirectoryId,
                     clientName: customer.clientName || '',
@@ -2441,8 +2483,62 @@ createApp({
                 fields: JSON.parse(JSON.stringify(docItem.fields || {}))
             };
             this.$nextTick(() => { this.resetSignaturePad('client'); this.resetSignaturePad('zenqor'); });
+            this.pdfOverlay = { loading: false, error: '', pages: [] };
+            const tpl = this.documentTemplates[docItem.templateId];
+            if (tpl && tpl.fieldMap) this.loadSignedDocumentPdfOverlay(docItem.templateId);
         },
         closeSignedDocumentModal() { this.signedDocumentModal.show = false; },
+        // Renders every page of the template's master PDF onto a <canvas> so the
+        // fill modal can show field overlays positioned exactly on the real
+        // document (see activeTemplateFieldMapById + overlayFieldStyle below).
+        async loadSignedDocumentPdfOverlay(templateId) {
+            this.pdfOverlay = { loading: true, error: '', pages: [] };
+            try {
+                const master = await this.getActiveMasterTemplate(templateId);
+                if (!master || !master.downloadURL) throw new Error('No active master template is registered for this document.');
+                const bytes = await fetch(master.downloadURL, { cache: 'no-store' }).then(r => r.arrayBuffer());
+                const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+                // Pre-size the pages array so v-for creates every <canvas ref> element
+                // before this loop tries to render into it.
+                this.pdfOverlay.pages = Array.from({ length: pdf.numPages }, () => ({ width: 0, height: 0, pdfWidth: 595.28, pdfHeight: 841.89 }));
+                await this.$nextTick();
+                for (let i = 0; i < pdf.numPages; i++) {
+                    const page = await pdf.getPage(i + 1);
+                    const baseViewport = page.getViewport({ scale: 1 });
+                    const containerWidth = Math.min(720, (this.$refs.signedDocumentModalBody ? this.$refs.signedDocumentModalBody.clientWidth : 700) - 4);
+                    const scale = containerWidth / baseViewport.width;
+                    const viewport = page.getViewport({ scale });
+                    const canvasEl = this.$refs['pdfOverlayCanvas_' + i];
+                    const canvas = Array.isArray(canvasEl) ? canvasEl[0] : canvasEl;
+                    if (!canvas) continue;
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+                    this.pdfOverlay.pages[i] = { width: viewport.width, height: viewport.height, pdfWidth: baseViewport.width, pdfHeight: baseViewport.height };
+                }
+            } catch (error) {
+                console.error('Load PDF overlay preview failed:', error);
+                this.pdfOverlay.error = 'Unable to load the master PDF preview. You can still fill fields; try reopening this document if the preview stays blank.';
+            } finally {
+                this.pdfOverlay.loading = false;
+            }
+        },
+        // Converts a field-map entry's PDF-point coordinates (origin bottom-left,
+        // matching pdf-lib) into a CSS absolute-position style over that page's
+        // rendered <canvas> (origin top-left) — recomputed reactively off
+        // pdfOverlay.pages so it stays aligned regardless of render width/zoom.
+        overlayFieldStyle(fieldMapEntry) {
+            const page = this.pdfOverlay.pages[fieldMapEntry.page];
+            if (!page || !page.width) return { display: 'none' };
+            const scale = page.width / page.pdfWidth;
+            return {
+                left: (fieldMapEntry.x * scale) + 'px',
+                top: ((page.pdfHeight - fieldMapEntry.y - fieldMapEntry.height) * scale) + 'px',
+                width: (fieldMapEntry.width * scale) + 'px',
+                height: (fieldMapEntry.height * scale) + 'px',
+                fontSize: Math.max(8, fieldMapEntry.fontSize * scale * 0.92) + 'px'
+            };
+        },
         // Whether the CURRENT logged-in user may edit a given field right now, based on
         // its `owner` and the document's current status — mirrors the ownership boundary
         // enforced (at the top-level-key granularity) by firestore.rules.
@@ -2568,7 +2664,7 @@ createApp({
                 const zenqorSignature = { dataUrl, storagePath: sigStoragePath, downloadURL: sigDownloadURL, signedByUid: this.userProfile.uid, signedByName: this.userProfile.name, signedByEmail: this.userProfile.email, signedAt: now };
                 const signatures = { client: docItem.signatures ? docItem.signatures.client : null, zenqor: zenqorSignature };
 
-                const pdfBytes = await buildPdfForDocument(docItem.templateId, this.signedDocumentModal.fields, signatures, { referenceNo: docItem.referenceNo });
+                const pdfBytes = await this.renderSignedDocumentPdf(docItem.templateId, this.signedDocumentModal.fields, signatures, { referenceNo: docItem.referenceNo });
                 const pdfStoragePath = `signed_documents/${docItem.clientDirectoryId}/${docItem.id}/final.pdf`;
                 // no-cache/must-revalidate: this exact URL (path stays the same across
                 // a later Regenerate PDF) would otherwise be served from the browser's
@@ -2759,7 +2855,7 @@ createApp({
             if (!this.canDeleteSignedDocuments) { this.showNotify('You do not have permission to regenerate this PDF.'); return; }
             try {
                 this.showNotify('Regenerating PDF…');
-                const pdfBytes = await buildPdfForDocument(docItem.templateId, docItem.fields, docItem.signatures, { referenceNo: docItem.referenceNo });
+                const pdfBytes = await this.renderSignedDocumentPdf(docItem.templateId, docItem.fields, docItem.signatures, { referenceNo: docItem.referenceNo });
                 const pdfStoragePath = docItem.finalPdf?.storagePath || `signed_documents/${docItem.clientDirectoryId}/${docItem.id}/final.pdf`;
                 // no-cache/must-revalidate: this exact URL (path stays the same across
                 // a later Regenerate PDF) would otherwise be served from the browser's

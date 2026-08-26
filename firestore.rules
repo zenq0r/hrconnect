@@ -665,6 +665,18 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Signed Documents master PDF templates (Authorization Letter, and future
+    // coordinate-overlay templates) — file bytes live in Storage at
+    // document_templates/{templateId}/{version}/master.pdf, this collection only
+    // tracks version/status/storage-path metadata. Readable by any signed-in
+    // portal user (staff AND clients need to load the master PDF while filling
+    // it — it's a blank form, not sensitive data); only Superadmin/Director may
+    // publish a new version.
+    match /document_templates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperadmin() || isDirector();
+    }
+
     // ============================================================
     // ZENQOR-TECH (public corporate website) — shares this SAME Firebase
     // project (zenqor-portal-a3b2d) as of the Firebase connection work.

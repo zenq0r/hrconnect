@@ -32,6 +32,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- pdf.js: renders master PDF pages to <canvas> for the Signed Documents
+         coordinate-overlay fill view (pdf-lib above can only read/write PDFs,
+         not rasterize them for display). Pinned to 3.11.174 (last version with
+         a UMD build exposing window.pdfjsLib for a plain <script> tag — 4.x
+         ships ESM-only). Loaded from unpkg to match pdf-lib's CDN above. -->
+    <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    <script>window.pdfjsLib && (pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js");</script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
@@ -2946,8 +2953,31 @@
                             </div>
                             <button type="button" @click="closeSignedDocumentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
                         </div>
-                        <div class="zq-modal-body">
+                        <div class="zq-modal-body" ref="signedDocumentModalBody">
 
+                        <!-- Coordinate-overlay fill view: templates with a fieldMap (e.g.
+                             authorization_letter) show the actual master PDF page-by-page,
+                             with editable inputs positioned exactly on the blank areas. -->
+                        <template v-if="activeTemplateFieldMapById">
+                            <div v-if="pdfOverlay.loading" class="zq-loading-state"><i class="fa-solid fa-circle-notch fa-spin zq-loading-icon" aria-hidden="true"></i><p class="zq-loading-text">Loading document preview…</p></div>
+                            <p v-if="pdfOverlay.error" class="mb-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>{{ pdfOverlay.error }}</p>
+                            <div v-for="(pageInfo, pageIndex) in pdfOverlay.pages" :key="pageIndex" class="relative mx-auto mb-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" :style="{ width: (pageInfo.width || 700) + 'px', maxWidth: '100%' }">
+                                <canvas :ref="'pdfOverlayCanvas_' + pageIndex" class="block w-full h-auto"></canvas>
+                                <template v-for="field in activeTemplateFieldConfig" :key="'ov_' + field.id">
+                                    <div v-if="activeTemplateFieldMapById[field.id] && activeTemplateFieldMapById[field.id].page === pageIndex" class="absolute" :style="overlayFieldStyle(activeTemplateFieldMapById[field.id])" :title="field.label.en + ' / ' + field.label.ms">
+                                        <template v-if="!canEditSignedField(field)">
+                                            <div class="w-full h-full flex items-center overflow-hidden bg-white/60 dark:bg-slate-900/50 px-0.5 text-slate-800 dark:text-slate-100 leading-none" style="font-family: Georgia, 'Times New Roman', serif;">{{ signedDocumentModal.fields[field.id] || '' }}</div>
+                                        </template>
+                                        <template v-else>
+                                            <textarea v-if="activeTemplateFieldMapById[field.id].multiline" v-model="signedDocumentModal.fields[field.id]" class="w-full h-full resize-none border border-brand-blue/60 bg-yellow-50/90 dark:bg-yellow-900/30 px-0.5 leading-tight focus:outline-none focus:ring-1 focus:ring-brand-blue" style="font-family: Georgia, 'Times New Roman', serif;" :placeholder="field.label.en"></textarea>
+                                            <input v-else type="text" v-model="signedDocumentModal.fields[field.id]" class="w-full h-full border border-brand-blue/60 bg-yellow-50/90 dark:bg-yellow-900/30 px-0.5 focus:outline-none focus:ring-1 focus:ring-brand-blue" style="font-family: Georgia, 'Times New Roman', serif;" :placeholder="field.label.en">
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template v-else>
                         <div v-for="section in activeTemplateSections" :key="section" class="mb-5">
                             <h4 class="text-[11px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-1">{{ section }}</h4>
                             <div class="space-y-3">
@@ -2971,6 +3001,7 @@
                                 </div>
                             </div>
                         </div>
+                        </template>
 
                         <!-- Existing signatures -->
                         <div v-if="signedDocumentModal.doc.signatures && (signedDocumentModal.doc.signatures.client || signedDocumentModal.doc.signatures.zenqor)" class="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
