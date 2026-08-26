@@ -2341,7 +2341,7 @@
                                 </header>
 
                                 <div class="space-y-2.5 min-h-[180px]">
-                                    <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" :draggable="canDragClientGroup(group)" @dragstart="startGroupDrag($event, group, stage)" @dragend="endGroupDrag" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md" :class="canDragClientGroup(group) ? 'cursor-grab active:cursor-grabbing' : ''">
+                                    <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" :draggable="canDragClientGroup(group)" @dragstart="startGroupDrag($event, group, stage)" @dragend="endDrag" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md" :class="canDragClientGroup(group) ? 'cursor-grab active:cursor-grabbing' : ''">
                                         <div class="flex w-full items-start gap-2 rounded-xl p-3">
                                             <button type="button" @click="toggleClientGroup(`${stage}::${group.key}`)" class="flex min-w-0 flex-1 items-start gap-2 text-left" :title="isClientGroupExpanded(`${stage}::${group.key}`) ? 'Collapse tasks' : 'Expand tasks'">
                                                 <i class="fa-solid text-[10px] text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" :class="isClientGroupExpanded(`${stage}::${group.key}`) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
@@ -2364,7 +2364,7 @@
                                         </div>
 
                                         <div v-if="isClientGroupExpanded(`${stage}::${group.key}`)" class="space-y-2 border-t border-slate-100 dark:border-slate-700 p-2.5">
-                                            <div v-for="project in group.projects" :key="project.id" class="overflow-hidden rounded-lg border border-l-4 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" :class="projectTargetDateState(project).borderClass">
+                                            <div v-for="project in group.projects" :key="project.id" :draggable="canEditProject(project)" @dragstart="startProjectDrag($event, project, stage)" @dragend="endDrag" class="overflow-hidden rounded-lg border border-l-4 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" :class="[projectTargetDateState(project).borderClass, canEditProject(project) ? 'cursor-grab active:cursor-grabbing' : '']">
                                                 <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-3 py-1.5">
                                                     <div class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                                                         <span :title="project.projectRef" class="zq-badge zq-badge-neutral min-w-0 truncate">{{ project.projectRef }}</span>

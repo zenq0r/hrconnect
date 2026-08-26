@@ -424,7 +424,7 @@ createApp({
             projectScopeFilter: 'all',
             clientPortalFilter: { type: 'all', status: 'all' },
             expandedClientGroups: new Set(),
-            draggingGroup: null,
+            draggingProject: null,
             dragOverStage: '',
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
@@ -1658,9 +1658,7 @@ createApp({
         },
         // Shared by the arrow buttons (moveProject, always ±1 stage) and the
         // board's drag-and-drop (any stage, dropped directly). Returns whether
-        // the write actually happened, so callers driving a multi-project drag
-        // (onStageDrop) can tally a combined notification instead of one per
-        // project.
+        // the write actually happened.
         async moveProjectToStage(project, targetStage) {
             if (!this.canEditProject(project)) { this.showNotify('You do not have permission to update this project stage.'); return false; }
             if (project.status === targetStage) return false;
@@ -1680,43 +1678,45 @@ createApp({
                 return false;
             }
         },
-        // Board drag-and-drop — the draggable unit is the client-group card (a
-        // column can list several projects for the same client), so dragging it
-        // to another stage moves every project in that group the current user
-        // is allowed to edit; any it can't are silently skipped (not an error —
-        // e.g. a PIC dragging a group that has a colleague's project mixed in).
+        // Board drag-and-drop — always drags exactly ONE project, never a whole
+        // client group, so a company with several projects in the same stage
+        // can never be bulk-moved by accident. The collapsed client-group card
+        // is only draggable when that group has exactly one project (dragging
+        // it is then unambiguous); a group with more than one project must be
+        // expanded first and dragged via its individual project row instead.
         canDragClientGroup(group) {
-            return group.projects.some(project => this.canEditProject(project));
+            return group.projects.length === 1 && this.canEditProject(group.projects[0]);
         },
         startGroupDrag(event, group, stage) {
             if (!this.canDragClientGroup(group)) { event.preventDefault(); return; }
-            this.draggingGroup = { group, sourceStage: stage };
+            this.startProjectDrag(event, group.projects[0], stage);
+        },
+        startProjectDrag(event, project, stage) {
+            if (!this.canEditProject(project)) { event.preventDefault(); return; }
+            this.draggingProject = { project, sourceStage: stage };
             if (event.dataTransfer) {
                 event.dataTransfer.effectAllowed = 'move';
-                event.dataTransfer.setData('text/plain', `${stage}::${group.key}`);
+                event.dataTransfer.setData('text/plain', project.id);
             }
         },
-        endGroupDrag() {
-            this.draggingGroup = null;
+        endDrag() {
+            this.draggingProject = null;
             this.dragOverStage = '';
         },
         onStageDragOver(stage) {
-            if (!this.draggingGroup || this.draggingGroup.sourceStage === stage) return;
+            if (!this.draggingProject || this.draggingProject.sourceStage === stage) return;
             this.dragOverStage = stage;
         },
         onStageDragLeave(stage) {
             if (this.dragOverStage === stage) this.dragOverStage = '';
         },
         async onStageDrop(targetStage) {
-            const drag = this.draggingGroup;
-            this.draggingGroup = null;
+            const drag = this.draggingProject;
+            this.draggingProject = null;
             this.dragOverStage = '';
             if (!drag || drag.sourceStage === targetStage) return;
-            const movable = drag.group.projects.filter(project => this.canEditProject(project));
-            if (!movable.length) { this.showNotify('You do not have permission to update this project stage.'); return; }
-            const results = await Promise.all(movable.map(project => this.moveProjectToStage(project, targetStage)));
-            const movedCount = results.filter(Boolean).length;
-            if (movedCount) this.showNotify(movedCount === 1 ? `Project moved to ${targetStage}.` : `${movedCount} projects moved to ${targetStage}.`);
+            const moved = await this.moveProjectToStage(drag.project, targetStage);
+            if (moved) this.showNotify(`Project moved to ${targetStage}.`);
         },
         openMarkProjectDoneModal(project) {
             if (!this.canEditProject(project)) { this.showNotify('You do not have permission to update this project.'); return; }
