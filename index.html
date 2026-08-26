@@ -442,15 +442,15 @@
                         <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</p>
                     </div>
 
-                    <button v-if="hasAccess('client-tier')" type="button" @click="switchTab('client-tier')" :class="{'sidebar-item-active': currentTab === 'client-tier', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-tier'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-layer-group w-5 text-center"></i><span>Client Tier</span>
+                    <button v-if="hasAccess('client-task')" type="button" @click="switchTab('client-task')" :class="{'sidebar-item-active': currentTab === 'client-task', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-task'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-list-check w-5 text-center"></i><span>Client Task</span>
                     </button>
-                    <!-- Director/Superadmin/HR/Account (anyone with Client Tier access) now reach
-                         the board only through Client Tier, so this direct button is hidden for
-                         them — Client Tier's own "View All Projects" button is the equivalent.
-                         Staff/IT/Client have no Client Tier page at all, so they keep this as
+                    <!-- Director/Superadmin/HR/Account (anyone with Client Task access) now reach
+                         the board only through Client Task, so this direct button is hidden for
+                         them — Client Task's own "View All Projects" button is the equivalent.
+                         Staff/IT/Client have no Client Task page at all, so they keep this as
                          their only path (Client's own "My Projects" tracker included). -->
-                    <button v-if="hasAccess('project-activities') && !hasAccess('client-tier')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
+                    <button v-if="hasAccess('project-activities') && !hasAccess('client-task')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>
                     <template v-if="userProfile.role === 'Client'">
@@ -2269,47 +2269,47 @@
                     </div>
                 </div>
 
-                <!-- CLIENT TIER MODULE -->
-                <div v-show="currentTab === 'client-tier'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6">
+                <!-- CLIENT TASK MODULE -->
+                <div v-show="currentTab === 'client-task'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6" @click="closeClientTaskContextMenu">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center space-x-3">
                             <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
                                 <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="zq-text-page-title">Client Tier</h2>
-                                <p class="zq-page-header-desc">Browse clients by tier. Click a company to view its projects.</p>
+                                <h2 class="zq-text-page-title">Client Task</h2>
+                                <p class="zq-page-header-desc">Every client, grouped live by their project status. Click a company to view its projects; right-click a card to delete a wrongly-created one.</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
                             <button type="button" @click="boardClientFilter = null; switchTab('project-activities')" class="zq-btn zq-btn-outline">
                                 <i class="fa-solid fa-table-columns"></i><span>View All Projects</span>
                             </button>
-                            <button v-if="canCreateProjectTier" type="button" @click="openClientTierModal" class="zq-btn zq-btn-primary">
-                                <i class="fa-solid fa-plus"></i><span>New Project Tier</span>
+                            <button v-if="canCreateClientTask" type="button" @click="openClientTaskModal" class="zq-btn zq-btn-primary">
+                                <i class="fa-solid fa-plus"></i><span>New Client Task</span>
                             </button>
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <section v-for="group in clientTierGroups" :key="group.key" class="min-w-0 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40 p-3 shadow-sm">
+                        <section v-for="group in clientTaskGroups" :key="group.key" class="min-w-0 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40 p-3 shadow-sm">
                             <header class="mb-3 flex items-center justify-between rounded-xl bg-white dark:bg-slate-800 px-3 py-3 border border-slate-200 dark:border-slate-700">
                                 <div class="flex items-center gap-2">
-                                    <span :class="clientTierMeta(group.key).badgeClass" class="h-2.5 w-2.5 rounded-full"></span>
-                                    <h3 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">{{ clientTierMeta(group.key).label }}</h3>
+                                    <span :class="clientTaskStatusMeta(group.key).badgeClass" class="h-2.5 w-2.5 rounded-full"></span>
+                                    <h3 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">{{ clientTaskStatusMeta(group.key).label }}</h3>
                                 </div>
                                 <span class="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300">{{ group.clients.length }}</span>
                             </header>
                             <div class="space-y-2 min-h-[120px]">
-                                <button type="button" v-for="cust in group.clients" :key="cust.id" @click="viewClientBoard(cust)" class="flex w-full flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue">
+                                <button type="button" v-for="cust in group.clients" :key="cust.id" @click="viewClientBoard(cust)" @contextmenu.prevent.stop="openClientTaskContextMenu($event, cust)" class="flex w-full flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue">
                                     <div class="flex items-start justify-between gap-2">
                                         <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientName }}</span>
-                                        <span :class="clientTierMeta(cust.clientTier).badgeClass" class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTierMeta(cust.clientTier).label }}</span>
+                                        <span :class="clientTaskStatusMeta(clientTaskStatus(cust.id)).badgeClass" class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTaskStatusMeta(clientTaskStatus(cust.id)).label }}</span>
                                     </div>
                                     <p v-if="cust.clientSSM" class="truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ cust.clientSSM }}</p>
                                     <p v-if="cust.clientContactPerson" class="truncate text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientContactPerson }}</p>
                                     <p v-if="cust.clientEmail" class="truncate text-[10px] lowercase text-slate-500 dark:text-slate-400"><i class="fa-solid fa-envelope mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientEmail }}</p>
-                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-regular fa-clock mr-1.5"></i>{{ clientTierDateLabel(cust) }}</p>
+                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-regular fa-clock mr-1.5"></i>{{ clientTaskDateLabel(cust) }}</p>
                                     <div class="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700 pt-1.5">
                                         <span class="min-w-0 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300">PIC: {{ clientLatestProjectPic(cust.id) || 'Not assigned yet' }}</span>
                                         <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300">{{ clientProjectCount(cust.id) }} proj</span>
@@ -2324,36 +2324,29 @@
                     </div>
                 </div>
 
-                <!-- NEW PROJECT TIER MODAL -->
-                <div v-if="clientTierModal.show" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" aria-label="New Project Tier" @click.self="closeClientTierModal">
+                <!-- CLIENT TASK RIGHT-CLICK CONTEXT MENU -->
+                <div v-if="clientTaskContextMenu.show" class="fixed inset-0 z-[96]" @click="closeClientTaskContextMenu" @contextmenu.prevent="closeClientTaskContextMenu"></div>
+                <div v-if="clientTaskContextMenu.show" class="fixed z-[97] w-48 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl py-1.5" :style="{ top: clientTaskContextMenu.y + 'px', left: clientTaskContextMenu.x + 'px' }">
+                    <p class="truncate px-3 pb-1.5 pt-0.5 text-[9px] font-extrabold uppercase tracking-wide text-slate-400 dark:text-slate-500">{{ clientTaskContextMenu.cust ? clientTaskContextMenu.cust.clientName : '' }}</p>
+                    <button v-if="canDelete" type="button" @click="deleteClientTaskFromContextMenu" class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-bold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"><i class="fa-solid fa-trash w-4 text-center"></i>Delete Client Task</button>
+                    <p v-else class="px-3 py-2 text-[10px] text-slate-400">Only Superadmin/Director can delete.</p>
+                </div>
+
+                <!-- NEW CLIENT TASK MODAL -->
+                <div v-if="clientTaskModal.show" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" aria-label="New Client Task" @click.self="closeClientTaskModal">
                     <div class="zq-modal zq-modal-sm">
                         <div class="zq-modal-header">
-                            <h3 class="zq-modal-title">New Project Tier</h3>
-                            <button type="button" @click="closeClientTierModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                            <h3 class="zq-modal-title">New Client Task</h3>
+                            <button type="button" @click="closeClientTaskModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         <div class="zq-modal-body space-y-4">
-                            <div class="zq-segmented-control" role="group" aria-label="Client source">
-                                <button type="button" @click="clientTierModal.mode = 'existing'" :class="{ 'is-active': clientTierModal.mode === 'existing' }" :aria-pressed="clientTierModal.mode === 'existing'">Existing Client</button>
-                                <button type="button" @click="clientTierModal.mode = 'manual'" :class="{ 'is-active': clientTierModal.mode === 'manual' }" :aria-pressed="clientTierModal.mode === 'manual'">New / Manual</button>
-                            </div>
-
-                            <label v-if="clientTierModal.mode === 'existing'" class="zq-label">Client<select v-model="clientTierModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }} · {{ clientTierMeta(cust.clientTier).label }}</option></select></label>
-
-                            <template v-else>
-                                <label class="zq-label">Company Name *<input type="text" v-model="clientTierModal.clientName" required class="zq-input mt-1.5" placeholder="e.g. Zenqor Technologies"></label>
-                                <label class="zq-label">SSM No. (optional)<input type="text" v-model="clientTierModal.clientSSM" class="zq-input mt-1.5"></label>
-                            </template>
-
-                            <div>
-                                <span class="zq-label">Tier</span>
-                                <div class="mt-1.5 flex gap-1.5">
-                                    <button type="button" v-for="tier in ['Standard','Premium','Priority']" :key="`new-tier-${tier}`" @click="clientTierModal.tier = tier" :class="clientTierModal.tier === tier ? clientTierMeta(tier).badgeClass + ' ring-2 ring-offset-1 ring-brand-blue' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" class="rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase transition">{{ tier }}</button>
-                                </div>
-                            </div>
+                            <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Existing Client Directory records already appear on the Client Task board automatically. Use this only to register a brand-new client that isn't in Client Directory yet — it starts in Consult.</p>
+                            <label class="zq-label">Company Name *<input type="text" v-model="clientTaskModal.clientName" required class="zq-input mt-1.5" placeholder="e.g. Zenqor Technologies"></label>
+                            <label class="zq-label">SSM No. (optional)<input type="text" v-model="clientTaskModal.clientSSM" class="zq-input mt-1.5"></label>
                         </div>
                         <div class="zq-modal-footer">
-                            <button type="button" @click="closeClientTierModal" class="zq-btn zq-btn-outline">Cancel</button>
-                            <button type="button" @click="saveClientTierAssignment" :disabled="clientTierModal.saving || (clientTierModal.mode === 'existing' ? !clientTierModal.clientDirectoryId : !clientTierModal.clientName.trim())" class="zq-btn zq-btn-primary">{{ clientTierModal.saving ? 'Saving…' : 'Save' }}</button>
+                            <button type="button" @click="closeClientTaskModal" class="zq-btn zq-btn-outline">Cancel</button>
+                            <button type="button" @click="saveClientTask" :disabled="clientTaskModal.saving || !clientTaskModal.clientName.trim()" class="zq-btn zq-btn-primary">{{ clientTaskModal.saving ? 'Saving…' : 'Save' }}</button>
                         </div>
                     </div>
                 </div>
@@ -2385,11 +2378,11 @@
                         </div>
                     </div>
 
-                    <!-- Breadcrumb: only meaningful for roles that have a Client Tier hub to
+                    <!-- Breadcrumb: only meaningful for roles that have a Client Task hub to
                          come from (Director/Superadmin/HR/Account). Staff/IT/Client reach this
                          page directly via their own sidebar button and see no trail. -->
-                    <div v-if="hasAccess('client-tier')" class="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                        <button type="button" @click="boardClientFilter = null; switchTab('client-tier')" class="text-brand-blue hover:underline">Client Tier</button>
+                    <div v-if="hasAccess('client-task')" class="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        <button type="button" @click="boardClientFilter = null; switchTab('client-task')" class="text-brand-blue hover:underline">Client Task</button>
                         <i class="fa-solid fa-chevron-right text-[8px]"></i>
                         <span>{{ boardClientFilter ? boardClientFilter.name : 'All Projects' }}</span>
                         <i class="fa-solid fa-chevron-right text-[8px]"></i>
@@ -2507,7 +2500,7 @@
                                         </div>
                                     </article>
                                     </template>
-                                    <!-- Drilled into one client from Client Tier: same per-project card as an
+                                    <!-- Drilled into one client from Client Task: same per-project card as an
                                          expanded group above, but flat (no client wrapper) since only one
                                          client is in view. -->
                                     <template v-else>

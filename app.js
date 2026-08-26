@@ -245,10 +245,10 @@ const RBAC_ROLES = {
     // (content/site_text). Restricted to Superadmin/Director/IT only — see
     // isContentAdmin() in firestore.rules, which grants write on exactly these
     // collections to that same set of roles (not the full isAdmin() surface).
-    'Director': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'Superadmin': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'HR': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'profile'],
-    'Account': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'reports', 'profile'],
+    'Director': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'profile'],
+    'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'reports', 'profile'],
     'IT': ['dashboard', 'project-activities', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
     'Staff': ['dashboard', 'project-activities', 'claims', 'profile']
@@ -432,7 +432,8 @@ createApp({
             // list, since only one client is in view). Cleared when the sidebar's
             // own Project Activities button is clicked directly.
             boardClientFilter: null,
-            clientTierModal: { show: false, mode: 'existing', clientDirectoryId: '', clientName: '', clientSSM: '', tier: 'Standard', saving: false },
+            clientTaskModal: { show: false, clientName: '', clientSSM: '', saving: false },
+            clientTaskContextMenu: { show: false, x: 0, y: 0, cust: null },
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
             clientDocumentsUnsubscribe: null,
@@ -515,7 +516,7 @@ createApp({
             // Management. Keys must match the module keys used by hasAccess()/RBAC_ROLES.
             accessModules: [
                 { key: 'dashboard', label: 'Dashboard' },
-                { key: 'client-tier', label: 'Client Tier' },
+                { key: 'client-task', label: 'Client Task' },
                 { key: 'project-activities', label: 'Project Activities' },
                 { key: 'doc-generator', label: 'Documents (Quotation / Invoice)' },
                 { key: 'payslip-generator', label: 'Payroll (Payslip Generator)' },
@@ -727,10 +728,10 @@ createApp({
         canEditLockedIdentityFields() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
         canManageEmployees() { return this.hasModulePermission('hr-employees', 'edit'); },
         canManageClients() { return this.hasModulePermission('client-directory', 'edit'); },
-        // "New Project Tier" is deliberately narrower than canManageClients (which
+        // "New Client Task" is deliberately narrower than canManageClients (which
         // also covers Superadmin/HR/Account elsewhere, e.g. the tier pills in the
         // client-view drawer) — Director only, per explicit instruction.
-        canCreateProjectTier() { return this.userProfile.role === 'Director'; },
+        canCreateClientTask() { return this.userProfile.role === 'Director'; },
         canManageDocuments() { return this.hasModulePermission('doc-generator', 'edit'); },
         // Clients may upload to their OWN client_documents folder (but not the
         // doc-generator/billing tools canManageDocuments otherwise gates) — the
@@ -786,16 +787,19 @@ createApp({
         latestChangelog() { return APP_CHANGELOG[0] || null; },
         appChangelog() { return APP_CHANGELOG; },
         priorityClients() { return this.customers.filter(c => c.clientTier === 'Priority'); },
-        premiumClients() { return this.customers.filter(c => c.clientTier === 'Premium'); },
-        // Absent clientTier defaults to Standard everywhere else (clientTierMeta,
-        // clientTierForId) — match that here rather than requiring the field to
-        // literally equal 'Standard'.
-        standardClients() { return this.customers.filter(c => !c.clientTier || c.clientTier === 'Standard'); },
-        clientTierGroups() {
+        // Client Task board: every client bucketed by the LIVE status of their
+        // own projects (clientTaskStatus) — not the manual clientTier tag, which
+        // stays a separate, untouched feature (Dashboard's Priority Clients
+        // widget, Client Directory badges, the drawer's Set Tier pills).
+        clientTaskGroups() {
+            const buckets = { Consult: [], 'In-Progress': [], Complete: [] };
+            this.customers.forEach(cust => {
+                buckets[this.clientTaskStatus(cust.id)].push(cust);
+            });
             return [
-                { key: 'Standard', clients: this.standardClients },
-                { key: 'Premium', clients: this.premiumClients },
-                { key: 'Priority', clients: this.priorityClients }
+                { key: 'Consult', clients: buckets.Consult },
+                { key: 'In-Progress', clients: buckets['In-Progress'] },
+                { key: 'Complete', clients: buckets.Complete }
             ].map(group => ({
                 ...group,
                 clients: [...group.clients].sort((a, b) => String(a.clientName || '').localeCompare(String(b.clientName || '')))
@@ -3714,10 +3718,32 @@ createApp({
         // older customers tagged before that field existed only have createdAt
         // — the client's own registration date — so fall back to that instead
         // of showing nothing.
-        clientTierDateLabel(cust) {
-            if (cust.clientTierAssignedAt) return `Tier set ${this.formatDateTime(cust.clientTierAssignedAt)}`;
-            if (cust.createdAt) return `Client added ${this.formatDateTime(cust.createdAt)}`;
+        clientTaskDateLabel(cust) {
+            if (cust.clientTierAssignedAt) return `Registered ${this.formatDateTime(cust.clientTierAssignedAt)}`;
+            if (cust.createdAt) return `Registered ${this.formatDateTime(cust.createdAt)}`;
             return 'No date on record';
+        },
+        // Consult -> In-Progress -> Complete, derived live from this client's own
+        // projects (never a manually-set field, so it can never drift out of sync
+        // with the actual Project Activities board):
+        //  - no projects, or all still at the first stage (Project Planning) -> Consult
+        //  - at least one project has moved past Project Planning, but not every
+        //    project is Completed & Done yet -> In-Progress
+        //  - every project (at least one) is Completed & Done -> Complete
+        clientTaskStatus(clientDirectoryId) {
+            const clientProjects = this.projects.filter(p => p.clientDirectoryId === clientDirectoryId);
+            if (!clientProjects.length) return 'Consult';
+            if (clientProjects.every(p => p.status === 'Completed & Done')) return 'Complete';
+            const anyStarted = clientProjects.some(p => p.status !== 'Project Planning');
+            return anyStarted ? 'In-Progress' : 'Consult';
+        },
+        clientTaskStatusMeta(status) {
+            const map = {
+                'Consult': { label: 'Consult', badgeClass: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-200' },
+                'In-Progress': { label: 'In-Progress', badgeClass: 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' },
+                'Complete': { label: 'Complete', badgeClass: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' }
+            };
+            return map[status] || map.Consult;
         },
         // CROSS-SYSTEM INSIGHT: client health score blends Billing (payment behaviour) with
         // Project Activities (delivery velocity) — a signal only possible with HR + Client data unified.
@@ -4129,30 +4155,40 @@ createApp({
                 return false;
             }
         },
-        openClientTierModal() {
-            if (!this.canCreateProjectTier) { this.showNotify('Only Director may create a new Project Tier.'); return; }
-            this.clientTierModal = { show: true, mode: 'existing', clientDirectoryId: '', clientName: '', clientSSM: '', tier: 'Standard', saving: false };
+        openClientTaskModal() {
+            if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
+            this.clientTaskModal = { show: true, clientName: '', clientSSM: '', saving: false };
         },
-        closeClientTierModal() {
-            this.clientTierModal.show = false;
+        closeClientTaskModal() {
+            this.clientTaskModal.show = false;
         },
-        async saveClientTierAssignment() {
-            if (!this.canCreateProjectTier) { this.showNotify('Only Director may create a new Project Tier.'); return; }
-            const modal = this.clientTierModal;
+        // Every existing Client Directory record already appears on the Client
+        // Task board automatically (bucketed by clientTaskStatus) — so the only
+        // thing left to create here is a brand-new client that doesn't exist yet.
+        // Tier is written as 'Standard' purely so the separate, unrelated
+        // clientTier feature (Priority Clients widget, Client Directory badges)
+        // has a defined value rather than an implicit fallback.
+        async saveClientTask() {
+            if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
+            const modal = this.clientTaskModal;
             modal.saving = true;
             try {
-                let ok = false;
-                if (modal.mode === 'existing') {
-                    const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
-                    if (!cust) { this.showNotify('Select a client from the list.'); return; }
-                    ok = await this.updateClientTier(cust, modal.tier);
-                } else {
-                    ok = await this.createClientWithTier(modal.clientName, modal.clientSSM, modal.tier);
-                }
-                if (ok) this.closeClientTierModal();
+                const ok = await this.createClientWithTier(modal.clientName, modal.clientSSM, 'Standard');
+                if (ok) this.closeClientTaskModal();
             } finally {
                 modal.saving = false;
             }
+        },
+        openClientTaskContextMenu(event, cust) {
+            this.clientTaskContextMenu = { show: true, x: event.clientX, y: event.clientY, cust };
+        },
+        closeClientTaskContextMenu() {
+            this.clientTaskContextMenu.show = false;
+        },
+        deleteClientTaskFromContextMenu() {
+            const cust = this.clientTaskContextMenu.cust;
+            this.closeClientTaskContextMenu();
+            if (cust) this.requestClientAction('delete', cust);
         },
         viewClientBoard(cust) {
             if (!cust?.id) return;
@@ -5109,6 +5145,8 @@ createApp({
             if (this.postLogoutChoice) { this.stayOnPortal(); return; }
             if (this.clientActionConfirm.show) { this.clientActionConfirm.show = false; return; }
             if (this.employeeActionConfirm.show) { this.employeeActionConfirm.show = false; return; }
+            if (this.clientTaskContextMenu.show) { this.closeClientTaskContextMenu(); return; }
+            if (this.clientTaskModal.show) { this.closeClientTaskModal(); return; }
         };
         window.addEventListener('keydown', this.globalEscapeHandler);
 
