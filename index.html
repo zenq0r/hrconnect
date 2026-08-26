@@ -3168,14 +3168,14 @@
                             </div>
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
                                 <label class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Keep records for
-                                    <input v-model.number="auditRetention.value" type="number" min="1" max="999" class="mt-1 w-full sm:w-28 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-brand-dark dark:text-white">
+                                    <input v-model.number="auditRetention.value" type="number" min="1" max="999" class="zq-input mt-1 w-full sm:w-28">
                                 </label>
                                 <label class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Unit
-                                    <select v-model="auditRetention.unit" class="mt-1 w-full sm:w-36 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-xs text-brand-dark dark:text-white">
+                                    <select v-model="auditRetention.unit" class="zq-select mt-1 w-full sm:w-36">
                                         <option value="hour">Hour(s)</option><option value="day">Day(s)</option><option value="week">Week(s)</option><option value="month">Month(s)</option><option value="year">Year(s)</option>
                                     </select>
                                 </label>
-                                <button type="button" @click="saveAuditRetention" :disabled="auditRetention.saving || auditRetention.loading" class="rounded-xl bg-brand-gold px-4 py-2.5 text-xs font-extrabold text-brand-dark shadow transition hover:brightness-105 disabled:opacity-50">{{ auditRetention.saving ? 'Saving…' : 'Save Retention' }}</button>
+                                <button type="button" @click="saveAuditRetention" :disabled="auditRetention.saving || auditRetention.loading" :class="{ 'is-loading': auditRetention.saving }" class="zq-btn zq-btn-secondary">Save Retention</button>
                             </div>
                         </div>
                         <p v-if="auditRetention.message" class="zq-success-text mt-3">{{ auditRetention.message }}</p>
