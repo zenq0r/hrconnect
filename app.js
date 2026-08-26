@@ -3703,22 +3703,31 @@ createApp({
             }
         },
         // Human-readable, non-random client reference — same convention as
-        // projectRef/docNo/empNo elsewhere in this app, but this one is a plain
-        // incrementing scan (like generateDocNo) rather than timestamp-derived,
-        // since a client ID benefits more from being short and sequential than
-        // from encoding a creation moment. Format: ZCT-<7-digit sequence>-<letter>
-        // — the letter is NOT a real SSM checksum, purely a deterministic
-        // (sequence-derived, never random) cosmetic suffix matching the
-        // look of a Malaysian SSM registration number.
-        generateClientId() {
-            let maxNum = 0;
-            this.customers.forEach(cust => {
-                const match = /^ZCT-(\d{7})-[A-Z]$/.exec(String(cust.clientId || ''));
-                if (match) { const num = parseInt(match[1], 10); if (num > maxNum) maxNum = num; }
-            });
-            const nextNum = maxNum + 1;
-            const letter = String.fromCharCode(65 + (nextNum % 26));
-            return `ZCT-${String(nextNum).padStart(7, '0')}-${letter}`;
+        // projectRef/docNo/empNo elsewhere in this app, but derived from the
+        // client's own registered BRN instead of a counter: the 6 digits are
+        // the LAST 6 DIGITS of clientSSM's leading number (the 12-digit new-
+        // format Business Registration Number, e.g. "200901029271 (872376-W)"
+        // -> "029271") — the same number the Client Directory column labels
+        // "REG NO. / TIN". The letter is a deterministic checksum-style digit
+        // sum of those 6 digits (never random). Format: ZCT-<6 digits>-<letter>.
+        // Falls back to the same "scan existing IDs, +1" sequence generateDocNo
+        // uses only when a client has no parseable BRN on file yet.
+        generateClientId(clientSSM) {
+            const brnMatch = String(clientSSM || '').match(/\d+/);
+            let sixDigits;
+            if (brnMatch && brnMatch[0].length >= 6) {
+                sixDigits = brnMatch[0].slice(-6);
+            } else {
+                let maxNum = 0;
+                this.customers.forEach(cust => {
+                    const match = /^ZCT-(\d{6})-[A-Z]$/.exec(String(cust.clientId || ''));
+                    if (match) { const num = parseInt(match[1], 10); if (num > maxNum) maxNum = num; }
+                });
+                sixDigits = String(maxNum + 1).padStart(6, '0');
+            }
+            const digitSum = sixDigits.split('').reduce((sum, d) => sum + Number(d), 0);
+            const letter = String.fromCharCode(65 + (digitSum % 26));
+            return `ZCT-${sixDigits}-${letter}`;
         },
         async saveCustomerToDatabase() {
             if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
@@ -3741,7 +3750,7 @@ createApp({
                 if (isNewRecord) newCust.createdAt = new Date().toISOString();
                 // Backfills a missing clientId on the next edit too, in case a record
                 // somehow still lacks one (e.g. it predates this field).
-                if (isNewRecord || !existingCust?.clientId) newCust.clientId = this.generateClientId();
+                if (isNewRecord || !existingCust?.clientId) newCust.clientId = this.generateClientId(this.docForm.clientSSM);
                 this.docForm.customerId = docId;
                 Object.assign(this.docForm, newCust);
             await setDoc(doc(db, "customers", docId), newCust, { merge: true }); this.clientSavedForDocument = true; this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `Saved customer ${this.docForm.clientName}`);
