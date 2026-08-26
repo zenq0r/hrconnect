@@ -279,6 +279,67 @@ const APP_CHANGELOG = [
     }
 ];
 
+// Mobile/tablet equivalent of a desktop right-click, for any element that also
+// has @contextmenu.prevent="openContextMenu($event, items)" — v-longpress="(touch)
+// => openContextMenu(touch, items)" opens the SAME menu via a touch hold instead.
+// No existing directive/composable did this in the app before; this is new,
+// self-contained infrastructure, deliberately NOT auto-applied anywhere — only
+// bound explicitly on elements that already expose secondary actions.
+const LONGPRESS_THRESHOLD_MS = 600;
+const LONGPRESS_MOVE_TOLERANCE_PX = 10;
+const longpressDirective = {
+    mounted(el, binding) {
+        el.__longpressHandler = binding.value;
+        const state = { timer: null, startX: 0, startY: 0 };
+        const clearTimer = () => { if (state.timer) { clearTimeout(state.timer); state.timer = null; } };
+        const onTouchStart = (event) => {
+            if (!event.touches || event.touches.length !== 1) { clearTimer(); return; }
+            const touch = event.touches[0];
+            state.startX = touch.clientX;
+            state.startY = touch.clientY;
+            clearTimer();
+            state.timer = setTimeout(() => {
+                state.timer = null;
+                // A long-press fired — the browser will still synthesize a
+                // `click` right after touchend. Swallow exactly that one click
+                // so the card's own primary @click never also fires (no
+                // accidental primary action, no double action).
+                const suppressClick = (clickEvent) => { clickEvent.preventDefault(); clickEvent.stopImmediatePropagation(); };
+                el.addEventListener('click', suppressClick, { capture: true, once: true });
+                setTimeout(() => el.removeEventListener('click', suppressClick, { capture: true }), 500);
+                if (el.__longpressHandler) el.__longpressHandler(touch);
+            }, LONGPRESS_THRESHOLD_MS);
+        };
+        // Any real movement means the user is scrolling, not holding — cancel
+        // the timer and let the scroll continue completely untouched (no
+        // preventDefault anywhere in this directive, so normal scrolling is
+        // never blocked).
+        const onTouchMove = (event) => {
+            if (!state.timer) return;
+            const touch = event.touches && event.touches[0];
+            if (!touch) return;
+            if (Math.abs(touch.clientX - state.startX) > LONGPRESS_MOVE_TOLERANCE_PX || Math.abs(touch.clientY - state.startY) > LONGPRESS_MOVE_TOLERANCE_PX) clearTimer();
+        };
+        const onTouchEnd = () => clearTimer();
+        el.addEventListener('touchstart', onTouchStart, { passive: true });
+        el.addEventListener('touchmove', onTouchMove, { passive: true });
+        el.addEventListener('touchend', onTouchEnd, { passive: true });
+        el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        el.__longpressCleanup = () => {
+            clearTimer();
+            el.removeEventListener('touchstart', onTouchStart);
+            el.removeEventListener('touchmove', onTouchMove);
+            el.removeEventListener('touchend', onTouchEnd);
+            el.removeEventListener('touchcancel', onTouchEnd);
+        };
+    },
+    // The bound function is a fresh closure per v-for item (captures that row's
+    // own `cust`/`project`) — Vue reuses the DOM node across re-renders, so the
+    // handler reference must be refreshed here rather than only read once at mount.
+    updated(el, binding) { el.__longpressHandler = binding.value; },
+    unmounted(el) { if (el.__longpressCleanup) el.__longpressCleanup(); }
+};
+
 createApp({
     data() {
         return {
@@ -433,7 +494,14 @@ createApp({
             // own Project Activities button is clicked directly.
             boardClientFilter: null,
             clientTaskModal: { show: false, clientDirectoryId: '', saving: false },
-            clientTaskContextMenu: { show: false, x: 0, y: 0, cust: null },
+            // Shared by every row/card that has secondary actions — right-click
+            // (desktop) and long-press (mobile/tablet, via the v-longpress
+            // directive) both call openContextMenu(event, items), where items is
+            // built inline at the call site from that row's own existing
+            // action methods/permission checks. Never a new authorization
+            // surface — just a second way to reach what a visible button
+            // already reaches.
+            contextMenu: { show: false, x: 0, y: 0, items: [] },
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
             clientDocumentsUnsubscribe: null,
@@ -1148,6 +1216,28 @@ createApp({
         myPendingProjectActivities() {
             const email = String(this.userProfile.email || '').trim().toLowerCase();
             return this.projectActivities.filter(activity => activity.status !== 'Done' && String(activity.assignedEmail || '').trim().toLowerCase() === email).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+        },
+        // Drives the global body-scroll lock (see the matching watch below) — every
+        // modal/drawer/dropdown/context-menu overlay in the app, OR'd together, so
+        // locking/restoring scroll needs exactly one implementation instead of
+        // per-modal wiring. Kept in the same order as globalEscapeHandler for easy
+        // cross-checking; add new overlays to both together.
+        anyOverlayOpen() {
+            return this.markProjectDoneModal.show || this.appConfirm.show || this.employeeView.show ||
+                this.clientView.show ||
+                (this.clientUpdateModal.show && this.clientUpdateModal.project) ||
+                this.websiteContentModal.show || this.siteTextModal.show ||
+                (this.activityModal.show && this.activityModal.project) ||
+                (this.projectPreview.show && this.projectPreview.project) ||
+                this.projectModal.show ||
+                (this.isLoggedIn && this.showOnboarding) ||
+                this.logoutConfirm || this.postLogoutChoice ||
+                this.clientActionConfirm.show || this.employeeActionConfirm.show ||
+                this.contextMenu.show || this.clientTaskModal.show ||
+                this.idleWarningVisible || this.employeeModal.show || this.userModal.show ||
+                this.changePasswordModal.show || this.loginOtp.show ||
+                this.claimPreview.show || this.attachmentPreview.show || this.recordPreview.show ||
+                this.notificationsPanelOpen || this.staffDirectoryPanelOpen;
         }
     },
     watch: {
@@ -1159,7 +1249,20 @@ createApp({
         recentActivityFilter() { this.currentPage = 1; },
         recentActivityAttentionOnly() { this.currentPage = 1; },
         sortOption() { this.currentPage = 1; },
-        searchQuery() { this.currentPage = 1; }
+        searchQuery() { this.currentPage = 1; },
+        // Global scroll lock: locks the page behind whatever overlay is open, and
+        // restores exactly whatever inline style was there before (usually '',
+        // but this avoids clobbering anything unexpected) once every overlay in
+        // anyOverlayOpen has closed.
+        anyOverlayOpen(isOpen) {
+            if (isOpen) {
+                if (this._scrollLockPrevOverflow === undefined) this._scrollLockPrevOverflow = document.body.style.overflow;
+                document.body.style.overflow = 'hidden';
+            } else if (this._scrollLockPrevOverflow !== undefined) {
+                document.body.style.overflow = this._scrollLockPrevOverflow;
+                this._scrollLockPrevOverflow = undefined;
+            }
+        }
     },
     methods: {
         toOfficialUppercase(value) {
@@ -4185,21 +4288,141 @@ createApp({
                 modal.saving = false;
             }
         },
-        openClientTaskContextMenu(event, cust) {
-            this.clientTaskContextMenu = { show: true, x: event.clientX, y: event.clientY, cust };
+        // Generic context menu — desktop right-click (@contextmenu.prevent) and
+        // mobile/tablet long-press (v-longpress directive) both call this with
+        // an `items` array of {label, icon, action, danger|undefined} built at
+        // the call site; falsy entries (permission-gated out) are dropped here
+        // so callers can just write `condition ? {...} : null` inline, matching
+        // the exact same v-if the row's visible action buttons already use.
+        // `event` may be a real MouseEvent (right-click) or a Touch object
+        // (long-press) — both expose clientX/clientY, which is all this needs.
+        openContextMenu(event, items) {
+            const validItems = (items || []).filter(Boolean);
+            if (!validItems.length) return;
+            const MENU_WIDTH = 208;
+            const ROW_HEIGHT = 44;
+            const menuHeight = 40 + validItems.length * ROW_HEIGHT;
+            const x = Math.max(8, Math.min(event.clientX, window.innerWidth - MENU_WIDTH - 8));
+            const y = Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8));
+            this.contextMenu = { show: true, x, y, items: validItems };
         },
-        closeClientTaskContextMenu() {
-            this.clientTaskContextMenu.show = false;
+        closeContextMenu() {
+            this.contextMenu.show = false;
         },
-        deleteClientTaskFromContextMenu() {
-            const cust = this.clientTaskContextMenu.cust;
-            this.closeClientTaskContextMenu();
-            if (cust) this.requestClientAction('delete', cust);
+        runContextMenuAction(item) {
+            this.closeContextMenu();
+            if (item && typeof item.action === 'function') item.action();
         },
         viewClientBoard(cust) {
             if (!cust?.id) return;
             this.boardClientFilter = { id: cust.id, name: cust.clientName || 'Unknown Client' };
             this.switchTab('project-activities');
+        },
+        // Shared by the card's @contextmenu.prevent AND v-longpress bindings —
+        // one items builder per row type so both desktop and mobile/tablet
+        // reach the exact same actions/permissions, defined once.
+        clientTaskMenuItems(cust) {
+            return [
+                { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) },
+                { label: 'View Client Information', icon: 'fa-circle-info', action: () => this.openClientView(cust) },
+                this.canDelete ? { label: 'Delete Client Task', icon: 'fa-trash', danger: true, action: () => this.requestClientAction('delete', cust) } : null
+            ];
+        },
+        // Shared by the board card (grouped + drilled-down variants) and the
+        // list-view row — stageIndex is omitted for the list row, which has no
+        // Move actions (no stage columns to move between there).
+        projectCardMenuItems(project, stageIndex) {
+            const items = [
+                { label: 'View Details', icon: 'fa-eye', action: () => this.openProjectDetails(project) }
+            ];
+            if (this.canEditProject(project)) {
+                items.push({ label: 'Edit Project', icon: 'fa-pen', action: () => this.openProjectModal(project) });
+                if (typeof stageIndex === 'number') {
+                    if (stageIndex > 0) items.push({ label: 'Move to Previous Stage', icon: 'fa-arrow-left', action: () => this.moveProject(project, -1) });
+                    if (stageIndex < this.projectStages.length - 1) items.push({ label: 'Move to Next Stage', icon: 'fa-arrow-right', action: () => this.moveProject(project, 1) });
+                }
+                if (project.status !== 'Completed & Done') items.push({ label: 'Assign / Mark Done', icon: 'fa-check', action: () => this.openMarkProjectDoneModal(project) });
+            }
+            if (this.canManageProjects) items.push({ label: 'Delete Project', icon: 'fa-trash', danger: true, action: () => this.deleteProject(project) });
+            return items;
+        },
+        // One menu-items builder per remaining row/card type that already exposes
+        // 2+ inline actions (Claims, Vouchers, Recent Activity, Client Directory,
+        // HR Employees, Client Documents, Website Content x2, Portal Access,
+        // Project Activity Issues, Client Activity History) — each mirrors that
+        // row's existing buttons/v-if gates exactly, no new actions or permissions.
+        claimRowMenuItems(clm) {
+            return [
+                { label: 'View Claim Record', icon: 'fa-eye', action: () => this.viewClaimRecord(clm) },
+                this.canEditClaim(clm) ? { label: 'Edit Claim Record', icon: 'fa-pen', action: () => this.editClaimRecord(clm) } : null
+            ];
+        },
+        voucherRowMenuItems(pv) {
+            return [
+                { label: 'View Voucher Record', icon: 'fa-eye', action: () => this.viewClaimRecord(pv) },
+                this.canEditPaymentVoucher(pv) ? { label: 'Edit Voucher Record', icon: 'fa-pen', action: () => this.editPaymentVoucher(pv) } : null
+            ];
+        },
+        recentActivityMenuItems(item) {
+            return [
+                { label: 'View Record', icon: 'fa-eye', action: () => (item.isClaim || item.isVoucher) ? this.viewClaimRecord(item) : this.viewRecord(item) },
+                ((item.isDoc && this.canManageDocuments) || (item.isPay && this.canManagePayroll)) ? { label: 'Edit Record', icon: 'fa-pen', action: () => this.editRecord(item) } : null,
+                ((item.isDoc && this.canDeleteDocuments) || (item.isPay && this.canDeletePayroll)) ? { label: 'Delete Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord(item) } : null
+            ];
+        },
+        clientDirectoryRowMenuItems(cust) {
+            return [
+                { label: 'View Client Information', icon: 'fa-eye', action: () => this.openClientView(cust) },
+                (this.canManageClients && this.hasAccess('doc-generator')) ? { label: 'Edit Client', icon: 'fa-pen', action: () => this.requestClientAction('edit', cust) } : null,
+                this.canDeleteClients ? { label: 'Delete Client', icon: 'fa-trash', danger: true, action: () => this.requestClientAction('delete', cust) } : null
+            ];
+        },
+        employeeRowMenuItems(emp) {
+            return [
+                { label: 'View Employee Information', icon: 'fa-eye', action: () => this.openEmployeeView(emp) },
+                this.employeeHasActiveProjectWork(emp.empNo) ? { label: 'View Active Project Assignments', icon: 'fa-diagram-project', action: () => this.viewEmployeeProjectAssignments(emp) } : null,
+                this.canManageEmployees ? { label: 'Edit Employee', icon: 'fa-pen', action: () => this.requestEmployeeAction('edit', emp) } : null,
+                this.canDeleteEmployees ? { label: 'Delete Employee', icon: 'fa-trash', danger: true, action: () => this.requestEmployeeAction('delete', emp) } : null
+            ];
+        },
+        clientDocumentMenuItems(item) {
+            return [
+                { label: 'View', icon: 'fa-eye', action: () => this.viewClientDocument(item) },
+                { label: 'Download', icon: 'fa-download', action: () => this.downloadClientDocument(item) },
+                this.canManageDocuments ? { label: 'Remove', icon: 'fa-trash', danger: true, action: () => this.requestDeleteClientDocument(item) } : null
+            ];
+        },
+        websiteContentMenuItems(item) {
+            return [
+                this.hasModulePermission('website-content', 'edit') ? { label: 'Edit', icon: 'fa-pen', action: () => this.openWebsiteContentModal(this.websiteContentTab, item) } : null,
+                this.hasModulePermission('website-content', 'delete') ? { label: 'Delete', icon: 'fa-trash', danger: true, action: () => this.deleteWebsiteContentItem(this.websiteContentTab, item) } : null
+            ];
+        },
+        siteTextRowMenuItems(row) {
+            return [
+                this.hasModulePermission('website-content', 'edit') ? { label: 'Edit', icon: 'fa-pen', action: () => this.openSiteTextModal(row) } : null,
+                (row.override && this.hasModulePermission('website-content', 'delete')) ? { label: 'Reset to Default', icon: 'fa-rotate-left', danger: true, action: () => this.resetSiteTextOverride(row.key) } : null
+            ];
+        },
+        portalUserRowMenuItems(usr) {
+            if (usr.email === 'admin@zenq0r.com') return [];
+            return [
+                { label: 'Edit Access', icon: 'fa-pen', action: () => this.openUserAccessModal(usr) },
+                { label: 'Delete Access', icon: 'fa-trash', danger: true, action: () => this.deletePortalUser(usr.id, usr.email) }
+            ];
+        },
+        projectActivityMenuItems(activity) {
+            return [
+                (activity.status !== 'Done' && this.canCompleteProjectActivity(activity)) ? { label: 'Mark Done', icon: 'fa-check', action: () => this.markProjectActivityDone(activity) } : null,
+                this.canEditProjectActivity(activity) ? { label: 'Edit Activity', icon: 'fa-pen', action: () => this.openActivityModal(this.projectPreview.project, activity) } : null,
+                this.canDeleteProjectActivity() ? { label: 'Delete Activity', icon: 'fa-trash', danger: true, action: () => this.deleteProjectActivity(activity) } : null
+            ];
+        },
+        clientUpdateMenuItems(update) {
+            return [
+                (this.canEditClientUpdate(update) && this.editingReplyId !== update.id) ? { label: 'Edit', icon: 'fa-pen', action: () => update.senderRole === 'Client' ? this.startEditReply(update) : this.openClientUpdateModal(this.projectPreview.project, update) } : null,
+                this.canDeleteClientUpdate(update) ? { label: 'Delete', icon: 'fa-trash', danger: true, action: () => this.deleteClientUpdate(update) } : null
+            ];
         },
         requestClientAction(action, cust) {
             this.clientActionConfirm = { show: true, action, client: cust };
@@ -5139,6 +5362,7 @@ createApp({
             if (event.key !== 'Escape') return;
             if (this.markProjectDoneModal.show && this.markProjectDoneModal.project) { this.closeMarkProjectDoneModal(); return; }
             if (this.appConfirm.show) { this.resolveAppConfirm(false); return; }
+            if (this.employeeView.show) { this.employeeView.show = false; return; }
             if (this.clientView.show) { this.closeClientView(); return; }
             if (this.clientUpdateModal.show && this.clientUpdateModal.project) { this.closeClientUpdateModal(); return; }
             if (this.websiteContentModal.show) { this.closeWebsiteContentModal(); return; }
@@ -5151,7 +5375,7 @@ createApp({
             if (this.postLogoutChoice) { this.stayOnPortal(); return; }
             if (this.clientActionConfirm.show) { this.clientActionConfirm.show = false; return; }
             if (this.employeeActionConfirm.show) { this.employeeActionConfirm.show = false; return; }
-            if (this.clientTaskContextMenu.show) { this.closeClientTaskContextMenu(); return; }
+            if (this.contextMenu.show) { this.closeContextMenu(); return; }
             if (this.clientTaskModal.show) { this.closeClientTaskModal(); return; }
         };
         window.addEventListener('keydown', this.globalEscapeHandler);
@@ -5279,4 +5503,4 @@ createApp({
         if (this.notificationsSyncTimer) clearTimeout(this.notificationsSyncTimer);
         this.stopIdleTimeoutWatch();
     }
-}).mount('#app');
+}).directive('longpress', longpressDirective).mount('#app');
