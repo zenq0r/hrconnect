@@ -334,6 +334,7 @@ createApp({
             notification: { show: false, message: '' },
             notificationsLog: [],
             notificationsPanelOpen: false,
+            staffDirectoryPanelOpen: false,
             darkMode: false,
             appUpdateAvailable: false,
             appVersionMarker: '',
@@ -771,6 +772,17 @@ createApp({
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         canBackupDatabase() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
+        // Header staff-roster button: every employee regardless of online status,
+        // online staff surfaced first (then alphabetical) so Director/Superadmin
+        // gets an at-a-glance headcount-style view, not a presence filter.
+        canViewStaffDirectory() { return this.canManageRBAC; },
+        staffDirectoryList() {
+            return [...this.employees].sort((a, b) => {
+                const onlineDiff = (this.isEmployeeOnline(b) ? 1 : 0) - (this.isEmployeeOnline(a) ? 1 : 0);
+                if (onlineDiff !== 0) return onlineDiff;
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+        },
         unreadNotificationsCount() { return this.notificationsLog.filter(n => !n.read).length; },
         latestChangelog() { return APP_CHANGELOG[0] || null; },
         appChangelog() { return APP_CHANGELOG; },
@@ -3201,6 +3213,9 @@ createApp({
         },
         toggleNotificationsPanel() {
             this.notificationsPanelOpen = !this.notificationsPanelOpen;
+        },
+        toggleStaffDirectoryPanel() {
+            this.staffDirectoryPanelOpen = !this.staffDirectoryPanelOpen;
         },
         markAllNotificationsRead() {
             this.notificationsLog.forEach(n => { n.read = true; });
