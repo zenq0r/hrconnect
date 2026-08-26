@@ -4978,6 +4978,14 @@ createApp({
                 const docId = String(this.editingDocId || Date.now());
                 const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, raw: JSON.parse(JSON.stringify(this.docForm)) };
                 if (!this.clientSavedForDocument) { this.showNotify('Save Client information before saving this document.'); return false; }
+                // Hard guarantee, not just an implied one: every document must carry
+                // its client's real customers/{id}, never just a name snapshot — two
+                // clients can share a display name, and a name can be retyped/edited
+                // later, but the id never changes. clientSavedForDocument being true
+                // should already make this impossible to hit (saveCustomerToDatabase
+                // always sets docForm.customerId first), so this is a defensive
+                // backstop, not the primary mechanism.
+                if (!payload.raw.customerId) { this.showNotify('This document is missing its linked client ID — reselect the client from Client Directory and save it again before saving this document.'); return false; }
                 await setDoc(doc(db, "docs", docId), payload, { merge: true }); this.editingDocId = docId; this.showNotify(`Document saved.`); return true;
             } catch (error) { console.error('Document save failed:', error); this.showNotify('Unable to save document. Check the attachment size and try again.'); return false; }
         },
