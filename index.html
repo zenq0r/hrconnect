@@ -2605,10 +2605,10 @@
                 <div v-show="['client-portal', 'client-documents', 'client-updates', 'client-support'].includes(currentTab)" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div v-if="currentTab !== 'client-portal'" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center gap-3">
-                            <button type="button" @click="openSidebar" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-200 text-slate-700 shadow-sm transition hover:bg-slate-300 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600"><i class="fa-solid fa-bars"></i><span class="sr-only">Open menu</span></button>
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu"><i class="fa-solid fa-bars"></i><span class="sr-only">Open menu</span></button>
                             <div><p class="text-[9px] font-black uppercase tracking-[0.2em] text-teal-600">Client Workspace</p><h2 class="mt-1 text-xl font-black text-slate-900 dark:text-white">{{ currentTab === 'client-documents' ? 'Documents & Billing' : currentTab === 'client-updates' ? 'Project Updates' : 'Help & Support' }}</h2><p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{{ currentTab === 'client-documents' ? 'Manage your quotations, invoices and payment records.' : currentTab === 'client-updates' ? 'Follow the latest information shared by your project team.' : 'Get assistance and contact the ZENQOR support team.' }}</p></div>
                         </div>
-                        <button type="button" @click="returnToDashboard" class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-extrabold text-slate-700 shadow-sm transition hover:border-teal-300 hover:text-teal-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"><i class="fa-solid fa-arrow-left"></i>Back to Dashboard</button>
+                        <button type="button" @click="returnToDashboard" class="zq-btn zq-btn-outline"><i class="fa-solid fa-arrow-left"></i><span>Back to Dashboard</span></button>
                     </div>
 
                     <section v-if="currentTab === 'client-portal'" class="relative overflow-hidden rounded-3xl bg-brand-dark px-5 py-6 md:px-8 md:py-8 text-white shadow-xl border border-white/5">
