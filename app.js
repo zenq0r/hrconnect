@@ -432,7 +432,7 @@ createApp({
             // list, since only one client is in view). Cleared when the sidebar's
             // own Project Activities button is clicked directly.
             boardClientFilter: null,
-            clientTaskModal: { show: false, clientName: '', clientSSM: '', saving: false },
+            clientTaskModal: { show: false, mode: 'manual', clientDirectoryId: '', clientName: '', clientSSM: '', saving: false },
             clientTaskContextMenu: { show: false, x: 0, y: 0, cust: null },
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
@@ -4157,20 +4157,31 @@ createApp({
         },
         openClientTaskModal() {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
-            this.clientTaskModal = { show: true, clientName: '', clientSSM: '', saving: false };
+            this.clientTaskModal = { show: true, mode: 'manual', clientDirectoryId: '', clientName: '', clientSSM: '', saving: false };
         },
         closeClientTaskModal() {
             this.clientTaskModal.show = false;
         },
-        // Every existing Client Directory record already appears on the Client
-        // Task board automatically (bucketed by clientTaskStatus) — so the only
-        // thing left to create here is a brand-new client that doesn't exist yet.
-        // Tier is written as 'Standard' purely so the separate, unrelated
+        // Existing mode is a quick-find/jump: every Client Directory record
+        // already appears on the board automatically, so picking one here just
+        // opens its board directly — the same as clicking its card — sparing the
+        // Director from hunting through three columns, and steering them away
+        // from accidentally re-typing a client that already exists.
+        // Manual mode is the only path that actually creates anything: a
+        // brand-new customers record for a client that isn't in Client Directory
+        // yet. Tier is written as 'Standard' purely so the separate, unrelated
         // clientTier feature (Priority Clients widget, Client Directory badges)
         // has a defined value rather than an implicit fallback.
         async saveClientTask() {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
             const modal = this.clientTaskModal;
+            if (modal.mode === 'existing') {
+                const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
+                if (!cust) { this.showNotify('Select a client from the list.'); return; }
+                this.closeClientTaskModal();
+                this.viewClientBoard(cust);
+                return;
+            }
             modal.saving = true;
             try {
                 const ok = await this.createClientWithTier(modal.clientName, modal.clientSSM, 'Standard');

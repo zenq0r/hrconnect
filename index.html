@@ -2336,13 +2336,24 @@
                             <button type="button" @click="closeClientTaskModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         <div class="zq-modal-body space-y-4">
-                            <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Existing Client Directory records already appear on the Client Task board automatically. Use this only to register a brand-new client that isn't in Client Directory yet — it starts in Consult.</p>
-                            <label class="zq-label">Company Name *<input type="text" v-model="clientTaskModal.clientName" required class="zq-input mt-1.5" placeholder="e.g. Zenqor Technologies"></label>
-                            <label class="zq-label">SSM No. (optional)<input type="text" v-model="clientTaskModal.clientSSM" class="zq-input mt-1.5"></label>
+                            <div class="zq-segmented-control" role="group" aria-label="Client source">
+                                <button type="button" @click="clientTaskModal.mode = 'existing'" :class="{ 'is-active': clientTaskModal.mode === 'existing' }" :aria-pressed="clientTaskModal.mode === 'existing'">From Client Directory</button>
+                                <button type="button" @click="clientTaskModal.mode = 'manual'" :class="{ 'is-active': clientTaskModal.mode === 'manual' }" :aria-pressed="clientTaskModal.mode === 'manual'">New / Manual</button>
+                            </div>
+
+                            <template v-if="clientTaskModal.mode === 'existing'">
+                                <label class="zq-label">Client<select v-model="clientTaskModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }}<template v-if="cust.clientSSM"> · {{ cust.clientSSM }}</template></option></select></label>
+                                <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Already tracked automatically — this just opens its board directly.</p>
+                            </template>
+                            <template v-else>
+                                <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">For a client that isn't in Client Directory yet — it starts in Consult.</p>
+                                <label class="zq-label">Company Name *<input type="text" v-model="clientTaskModal.clientName" required class="zq-input mt-1.5" placeholder="e.g. Zenqor Technologies"></label>
+                                <label class="zq-label">SSM No. (optional)<input type="text" v-model="clientTaskModal.clientSSM" class="zq-input mt-1.5"></label>
+                            </template>
                         </div>
                         <div class="zq-modal-footer">
                             <button type="button" @click="closeClientTaskModal" class="zq-btn zq-btn-outline">Cancel</button>
-                            <button type="button" @click="saveClientTask" :disabled="clientTaskModal.saving || !clientTaskModal.clientName.trim()" class="zq-btn zq-btn-primary">{{ clientTaskModal.saving ? 'Saving…' : 'Save' }}</button>
+                            <button type="button" @click="saveClientTask" :disabled="clientTaskModal.saving || (clientTaskModal.mode === 'existing' ? !clientTaskModal.clientDirectoryId : !clientTaskModal.clientName.trim())" class="zq-btn zq-btn-primary">{{ clientTaskModal.saving ? 'Saving…' : (clientTaskModal.mode === 'existing' ? 'View Board' : 'Save') }}</button>
                         </div>
                     </div>
                 </div>
