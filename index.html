@@ -32,13 +32,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <!-- pdf.js: renders master PDF pages to <canvas> for the Signed Documents
-         coordinate-overlay fill view (pdf-lib above can only read/write PDFs,
-         not rasterize them for display). Pinned to 3.11.174 (last version with
-         a UMD build exposing window.pdfjsLib for a plain <script> tag — 4.x
-         ships ESM-only). Loaded from unpkg to match pdf-lib's CDN above. -->
-    <script src="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-    <script>window.pdfjsLib && (pdfjsLib.GlobalWorkerOptions.workerSrc = "https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js");</script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script>
@@ -2953,58 +2946,27 @@
                             </div>
                             <button type="button" @click="closeSignedDocumentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark text-lg"></i></button>
                         </div>
-                        <div class="zq-modal-body" ref="signedDocumentModalBody">
+                        <div class="zq-modal-body">
 
-                        <!-- Coordinate-overlay fill view: templates with a fieldMap (e.g.
-                             authorization_letter) show the actual master PDF page-by-page,
-                             with editable inputs positioned exactly on the blank areas. -->
-                        <template v-if="activeTemplateFieldMapById">
-                            <div v-if="pdfOverlay.loading" class="zq-loading-state"><i class="fa-solid fa-circle-notch fa-spin zq-loading-icon" aria-hidden="true"></i><p class="zq-loading-text">Loading document preview…</p></div>
-                            <p v-if="pdfOverlay.error" class="mb-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>{{ pdfOverlay.error }}</p>
-                            <div v-for="(pageInfo, pageIndex) in pdfOverlay.pages" :key="pageIndex" class="relative mx-auto mb-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden" :style="{ width: (pageInfo.width || 700) + 'px', maxWidth: '100%' }">
-                                <canvas :ref="'pdfOverlayCanvas_' + pageIndex" class="block w-full h-auto"></canvas>
-                                <template v-for="item in activeTemplateOverlayItems.filter(it => it.page === pageIndex)" :key="item.key">
-                                    <div class="absolute" :style="overlayFieldStyle(item)" :title="item.field.label.en + ' / ' + item.field.label.ms + (item.optionValue ? ': ' + item.optionValue : '')">
-                                        <!-- Plain text/date/multiline field -->
-                                        <template v-if="item.kind === 'text'">
-                                            <template v-if="!canEditSignedField(item.field)">
-                                                <div class="w-full h-full flex items-center overflow-hidden bg-white/60 dark:bg-slate-900/50 px-0.5 text-slate-800 dark:text-slate-100 leading-none" style="font-family: Georgia, 'Times New Roman', serif;">{{ signedDocumentModal.fields[item.field.id] || '' }}</div>
-                                            </template>
-                                            <template v-else>
-                                                <textarea v-if="item.multiline" v-model="signedDocumentModal.fields[item.field.id]" class="w-full h-full resize-none border border-brand-blue/60 bg-yellow-50/90 dark:bg-yellow-900/30 px-0.5 leading-tight focus:outline-none focus:ring-1 focus:ring-brand-blue" style="font-family: Georgia, 'Times New Roman', serif;" :placeholder="item.field.label.en"></textarea>
-                                                <input v-else type="text" v-model="signedDocumentModal.fields[item.field.id]" class="w-full h-full border border-brand-blue/60 bg-yellow-50/90 dark:bg-yellow-900/30 px-0.5 focus:outline-none focus:ring-1 focus:ring-brand-blue" style="font-family: Georgia, 'Times New Roman', serif;" :placeholder="item.field.label.en">
-                                            </template>
-                                        </template>
-                                        <!-- Single checkbox field (e.g. PDPA consent, "same as registered address") -->
-                                        <template v-else-if="item.kind === 'checkbox'">
-                                            <button type="button" @click="canEditSignedField(item.field) && toggleCheckboxValue(item.field.id)" class="w-full h-full flex items-center justify-center border-2 rounded-sm" :class="signedDocumentModal.fields[item.field.id] ? 'border-brand-blue bg-brand-blue/20' : 'border-brand-blue/50 bg-yellow-50/60 dark:bg-yellow-900/20'" :disabled="!canEditSignedField(item.field)"><i v-if="signedDocumentModal.fields[item.field.id]" class="fa-solid fa-xmark text-brand-blue" style="font-size: inherit;"></i></button>
-                                        </template>
-                                        <!-- One option within a checkboxGroup field (e.g. Client Type, Service Required) -->
-                                        <template v-else-if="item.kind === 'checkboxGroupOption'">
-                                            <button type="button" @click="canEditSignedField(item.field) && toggleCheckboxGroupValue(item.field.id, item.optionValue)" class="w-full h-full flex items-center justify-center border-2 rounded-sm" :class="(signedDocumentModal.fields[item.field.id] || []).includes(item.optionValue) ? 'border-brand-blue bg-brand-blue/20' : 'border-brand-blue/50 bg-yellow-50/60 dark:bg-yellow-900/20'" :disabled="!canEditSignedField(item.field)"><i v-if="(signedDocumentModal.fields[item.field.id] || []).includes(item.optionValue)" class="fa-solid fa-xmark text-brand-blue" style="font-size: inherit;"></i></button>
-                                        </template>
-                                    </div>
-                                </template>
-                            </div>
-                        </template>
-
-                        <template v-else>
+                        <!-- Plain HTML form: label on the left, input field on the right, per
+                             row — the PDF (master template) is only used to generate the final
+                             output at Finalize/Regenerate time, never shown while filling. -->
                         <div v-for="section in activeTemplateSections" :key="section" class="mb-5">
                             <h4 class="text-[11px] font-black uppercase tracking-wider text-teal-700 dark:text-teal-400 mb-2 border-b border-slate-100 dark:border-slate-700 pb-1">{{ section }}</h4>
-                            <div class="space-y-3">
-                                <div v-for="field in activeTemplateFieldConfig.filter(f => f.section === section)" :key="field.id">
-                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">{{ field.label.en }} <span class="text-slate-400 font-normal">/ {{ field.label.ms }}</span><span v-if="field.required" class="text-red-500"> *</span></label>
+                            <div>
+                                <div v-for="field in activeTemplateFieldConfig.filter(f => f.section === section)" :key="field.id" class="grid grid-cols-1 sm:grid-cols-[220px_1fr] gap-1 sm:gap-4 sm:items-start py-2.5 border-b border-slate-100 dark:border-slate-700/60 last:border-0">
+                                    <label class="text-xs font-bold text-slate-600 dark:text-slate-300 sm:pt-2">{{ field.label.en }} <span class="block text-slate-400 font-normal text-[10px]">{{ field.label.ms }}</span><span v-if="field.required" class="text-red-500"> *</span></label>
 
                                     <template v-if="!canEditSignedField(field)">
-                                        <p v-if="field.type === 'checkbox'" class="text-xs text-slate-700 dark:text-slate-200">{{ signedDocumentModal.fields[field.id] ? 'Yes / Ya' : 'No / Tidak' }}</p>
-                                        <p v-else-if="field.type === 'checkboxGroup'" class="text-xs text-slate-700 dark:text-slate-200">{{ (signedDocumentModal.fields[field.id] || []).join(', ') || '—' }}</p>
+                                        <p v-if="field.type === 'checkbox'" class="text-xs text-slate-700 dark:text-slate-200 sm:pt-2">{{ signedDocumentModal.fields[field.id] ? 'Yes / Ya' : 'No / Tidak' }}</p>
+                                        <p v-else-if="field.type === 'checkboxGroup'" class="text-xs text-slate-700 dark:text-slate-200 sm:pt-2">{{ (signedDocumentModal.fields[field.id] || []).join(', ') || '—' }}</p>
                                         <p v-else class="whitespace-pre-wrap text-xs text-slate-700 dark:text-slate-200 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2">{{ signedDocumentModal.fields[field.id] || '—' }}</p>
                                     </template>
                                     <template v-else>
                                         <textarea v-if="field.type === 'textarea'" v-model="signedDocumentModal.fields[field.id]" rows="3" class="zq-input"></textarea>
                                         <input v-else-if="field.type === 'date'" type="date" v-model="signedDocumentModal.fields[field.id]" class="zq-input">
-                                        <label v-else-if="field.type === 'checkbox'" class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200"><input type="checkbox" v-model="signedDocumentModal.fields[field.id]" class="zq-checkbox"> <span>{{ field.label.en }}</span></label>
-                                        <div v-else-if="field.type === 'checkboxGroup'" class="flex flex-wrap gap-1.5">
+                                        <label v-else-if="field.type === 'checkbox'" class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200 sm:pt-2"><input type="checkbox" v-model="signedDocumentModal.fields[field.id]" class="zq-checkbox"> <span>{{ field.label.en }}</span></label>
+                                        <div v-else-if="field.type === 'checkboxGroup'" class="flex flex-wrap gap-1.5 sm:pt-1">
                                             <button v-for="opt in field.options" :key="opt" type="button" @click="toggleCheckboxGroupValue(field.id, opt)" class="rounded-full px-2.5 py-1 text-[10px] font-bold border transition" :class="(signedDocumentModal.fields[field.id] || []).includes(opt) ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'">{{ opt }}</button>
                                         </div>
                                         <input v-else type="text" v-model="signedDocumentModal.fields[field.id]" class="zq-input">
@@ -3012,7 +2974,6 @@
                                 </div>
                             </div>
                         </div>
-                        </template>
 
                         <!-- Existing signatures -->
                         <div v-if="signedDocumentModal.doc.signatures && (signedDocumentModal.doc.signatures.client || signedDocumentModal.doc.signatures.zenqor)" class="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-3">

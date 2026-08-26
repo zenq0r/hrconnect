@@ -438,11 +438,6 @@ createApp({
                 client: { hasStrokes: false, drawing: false, ctx: null },
                 zenqor: { hasStrokes: false, drawing: false, ctx: null }
             },
-            // Coordinate-overlay PDF fill view (templates with a fieldMap, e.g.
-            // authorization_letter) — pages[i] = { width, height } of that page's
-            // rendered <canvas> in CSS px, used to scale each field's PDF-point
-            // coordinates (see documents-templates.js's fieldMap) into on-screen position.
-            pdfOverlay: { loading: false, error: '', pages: [] },
             // Public-site content management: Firestore-backed content consumed directly by
             // zenqor-tech — Portfolio galleries (portfolio_web = Digital Systems,
             // portfolio_gaming = Licensing & Permits), the Services page, and page-text
@@ -755,41 +750,6 @@ createApp({
             const seen = [];
             this.activeTemplateFieldConfig.forEach(f => { if (!seen.includes(f.section)) seen.push(f.section); });
             return seen;
-        },
-        // The current document's coordinate field-map (if its template has one),
-        // keyed by field id for O(1) lookup from the overlay template — null for
-        // templates that still use the plain field-list view.
-        activeTemplateFieldMapById() {
-            const templateId = this.signedDocumentModal.doc ? this.signedDocumentModal.doc.templateId : null;
-            const tpl = templateId ? this.documentTemplates[templateId] : null;
-            if (!tpl || !tpl.fieldMap) return null;
-            const byId = {};
-            tpl.fieldMap.forEach(f => { byId[f.id] = f; });
-            return byId;
-        },
-        // Flattens the field map into one overlay-box item per rendered PDF
-        // page position — a plain text/date/textarea field is one item, but a
-        // checkboxGroup field (e.g. clientType) expands into one item PER
-        // option, since each option is its own physical checkbox on the PDF.
-        // A field with no fieldMap entry (e.g. CIF's privacyContact, which has
-        // no matching location on the master PDF) simply produces no item.
-        activeTemplateOverlayItems() {
-            if (!this.activeTemplateFieldMapById) return [];
-            const items = [];
-            this.activeTemplateFieldConfig.forEach(field => {
-                const f = this.activeTemplateFieldMapById[field.id];
-                if (!f) return;
-                if (f.type === 'checkboxGroup') {
-                    (f.options || []).forEach(opt => {
-                        items.push({ key: field.id + '::' + opt.value, field, kind: 'checkboxGroupOption', optionValue: opt.value, page: opt.page !== undefined ? opt.page : f.page, x: opt.x, y: opt.y, width: opt.width, height: opt.height });
-                    });
-                } else if (f.type === 'checkbox') {
-                    items.push({ key: field.id, field, kind: 'checkbox', page: f.page, x: f.x, y: f.y, width: f.width, height: f.height });
-                } else {
-                    items.push({ key: field.id, field, kind: 'text', multiline: !!f.multiline, page: f.page, x: f.x, y: f.y, width: f.width, height: f.height, fontSize: f.fontSize });
-                }
-            });
-            return items;
         },
         visibleSignedDocuments() {
             let items = this.signedDocuments.items;
@@ -2507,65 +2467,8 @@ createApp({
                 fields: JSON.parse(JSON.stringify(docItem.fields || {}))
             };
             this.$nextTick(() => { this.resetSignaturePad('client'); this.resetSignaturePad('zenqor'); });
-            this.pdfOverlay = { loading: false, error: '', pages: [] };
-            const tpl = this.documentTemplates[docItem.templateId];
-            if (tpl && tpl.fieldMap) this.loadSignedDocumentPdfOverlay(docItem.templateId);
         },
         closeSignedDocumentModal() { this.signedDocumentModal.show = false; },
-        // Renders every page of the template's master PDF onto a <canvas> so the
-        // fill modal can show field overlays positioned exactly on the real
-        // document (see activeTemplateFieldMapById + overlayFieldStyle below).
-        async loadSignedDocumentPdfOverlay(templateId) {
-            this.pdfOverlay = { loading: true, error: '', pages: [] };
-            try {
-                const master = await this.getActiveMasterTemplate(templateId);
-                if (!master || !master.downloadURL) throw new Error('No active master template is registered for this document.');
-                const bytes = await fetch(master.downloadURL, { cache: 'no-store' }).then(r => r.arrayBuffer());
-                const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-                // Pre-size the pages array so v-for creates every <canvas ref> element
-                // before this loop tries to render into it.
-                this.pdfOverlay.pages = Array.from({ length: pdf.numPages }, () => ({ width: 0, height: 0, pdfWidth: 595.28, pdfHeight: 841.89 }));
-                await this.$nextTick();
-                for (let i = 0; i < pdf.numPages; i++) {
-                    const page = await pdf.getPage(i + 1);
-                    const baseViewport = page.getViewport({ scale: 1 });
-                    const containerWidth = Math.min(720, (this.$refs.signedDocumentModalBody ? this.$refs.signedDocumentModalBody.clientWidth : 700) - 4);
-                    const scale = containerWidth / baseViewport.width;
-                    const viewport = page.getViewport({ scale });
-                    const canvasEl = this.$refs['pdfOverlayCanvas_' + i];
-                    const canvas = Array.isArray(canvasEl) ? canvasEl[0] : canvasEl;
-                    if (!canvas) continue;
-                    canvas.width = viewport.width;
-                    canvas.height = viewport.height;
-                    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-                    this.pdfOverlay.pages[i] = { width: viewport.width, height: viewport.height, pdfWidth: baseViewport.width, pdfHeight: baseViewport.height };
-                }
-            } catch (error) {
-                console.error('Load PDF overlay preview failed:', error);
-                this.pdfOverlay.error = 'Unable to load the master PDF preview. You can still fill fields; try reopening this document if the preview stays blank.';
-            } finally {
-                this.pdfOverlay.loading = false;
-            }
-        },
-        // Converts a flattened overlay item's PDF-point coordinates (origin
-        // bottom-left, matching pdf-lib) into a CSS absolute-position style over
-        // that page's rendered <canvas> (origin top-left) — recomputed reactively
-        // off pdfOverlay.pages so it stays aligned regardless of render width/zoom.
-        overlayFieldStyle(item) {
-            const page = this.pdfOverlay.pages[item.page];
-            if (!page || !page.width) return { display: 'none' };
-            const scale = page.width / page.pdfWidth;
-            return {
-                left: (item.x * scale) + 'px',
-                top: ((page.pdfHeight - item.y - item.height) * scale) + 'px',
-                width: (item.width * scale) + 'px',
-                height: (item.height * scale) + 'px',
-                fontSize: Math.max(8, (item.fontSize || 10) * scale * 0.92) + 'px'
-            };
-        },
-        toggleCheckboxValue(fieldId) {
-            this.signedDocumentModal.fields[fieldId] = !this.signedDocumentModal.fields[fieldId];
-        },
         // Whether the CURRENT logged-in user may edit a given field right now, based on
         // its `owner` and the document's current status — mirrors the ownership boundary
         // enforced (at the top-level-key granularity) by firestore.rules.
