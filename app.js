@@ -727,6 +727,10 @@ createApp({
         canEditLockedIdentityFields() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
         canManageEmployees() { return this.hasModulePermission('hr-employees', 'edit'); },
         canManageClients() { return this.hasModulePermission('client-directory', 'edit'); },
+        // "New Project Tier" is deliberately narrower than canManageClients (which
+        // also covers Superadmin/HR/Account elsewhere, e.g. the tier pills in the
+        // client-view drawer) — Director only, per explicit instruction.
+        canCreateProjectTier() { return this.userProfile.role === 'Director'; },
         canManageDocuments() { return this.hasModulePermission('doc-generator', 'edit'); },
         // Clients may upload to their OWN client_documents folder (but not the
         // doc-generator/billing tools canManageDocuments otherwise gates) — the
@@ -3694,6 +3698,27 @@ createApp({
             if (!clientDirectoryId) return 0;
             return this.projects.filter(p => p.clientDirectoryId === clientDirectoryId).length;
         },
+        // Client Tier card detail: the PIC of this client's most recently
+        // touched project — a company can have several projects with different
+        // owners, so "most recent" is the closest single answer to "who's
+        // handling this client right now."
+        clientLatestProjectPic(clientDirectoryId) {
+            if (!clientDirectoryId) return '';
+            const clientProjects = this.projects.filter(p => p.clientDirectoryId === clientDirectoryId);
+            if (!clientProjects.length) return '';
+            const latest = [...clientProjects].sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))[0];
+            return latest.ownerName || '';
+        },
+        // Client Tier card detail: prefer the timestamp of when the tier was
+        // actually assigned (clientTierAssignedAt, added alongside this page);
+        // older customers tagged before that field existed only have createdAt
+        // — the client's own registration date — so fall back to that instead
+        // of showing nothing.
+        clientTierDateLabel(cust) {
+            if (cust.clientTierAssignedAt) return `Tier set ${this.formatDateTime(cust.clientTierAssignedAt)}`;
+            if (cust.createdAt) return `Client added ${this.formatDateTime(cust.createdAt)}`;
+            return 'No date on record';
+        },
         // CROSS-SYSTEM INSIGHT: client health score blends Billing (payment behaviour) with
         // Project Activities (delivery velocity) — a signal only possible with HR + Client data unified.
         clientHealthScore(cust) {
@@ -4105,13 +4130,14 @@ createApp({
             }
         },
         openClientTierModal() {
-            if (!this.canManageClients) { this.showNotify('You do not have permission to manage client tiers.'); return; }
+            if (!this.canCreateProjectTier) { this.showNotify('Only Director may create a new Project Tier.'); return; }
             this.clientTierModal = { show: true, mode: 'existing', clientDirectoryId: '', clientName: '', clientSSM: '', tier: 'Standard', saving: false };
         },
         closeClientTierModal() {
             this.clientTierModal.show = false;
         },
         async saveClientTierAssignment() {
+            if (!this.canCreateProjectTier) { this.showNotify('Only Director may create a new Project Tier.'); return; }
             const modal = this.clientTierModal;
             modal.saving = true;
             try {
