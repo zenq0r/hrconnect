@@ -2940,6 +2940,22 @@ createApp({
             const lastUpdate = this.getPresenceTime(user?.presenceUpdatedAt || user?.lastSeen);
             return user?.presenceStatus === 'Online' && lastUpdate > 0 && (this.presenceNow - lastUpdate) < 90000;
         },
+        // A client "company" (customers collection) can have several authorized
+        // portal logins (clientEmail + additionalClientEmails, same matching used
+        // by projectClientAccessUsers) — online means any one of them is active.
+        isClientOnline(clientDirectoryId) {
+            const customer = this.customers.find(item => item.id === clientDirectoryId);
+            if (!customer) return false;
+            const authorizedEmails = new Set([
+                customer.clientEmail,
+                ...(Array.isArray(customer.additionalClientEmails) ? customer.additionalClientEmails : [])
+            ].map(email => String(email || '').trim().toLowerCase()).filter(Boolean));
+            if (!authorizedEmails.size) return false;
+            return this.users.some(user => user.role === 'Client' && authorizedEmails.has(String(user.email || '').trim().toLowerCase()) && this.isPortalUserOnline(user));
+        },
+        clientPresenceDetail(clientDirectoryId) {
+            return this.isClientOnline(clientDirectoryId) ? 'Client online now' : 'Client offline';
+        },
         processPortalPresenceNotifications(users) {
             const nextStates = {};
             users.forEach(user => {

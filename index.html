@@ -2290,6 +2290,7 @@
                                                 <div class="min-w-0 flex-1">
                                                     <div class="flex min-w-0 items-center gap-2">
                                                         <span class="min-w-0 truncate text-[12px] font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ clientNameForId(group.clientDirectoryId, group.clientName) }}</span>
+                                                        <span :class="isClientOnline(group.clientDirectoryId) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 shrink-0 rounded-full" :title="clientPresenceDetail(group.clientDirectoryId)"></span>
                                                         <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-300">{{ group.projects.length }}</span>
                                                     </div>
                                                     <p class="mt-1 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ clientSsmForId(group.clientDirectoryId) || '—' }}</p>
