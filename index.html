@@ -2331,7 +2331,7 @@
                     </div>
 
                     <div v-else-if="projectViewMode === 'board'" class="project-board-grid">
-                            <section v-for="(stage, stageIndex) in projectStages" :key="stage" class="min-w-0 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40 p-3 shadow-sm">
+                            <section v-for="(stage, stageIndex) in projectStages" :key="stage" class="min-w-0 rounded-2xl border p-3 shadow-sm transition" :class="dragOverStage === stage ? 'border-brand-blue bg-blue-50/70 dark:bg-blue-950/20 ring-2 ring-brand-blue/40' : 'border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40'" @dragover.prevent="onStageDragOver(stage)" @dragleave="onStageDragLeave(stage)" @drop.prevent="onStageDrop(stage)">
                                 <header class="mb-3 flex items-center justify-between rounded-xl bg-white dark:bg-slate-800 px-3 py-3 border border-slate-200 dark:border-slate-700">
                                     <div class="flex items-center gap-2">
                                         <span :class="['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][stageIndex]" class="h-2.5 w-2.5 rounded-full"></span>
@@ -2341,7 +2341,7 @@
                                 </header>
 
                                 <div class="space-y-2.5 min-h-[180px]">
-                                    <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md">
+                                    <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" :draggable="canDragClientGroup(group)" @dragstart="startGroupDrag($event, group, stage)" @dragend="endGroupDrag" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md" :class="canDragClientGroup(group) ? 'cursor-grab active:cursor-grabbing' : ''">
                                         <div class="flex w-full items-start gap-2 rounded-xl p-3">
                                             <button type="button" @click="toggleClientGroup(`${stage}::${group.key}`)" class="flex min-w-0 flex-1 items-start gap-2 text-left" :title="isClientGroupExpanded(`${stage}::${group.key}`) ? 'Collapse tasks' : 'Expand tasks'">
                                                 <i class="fa-solid text-[10px] text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" :class="isClientGroupExpanded(`${stage}::${group.key}`) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>

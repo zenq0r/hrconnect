@@ -424,6 +424,8 @@ createApp({
             projectScopeFilter: 'all',
             clientPortalFilter: { type: 'all', status: 'all' },
             expandedClientGroups: new Set(),
+            draggingGroup: null,
+            dragOverStage: '',
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
             clientDocumentsUnsubscribe: null,
@@ -1648,24 +1650,73 @@ createApp({
             }
         },
         async moveProject(project, direction) {
-            if (!this.canEditProject(project)) { this.showNotify('You do not have permission to update this project stage.'); return; }
             const currentIndex = this.projectStages.indexOf(project.status);
             const nextIndex = currentIndex + direction;
             if (currentIndex < 0 || nextIndex < 0 || nextIndex >= this.projectStages.length) return;
+            const moved = await this.moveProjectToStage(project, this.projectStages[nextIndex]);
+            if (moved) this.showNotify(`Project moved to ${this.projectStages[nextIndex]}.`);
+        },
+        // Shared by the arrow buttons (moveProject, always ±1 stage) and the
+        // board's drag-and-drop (any stage, dropped directly). Returns whether
+        // the write actually happened, so callers driving a multi-project drag
+        // (onStageDrop) can tally a combined notification instead of one per
+        // project.
+        async moveProjectToStage(project, targetStage) {
+            if (!this.canEditProject(project)) { this.showNotify('You do not have permission to update this project stage.'); return false; }
+            if (project.status === targetStage) return false;
             try {
-                await updateDoc(doc(db, 'projects', project.id), { status: this.projectStages[nextIndex], updatedAt: new Date().toISOString(), updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email });
-                this.logAudit('UPDATE', `Project ${project.projectRef} moved to ${this.projectStages[nextIndex]}`);
-                this.showNotify(`Project moved to ${this.projectStages[nextIndex]}.`);
+                await updateDoc(doc(db, 'projects', project.id), { status: targetStage, updatedAt: new Date().toISOString(), updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email });
+                this.logAudit('UPDATE', `Project ${project.projectRef} moved to ${targetStage}`);
                 this.notifyByEmail({
                     to: project.clientEmail,
-                    subject: `Project Update — ${project.projectRef}: ${this.projectStages[nextIndex]}`,
+                    subject: `Project Update — ${project.projectRef}: ${targetStage}`,
                     heading: 'Your Project Has Been Updated',
-                    message: `Your project "${project.title}" (${project.projectRef}) has moved to the "${this.projectStages[nextIndex]}" stage.`
+                    message: `Your project "${project.title}" (${project.projectRef}) has moved to the "${targetStage}" stage.`
                 });
+                return true;
             } catch (error) {
                 console.error('Project stage update failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'update the project stage'));
+                return false;
             }
+        },
+        // Board drag-and-drop — the draggable unit is the client-group card (a
+        // column can list several projects for the same client), so dragging it
+        // to another stage moves every project in that group the current user
+        // is allowed to edit; any it can't are silently skipped (not an error —
+        // e.g. a PIC dragging a group that has a colleague's project mixed in).
+        canDragClientGroup(group) {
+            return group.projects.some(project => this.canEditProject(project));
+        },
+        startGroupDrag(event, group, stage) {
+            if (!this.canDragClientGroup(group)) { event.preventDefault(); return; }
+            this.draggingGroup = { group, sourceStage: stage };
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', `${stage}::${group.key}`);
+            }
+        },
+        endGroupDrag() {
+            this.draggingGroup = null;
+            this.dragOverStage = '';
+        },
+        onStageDragOver(stage) {
+            if (!this.draggingGroup || this.draggingGroup.sourceStage === stage) return;
+            this.dragOverStage = stage;
+        },
+        onStageDragLeave(stage) {
+            if (this.dragOverStage === stage) this.dragOverStage = '';
+        },
+        async onStageDrop(targetStage) {
+            const drag = this.draggingGroup;
+            this.draggingGroup = null;
+            this.dragOverStage = '';
+            if (!drag || drag.sourceStage === targetStage) return;
+            const movable = drag.group.projects.filter(project => this.canEditProject(project));
+            if (!movable.length) { this.showNotify('You do not have permission to update this project stage.'); return; }
+            const results = await Promise.all(movable.map(project => this.moveProjectToStage(project, targetStage)));
+            const movedCount = results.filter(Boolean).length;
+            if (movedCount) this.showNotify(movedCount === 1 ? `Project moved to ${targetStage}.` : `${movedCount} projects moved to ${targetStage}.`);
         },
         openMarkProjectDoneModal(project) {
             if (!this.canEditProject(project)) { this.showNotify('You do not have permission to update this project.'); return; }
