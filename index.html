@@ -116,7 +116,7 @@
                 <h3 class="text-base font-extrabold text-brand-dark dark:text-white">Sign out from the portal?</h3>
                 <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Are you sure you want to end this session? Any unsaved changes may be lost.</p>
                 <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-left dark:border-slate-700">
-                    <input type="checkbox" v-model="forgetTrustedDeviceOnLogout" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                    <input type="checkbox" v-model="forgetTrustedDeviceOnLogout" class="zq-checkbox mt-0.5">
                     <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Sign out and forget trusted devices</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Require a new 6-digit OTP on every device at the next sign-in.</span></span>
                 </label>
                 <div class="mt-6 flex justify-end gap-2">
@@ -207,12 +207,12 @@
                     <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 lowercase">{{ passwordResetFlow.email }}</p>
                     <form @submit.prevent="submitPasswordReset" class="mt-5 space-y-4 text-left">
                         <div>
-                            <label for="reset-new-password" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">New Password</label>
-                            <input id="reset-new-password" name="newPassword" type="password" v-model="passwordResetFlow.newPassword" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none text-xs font-medium">
+                            <label for="reset-new-password" class="zq-label">New Password</label>
+                            <input id="reset-new-password" name="newPassword" type="password" v-model="passwordResetFlow.newPassword" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters" class="zq-input font-medium">
                         </div>
                         <div>
-                            <label for="reset-confirm-password" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">Confirm New Password</label>
-                            <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none text-xs font-medium">
+                            <label for="reset-confirm-password" class="zq-label">Confirm New Password</label>
+                            <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
                         </div>
                         <div v-if="passwordResetFlow.error" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ passwordResetFlow.error }}</div>
                         <button type="submit" :disabled="passwordResetFlow.loading" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider disabled:opacity-60">
@@ -251,8 +251,8 @@
 
                 <form v-if="!forgotPasswordFlow.sent" @submit.prevent="submitForgotPasswordRequest" class="space-y-4">
                     <div>
-                        <label for="forgot-email" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">Email Address</label>
-                        <input id="forgot-email" name="email" type="email" v-model="forgotPasswordFlow.email" required autocomplete="username" placeholder="Your registered email" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none text-xs font-medium">
+                        <label for="forgot-email" class="zq-label">Email Address</label>
+                        <input id="forgot-email" name="email" type="email" v-model="forgotPasswordFlow.email" required autocomplete="username" placeholder="Your registered email" class="zq-input font-medium">
                     </div>
 
                     <div v-if="forgotPasswordFlow.error" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ forgotPasswordFlow.error }}</div>
@@ -338,12 +338,12 @@
 
                 <form @submit.prevent="handleLogin" class="space-y-4">
                     <div>
-                        <label for="login-email" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">{{ authView === 'client' ? 'Client Email' : 'Company Email' }}</label>
-                        <input id="login-email" name="email" type="email" v-model="loginForm.email" required autocomplete="username" :placeholder="authView === 'client' ? 'Registered client email' : 'Company email'" class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none text-xs font-medium">
+                        <label for="login-email" class="zq-label">{{ authView === 'client' ? 'Client Email' : 'Company Email' }}</label>
+                        <input id="login-email" name="email" type="email" v-model="loginForm.email" required autocomplete="username" :placeholder="authView === 'client' ? 'Registered client email' : 'Company email'" class="zq-input font-medium">
                     </div>
 
                     <div>
-                        <label for="login-password" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">Password</label>
+                        <label for="login-password" class="zq-label">Password</label>
                         <div class="relative">
                             <input id="login-password" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" required autocomplete="current-password" placeholder="••••••••" class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none text-xs">
                             <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none" title="Show / Hide Password">
@@ -378,7 +378,7 @@
                         <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending" placeholder="000000" autocomplete="one-time-code" class="w-full text-center text-2xl font-black tracking-[0.5em] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none">
                         <div v-if="loginOtp.error" class="text-red-500 text-xs font-semibold text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ loginOtp.error }}</div>
                         <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-left dark:border-slate-600">
-                            <input type="checkbox" v-model="loginOtp.trustDevice" class="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue">
+                            <input type="checkbox" v-model="loginOtp.trustDevice" class="zq-checkbox mt-0.5">
                             <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Trust this device</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Skip OTP on this browser for {{ pendingLoginContext && ['Superadmin', 'Director', 'HR', 'Account', 'IT'].includes(pendingLoginContext.role) ? '7 days' : '30 days' }}. Do not use on a shared device.</span></span>
                         </label>
                         <button type="submit" :disabled="loginOtp.sending || loginOtp.verifying" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg transition duration-200 text-xs uppercase tracking-wider disabled:opacity-50">
@@ -612,38 +612,38 @@
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Company Identity</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div><label for="doc-client-name" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Client / Company Name *</label><input id="doc-client-name" name="clientName" type="text" v-model="docForm.clientName" @input="clientSavedForDocument = false" required placeholder="Company Name Sdn. Bhd." class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-bold bg-slate-50"></div>
-                                        <div><label for="doc-client-ssm" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Business Reg. / TIN</label><input id="doc-client-ssm" name="clientSSM" type="text" v-model="docForm.clientSSM" @input="clientSavedForDocument = false" placeholder="200901029271 (872376-W)" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
+                                        <div><label for="doc-client-name" class="zq-label">Client / Company Name *</label><input id="doc-client-name" name="clientName" type="text" v-model="docForm.clientName" @input="clientSavedForDocument = false" required placeholder="Company Name Sdn. Bhd." class="zq-input font-bold"></div>
+                                        <div><label for="doc-client-ssm" class="zq-label">Business Reg. / TIN</label><input id="doc-client-ssm" name="clientSSM" type="text" v-model="docForm.clientSSM" @input="clientSavedForDocument = false" placeholder="200901029271 (872376-W)" class="zq-input"></div>
                                     </div>
                                 </div>
 
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-address-book w-4 text-center text-brand-gold"></i><span class="ml-1.5">Contact Details</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                        <div><label for="doc-client-phone" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Phone Number *</label><input id="doc-client-phone" name="clientPhone" type="text" v-model="docForm.clientPhone" @input="clientSavedForDocument = false" required placeholder="+60 13-XXXX XXX" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
-                                        <div><label for="doc-client-email" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Email Address</label><input id="doc-client-email" name="clientEmail" type="email" v-model="docForm.clientEmail" @input="clientSavedForDocument = false" placeholder="email@company.com" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
-                                        <div><label for="doc-client-contact" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Contact Person</label><input id="doc-client-contact" name="clientContact" type="text" v-model="docForm.clientContactPerson" @input="clientSavedForDocument = false" placeholder="Officer Name" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50 font-semibold"></div>
-                                        <div><label for="doc-client-position" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Position</label><input id="doc-client-position" name="clientPosition" type="text" v-model="docForm.clientPosition" @input="clientSavedForDocument = false" placeholder="EXECUTIVE / DIRECTOR" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
+                                        <div><label for="doc-client-phone" class="zq-label">Phone Number *</label><input id="doc-client-phone" name="clientPhone" type="text" v-model="docForm.clientPhone" @input="clientSavedForDocument = false" required placeholder="+60 13-XXXX XXX" class="zq-input"></div>
+                                        <div><label for="doc-client-email" class="zq-label">Email Address</label><input id="doc-client-email" name="clientEmail" type="email" v-model="docForm.clientEmail" @input="clientSavedForDocument = false" placeholder="email@company.com" class="zq-input"></div>
+                                        <div><label for="doc-client-contact" class="zq-label">Contact Person</label><input id="doc-client-contact" name="clientContact" type="text" v-model="docForm.clientContactPerson" @input="clientSavedForDocument = false" placeholder="Officer Name" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50 font-semibold"></div>
+                                        <div><label for="doc-client-position" class="zq-label">Position</label><input id="doc-client-position" name="clientPosition" type="text" v-model="docForm.clientPosition" @input="clientSavedForDocument = false" placeholder="EXECUTIVE / DIRECTOR" class="zq-input"></div>
                                     </div>
                                 </div>
 
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-user-group w-4 text-center text-brand-gold"></i><span class="ml-1.5">Client Portal Access</span></p>
-                                    <label for="doc-client-additional-emails" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Additional Authorized Emails (Optional)</label>
-                                    <input id="doc-client-additional-emails" name="additionalClientEmails" type="text" v-model="docForm.additionalClientEmailsText" @input="clientSavedForDocument = false" placeholder="finance@company.com, director@company.com" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50">
+                                    <label for="doc-client-additional-emails" class="zq-label">Additional Authorized Emails (Optional)</label>
+                                    <input id="doc-client-additional-emails" name="additionalClientEmails" type="text" v-model="docForm.additionalClientEmailsText" @input="clientSavedForDocument = false" placeholder="finance@company.com, director@company.com" class="zq-input">
                                     <p class="mt-1 text-[9px] text-slate-400">Comma-separated. Anyone signing in with these emails can also access this client's Client Portal, projects and documents — in addition to the primary Email Address above.</p>
                                 </div>
 
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-location-dot w-4 text-center text-brand-gold"></i><span class="ml-1.5">Address</span></p>
                                     <div class="grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/30 sm:grid-cols-2 lg:grid-cols-4">
-                                        <div class="sm:col-span-2 lg:col-span-4"><label for="doc-client-address1" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">Address Line 1 *</label><input id="doc-client-address1" name="clientAddress1" type="text" v-model="docForm.clientAddress1" @input="clientSavedForDocument = false" required placeholder="Building / Lot No. and Street" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
-                                        <div class="lg:col-span-2"><label for="doc-client-address2" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">Address Line 2</label><input id="doc-client-address2" name="clientAddress2" type="text" v-model="docForm.clientAddress2" @input="clientSavedForDocument = false" placeholder="Building / Area / Industrial Park" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
-                                        <div class="lg:col-span-2"><label for="doc-client-address3" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">Address Line 3</label><input id="doc-client-address3" name="clientAddress3" type="text" v-model="docForm.clientAddress3" @input="clientSavedForDocument = false" placeholder="Optional locality / district" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
-                                        <div><label for="doc-client-postcode" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">Postcode *</label><input id="doc-client-postcode" name="clientPostcode" type="text" inputmode="numeric" maxlength="5" v-model="docForm.clientPostcode" @input="detectClientPostcode" required placeholder="43000" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
-                                        <div><label for="doc-client-city" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">City *</label><input id="doc-client-city" name="clientCity" type="text" v-model="docForm.clientCity" @input="clientSavedForDocument = false" required placeholder="Kajang" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
-                                        <div><label for="doc-client-state" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">State *</label><input id="doc-client-state" name="clientState" type="text" v-model="docForm.clientState" @input="clientSavedForDocument = false" required placeholder="Selangor" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
-                                        <div><label for="doc-client-country" class="block text-[10px] font-bold text-slate-600 dark:text-slate-300 mb-1">Country *</label><input id="doc-client-country" name="clientCountry" type="text" v-model="docForm.clientCountry" @input="clientSavedForDocument = false" required class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-lg text-xs bg-white"></div>
+                                        <div class="sm:col-span-2 lg:col-span-4"><label for="doc-client-address1" class="zq-label">Address Line 1 *</label><input id="doc-client-address1" name="clientAddress1" type="text" v-model="docForm.clientAddress1" @input="clientSavedForDocument = false" required placeholder="Building / Lot No. and Street" class="zq-input"></div>
+                                        <div class="lg:col-span-2"><label for="doc-client-address2" class="zq-label">Address Line 2</label><input id="doc-client-address2" name="clientAddress2" type="text" v-model="docForm.clientAddress2" @input="clientSavedForDocument = false" placeholder="Building / Area / Industrial Park" class="zq-input"></div>
+                                        <div class="lg:col-span-2"><label for="doc-client-address3" class="zq-label">Address Line 3</label><input id="doc-client-address3" name="clientAddress3" type="text" v-model="docForm.clientAddress3" @input="clientSavedForDocument = false" placeholder="Optional locality / district" class="zq-input"></div>
+                                        <div><label for="doc-client-postcode" class="zq-label">Postcode *</label><input id="doc-client-postcode" name="clientPostcode" type="text" inputmode="numeric" maxlength="5" v-model="docForm.clientPostcode" @input="detectClientPostcode" required placeholder="43000" class="zq-input"></div>
+                                        <div><label for="doc-client-city" class="zq-label">City *</label><input id="doc-client-city" name="clientCity" type="text" v-model="docForm.clientCity" @input="clientSavedForDocument = false" required placeholder="Kajang" class="zq-input"></div>
+                                        <div><label for="doc-client-state" class="zq-label">State *</label><input id="doc-client-state" name="clientState" type="text" v-model="docForm.clientState" @input="clientSavedForDocument = false" required placeholder="Selangor" class="zq-input"></div>
+                                        <div><label for="doc-client-country" class="zq-label">Country *</label><input id="doc-client-country" name="clientCountry" type="text" v-model="docForm.clientCountry" @input="clientSavedForDocument = false" required class="zq-input"></div>
                                     </div>
                                 </div>
                             </div>
@@ -651,18 +651,18 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 border-t border-slate-100 dark:border-slate-700 pt-5">
                             <div>
-                                <label for="doc-type" class="block text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase mb-1">DOCUMENT TYPE</label>
+                                <label for="doc-type" class="zq-label">DOCUMENT TYPE</label>
                                 <select id="doc-type" name="docType" v-model="docForm.type" @change="generateDocNo" :disabled="!!editingDocId" class="w-full p-2 border rounded-xl text-xs font-extrabold bg-white dark:bg-slate-700 dark:text-white border-slate-300 dark:border-slate-600">
                                     <option value="Quotation">Quotation</option>
                                     <option value="Invoice">Invoice</option>
                                 </select>
                             </div>
-                            <div><label for="doc-no" class="block text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase mb-1">DOCUMENT NO.</label><input id="doc-no" name="docNo" type="text" v-model="docForm.docNo" readonly class="w-full p-2 border rounded-xl bg-slate-100 dark:bg-slate-700 dark:text-white font-extrabold text-xs text-brand-dark"></div>
-                            <div><label for="doc-date" class="block text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase mb-1">DOCUMENT DATE</label><input id="doc-date" name="docDate" type="date" v-model="docForm.date" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
-                            <div><label for="doc-due-date" class="block text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase mb-1">{{ docForm.type === 'Invoice' ? 'DUE DATE' : 'VALID UNTIL' }}</label><input id="doc-due-date" name="dueDate" type="date" v-model="docForm.dueDate" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
+                            <div><label for="doc-no" class="zq-label">DOCUMENT NO.</label><input id="doc-no" name="docNo" type="text" v-model="docForm.docNo" readonly class="w-full p-2 border rounded-xl bg-slate-100 dark:bg-slate-700 dark:text-white font-extrabold text-xs text-brand-dark"></div>
+                            <div><label for="doc-date" class="zq-label">DOCUMENT DATE</label><input id="doc-date" name="docDate" type="date" v-model="docForm.date" class="zq-input"></div>
+                            <div><label for="doc-due-date" class="zq-label">{{ docForm.type === 'Invoice' ? 'DUE DATE' : 'VALID UNTIL' }}</label><input id="doc-due-date" name="dueDate" type="date" v-model="docForm.dueDate" class="zq-input"></div>
                             <div>
-                                <label for="doc-status" class="block text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase mb-1">STATUS</label>
-                                <select id="doc-status" name="docStatus" v-model="docForm.status" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-extrabold text-xs">
+                                <label for="doc-status" class="zq-label">STATUS</label>
+                                <select id="doc-status" name="docStatus" v-model="docForm.status" class="zq-input font-extrabold">
                                     <template v-if="docForm.type === 'Quotation'">
                                         <option value="Open">Open</option>
                                         <option value="Accepted">Accepted</option>
@@ -678,8 +678,8 @@
                                 </select>
                             </div>
                             <div>
-                                <label for="doc-payment-method" class="block text-[11px] font-extrabold text-slate-600 dark:text-slate-300 uppercase mb-1">PAYMENT METHOD</label>
-                                <select id="doc-payment-method" name="paymentMethod" v-model="docForm.paymentMethod" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-extrabold text-xs">
+                                <label for="doc-payment-method" class="zq-label">PAYMENT METHOD</label>
+                                <select id="doc-payment-method" name="paymentMethod" v-model="docForm.paymentMethod" class="zq-input font-extrabold">
                                     <option value="Bank Transfer">Bank Transfer (EFT)</option>
                                     <option value="DuitNow QR">DuitNow QR</option>
                                     <option value="Cheque">Cheque</option>
@@ -691,8 +691,8 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-700/40 p-4 rounded-xl border border-slate-200 dark:border-slate-600 items-center">
                             <div>
-                                <label for="doc-payment-bank" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">BANK SELECTION</label>
-                                <select id="doc-payment-bank" name="paymentBank" v-model="docForm.paymentBank" class="w-full p-2 border rounded-xl text-xs font-semibold bg-white dark:bg-slate-700 dark:text-white border-slate-300 dark:border-slate-600">
+                                <label for="doc-payment-bank" class="zq-label">BANK SELECTION</label>
+                                <select id="doc-payment-bank" name="paymentBank" v-model="docForm.paymentBank" class="zq-input font-semibold">
                                     <option value="">-- Select Bank --</option>
                                     <option value="Maybank (Malayan Banking Berhad)">Maybank (Malayan Banking Berhad)</option>
                                     <option value="CIMB Bank">CIMB Bank Berhad</option>
@@ -704,8 +704,8 @@
                             </div>
 
                             <div>
-                                <label for="doc-payment-receiver" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">PAYMENT RECEIVER</label>
-                                <select id="doc-payment-receiver" name="paymentReceiver" v-model="docForm.paymentReceiver" class="w-full p-2 border rounded-xl text-xs font-semibold bg-white dark:bg-slate-700 dark:text-white border-slate-300 dark:border-slate-600">
+                                <label for="doc-payment-receiver" class="zq-label">PAYMENT RECEIVER</label>
+                                <select id="doc-payment-receiver" name="paymentReceiver" v-model="docForm.paymentReceiver" class="zq-input font-semibold">
                                     <option value="">-- Select Receiver Account --</option>
                                     <option value="Akaun Maybank Syarikat (562982057309)">Maybank Corporate Account (56298...)</option>
                                     <option value="DuitNow QR Syarikat">DuitNow QR Corporate</option>
@@ -714,12 +714,12 @@
                             </div>
 
                             <div>
-                                <label for="doc-payment-ref" class="block text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">
+                                <label for="doc-payment-ref" class="zq-label">
                                     PAYMENT REFERENCE NO.
                                     <span class="text-red-500 font-extrabold ml-1">* REQUIRED</span>
                                 </label>
                                 <input id="doc-payment-ref" name="paymentRefNo" type="text" v-model="docForm.paymentRefNo" placeholder="IT280905CT833S" 
-                                       class="w-full p-2 border rounded-xl text-xs font-semibold bg-white dark:bg-slate-700 dark:text-white border-slate-300 dark:border-slate-600">
+                                       class="zq-input font-semibold">
                             </div>
 
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
@@ -856,26 +856,26 @@
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-emerald-500"></i><span class="ml-1.5">Identity</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <div><label for="pay-name" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Employee Name *</label><input id="pay-name" name="payName" type="text" v-model="payForm.name" required placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-bold bg-slate-50"></div>
-                                        <div><label for="pay-ic" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">National ID / Passport *</label><input id="pay-ic" name="payIc" type="text" :value="maskSensitive(payForm.ic)" readonly aria-label="Masked national ID or passport" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-100 cursor-not-allowed"></div>
-                                        <div><label for="pay-emp-no" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Employee ID *</label><input id="pay-emp-no" name="payEmpNo" type="text" v-model="payForm.empNo" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-extrabold bg-slate-50"></div>
+                                        <div><label for="pay-name" class="zq-label">Employee Name *</label><input id="pay-name" name="payName" type="text" v-model="payForm.name" required placeholder="" class="zq-input font-bold"></div>
+                                        <div><label for="pay-ic" class="zq-label">National ID / Passport *</label><input id="pay-ic" name="payIc" type="text" :value="maskSensitive(payForm.ic)" readonly aria-label="Masked national ID or passport" class="zq-input"></div>
+                                        <div><label for="pay-emp-no" class="zq-label">Employee ID *</label><input id="pay-emp-no" name="payEmpNo" type="text" v-model="payForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
                                     </div>
                                 </div>
 
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-briefcase w-4 text-center text-emerald-500"></i><span class="ml-1.5">Employment</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                        <div><label for="pay-position" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Position</label><input id="pay-position" name="payPosition" type="text" v-model="payForm.position" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
-                                        <div><label for="pay-dept" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Department</label><input id="pay-dept" name="payDept" type="text" v-model="payForm.dept" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
-                                        <div><label for="pay-join-date" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Join Date</label><input id="pay-join-date" name="payJoinDate" type="date" v-model="payForm.joinDate" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
+                                        <div><label for="pay-position" class="zq-label">Position</label><input id="pay-position" name="payPosition" type="text" v-model="payForm.position" placeholder="" class="zq-input"></div>
+                                        <div><label for="pay-dept" class="zq-label">Department</label><input id="pay-dept" name="payDept" type="text" v-model="payForm.dept" placeholder="" class="zq-input"></div>
+                                        <div><label for="pay-join-date" class="zq-label">Join Date</label><input id="pay-join-date" name="payJoinDate" type="date" v-model="payForm.joinDate" class="zq-input"></div>
                                     </div>
                                 </div>
 
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-building-columns w-4 text-center text-emerald-500"></i><span class="ml-1.5">Banking &amp; Statutory</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div><label for="pay-bank-acc" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Bank / Account No.</label><input id="pay-bank-acc" name="payBankAcc" type="text" :value="maskBank(payForm.bankAcc)" readonly aria-label="Masked bank account number" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-100 cursor-not-allowed"></div>
-                                        <div><label for="pay-epf-socso" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">EPF / SOCSO No.</label><input id="pay-epf-socso" name="payEpfSocso" type="text" :value="maskEpfSocso(payForm.epfSocso)" readonly aria-label="Masked EPF and SOCSO numbers" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-100 cursor-not-allowed"></div>
+                                        <div><label for="pay-bank-acc" class="zq-label">Bank / Account No.</label><input id="pay-bank-acc" name="payBankAcc" type="text" :value="maskBank(payForm.bankAcc)" readonly aria-label="Masked bank account number" class="zq-input"></div>
+                                        <div><label for="pay-epf-socso" class="zq-label">EPF / SOCSO No.</label><input id="pay-epf-socso" name="payEpfSocso" type="text" :value="maskEpfSocso(payForm.epfSocso)" readonly aria-label="Masked EPF and SOCSO numbers" class="zq-input"></div>
                                     </div>
                                 </div>
                             </div>
@@ -885,26 +885,26 @@
                             <div class="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
                                 <h4 class="text-xs font-extrabold uppercase tracking-wider text-brand-blue dark:text-blue-400 border-b border-slate-200 dark:border-slate-600 pb-2">EARNINGS - RM</h4>
                                 <div class="grid grid-cols-2 gap-3 text-xs">
-                                    <div><label for="pay-month" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Payroll Month</label><input id="pay-month" name="payMonth" type="month" v-model="payForm.month" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-date" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Payment Date</label><input id="pay-date" name="payDate" type="date" v-model="payForm.payDate" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-basic" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Basic Salary (RM) *</label><input id="pay-basic" name="payBasic" type="number" v-model="payForm.basic" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-bold"></div>
-                                    <div><label for="pay-ot" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">OT (Overtime)</label><input id="pay-ot" name="payOt" type="number" v-model="payForm.ot" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-phone" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Phone Allowance</label><input id="pay-phone" name="payPhone" type="number" v-model="payForm.phone" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-transport" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Transport Allowance</label><input id="pay-transport" name="payTransport" type="number" v-model="payForm.transport" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-meal" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Meal Allowance</label><input id="pay-meal" name="payMeal" type="number" v-model="payForm.meal" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-bonus" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Bonus &amp; Commission</label><input id="pay-bonus" name="payBonus" type="number" v-model="payForm.bonus" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
+                                    <div><label for="pay-month" class="zq-label">Payroll Month</label><input id="pay-month" name="payMonth" type="month" v-model="payForm.month" class="zq-input"></div>
+                                    <div><label for="pay-date" class="zq-label">Payment Date</label><input id="pay-date" name="payDate" type="date" v-model="payForm.payDate" class="zq-input"></div>
+                                    <div><label for="pay-basic" class="zq-label">Basic Salary (RM) *</label><input id="pay-basic" name="payBasic" type="number" v-model="payForm.basic" @input="autoCalculatePayroll" step="0.01" class="zq-input font-bold"></div>
+                                    <div><label for="pay-ot" class="zq-label">OT (Overtime)</label><input id="pay-ot" name="payOt" type="number" v-model="payForm.ot" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-phone" class="zq-label">Phone Allowance</label><input id="pay-phone" name="payPhone" type="number" v-model="payForm.phone" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-transport" class="zq-label">Transport Allowance</label><input id="pay-transport" name="payTransport" type="number" v-model="payForm.transport" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-meal" class="zq-label">Meal Allowance</label><input id="pay-meal" name="payMeal" type="number" v-model="payForm.meal" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-bonus" class="zq-label">Bonus &amp; Commission</label><input id="pay-bonus" name="payBonus" type="number" v-model="payForm.bonus" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
                                 </div>
                             </div>
 
                             <div class="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
                                 <h4 class="text-xs font-extrabold uppercase tracking-wider text-red-600 border-b border-slate-200 dark:border-slate-600 pb-2">STATUTORY DEDUCTIONS - RM</h4>
                                 <div class="grid grid-cols-2 gap-3 text-xs">
-                                    <div><label for="pay-ded-epf" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Employee EPF (11%)</label><input id="pay-ded-epf" name="payDedEpf" type="number" v-model="payForm.dedEpf" readonly class="w-full p-2 border border-slate-300 rounded-xl font-bold bg-slate-100 dark:bg-slate-700 dark:text-white"></div>
-                                    <div><label for="pay-ded-socso" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">SOCSO (0.5%)</label><input id="pay-ded-socso" name="payDedSocso" type="number" v-model="payForm.dedSocso" readonly class="w-full p-2 border border-slate-300 rounded-xl font-bold bg-slate-100 dark:bg-slate-700 dark:text-white"></div>
-                                    <div><label for="pay-ded-eis" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Employee EIS (0.2%)</label><input id="pay-ded-eis" name="payDedEis" type="number" v-model="payForm.dedEis" readonly class="w-full p-2 border border-slate-300 rounded-xl font-bold bg-slate-100 dark:bg-slate-700 dark:text-white"></div>
-                                    <div><label for="pay-ded-pcb" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">MTD / PCB (Tax)</label><input id="pay-ded-pcb" name="payDedPcb" type="number" v-model="payForm.dedPcb" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-bold"></div>
-                                    <div><label for="pay-ded-advance" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Advance / Loan</label><input id="pay-ded-advance" name="payDedAdvance" type="number" v-model="payForm.dedAdvance" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
-                                    <div><label for="pay-ded-other" class="block font-semibold text-slate-600 dark:text-slate-300 mb-1">Other Deductions</label><input id="pay-ded-other" name="payDedOther" type="number" v-model="payForm.dedOther" @input="autoCalculatePayroll" step="0.01" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl"></div>
+                                    <div><label for="pay-ded-epf" class="zq-label">Employee EPF (11%)</label><input id="pay-ded-epf" name="payDedEpf" type="number" v-model="payForm.dedEpf" readonly class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-socso" class="zq-label">SOCSO (0.5%)</label><input id="pay-ded-socso" name="payDedSocso" type="number" v-model="payForm.dedSocso" readonly class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-eis" class="zq-label">Employee EIS (0.2%)</label><input id="pay-ded-eis" name="payDedEis" type="number" v-model="payForm.dedEis" readonly class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-pcb" class="zq-label">MTD / PCB (Tax)</label><input id="pay-ded-pcb" name="payDedPcb" type="number" v-model="payForm.dedPcb" @input="autoCalculatePayroll" step="0.01" class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-advance" class="zq-label">Advance / Loan</label><input id="pay-ded-advance" name="payDedAdvance" type="number" v-model="payForm.dedAdvance" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-ded-other" class="zq-label">Other Deductions</label><input id="pay-ded-other" name="payDedOther" type="number" v-model="payForm.dedOther" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
                                 </div>
                             </div>
                         </div>
@@ -997,39 +997,39 @@
                             <div>
                                 <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Applicant Information</span></p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <div><label for="claim-name" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Applicant Name *</label><input id="claim-name" name="claimName" type="text" v-model="claimForm.name" required placeholder="Employee Name" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-bold bg-slate-50"></div>
-                                    <div><label for="claim-emp-no" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Employee ID *</label><input id="claim-emp-no" name="claimEmpNo" type="text" v-model="claimForm.empNo" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-extrabold bg-slate-50"></div>
-                                    <div><label for="claim-dept" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Department</label><input id="claim-dept" name="claimDept" type="text" v-model="claimForm.dept" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
-                                    <div><label for="claim-date" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Expense Date *</label><input id="claim-date" name="claimDate" type="date" v-model="claimForm.expenseDate" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
+                                    <div><label for="claim-name" class="zq-label">Applicant Name *</label><input id="claim-name" name="claimName" type="text" v-model="claimForm.name" required placeholder="Employee Name" class="zq-input font-bold"></div>
+                                    <div><label for="claim-emp-no" class="zq-label">Employee ID *</label><input id="claim-emp-no" name="claimEmpNo" type="text" v-model="claimForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
+                                    <div><label for="claim-dept" class="zq-label">Department</label><input id="claim-dept" name="claimDept" type="text" v-model="claimForm.dept" placeholder="" class="zq-input"></div>
+                                    <div><label for="claim-date" class="zq-label">Expense Date *</label><input id="claim-date" name="claimDate" type="date" v-model="claimForm.expenseDate" class="zq-input"></div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
                             <div>
-                                <label for="claim-category" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">CLAIM CATEGORY *</label>
-                                <select id="claim-category" name="claimCategory" v-model="claimForm.category" @change="claimForm.subCategory = claimSubCategories[claimForm.category][0]" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-bold text-xs">
+                                <label for="claim-category" class="zq-label">CLAIM CATEGORY *</label>
+                                <select id="claim-category" name="claimCategory" v-model="claimForm.category" @change="claimForm.subCategory = claimSubCategories[claimForm.category][0]" class="zq-input font-bold">
                                     <option v-for="(subList, catName) in claimSubCategories" :key="catName" :value="catName">{{ catName }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="claim-sub-category" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">SUB-CATEGORY *</label>
-                                <select id="claim-sub-category" name="claimSubCategory" v-model="claimForm.subCategory" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-bold text-xs">
+                                <label for="claim-sub-category" class="zq-label">SUB-CATEGORY *</label>
+                                <select id="claim-sub-category" name="claimSubCategory" v-model="claimForm.subCategory" class="zq-input font-bold">
                                     <option v-for="(sub, sIdx) in claimSubCategories[claimForm.category]" :key="sIdx" :value="sub">{{ sub }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="claim-amount" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">CLAIM AMOUNT (RM) *</label>
-                                <input id="claim-amount" name="claimAmount" type="number" v-model="claimForm.amount" step="0.01" min="1" placeholder="0.00" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-extrabold text-brand-dark">
+                                <label for="claim-amount" class="zq-label">CLAIM AMOUNT (RM) *</label>
+                                <input id="claim-amount" name="claimAmount" type="number" v-model="claimForm.amount" step="0.01" min="1" placeholder="0.00" class="zq-input font-extrabold">
                             </div>
                             <div>
-                                <label for="claim-receipt-no" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">RECEIPT / REF NO. *</label>
-                                <input id="claim-receipt-no" name="claimReceiptNo" type="text" v-model="claimForm.receiptNo" placeholder="REC-8823901" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold">
+                                <label for="claim-receipt-no" class="zq-label">RECEIPT / REF NO. *</label>
+                                <input id="claim-receipt-no" name="claimReceiptNo" type="text" v-model="claimForm.receiptNo" placeholder="REC-8823901" class="zq-input font-bold">
                             </div>
                         </div>
 
                         <div class="border-t border-slate-100 dark:border-slate-700 pt-4">
-                            <p class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">ASSIGN TO HR APPROVER *</p>
+                            <p class="zq-label">ASSIGN TO HR APPROVER *</p>
                             <div class="w-full sm:w-96 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-700/60">
                                 Human Resource Management
                             </div>
@@ -1038,8 +1038,8 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4 items-center">
                             <div class="md:col-span-2">
-                                <label for="claim-description" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">EXPENSE DESCRIPTION <span class="text-red-500">*</span></label>
-                                <input id="claim-description" name="claimDescription" type="text" v-model="claimForm.description" required placeholder="Example: Client lunch meeting with XYZ Company" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-medium">
+                                <label for="claim-description" class="zq-label">EXPENSE DESCRIPTION <span class="text-red-500">*</span></label>
+                                <input id="claim-description" name="claimDescription" type="text" v-model="claimForm.description" required placeholder="Example: Client lunch meeting with XYZ Company" class="zq-input font-medium">
                             </div>
 
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
@@ -1094,46 +1094,46 @@
                             <div>
                                 <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Requester Information</span></p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                                    <div><label for="voucher-name" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Requested By *</label><input id="voucher-name" name="voucherName" type="text" v-model="voucherForm.name" required placeholder="Staff preparing this voucher" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-bold bg-slate-50"></div>
-                                    <div><label for="voucher-emp-no" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Employee ID *</label><input id="voucher-emp-no" name="voucherEmpNo" type="text" v-model="voucherForm.empNo" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-extrabold bg-slate-50"></div>
-                                    <div><label for="voucher-dept" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Department</label><input id="voucher-dept" name="voucherDept" type="text" v-model="voucherForm.dept" placeholder="" class="w-full p-2 border border-slate-200 dark:border-slate-600 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs bg-slate-50"></div>
-                                    <div><label for="voucher-date" class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">Payment Date *</label><input id="voucher-date" name="voucherDate" type="date" v-model="voucherForm.paymentDate" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"><p class="text-[10px] text-slate-400 mt-1">The actual date the money will be used/paid out — editable, not locked to today.</p></div>
+                                    <div><label for="voucher-name" class="zq-label">Requested By *</label><input id="voucher-name" name="voucherName" type="text" v-model="voucherForm.name" required placeholder="Staff preparing this voucher" class="zq-input font-bold"></div>
+                                    <div><label for="voucher-emp-no" class="zq-label">Employee ID *</label><input id="voucher-emp-no" name="voucherEmpNo" type="text" v-model="voucherForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
+                                    <div><label for="voucher-dept" class="zq-label">Department</label><input id="voucher-dept" name="voucherDept" type="text" v-model="voucherForm.dept" placeholder="" class="zq-input"></div>
+                                    <div><label for="voucher-date" class="zq-label">Payment Date *</label><input id="voucher-date" name="voucherDate" type="date" v-model="voucherForm.paymentDate" class="zq-input"><p class="text-[10px] text-slate-400 mt-1">The actual date the money will be used/paid out — editable, not locked to today.</p></div>
                                 </div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4">
-                            <div><label for="voucher-payee" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">PAYEE NAME *</label><input id="voucher-payee" v-model="voucherForm.payeeName" type="text" placeholder="Individual / vendor name" class="w-full p-2 border border-amber-300 dark:border-amber-700 rounded-xl text-xs bg-white dark:bg-slate-800 dark:text-white"></div>
-                            <div><label for="voucher-payee-type" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">PAYEE TYPE *</label><select id="voucher-payee-type" v-model="voucherForm.payeeType" class="w-full p-2 border border-amber-300 dark:border-amber-700 rounded-xl text-xs bg-white dark:bg-slate-800 dark:text-white"><option>Individual</option><option>Employee</option><option>Freelancer</option><option>Vendor / Supplier</option><option>Contractor</option></select></div>
-                            <div><label for="voucher-payee-ref" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">PAYEE REFERENCE</label><input id="voucher-payee-ref" v-model="voucherForm.payeeReference" type="text" placeholder="ID / invoice / contract ref" class="w-full p-2 border border-amber-300 dark:border-amber-700 rounded-xl text-xs bg-white dark:bg-slate-800 dark:text-white"></div>
-                            <div><label for="voucher-purpose" class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">PAYMENT PURPOSE *</label><input id="voucher-purpose" v-model="voucherForm.paymentPurpose" type="text" placeholder="Wages / services / allowance" class="w-full p-2 border border-amber-300 dark:border-amber-700 rounded-xl text-xs bg-white dark:bg-slate-800 dark:text-white"></div>
+                            <div><label for="voucher-payee" class="zq-label">PAYEE NAME *</label><input id="voucher-payee" v-model="voucherForm.payeeName" type="text" placeholder="Individual / vendor name" class="zq-input zq-input-flag"></div>
+                            <div><label for="voucher-payee-type" class="zq-label">PAYEE TYPE *</label><select id="voucher-payee-type" v-model="voucherForm.payeeType" class="zq-input zq-input-flag"><option>Individual</option><option>Employee</option><option>Freelancer</option><option>Vendor / Supplier</option><option>Contractor</option></select></div>
+                            <div><label for="voucher-payee-ref" class="zq-label">PAYEE REFERENCE</label><input id="voucher-payee-ref" v-model="voucherForm.payeeReference" type="text" placeholder="ID / invoice / contract ref" class="zq-input zq-input-flag"></div>
+                            <div><label for="voucher-purpose" class="zq-label">PAYMENT PURPOSE *</label><input id="voucher-purpose" v-model="voucherForm.paymentPurpose" type="text" placeholder="Wages / services / allowance" class="zq-input zq-input-flag"></div>
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
                             <div>
-                                <label for="voucher-category" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">VOUCHER CATEGORY *</label>
-                                <select id="voucher-category" name="voucherCategory" v-model="voucherForm.category" @change="voucherForm.subCategory = voucherSubCategories[voucherForm.category][0]" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-bold text-xs">
+                                <label for="voucher-category" class="zq-label">VOUCHER CATEGORY *</label>
+                                <select id="voucher-category" name="voucherCategory" v-model="voucherForm.category" @change="voucherForm.subCategory = voucherSubCategories[voucherForm.category][0]" class="zq-input font-bold">
                                     <option v-for="(subList, catName) in voucherSubCategories" :key="catName" :value="catName">{{ catName }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="voucher-sub-category" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">SUB-CATEGORY *</label>
-                                <select id="voucher-sub-category" name="voucherSubCategory" v-model="voucherForm.subCategory" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl font-bold text-xs">
+                                <label for="voucher-sub-category" class="zq-label">SUB-CATEGORY *</label>
+                                <select id="voucher-sub-category" name="voucherSubCategory" v-model="voucherForm.subCategory" class="zq-input font-bold">
                                     <option v-for="(sub, sIdx) in voucherSubCategories[voucherForm.category]" :key="sIdx" :value="sub">{{ sub }}</option>
                                 </select>
                             </div>
                             <div>
-                                <label for="voucher-amount" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">PAYMENT AMOUNT (RM) *</label>
-                                <input id="voucher-amount" name="voucherAmount" type="number" v-model="voucherForm.amount" step="0.01" min="1" placeholder="0.00" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-extrabold text-brand-dark">
+                                <label for="voucher-amount" class="zq-label">PAYMENT AMOUNT (RM) *</label>
+                                <input id="voucher-amount" name="voucherAmount" type="number" v-model="voucherForm.amount" step="0.01" min="1" placeholder="0.00" class="zq-input font-extrabold">
                             </div>
                             <div>
-                                <label for="voucher-no" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">VOUCHER / REF NO.</label>
-                                <input id="voucher-no" name="voucherNo" type="text" v-model="voucherForm.voucherNo" placeholder="Auto-generated if left blank" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold">
+                                <label for="voucher-no" class="zq-label">VOUCHER / REF NO.</label>
+                                <input id="voucher-no" name="voucherNo" type="text" v-model="voucherForm.voucherNo" placeholder="Auto-generated if left blank" class="zq-input font-bold">
                             </div>
                         </div>
 
                         <div class="border-t border-slate-100 dark:border-slate-700 pt-4">
-                            <p class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">ASSIGN TO HR APPROVER *</p>
+                            <p class="zq-label">ASSIGN TO HR APPROVER *</p>
                             <div class="w-full sm:w-96 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-700/60">
                                 Human Resource Management
                             </div>
@@ -1142,8 +1142,8 @@
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4 items-center">
                             <div class="md:col-span-2">
-                                <label for="voucher-description" class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase mb-1">PAYMENT DESCRIPTION <span class="text-red-500">*</span></label>
-                                <input id="voucher-description" name="voucherDescription" type="text" v-model="voucherForm.description" required placeholder="Example: Monthly vendor invoice settlement" class="w-full p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-medium">
+                                <label for="voucher-description" class="zq-label">PAYMENT DESCRIPTION <span class="text-red-500">*</span></label>
+                                <input id="voucher-description" name="voucherDescription" type="text" v-model="voucherForm.description" required placeholder="Example: Monthly vendor invoice settlement" class="zq-input font-medium">
                             </div>
 
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
@@ -2414,11 +2414,11 @@
                         <form @submit.prevent="saveProjectActivity" class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl">
                             <header class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 bg-brand-dark px-6 py-5 text-white"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ activityModal.project.projectRef }}</p><h3 class="mt-1 text-lg font-extrabold">{{ activityModal.isEdit ? 'Edit Project Activity' : 'Schedule Project Activity' }}</h3><p class="mt-1 text-[10px] text-slate-300">{{ activityModal.project.title }}</p></div><button type="button" @click="closeActivityModal" class="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20"><i class="fa-solid fa-xmark"></i></button></header>
                             <div class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Activity Type *<select v-model="activityModal.form.activityType" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><option v-for="type in activityTypes" :key="type" :value="type">{{ type }}</option></select></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Due Date *<input v-model="activityModal.form.dueDate" type="date" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">Summary *<input v-model="activityModal.form.summary" type="text" required placeholder="SHORT ACTION OR ISSUE SUMMARY" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">Assigned To *<select v-model="activityModal.form.assignedEmpNo" @change="selectActivityAssignee" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><option value="">-- Select Employee --</option><option v-for="employee in projectStaffOptions" :key="`activity-${employee.empNo}`" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="activityModal.form.assignedEmpNo" class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><b>{{ activityModal.form.assignedName }}</b> · {{ activityModal.form.assignedPosition || 'NO POSITION' }} · <span class="lowercase">{{ activityModal.form.assignedEmail }}</span></div></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">Activity Details<textarea v-model="activityModal.form.details" rows="5" placeholder="DOCUMENTS REQUIRED, FOLLOW-UP INSTRUCTIONS OR ISSUE DETAILS" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea></label>
+                                <label class="zq-label">Activity Type *<select v-model="activityModal.form.activityType" required class="zq-input mt-1.5"><option v-for="type in activityTypes" :key="type" :value="type">{{ type }}</option></select></label>
+                                <label class="zq-label">Due Date *<input v-model="activityModal.form.dueDate" type="date" required class="zq-input mt-1.5"></label>
+                                <label class="zq-label md:col-span-2">Summary *<input v-model="activityModal.form.summary" type="text" required placeholder="SHORT ACTION OR ISSUE SUMMARY" class="zq-input mt-1.5"></label>
+                                <label class="zq-label md:col-span-2">Assigned To *<select v-model="activityModal.form.assignedEmpNo" @change="selectActivityAssignee" required class="zq-input mt-1.5"><option value="">-- Select Employee --</option><option v-for="employee in projectStaffOptions" :key="`activity-${employee.empNo}`" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="activityModal.form.assignedEmpNo" class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><b>{{ activityModal.form.assignedName }}</b> · {{ activityModal.form.assignedPosition || 'NO POSITION' }} · <span class="lowercase">{{ activityModal.form.assignedEmail }}</span></div></label>
+                                <label class="zq-label md:col-span-2">Activity Details<textarea v-model="activityModal.form.details" rows="5" placeholder="DOCUMENTS REQUIRED, FOLLOW-UP INSTRUCTIONS OR ISSUE DETAILS" class="zq-input mt-1.5"></textarea></label>
                             </div>
                             <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4"><button type="button" @click="closeActivityModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button><button type="submit" class="rounded-xl bg-brand-blue px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i :class="activityModal.isEdit ? 'fa-pen-to-square' : 'fa-calendar-check'" class="fa-solid mr-1.5"></i>{{ activityModal.isEdit ? 'Save Changes' : 'Schedule Activity' }}</button></div>
                         </form>
@@ -2428,9 +2428,9 @@
                         <form @submit.prevent="saveClientUpdate" class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 shadow-2xl">
                             <header class="flex items-start justify-between border-b border-slate-200 dark:border-slate-700 bg-brand-dark px-6 py-5 text-white"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ clientUpdateModal.project.projectRef }}</p><h3 class="mt-1 text-lg font-extrabold">{{ clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update' }}</h3><p class="mt-1 text-[10px] text-slate-300">This message will appear in the Client Activity History.</p></div><button type="button" @click="closeClientUpdateModal" class="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/20"><i class="fa-solid fa-xmark"></i></button></header>
                             <div class="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Update Type *<select v-model="clientUpdateModal.form.updateType" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><option v-for="type in clientUpdateTypes" :key="type" :value="type">{{ type }}</option></select></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Update Date *<input v-model="clientUpdateModal.form.updateDate" type="date" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">Client Message *<textarea v-model="clientUpdateModal.form.message" rows="6" required placeholder="WRITE ONLY INFORMATION APPROVED FOR CLIENT VIEW" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea><span class="mt-1.5 block text-[9px] font-semibold text-amber-700 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Do not include internal notes, passwords or confidential employee information.</span></label>
+                                <label class="zq-label">Update Type *<select v-model="clientUpdateModal.form.updateType" required class="zq-input mt-1.5"><option v-for="type in clientUpdateTypes" :key="type" :value="type">{{ type }}</option></select></label>
+                                <label class="zq-label">Update Date *<input v-model="clientUpdateModal.form.updateDate" type="date" required class="zq-input mt-1.5"></label>
+                                <label class="zq-label md:col-span-2">Client Message *<textarea v-model="clientUpdateModal.form.message" rows="6" required placeholder="WRITE ONLY INFORMATION APPROVED FOR CLIENT VIEW" class="zq-input mt-1.5"></textarea><span class="mt-1.5 block text-[9px] font-semibold text-amber-700 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Do not include internal notes, passwords or confidential employee information.</span></label>
                             </div>
                             <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4"><button type="button" @click="closeClientUpdateModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button><button type="submit" class="rounded-xl bg-brand-blue px-5 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i :class="clientUpdateModal.isEdit ? 'fa-floppy-disk' : 'fa-paper-plane'" class="fa-solid mr-1.5"></i>{{ clientUpdateModal.isEdit ? 'Save Changes' : 'Send to Client' }}</button></div>
                         </form>
@@ -2448,8 +2448,8 @@
                             <section class="mt-5">
                                 <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Identity</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs uppercase outline-none focus:border-brand-blue disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-500 dark:disabled:text-slate-400 disabled:cursor-not-allowed"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-500">Locked after creation to keep linked activities and client updates consistent.</span></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs uppercase outline-none focus:border-brand-blue disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:text-slate-500 dark:disabled:text-slate-400 disabled:cursor-not-allowed"></label>
+                                    <label class="zq-label">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="zq-input mt-1.5 uppercase"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-500">Locked after creation to keep linked activities and client updates consistent.</span></label>
+                                    <label class="zq-label">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" class="zq-input mt-1.5 uppercase"></label>
                                 </div>
                             </section>
 
@@ -2457,9 +2457,9 @@
                                 <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client &amp; Person In Charge</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <template v-if="canManageProjects">
-                                        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Client Name — Client Directory *<select v-model="projectModal.form.clientDirectoryId" @change="selectProjectClientDirectory" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><option value="">-- Select Client Directory --</option><option v-for="client in customers" :key="client.id" :value="client.id">{{ client.clientName }}{{ client.clientSSM ? ` · ${client.clientSSM}` : '' }}</option></select><span v-if="projectModal.form.clientName" class="mt-1.5 block text-[10px] font-semibold text-brand-blue">Linked: {{ projectModal.form.clientName }}</span></label>
+                                        <label class="zq-label">Client Name — Client Directory *<select v-model="projectModal.form.clientDirectoryId" @change="selectProjectClientDirectory" required class="zq-input mt-1.5"><option value="">-- Select Client Directory --</option><option v-for="client in customers" :key="client.id" :value="client.id">{{ client.clientName }}{{ client.clientSSM ? ` · ${client.clientSSM}` : '' }}</option></select><span v-if="projectModal.form.clientName" class="mt-1.5 block text-[10px] font-semibold text-brand-blue">Linked: {{ projectModal.form.clientName }}</span></label>
                                         <div>
-                                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Client Portal Access *<select v-model="projectModal.form.clientPortalUid" @change="selectProjectClientAccess" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs normal-case outline-none focus:border-brand-blue"><option value="">-- Select Client Portal Account --</option><option v-for="clientUser in projectClientAccessUsers" :key="clientUser.id" :value="clientUser.id">{{ clientUser.name }} · {{ clientUser.email }}</option></select></label>
+                                            <label class="zq-label">Client Portal Access *<select v-model="projectModal.form.clientPortalUid" @change="selectProjectClientAccess" required class="zq-input mt-1.5 normal-case"><option value="">-- Select Client Portal Account --</option><option v-for="clientUser in projectClientAccessUsers" :key="clientUser.id" :value="clientUser.id">{{ clientUser.name }} · {{ clientUser.email }}</option></select></label>
                                             <span v-if="projectModal.form.clientEmail" class="mt-1.5 block text-[10px] font-semibold lowercase text-emerald-700 dark:text-emerald-400"><i class="fa-solid fa-link mr-1"></i>{{ projectModal.form.clientEmail }} controls client access</span>
                                             <span v-if="projectModal.form.clientDirectoryId && !projectClientAccessUsers.length" class="mt-1.5 block text-[10px] font-semibold text-amber-600 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>No matching Client role account exists yet.</span>
                                             <div v-if="blockedProjectClientEmails.length" class="mt-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 px-2 py-1.5 text-[9px] font-semibold normal-case leading-relaxed text-red-700 dark:text-red-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i>{{ blockedProjectClientEmails.map(b => `${b.email} (already an active ${b.role} staff account)`).join(', ') }} cannot become a Client Portal login — this email already belongs to a staff account. Use a different email in Client Information (Bill To) for this client.</div>
@@ -2470,7 +2470,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <label class="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">Person In Charge — HR Employee Management *<select v-model="projectModal.form.ownerEmpNo" @change="selectProjectOwner" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><option value="">-- Select Staff PIC --</option><option v-for="employee in projectStaffOptions" :key="employee.empNo" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="projectModal.form.ownerEmpNo" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><span><b>{{ projectModal.form.ownerName }}</b> · {{ projectModal.form.ownerPosition || 'NO POSITION' }}</span><span class="lowercase">{{ projectModal.form.ownerEmail }}</span><span class="flex items-center gap-1.5"><i :class="projectModal.form.ownerPresenceStatus === 'Online' ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'" class="fa-solid fa-circle text-[7px]"></i>{{ projectModal.form.ownerPresenceStatus }}</span></div></label>
+                                        <label class="zq-label md:col-span-2">Person In Charge — HR Employee Management *<select v-model="projectModal.form.ownerEmpNo" @change="selectProjectOwner" required class="zq-input mt-1.5"><option value="">-- Select Staff PIC --</option><option v-for="employee in projectStaffOptions" :key="employee.empNo" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="projectModal.form.ownerEmpNo" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><span><b>{{ projectModal.form.ownerName }}</b> · {{ projectModal.form.ownerPosition || 'NO POSITION' }}</span><span class="lowercase">{{ projectModal.form.ownerEmail }}</span><span class="flex items-center gap-1.5"><i :class="projectModal.form.ownerPresenceStatus === 'Online' ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'" class="fa-solid fa-circle text-[7px]"></i>{{ projectModal.form.ownerPresenceStatus }}</span></div></label>
                                     </template>
                                     <template v-else>
                                         <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ clientNameForId(projectModal.form.clientDirectoryId, projectModal.form.clientName) || '—' }}</p><p class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ projectModal.form.clientEmail || '—' }}</p></div>
@@ -2482,11 +2482,11 @@
                             <section class="mt-5">
                                 <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Workflow &amp; Schedule</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Workflow Stage *<select v-model="projectModal.form.status" required class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option></select></label>
+                                    <label class="zq-label">Workflow Stage *<select v-model="projectModal.form.status" required class="zq-input mt-1.5"><option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option></select></label>
                                     <div></div>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Start Date<input v-model="projectModal.form.startDate" type="date" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Target Date<input v-model="projectModal.form.targetDate" type="date" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300 md:col-span-2">Project Description<textarea v-model="projectModal.form.description" rows="4" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs uppercase outline-none focus:border-brand-blue"></textarea></label>
+                                    <label class="zq-label">Start Date<input v-model="projectModal.form.startDate" type="date" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Target Date<input v-model="projectModal.form.targetDate" type="date" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label md:col-span-2">Project Description<textarea v-model="projectModal.form.description" rows="4" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs uppercase outline-none focus:border-brand-blue"></textarea></label>
                                 </div>
                             </section>
 
@@ -2772,13 +2772,13 @@
                                         <p v-else class="whitespace-pre-wrap text-xs text-slate-700 dark:text-slate-200 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2">{{ signedDocumentModal.fields[field.id] || '—' }}</p>
                                     </template>
                                     <template v-else>
-                                        <textarea v-if="field.type === 'textarea'" v-model="signedDocumentModal.fields[field.id]" rows="3" class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-xs text-slate-800 dark:text-slate-100"></textarea>
-                                        <input v-else-if="field.type === 'date'" type="date" v-model="signedDocumentModal.fields[field.id]" class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-xs text-slate-800 dark:text-slate-100">
-                                        <label v-else-if="field.type === 'checkbox'" class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200"><input type="checkbox" v-model="signedDocumentModal.fields[field.id]" class="rounded"> <span>{{ field.label.en }}</span></label>
+                                        <textarea v-if="field.type === 'textarea'" v-model="signedDocumentModal.fields[field.id]" rows="3" class="zq-input"></textarea>
+                                        <input v-else-if="field.type === 'date'" type="date" v-model="signedDocumentModal.fields[field.id]" class="zq-input">
+                                        <label v-else-if="field.type === 'checkbox'" class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200"><input type="checkbox" v-model="signedDocumentModal.fields[field.id]" class="zq-checkbox"> <span>{{ field.label.en }}</span></label>
                                         <div v-else-if="field.type === 'checkboxGroup'" class="flex flex-wrap gap-1.5">
                                             <button v-for="opt in field.options" :key="opt" type="button" @click="toggleCheckboxGroupValue(field.id, opt)" class="rounded-full px-2.5 py-1 text-[10px] font-bold border transition" :class="(signedDocumentModal.fields[field.id] || []).includes(opt) ? 'bg-brand-blue border-brand-blue text-white' : 'border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300'">{{ opt }}</button>
                                         </div>
-                                        <input v-else type="text" v-model="signedDocumentModal.fields[field.id]" class="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-xs text-slate-800 dark:text-slate-100">
+                                        <input v-else type="text" v-model="signedDocumentModal.fields[field.id]" class="zq-input">
                                     </template>
                                 </div>
                             </div>
@@ -2926,20 +2926,20 @@
                             </header>
                             <div class="grid grid-cols-1 gap-4 p-6">
                                 <template v-if="websiteContentModal.collectionName === 'services'">
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Icon (Font Awesome class) *<input v-model="websiteContentModal.form.icon" required placeholder="e.g. fas fa-building" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Browse icons at fontawesome.com — copy the class, e.g. "fas fa-stamp".</span></label>
+                                    <label class="zq-label">Icon (Font Awesome class) *<input v-model="websiteContentModal.form.icon" required placeholder="e.g. fas fa-building" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Browse icons at fontawesome.com — copy the class, e.g. "fas fa-stamp".</span></label>
                                     <div v-if="websiteContentModal.form.icon" class="flex h-16 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"><i :class="websiteContentModal.form.icon" class="text-2xl text-brand-blue dark:text-teal-300"></i></div>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Service Name *<input v-model="websiteContentModal.form.name" required maxlength="120" placeholder="e.g. Business Registration & Company Setup" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea></label>
+                                    <label class="zq-label">Service Name *<input v-model="websiteContentModal.form.name" required maxlength="120" placeholder="e.g. Business Registration & Company Setup" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
                                 </template>
                                 <template v-else>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Tag / Category *<input v-model="websiteContentModal.form.tag" required maxlength="60" placeholder="e.g. BUSINESS AUTOMATION" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. Monsta Studios Sdn. Bhd." class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Client / company this engagement was for — shown on the card.</span></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Activity Title *<input v-model="websiteContentModal.form.title" required maxlength="120" placeholder="e.g. Ruang Legar Permit Approval" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
-                                    <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea></label>
+                                    <label class="zq-label">Tag / Category *<input v-model="websiteContentModal.form.tag" required maxlength="60" placeholder="e.g. BUSINESS AUTOMATION" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. Monsta Studios Sdn. Bhd." class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Client / company this engagement was for — shown on the card.</span></label>
+                                    <label class="zq-label">Activity Title *<input v-model="websiteContentModal.form.title" required maxlength="120" placeholder="e.g. Ruang Legar Permit Approval" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
+                                    <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
                                     <template v-if="websiteContentModal.collectionName === 'portfolio_web'">
                                         <div>
-                                            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Photos &amp; Videos * <span class="font-normal text-slate-400">({{ websiteContentModal.mediaItems.length }}/6)</span></label>
+                                            <label class="zq-label">Photos &amp; Videos * <span class="font-normal text-slate-400">({{ websiteContentModal.mediaItems.length }}/6)</span></label>
                                             <p class="mt-1 text-[9px] font-medium text-slate-400 dark:text-slate-500">Up to 6 files. Images: PNG/JPG, max 8 MB each. Video: MP4, max 40 MB each. The first item is the card's cover photo — visitors can browse the rest in a gallery.</p>
                                             <div class="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
                                                 <div v-for="(media, mediaIdx) in websiteContentModal.mediaItems" :key="mediaIdx" class="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
@@ -2958,7 +2958,7 @@
                                         </div>
                                     </template>
                                     <template v-else>
-                                        <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
+                                        <label class="zq-label">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
                                         <div v-if="websiteContentModal.imagePreviewUrl" class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
                                             <img :src="websiteContentModal.imagePreviewUrl" class="max-h-56 w-full object-contain">
                                             <span v-if="websiteContentModal.imageOrientation" class="absolute right-2 top-2 rounded-full bg-slate-950/70 px-2.5 py-1 text-[9px] font-extrabold uppercase text-white">{{ websiteContentModal.imageOrientation }}</span>
@@ -2985,8 +2985,8 @@
                             </header>
                             <div class="grid grid-cols-1 gap-4 p-6">
                                 <p class="text-[10px] text-slate-500 dark:text-slate-400">Leave both blank to keep the site's built-in default text for this field. This overrides the live site immediately — HTML tags (e.g. &lt;br&gt;, &lt;strong&gt;) are preserved if the default text uses them.</p>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">English<textarea v-model="siteTextModal.form.en" rows="5" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea></label>
-                                <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Bahasa Malaysia<textarea v-model="siteTextModal.form.ms" rows="5" class="mt-1.5 w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea></label>
+                                <label class="zq-label">English<textarea v-model="siteTextModal.form.en" rows="5" class="zq-input mt-1.5"></textarea></label>
+                                <label class="zq-label">Bahasa Malaysia<textarea v-model="siteTextModal.form.ms" rows="5" class="zq-input mt-1.5"></textarea></label>
                             </div>
                             <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 px-6 py-4">
                                 <button type="button" @click="closeSiteTextModal" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
@@ -3082,46 +3082,46 @@
                         </div>
                     </div>
                     
-                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 space-y-4">
+                    <div class="zq-card p-6 space-y-4">
                         <template v-if="currentTab === 'settings' && canManageCompanySettings">
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div class="md:col-span-2 border-b dark:border-slate-700 pb-2"><h3 class="font-extrabold text-brand-dark dark:text-white">Company Profile</h3><p class="text-xs text-slate-400 mt-1">Global information used across company documents.</p></div>
-                                <div><label for="setting-comp-name" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Company Name</label><input id="setting-comp-name" name="companyName" type="text" v-model="company.name" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold"></div>
-                                <div><label for="setting-comp-ssm" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Business Registration No.</label><input id="setting-comp-ssm" name="companySSM" type="text" v-model="company.ssm" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
+                                <div class="md:col-span-2 zq-form-section"><h3 class="zq-form-section-title">Company Profile</h3><p class="text-xs text-slate-400 -mt-2">Global information used across company documents.</p></div>
+                                <div><label for="setting-comp-name" class="zq-label">Company Name</label><input id="setting-comp-name" name="companyName" type="text" v-model="company.name" class="zq-input font-bold"></div>
+                                <div><label for="setting-comp-ssm" class="zq-label">Business Registration No.</label><input id="setting-comp-ssm" name="companySSM" type="text" v-model="company.ssm" class="zq-input"></div>
                                 <div class="md:col-span-2 grid grid-cols-1 gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-900/30 sm:grid-cols-2 lg:grid-cols-4">
                                     <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-700"><i class="fa-solid fa-location-dot text-brand-gold"></i><span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Registered Address</span></div>
-                                    <div class="sm:col-span-2 lg:col-span-4"><label for="setting-comp-addr1" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">Address Line 1</label><input id="setting-comp-addr1" name="companyAddress1" type="text" v-model="company.address1" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
-                                    <div class="lg:col-span-2"><label for="setting-comp-addr2" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">Address Line 2</label><input id="setting-comp-addr2" name="companyAddress2" type="text" v-model="company.address2" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
-                                    <div class="lg:col-span-2"><label for="setting-comp-addr3" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">Address Line 3</label><input id="setting-comp-addr3" name="companyAddress3" type="text" v-model="company.address3" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
-                                    <div><label for="setting-comp-postcode" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">Postcode</label><input id="setting-comp-postcode" name="companyPostcode" type="text" inputmode="numeric" maxlength="5" v-model="company.postcode" @input="detectCompanyPostcode" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
-                                    <div><label for="setting-comp-city" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">City</label><input id="setting-comp-city" name="companyCity" type="text" v-model="company.city" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
-                                    <div><label for="setting-comp-state" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">State</label><input id="setting-comp-state" name="companyState" type="text" v-model="company.state" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
-                                    <div><label for="setting-comp-country" class="block text-[10px] font-bold uppercase mb-1 dark:text-slate-300">Country</label><input id="setting-comp-country" name="companyCountry" type="text" v-model="company.country" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-lg text-xs bg-white"></div>
+                                    <div class="sm:col-span-2 lg:col-span-4"><label for="setting-comp-addr1" class="zq-label">Address Line 1</label><input id="setting-comp-addr1" name="companyAddress1" type="text" v-model="company.address1" class="zq-input"></div>
+                                    <div class="lg:col-span-2"><label for="setting-comp-addr2" class="zq-label">Address Line 2</label><input id="setting-comp-addr2" name="companyAddress2" type="text" v-model="company.address2" class="zq-input"></div>
+                                    <div class="lg:col-span-2"><label for="setting-comp-addr3" class="zq-label">Address Line 3</label><input id="setting-comp-addr3" name="companyAddress3" type="text" v-model="company.address3" class="zq-input"></div>
+                                    <div><label for="setting-comp-postcode" class="zq-label">Postcode</label><input id="setting-comp-postcode" name="companyPostcode" type="text" inputmode="numeric" maxlength="5" v-model="company.postcode" @input="detectCompanyPostcode" class="zq-input"></div>
+                                    <div><label for="setting-comp-city" class="zq-label">City</label><input id="setting-comp-city" name="companyCity" type="text" v-model="company.city" class="zq-input"></div>
+                                    <div><label for="setting-comp-state" class="zq-label">State</label><input id="setting-comp-state" name="companyState" type="text" v-model="company.state" class="zq-input"></div>
+                                    <div><label for="setting-comp-country" class="zq-label">Country</label><input id="setting-comp-country" name="companyCountry" type="text" v-model="company.country" class="zq-input"></div>
                                 </div>
-                                <div><label for="setting-comp-phone" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Company Phone</label><input id="setting-comp-phone" name="companyPhone" type="tel" v-model="company.phone" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
-                                <div><label for="setting-comp-email" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Company Email</label><input id="setting-comp-email" name="companyEmail" type="email" v-model="company.email" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
-                                <div class="md:col-span-2"><label for="setting-comp-web" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Website</label><input id="setting-comp-web" name="companyWebsite" type="text" v-model="company.website" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
-                                <div class="md:col-span-2 border-b dark:border-slate-700 pb-2 pt-2"><h3 class="font-extrabold text-brand-dark dark:text-white">Banking &amp; Payment Information</h3><p class="text-xs text-slate-400 mt-1">Displayed on quotations and invoices.</p></div>
-                                <div><label for="setting-bank-name" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Bank Name</label><input id="setting-bank-name" name="companyBankName" type="text" v-model="company.bankName" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs"></div>
-                                <div><label for="setting-bank-account" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Bank Account Number</label><input id="setting-bank-account" name="companyBankAccount" type="text" v-model="company.bankAccount" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold"></div>
+                                <div><label for="setting-comp-phone" class="zq-label">Company Phone</label><input id="setting-comp-phone" name="companyPhone" type="tel" v-model="company.phone" class="zq-input"></div>
+                                <div><label for="setting-comp-email" class="zq-label">Company Email</label><input id="setting-comp-email" name="companyEmail" type="email" v-model="company.email" class="zq-input"></div>
+                                <div class="md:col-span-2"><label for="setting-comp-web" class="zq-label">Website</label><input id="setting-comp-web" name="companyWebsite" type="text" v-model="company.website" class="zq-input"></div>
+                                <div class="md:col-span-2 zq-form-section"><h3 class="zq-form-section-title">Banking &amp; Payment Information</h3><p class="text-xs text-slate-400 -mt-2">Displayed on quotations and invoices.</p></div>
+                                <div><label for="setting-bank-name" class="zq-label">Bank Name</label><input id="setting-bank-name" name="companyBankName" type="text" v-model="company.bankName" class="zq-input"></div>
+                                <div><label for="setting-bank-account" class="zq-label">Bank Account Number</label><input id="setting-bank-account" name="companyBankAccount" type="text" v-model="company.bankAccount" class="zq-input font-bold"></div>
                             </div>
-                            <div class="flex justify-between items-center pt-4 border-t dark:border-slate-700">
-                                <button v-if="canBackupDatabase" type="button" @click="backupDatabase" class="bg-slate-600 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center space-x-1.5"><i class="fa-solid fa-download"></i><span>Backup Database</span></button>
-                                <button type="button" @click="saveSettings" class="bg-brand-dark text-white font-bold px-6 py-2 rounded-xl text-xs shadow hover:bg-brand-blue">Save Changes</button>
+                            <div class="zq-form-actions !justify-between">
+                                <button v-if="canBackupDatabase" type="button" @click="backupDatabase" class="zq-btn zq-btn-outline"><i class="fa-solid fa-download"></i><span>Backup Database</span></button>
+                                <button type="button" @click="saveSettings" class="zq-btn zq-btn-primary">Save Changes</button>
                             </div>
                         </template>
 
                         <template v-else-if="currentTab === 'profile'">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
-                                <div><label for="prof-name" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Existing Username</label><input id="prof-name" name="profName" type="text" v-model="userProfile.name" class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold"></div>
-                                <div><label for="prof-email" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">Sign-In Email</label><input id="prof-email" name="profEmail" type="email" v-model="userProfile.email" disabled class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400 rounded-xl text-xs cursor-not-allowed"></div>
+                                <div><label for="prof-name" class="zq-label">Existing Username</label><input id="prof-name" name="profName" type="text" v-model="userProfile.name" class="zq-input font-bold"></div>
+                                <div><label for="prof-email" class="zq-label">Sign-In Email</label><input id="prof-email" name="profEmail" type="email" v-model="userProfile.email" disabled class="zq-input"></div>
                                 <div>
-                                    <label for="prof-role" class="block text-xs font-bold uppercase mb-1 dark:text-slate-300">User Role (RBAC)</label>
-                                    <input id="prof-role" name="profRole" type="text" :value="userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role)" disabled class="w-full p-2 border dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-400 rounded-xl text-xs font-bold bg-slate-100 cursor-not-allowed">
+                                    <label for="prof-role" class="zq-label">User Role (RBAC)</label>
+                                    <input id="prof-role" name="profRole" type="text" :value="userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role)" disabled class="zq-input font-bold">
                                     <p v-if="canManageRBAC" class="mt-1 text-[10px] text-slate-400">To change your own role, use Portal Access Management below (requires a second look to avoid accidental self-lockout).</p>
                                 </div>
                                 <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
-                                    <label for="prof-photo" class="block text-xs font-bold uppercase mb-2 dark:text-slate-300">Avatar / Profile Photo</label>
+                                    <label for="prof-photo" class="zq-label">Avatar / Profile Photo</label>
                                     <div class="flex flex-col sm:flex-row sm:items-center gap-4">
                                         <img :src="userProfile.photo" alt="Profile photo preview" class="h-16 w-16 rounded-full object-cover border-2 border-brand-gold bg-white shadow-sm">
                                         <div class="flex-1">
@@ -3133,14 +3133,14 @@
                                     </div>
                                 </div>
                                 
-                                <div class="sm:col-span-2 flex flex-wrap justify-end gap-2 pt-1">
-                                    <button type="button" @click="showUpdateHistory = !showUpdateHistory" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-bold px-5 py-2.5 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
+                                <div class="sm:col-span-2 zq-form-actions !border-t-0 !mt-0 !pt-0">
+                                    <button type="button" @click="showUpdateHistory = !showUpdateHistory" class="zq-btn zq-btn-ghost">
                                         <i class="fa-solid fa-clock-rotate-left"></i><span>{{ showUpdateHistory ? 'Hide' : 'View' }} Update History</span>
                                     </button>
-                                    <button type="button" @click="changePasswordModal.show = true" class="bg-brand-gold hover:bg-yellow-500 text-brand-dark font-extrabold px-5 py-2.5 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
+                                    <button type="button" @click="changePasswordModal.show = true" class="zq-btn zq-btn-outline">
                                         <i class="fa-solid fa-key"></i><span>Tukar Kata Laluan</span>
                                     </button>
-                                    <button type="button" @click="saveMyProfile" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
+                                    <button type="button" @click="saveMyProfile" class="zq-btn zq-btn-primary">
                                         <i class="fa-solid fa-user-check"></i><span>Save My Profile</span>
                                     </button>
                                 </div>
@@ -3426,30 +3426,30 @@
                         <h4 class="font-extrabold text-brand-dark dark:text-white">Basic Information</h4>
                         <p class="text-slate-400 mt-0.5">Core employment and department details.</p>
                     </div>
-                    <div><label for="emp-modal-id" class="font-bold mb-1 block dark:text-slate-300">Employee ID * (ZEN-XXXXXXX)</label><input id="emp-modal-id" name="empModalId" v-model="employeeModal.form.empNo" :disabled="employeeModal.isEdit" required class="w-full p-2 border rounded-xl font-bold bg-slate-50 dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-name" class="font-bold mb-1 block dark:text-slate-300">Full Name *</label><input id="emp-modal-name" name="empModalName" v-model="employeeModal.form.name" required class="w-full p-2 border rounded-xl font-semibold dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-email" class="font-bold mb-1 block dark:text-slate-300">Work Email</label><input id="emp-modal-email" name="empModalEmail" type="email" v-model="employeeModal.form.email" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-position" class="font-bold mb-1 block dark:text-slate-300">Position</label><input id="emp-modal-position" name="empModalPosition" v-model="employeeModal.form.position" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-dept" class="font-bold mb-1 block dark:text-slate-300">Department *</label><input id="emp-modal-dept" name="empModalDept" v-model="employeeModal.form.dept" required placeholder="e.g. Human Resource" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-type" class="font-bold mb-1 block dark:text-slate-300">Employment Type *</label><select id="emp-modal-type" name="empModalType" v-model="employeeModal.form.employmentType" required class="w-full p-2 border rounded-xl font-semibold dark:bg-slate-700 dark:text-white"><option value="Probation">Probation</option><option value="Permanent">Permanent</option><option value="Part-time">Part-time</option><option value="Intern">Intern</option></select></div>
-                    <div><label for="emp-modal-join-date" class="font-bold mb-1 block dark:text-slate-300">Join Date *</label><input id="emp-modal-join-date" name="empModalJoinDate" type="date" v-model="employeeModal.form.joinDate" required class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
+                    <div><label for="emp-modal-id" class="zq-label">Employee ID * (ZEN-XXXXXXX)</label><input id="emp-modal-id" name="empModalId" v-model="employeeModal.form.empNo" :disabled="employeeModal.isEdit" required class="w-full p-2 border rounded-xl font-bold bg-slate-50 dark:bg-slate-700 dark:text-white"></div>
+                    <div><label for="emp-modal-name" class="zq-label">Full Name *</label><input id="emp-modal-name" name="empModalName" v-model="employeeModal.form.name" required class="zq-input font-semibold"></div>
+                    <div><label for="emp-modal-email" class="zq-label">Work Email</label><input id="emp-modal-email" name="empModalEmail" type="email" v-model="employeeModal.form.email" class="zq-input"></div>
+                    <div><label for="emp-modal-position" class="zq-label">Position</label><input id="emp-modal-position" name="empModalPosition" v-model="employeeModal.form.position" class="zq-input"></div>
+                    <div><label for="emp-modal-dept" class="zq-label">Department *</label><input id="emp-modal-dept" name="empModalDept" v-model="employeeModal.form.dept" required placeholder="e.g. Human Resource" class="zq-input"></div>
+                    <div><label for="emp-modal-type" class="zq-label">Employment Type *</label><select id="emp-modal-type" name="empModalType" v-model="employeeModal.form.employmentType" required class="zq-input font-semibold"><option value="Probation">Probation</option><option value="Permanent">Permanent</option><option value="Part-time">Part-time</option><option value="Intern">Intern</option></select></div>
+                    <div><label for="emp-modal-join-date" class="zq-label">Join Date *</label><input id="emp-modal-join-date" name="empModalJoinDate" type="date" v-model="employeeModal.form.joinDate" required class="zq-input"></div>
                     <div class="md:col-span-2 border-b dark:border-slate-700 pb-2 pt-2">
                         <h4 class="font-extrabold text-brand-dark dark:text-white">Advanced Information</h4>
                         <p class="text-slate-400 mt-0.5">Identity, statutory, banking and payroll details.</p>
                         <p v-if="employeeModal.isEdit && canEditLockedIdentityFields" class="mt-2 text-amber-700 font-semibold">Sensitive values are masked. Leave a field blank to keep it unchanged, or enter the complete new value to replace it.</p>
                         <p v-else-if="employeeModal.isEdit" class="mt-2 text-red-700 dark:text-red-400 font-semibold"><i class="fa-solid fa-lock mr-1"></i>National ID/Passport, Bank Account and EPF/SOCSO are locked once an employee record exists — only Superadmin/Director may change them.</p>
                     </div>
-                    <div><label for="emp-modal-ic" class="font-bold mb-1 block dark:text-slate-300">National ID / Passport *</label><input id="emp-modal-ic" name="empModalIc" v-model="employeeModal.form.ic" :required="!employeeModal.isEdit" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.ic) : 'Enter complete ID / passport'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white disabled:bg-slate-100 disabled:dark:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"></div>
-                    <div><label for="emp-modal-bank" class="font-bold mb-1 block dark:text-slate-300">Bank Account</label><input id="emp-modal-bank" name="empModalBank" v-model="employeeModal.form.bankAcc" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.bankAcc) : 'Enter complete account number'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white disabled:bg-slate-100 disabled:dark:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"></div>
-                    <div><label for="emp-modal-epf" class="font-bold mb-1 block dark:text-slate-300">EPF No.</label><input id="emp-modal-epf" name="empModalEpf" v-model="employeeModal.form.epfNo" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.epfNo) : 'Enter complete EPF number'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white disabled:bg-slate-100 disabled:dark:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"></div>
-                    <div><label for="emp-modal-socso" class="font-bold mb-1 block dark:text-slate-300">SOCSO No.</label><input id="emp-modal-socso" name="empModalSocso" v-model="employeeModal.form.socsoNo" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.socsoNo) : 'Enter complete SOCSO number'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white disabled:bg-slate-100 disabled:dark:bg-slate-800 disabled:cursor-not-allowed disabled:text-slate-400"></div>
-                    <div><label for="emp-modal-eis" class="font-bold mb-1 block dark:text-slate-300">EIS No.</label><input id="emp-modal-eis" name="empModalEis" v-model="employeeModal.form.eisNo" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.eisNo) : 'Enter complete EIS number'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-tax" class="font-bold mb-1 block dark:text-slate-300">Tax / PCB No.</label><input id="emp-modal-tax" name="empModalTax" v-model="employeeModal.form.taxNo" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.taxNo) : 'Enter complete tax / PCB number'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-salary" class="font-bold mb-1 block dark:text-slate-300">Basic Salary (RM)</label><input id="emp-modal-salary" name="empModalSalary" type="number" v-model="employeeModal.form.basicSalary" min="0" step="0.01" class="w-full p-2 border rounded-xl font-bold dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-allowance" class="font-bold mb-1 block dark:text-slate-300">Monthly Allowance (RM)</label><input id="emp-modal-allowance" name="empModalAllowance" type="number" v-model="employeeModal.form.allowance" min="0" step="0.01" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="emp-modal-deduction" class="font-bold mb-1 block dark:text-slate-300">Fixed Deduction (RM)</label><input id="emp-modal-deduction" name="empModalDeduction" type="number" v-model="employeeModal.form.deduction" min="0" step="0.01" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
+                    <div><label for="emp-modal-ic" class="zq-label">National ID / Passport *</label><input id="emp-modal-ic" name="empModalIc" v-model="employeeModal.form.ic" :required="!employeeModal.isEdit" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.ic) : 'Enter complete ID / passport'" class="zq-input"></div>
+                    <div><label for="emp-modal-bank" class="zq-label">Bank Account</label><input id="emp-modal-bank" name="empModalBank" v-model="employeeModal.form.bankAcc" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.bankAcc) : 'Enter complete account number'" class="zq-input"></div>
+                    <div><label for="emp-modal-epf" class="zq-label">EPF No.</label><input id="emp-modal-epf" name="empModalEpf" v-model="employeeModal.form.epfNo" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.epfNo) : 'Enter complete EPF number'" class="zq-input"></div>
+                    <div><label for="emp-modal-socso" class="zq-label">SOCSO No.</label><input id="emp-modal-socso" name="empModalSocso" v-model="employeeModal.form.socsoNo" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.socsoNo) : 'Enter complete SOCSO number'" class="zq-input"></div>
+                    <div><label for="emp-modal-eis" class="zq-label">EIS No.</label><input id="emp-modal-eis" name="empModalEis" v-model="employeeModal.form.eisNo" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.eisNo) : 'Enter complete EIS number'" class="zq-input"></div>
+                    <div><label for="emp-modal-tax" class="zq-label">Tax / PCB No.</label><input id="emp-modal-tax" name="empModalTax" v-model="employeeModal.form.taxNo" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.taxNo) : 'Enter complete tax / PCB number'" class="zq-input"></div>
+                    <div><label for="emp-modal-salary" class="zq-label">Basic Salary (RM)</label><input id="emp-modal-salary" name="empModalSalary" type="number" v-model="employeeModal.form.basicSalary" min="0" step="0.01" class="zq-input font-bold"></div>
+                    <div><label for="emp-modal-allowance" class="zq-label">Monthly Allowance (RM)</label><input id="emp-modal-allowance" name="empModalAllowance" type="number" v-model="employeeModal.form.allowance" min="0" step="0.01" class="zq-input"></div>
+                    <div><label for="emp-modal-deduction" class="zq-label">Fixed Deduction (RM)</label><input id="emp-modal-deduction" name="empModalDeduction" type="number" v-model="employeeModal.form.deduction" min="0" step="0.01" class="zq-input"></div>
                     <div class="flex items-center space-x-2 pt-2">
-                        <input type="checkbox" id="isSenior" name="empModalSenior" v-model="employeeModal.form.isSenior" class="w-4 h-4 rounded text-brand-dark">
+                        <input type="checkbox" id="isSenior" name="empModalSenior" v-model="employeeModal.form.isSenior" class="zq-checkbox">
                         <label for="isSenior" class="font-bold text-slate-700 dark:text-slate-300">Senior Citizen (60+ Years - EPF/SOCSO Exemption)</label>
                     </div>
                     <div class="md:col-span-2 flex justify-end space-x-2 pt-3 border-t dark:border-slate-700">
@@ -3467,12 +3467,12 @@
                     <button type="button" @click="userModal.show = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
                 </div>
                 <form @submit.prevent="savePortalUser" class="space-y-4 text-xs">
-                    <div><label for="usr-modal-name" class="font-bold mb-1 block dark:text-slate-300">Username *</label><input id="usr-modal-name" name="usrModalName" v-model="userModal.form.name" required class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"></div>
-                    <div><label for="usr-modal-email" class="font-bold mb-1 block dark:text-slate-300">Sign-In Email *</label><input id="usr-modal-email" name="usrModalEmail" type="email" v-model="userModal.form.email" :disabled="userModal.isEdit" required :placeholder="userModal.form.role === 'Client' ? 'client@gmail.com' : 'name@zenq0r.com'" :title="userModal.form.role === 'Client' ? 'External email domains are allowed for Client Users System Terminal.' : 'Must use official company domain @zenq0r.com.'" class="w-full p-2 border rounded-xl dark:bg-slate-700 dark:text-white"><p v-if="userModal.form.role === 'Client'" class="text-[10px] text-emerald-600 font-semibold mt-1">Gmail and other external email domains are allowed for Client Users System Terminal.</p><p v-else class="text-[10px] text-slate-400 mt-1">This role must use the official company domain (@zenq0r.com).</p></div>
-                    <div v-if="!userModal.isEdit"><label for="usr-modal-pass" class="font-bold mb-1 block dark:text-slate-300">Temporary Password</label><input id="usr-modal-pass" name="usrModalPass" type="text" v-model="userModal.form.password" readonly aria-readonly="true" class="w-full p-2 border rounded-xl bg-slate-100 text-slate-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-300"><p class="text-[10px] text-slate-400 mt-1">Generated automatically and locked. The user must change it after first sign-in.</p></div>
+                    <div><label for="usr-modal-name" class="zq-label">Username *</label><input id="usr-modal-name" name="usrModalName" v-model="userModal.form.name" required class="zq-input"></div>
+                    <div><label for="usr-modal-email" class="zq-label">Sign-In Email *</label><input id="usr-modal-email" name="usrModalEmail" type="email" v-model="userModal.form.email" :disabled="userModal.isEdit" required :placeholder="userModal.form.role === 'Client' ? 'client@gmail.com' : 'name@zenq0r.com'" :title="userModal.form.role === 'Client' ? 'External email domains are allowed for Client Users System Terminal.' : 'Must use official company domain @zenq0r.com.'" class="zq-input"><p v-if="userModal.form.role === 'Client'" class="text-[10px] text-emerald-600 font-semibold mt-1">Gmail and other external email domains are allowed for Client Users System Terminal.</p><p v-else class="text-[10px] text-slate-400 mt-1">This role must use the official company domain (@zenq0r.com).</p></div>
+                    <div v-if="!userModal.isEdit"><label for="usr-modal-pass" class="zq-label">Temporary Password</label><input id="usr-modal-pass" name="usrModalPass" type="text" v-model="userModal.form.password" readonly aria-readonly="true" class="zq-input"><p class="text-[10px] text-slate-400 mt-1">Generated automatically and locked. The user must change it after first sign-in.</p></div>
                     <div>
-                        <label for="usr-modal-role" class="font-bold mb-1 block dark:text-slate-300">Role *</label>
-                        <select id="usr-modal-role" name="usrModalRole" v-model="userModal.form.role" class="w-full p-2 border rounded-xl font-bold dark:bg-slate-700 dark:text-white">
+                        <label for="usr-modal-role" class="zq-label">Role *</label>
+                        <select id="usr-modal-role" name="usrModalRole" v-model="userModal.form.role" class="zq-input font-bold">
                                             <option v-if="userProfile.role === 'Superadmin' || userProfile.role === 'Director'" value="Director">Director</option>
                                             <option value="Superadmin">Super Admin</option>
                                             <option value="HR">Human Resource Management</option>
@@ -3490,12 +3490,12 @@
                         <div class="max-h-52 overflow-y-auto space-y-1 rounded-xl border dark:border-slate-600 p-2">
                             <div v-for="mod in accessModules" :key="mod.key" class="rounded-lg" :class="userModal.form.customAccess && userModal.form.customAccess[mod.key] ? 'bg-blue-50 dark:bg-blue-950/30' : ''">
                                 <label class="flex items-center gap-2 px-2 py-1.5 cursor-pointer">
-                                    <input type="checkbox" :checked="!!(userModal.form.customAccess && userModal.form.customAccess[mod.key])" @change="toggleAccessModule(mod.key)">
+                                    <input type="checkbox" class="zq-checkbox" :checked="!!(userModal.form.customAccess && userModal.form.customAccess[mod.key])" @change="toggleAccessModule(mod.key)">
                                     <span class="flex-1 font-bold text-slate-700 dark:text-slate-200">{{ mod.label }}</span>
                                 </label>
                                 <div v-if="userModal.form.customAccess && userModal.form.customAccess[mod.key]" class="flex gap-4 pl-8 pb-2 text-[10px] text-slate-600 dark:text-slate-300">
-                                    <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" v-model="userModal.form.customAccess[mod.key].edit"><span>Edit</span></label>
-                                    <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" v-model="userModal.form.customAccess[mod.key].delete"><span>Delete</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="zq-checkbox" v-model="userModal.form.customAccess[mod.key].edit"><span>Edit</span></label>
+                                    <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="zq-checkbox" v-model="userModal.form.customAccess[mod.key].delete"><span>Delete</span></label>
                                 </div>
                             </div>
                         </div>
@@ -3523,16 +3523,16 @@
                 
                 <form @submit.prevent="handleChangePassword" class="space-y-4 text-xs">
                     <div>
-                        <label for="pwd-current" class="font-bold mb-1 block dark:text-slate-300">Kata Laluan Semasa *</label>
-                        <input id="pwd-current" type="password" v-model="changePasswordModal.currentPassword" required class="w-full p-2.5 border border-slate-300 rounded-xl dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-gold">
+                        <label for="pwd-current" class="zq-label">Kata Laluan Semasa *</label>
+                        <input id="pwd-current" type="password" v-model="changePasswordModal.currentPassword" required class="zq-input">
                     </div>
                     <div>
-                        <label for="pwd-new" class="font-bold mb-1 block dark:text-slate-300">Kata Laluan Baharu (Min 8 Karakter) *</label>
-                        <input id="pwd-new" type="password" v-model="changePasswordModal.newPassword" required minlength="8" class="w-full p-2.5 border border-slate-300 rounded-xl dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-gold">
+                        <label for="pwd-new" class="zq-label">Kata Laluan Baharu (Min 8 Karakter) *</label>
+                        <input id="pwd-new" type="password" v-model="changePasswordModal.newPassword" required minlength="8" class="zq-input">
                     </div>
                     <div>
-                        <label for="pwd-confirm" class="font-bold mb-1 block dark:text-slate-300">Sahkan Kata Laluan Baharu *</label>
-                        <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required minlength="8" class="w-full p-2.5 border border-slate-300 rounded-xl dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-gold">
+                        <label for="pwd-confirm" class="zq-label">Sahkan Kata Laluan Baharu *</label>
+                        <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required minlength="8" class="zq-input">
                     </div>
 
                     <div v-if="changePasswordModal.error" class="text-red-600 bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg text-xs font-semibold text-center">

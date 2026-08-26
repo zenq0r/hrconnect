@@ -958,6 +958,57 @@ html.dark {
 .zq-kpi-card-label { margin-top: 8px; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.3; color: var(--zq-text-muted); }
 .zq-kpi-card-context { margin-top: 4px; font-size: 0.625rem; font-weight: 700; }
 
+/* ---- Form field system (Step 10) — one canonical control look shared by
+   text/email/phone/number/date <input> (the visual treatment doesn't vary
+   by `type`, so one class covers all of them), <select> and <textarea>.
+   Audit found 40+ near-duplicate ad-hoc class strings (p-2 vs p-2.5 vs
+   px-3 py-2.5, rounded-lg vs rounded-xl, border-slate-200 vs -300, mixed
+   focus treatments) — this replaces them with one consistent control. ---- */
+.zq-label {
+    display: block; margin-bottom: 6px; font-size: 0.6875rem; font-weight: 700;
+    color: var(--zq-text-muted); text-transform: uppercase; letter-spacing: 0.02em;
+}
+.zq-label-required { color: var(--zq-error); margin-left: 2px; font-weight: 800; }
+
+.zq-input, .zq-select, .zq-textarea {
+    width: 100%; border-radius: var(--zq-radius-md); border: 1px solid var(--zq-border);
+    background: var(--zq-surface); color: var(--zq-text); padding: 9px 12px; font-size: 0.75rem;
+    transition: border-color var(--zq-transition), box-shadow var(--zq-transition);
+}
+html.dark .zq-input, html.dark .zq-select, html.dark .zq-textarea { background: var(--zq-surface-elevated); }
+.zq-input::placeholder, .zq-textarea::placeholder { color: var(--zq-text-muted); opacity: 1; }
+.zq-input:focus, .zq-select:focus, .zq-textarea:focus {
+    outline: none; border-color: var(--zq-accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+html.dark .zq-input:focus, html.dark .zq-select:focus, html.dark .zq-textarea:focus { box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22); }
+.zq-input:disabled, .zq-select:disabled, .zq-textarea:disabled,
+.zq-input:read-only, .zq-textarea:read-only {
+    background: var(--zq-surface-alt); color: var(--zq-text-muted); cursor: not-allowed;
+}
+.zq-textarea { resize: vertical; min-height: 80px; }
+.zq-input.is-invalid, .zq-select.is-invalid, .zq-textarea.is-invalid { border-color: var(--zq-error); }
+/* Used where a field's border deliberately draws attention to a payee/
+   third-party sub-section (not a validation error) — kept as its own
+   modifier so it can't be confused with .is-invalid. */
+.zq-input-flag, .zq-select-flag { border-color: #f59e0b; }
+html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
+.zq-input.is-invalid:focus, .zq-select.is-invalid:focus, .zq-textarea.is-invalid:focus { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
+
+.zq-help-text { margin-top: 4px; font-size: 0.6875rem; color: var(--zq-text-muted); }
+.zq-error-text { margin-top: 4px; font-size: 0.6875rem; font-weight: 700; color: var(--zq-error); }
+
+.zq-checkbox, .zq-radio {
+    height: 16px; width: 16px; border: 1px solid var(--zq-border); accent-color: var(--zq-accent); cursor: pointer;
+    border-radius: 4px;
+}
+.zq-radio { border-radius: 50%; }
+.zq-checkbox:focus-visible, .zq-radio:focus-visible { outline: 2px solid var(--zq-accent); outline-offset: 2px; }
+
+/* ---- Form structure — section grouping + action bar ---- */
+.zq-form-section + .zq-form-section { padding-top: var(--zq-space-5); border-top: 1px solid var(--zq-border); margin-top: var(--zq-space-5); }
+.zq-form-section-title { font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--zq-text-muted); margin-bottom: var(--zq-space-3); }
+.zq-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: var(--zq-space-5); padding-top: var(--zq-space-4); border-top: 1px solid var(--zq-border); }
+
 /* ---- Empty state ---- */
 .zq-empty-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
