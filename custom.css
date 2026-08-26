@@ -916,6 +916,12 @@ html.dark {
 .zq-btn-destructive:hover:not(:disabled) { background: var(--zq-error); color: #ffffff; }
 .zq-btn-info { background: var(--zq-info-bg); color: var(--zq-info); }
 .zq-btn-info:hover:not(:disabled) { background: var(--zq-info); color: #ffffff; }
+/* Solid variant (not the light-bg treatment .zq-btn-info/.zq-btn-destructive
+   use) to match the "approve" action's existing solid-emerald convention
+   used across Claims/Vouchers/Signed Documents before this pass. */
+.zq-btn-success { background: var(--zq-success); color: #ffffff; }
+.zq-btn-success:hover:not(:disabled) { background: #047857; }
+.zq-btn-success.is-loading::after { color: #ffffff; }
 .zq-btn-sm   { height: 30px; padding: 0 10px; font-size: 0.6875rem; }
 .zq-btn-icon { height: 32px; width: 32px; padding: 0; border-radius: var(--zq-radius-sm); }
 .zq-btn-icon.zq-btn-sm { height: 28px; width: 28px; }
