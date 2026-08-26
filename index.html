@@ -2033,6 +2033,7 @@
                                                 <div class="w-9 h-9 rounded-xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[11px] font-extrabold shrink-0">{{ getInitials(cust.clientName) }}</div>
                                                 <div class="min-w-0">
                                                     <span class="font-bold text-slate-900 dark:text-slate-100 block text-sm truncate">{{ cust.clientName }}</span>
+                                                    <span v-if="cust.clientId" class="block font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ cust.clientId }}</span>
                                                     <span v-if="cust.clientPosition" class="text-xs text-slate-500 dark:text-slate-400">{{ cust.clientPosition }}</span>
                                                     <div class="mt-1.5 flex flex-wrap items-center gap-1">
                                                         <span v-if="isNewClient(cust.id)" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-emerald-700">New</span>
@@ -2302,6 +2303,7 @@
                                         <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientName }}</span>
                                         <span :class="clientTaskStatusMeta(clientTaskStatus(cust.id)).badgeClass" class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTaskStatusMeta(clientTaskStatus(cust.id)).label }}</span>
                                     </div>
+                                    <p v-if="cust.clientId" class="truncate font-mono text-[9px] font-bold text-brand-blue dark:text-teal-300">{{ cust.clientId }}</p>
                                     <p v-if="cust.clientSSM" class="truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ cust.clientSSM }}</p>
                                     <p v-if="cust.clientContactPerson" class="truncate text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientContactPerson }}</p>
                                     <p v-if="cust.clientEmail" class="truncate text-[10px] lowercase text-slate-500 dark:text-slate-400"><i class="fa-solid fa-envelope mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientEmail }}</p>
@@ -3526,7 +3528,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p></div>
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p></div>
                             <div class="flex shrink-0 items-center gap-1.5">
                                 <span v-if="clientView.client.id && isNewClient(clientView.client.id)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 text-[9px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
                                 <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning · {{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }}</span>

@@ -3702,6 +3702,24 @@ createApp({
                 this.clientSavedForDocument = false;
             }
         },
+        // Human-readable, non-random client reference — same convention as
+        // projectRef/docNo/empNo elsewhere in this app, but this one is a plain
+        // incrementing scan (like generateDocNo) rather than timestamp-derived,
+        // since a client ID benefits more from being short and sequential than
+        // from encoding a creation moment. Format: ZCT-<7-digit sequence>-<letter>
+        // — the letter is NOT a real SSM checksum, purely a deterministic
+        // (sequence-derived, never random) cosmetic suffix matching the
+        // look of a Malaysian SSM registration number.
+        generateClientId() {
+            let maxNum = 0;
+            this.customers.forEach(cust => {
+                const match = /^ZCT-(\d{7})-[A-Z]$/.exec(String(cust.clientId || ''));
+                if (match) { const num = parseInt(match[1], 10); if (num > maxNum) maxNum = num; }
+            });
+            const nextNum = maxNum + 1;
+            const letter = String.fromCharCode(65 + (nextNum % 26));
+            return `ZCT-${String(nextNum).padStart(7, '0')}-${letter}`;
+        },
         async saveCustomerToDatabase() {
             if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
             if (!this.docForm.clientName || !this.docForm.clientPhone || !(this.docForm.clientAddress1 || this.docForm.clientAddress)) return this.showNotify('Enter Client Name, Phone, and Address Line 1.');
@@ -3715,11 +3733,15 @@ createApp({
                 // into the same customers/{id} document.
                 const isNewRecord = !this.docForm.customerId;
                 const docId = this.docForm.customerId || doc(collection(db, "customers")).id;
+                const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
                 const additionalClientEmails = String(this.docForm.additionalClientEmailsText || '')
                     .split(',').map(e => e.trim().toLowerCase()).filter(e => e && e.includes('@'));
                 const clientAddress1 = String(this.docForm.clientAddress1 || this.docForm.clientAddress || '').trim();
                 const newCust = this.normalizeOfficialRecord({ clientName: this.docForm.clientName, clientPhone: this.docForm.clientPhone, clientSSM: this.docForm.clientSSM, clientAddress: clientAddress1, clientAddress1, clientAddress2: this.docForm.clientAddress2, clientAddress3: this.docForm.clientAddress3, clientCity: this.docForm.clientCity, clientState: this.docForm.clientState, clientPostcode: this.docForm.clientPostcode, clientCountry: this.docForm.clientCountry, clientEmail: String(this.docForm.clientEmail || '').trim().toLowerCase(), clientContactPerson: this.docForm.clientContactPerson, clientPosition: this.docForm.clientPosition, additionalClientEmails });
                 if (isNewRecord) newCust.createdAt = new Date().toISOString();
+                // Backfills a missing clientId on the next edit too, in case a record
+                // somehow still lacks one (e.g. it predates this field).
+                if (isNewRecord || !existingCust?.clientId) newCust.clientId = this.generateClientId();
                 this.docForm.customerId = docId;
                 Object.assign(this.docForm, newCust);
             await setDoc(doc(db, "customers", docId), newCust, { merge: true }); this.clientSavedForDocument = true; this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `Saved customer ${this.docForm.clientName}`);
@@ -3749,7 +3771,7 @@ createApp({
         },
         openClientView(cust) {
             this.clientView.client = {
-                id: cust.id || '', clientName: cust.clientName || '-', clientSSM: cust.clientSSM || '-', clientContactPerson: cust.clientContactPerson || '-',
+                id: cust.id || '', clientId: cust.clientId || '', clientName: cust.clientName || '-', clientSSM: cust.clientSSM || '-', clientContactPerson: cust.clientContactPerson || '-',
                 clientPosition: cust.clientPosition || '-', clientEmail: cust.clientEmail || '-', clientPhone: cust.clientPhone || '-',
                 clientAddress: cust.clientAddress || '', clientAddress1: cust.clientAddress1 || cust.clientAddress || '', clientAddress2: cust.clientAddress2 || '', clientAddress3: cust.clientAddress3 || '', clientCity: cust.clientCity || '', clientState: cust.clientState || '',
                 clientPostcode: cust.clientPostcode || '', clientCountry: cust.clientCountry || 'Malaysia', clientTier: cust.clientTier || 'Standard'
