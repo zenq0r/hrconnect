@@ -32,11 +32,12 @@ test('OTP is mandatory for every provisioned RBAC role', () => {
 });
 
 test('portal URL validation rejects lookalike and insecure domains', () => {
-    assert.equal(isAllowedPortalUrl('https://portal.zenq0r.com/path'), true);
-    assert.equal(isAllowedPortalUrl('https://zenq0r.com'), true);
-    assert.equal(isAllowedPortalUrl('https://zenq0r.com.evil.test'), false);
-    assert.equal(isAllowedPortalUrl('https://evilzenq0r.com'), false);
-    assert.equal(isAllowedPortalUrl('http://portal.zenq0r.com'), false);
+    assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my/path'), true);
+    assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my'), true);
+    assert.equal(isAllowedPortalUrl('https://hrct.portal.zenqor.com.my'), false);
+    assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my.evil.test'), false);
+    assert.equal(isAllowedPortalUrl('https://evilwww.hrct.portal.zenqor.com.my'), false);
+    assert.equal(isAllowedPortalUrl('http://www.hrct.portal.zenqor.com.my'), false);
 });
 
 test('email normalization trims, lowercases, and rejects malformed input', () => {

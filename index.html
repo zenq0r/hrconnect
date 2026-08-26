@@ -3031,7 +3031,7 @@
                             </button>
                             <div>
                                 <h2 class="zq-text-page-title">Website Content</h2>
-                                <p class="zq-page-header-desc">Manage what's shown on zenqor-tech / www.zenq0r.com — changes go live immediately. Restricted to Superadmin, Director and IT.</p>
+                                <p class="zq-page-header-desc">Manage what's shown on zenqor-tech / www.zenqor.com.my — changes go live immediately. Restricted to Superadmin, Director and IT.</p>
                             </div>
                         </div>
                         <button v-if="websiteContentTab !== 'site_text' && hasModulePermission('website-content', 'edit')" type="button" @click="openWebsiteContentModal(websiteContentTab)" class="zq-btn zq-btn-primary">
@@ -3125,7 +3125,7 @@
                                 <div>
                                     <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ websiteContentLabel(websiteContentModal.collectionName) }}</p>
                                     <h3 class="zq-modal-title mt-1">{{ websiteContentModal.isEdit ? 'Edit Item' : 'Add New Item' }}</h3>
-                                    <p class="zq-modal-description !text-slate-300">Publishes live on zenqor-tech / www.zenq0r.com immediately on save.</p>
+                                    <p class="zq-modal-description !text-slate-300">Publishes live on zenqor-tech / www.zenqor.com.my immediately on save.</p>
                                 </div>
                                 <button type="button" @click="closeWebsiteContentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                             </header>
@@ -3794,7 +3794,7 @@
                         <h1 class="text-2xl font-extrabold text-brand-dark tracking-tight leading-none">ZENQOR TECHNOLOGIES</h1>
                         <p class="font-bold text-slate-700 text-xs mt-1">Business Registration No.: {{ company.ssm }}</p>
                         <p class="text-slate-600 mt-0.5 whitespace-pre-line text-xs leading-normal">{{ formattedCompanyAddress() }}</p>
-                        <p class="text-slate-600 text-xs mt-0.5">Tel: {{ company.phone }} | Email: {{ company.email }} | Web: {{ company.website || 'www.zenq0r.com' }}</p>
+                        <p class="text-slate-600 text-xs mt-0.5">Tel: {{ company.phone }} | Email: {{ company.email }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
                     </div>
                 </div>
                 <div class="text-right shrink-0">
@@ -3897,7 +3897,7 @@
                         <h1 class="text-2xl font-extrabold text-brand-dark tracking-tight leading-none">ZENQOR TECHNOLOGIES</h1>
                         <p class="font-bold text-slate-700 text-xs mt-1">Business Registration No.: {{ company.ssm }}</p>
                         <p class="text-slate-600 mt-0.5 whitespace-pre-line text-xs leading-normal">{{ formattedCompanyAddress() }}</p>
-                        <p class="text-slate-600 text-xs mt-0.5">Tel: {{ company.phone }} | Email: {{ company.email }} | Web: {{ company.website || 'www.zenq0r.com' }}</p>
+                        <p class="text-slate-600 text-xs mt-0.5">Tel: {{ company.phone }} | Email: {{ company.email }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
                     </div>
                 </div>
                 <div class="text-right shrink-0">
@@ -3999,7 +3999,7 @@
                         <div class="company-brand-text">
                             <h1>{{ company.name }}</h1>
                             <p>Business Registration No.: {{ company.ssm }}</p>
-                            <p class="whitespace-pre-line">{{ formattedCompanyAddress() }}<br>Tel: {{ company.phone }} | Web: {{ company.website || 'www.zenq0r.com' }}</p>
+                            <p class="whitespace-pre-line">{{ formattedCompanyAddress() }}<br>Tel: {{ company.phone }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
                         </div>
                     </div>
                     <div class="payslip-title">

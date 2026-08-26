@@ -54,7 +54,7 @@ module.exports = async function handler(req, res) {
                 });
 
                 try {
-                    const resetLink = `https://www.portal.zenq0r.com/?resetToken=${token}`;
+                    const resetLink = `https://www.hrct.portal.zenqor.com.my/?resetToken=${token}`;
                     await sendResetEmail(normalizedEmail, resetLink);
                 } catch (sendError) {
                     // The email never reached the user, so this token is useless — remove it

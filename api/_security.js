@@ -18,8 +18,7 @@ function isAllowedPortalUrl(value) {
     if (typeof value !== 'string') return false;
     try {
         const url = new URL(value);
-        return url.protocol === 'https:' &&
-            (url.hostname === 'zenq0r.com' || url.hostname.endsWith('.zenq0r.com'));
+        return url.protocol === 'https:' && url.hostname === 'www.hrct.portal.zenqor.com.my';
     } catch (_) {
         return false;
     }

@@ -390,7 +390,7 @@ createApp({
                 country: 'Malaysia',
                 phone: "+60 11-6501 2569",
                 email: "admin@zenq0r.com",
-                website: "www.zenq0r.com",
+                website: "www.zenqor.com.my",
                 bankName: "MAYBANK ISLAMIC BERHAD",
                 bankAccount: "5629 8205 7309"
             },
@@ -3680,7 +3680,7 @@ createApp({
         },
         goToMainSite() {
             this.postLogoutChoice = false;
-            window.location.href = 'https://www.zenq0r.com';
+            window.location.href = 'https://www.zenqor.com.my';
         },
 
         async handleChangePassword() {
@@ -3795,7 +3795,7 @@ createApp({
             auth.currentUser.getIdToken().then(idToken => fetch('/api/notify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                body: JSON.stringify({ to: recipients, subject, heading, message, ctaLabel, ctaUrl: ctaUrl || 'https://www.portal.zenq0r.com' })
+                body: JSON.stringify({ to: recipients, subject, heading, message, ctaLabel, ctaUrl: ctaUrl || 'https://www.hrct.portal.zenqor.com.my/' })
             })).catch(error => console.warn('Notification email failed (non-fatal):', error));
         },
         emailsForRole(role) {
@@ -3853,7 +3853,7 @@ createApp({
         sendWelcomeEmail(userForm) {
             const originEmail = "admin@zenq0r.com";
             const subject = encodeURIComponent(`[ZENQOR ENTERPRISE] Official Account & Portal Access Information (${this.getRoleDisplayName(userForm.role)})`);
-                const emailBody = encodeURIComponent(`Greetings ${userForm.name},\n\nYour user account for the ZENQOR TECHNOLOGIES Enterprise Portal v2.0 has been created.\n\nSign-In Email: ${userForm.email}\nTemporary Password: ${userForm.password}\nAssigned Role: ${this.getRoleDisplayName(userForm.role)}\nPortal Link: https://www.portal.zenq0r.com\n\nYou will be required to change this temporary password immediately after your first sign-in.\n\nBest regards,\nSystem Administrator`);
+                const emailBody = encodeURIComponent(`Greetings ${userForm.name},\n\nYour user account for the ZENQOR TECHNOLOGIES Enterprise Portal v2.0 has been created.\n\nSign-In Email: ${userForm.email}\nTemporary Password: ${userForm.password}\nAssigned Role: ${this.getRoleDisplayName(userForm.role)}\nPortal Link: https://www.hrct.portal.zenqor.com.my/\n\nYou will be required to change this temporary password immediately after your first sign-in.\n\nBest regards,\nSystem Administrator`);
             window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(userForm.email)}&su=${subject}&body=${emailBody}`, '_blank');
             this.showNotify(`Google Gmail compose window opened.`);
         },

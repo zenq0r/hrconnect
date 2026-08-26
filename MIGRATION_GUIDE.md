@@ -57,7 +57,7 @@ di bawah path `users/{uid}` (bukan email lagi, tapi UID Firebase):
 2. Klik pada "Browser key (auto created by Firebase)"
 3. Dalam "Application restrictions" → pilih "HTTP referrers"
 4. Tambah domain:
-   - `https://www.portal.zenq0r.com/*`
+   - `https://www.hrct.portal.zenqor.com.my/*`
    - `http://localhost/*` (development sahaja)
 5. Simpan
 
