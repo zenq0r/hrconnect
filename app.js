@@ -5334,6 +5334,34 @@ createApp({
         };
         window.addEventListener('popstate', this.browserBackHandler);
 
+        // Escape-to-close (Step 24) — deferred in Step 11's modal architecture pass.
+        // Mirrors each overlay's own @click.self backdrop-dismiss behavior exactly:
+        // a modal only closes on Escape if it already closes on a backdrop click.
+        // Modals with no @click.self (idle-timeout warning, the employee/portal-
+        // access/change-password forms, the pre-login OTP challenge) are deliberately
+        // NOT closable this way, same as they're not backdrop-closable — Escape must
+        // not make a mandatory or data-entry-sensitive dialog accidentally dismissible.
+        // Checked topmost (highest z-index) first, in case more than one is ever open.
+        this.globalEscapeHandler = (event) => {
+            if (event.key !== 'Escape') return;
+            if (this.appConfirm.show) { this.resolveAppConfirm(false); return; }
+            if (this.clientView.show) { this.closeClientView(); return; }
+            if (this.clientUpdateModal.show && this.clientUpdateModal.project) { this.closeClientUpdateModal(); return; }
+            if (this.websiteContentModal.show) { this.closeWebsiteContentModal(); return; }
+            if (this.siteTextModal.show) { this.closeSiteTextModal(); return; }
+            if (this.activityModal.show && this.activityModal.project) { this.closeActivityModal(); return; }
+            if (this.newSignedDocumentModal.show) { this.closeNewSignedDocumentModal(); return; }
+            if (this.signedDocumentModal.show && this.signedDocumentModal.doc) { this.closeSignedDocumentModal(); return; }
+            if (this.projectPreview.show && this.projectPreview.project) { this.closeProjectDetails(); return; }
+            if (this.projectModal.show) { this.closeProjectModal(); return; }
+            if (this.isLoggedIn && this.showOnboarding) { this.dismissOnboarding(); return; }
+            if (this.logoutConfirm) { this.logoutConfirm = false; return; }
+            if (this.postLogoutChoice) { this.stayOnPortal(); return; }
+            if (this.clientActionConfirm.show) { this.clientActionConfirm.show = false; return; }
+            if (this.employeeActionConfirm.show) { this.employeeActionConfirm.show = false; return; }
+        };
+        window.addEventListener('keydown', this.globalEscapeHandler);
+
         this.checkForAppUpdate();
         this.appUpdateCheckInterval = setInterval(() => this.checkForAppUpdate(), 5 * 60 * 1000);
         this.appVisibilityHandler = () => { if (document.visibilityState === 'visible') this.checkForAppUpdate(); };

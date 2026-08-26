@@ -419,14 +419,14 @@
                 <div class="p-4 border-b border-slate-800 flex items-center justify-between">
                     <div class="flex items-center space-x-3 overflow-hidden">
                         <div class="bg-white p-1 rounded-xl shrink-0 flex items-center justify-center border border-brand-gold/30">
-                            <img src="./logo.png" onerror="this.style.display='none'" class="h-6 w-auto object-contain">
+                            <img src="./logo.png" onerror="this.style.display='none'" alt="" class="h-6 w-auto object-contain">
                         </div>
                         <div class="truncate">
                             <h1 class="font-extrabold text-xs tracking-wide text-white truncate">{{ userProfile.role === 'Client' ? 'ZENQOR Client Portal' : 'ZENQOR Enterprise' }}</h1>
                             <p class="text-[9px] text-brand-gold uppercase tracking-widest font-semibold truncate">{{ userProfile.role === 'Client' ? (userProfile.name || 'Client Access') : 'Staff Workspace' }}</p>
                         </div>
                     </div>
-                    <button type="button" @click="mobileMenuOpen = false" class="md:hidden text-slate-400 hover:text-white text-lg">
+                    <button type="button" @click="mobileMenuOpen = false" class="md:hidden text-slate-400 hover:text-white text-lg" title="Close menu" aria-label="Close menu">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
@@ -562,7 +562,7 @@
                             <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ userProfile.name }}</p>
                             <span class="inline-block bg-brand-gold/20 text-brand-dark dark:text-brand-gold text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">{{ userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role) }}</span>
                         </div>
-                        <img :src="userProfile.photo" class="w-8 h-8 rounded-full object-cover border-2 border-brand-gold shrink-0 shadow-sm">
+                        <img :src="userProfile.photo" :alt="userProfile.name" class="w-8 h-8 rounded-full object-cover border-2 border-brand-gold shrink-0 shadow-sm">
                     </div>
                 </header>
 
@@ -1285,13 +1285,13 @@
                                 Page {{ claimsCurrentPage }} of {{ claimsTotalPages }}
                             </span>
                             <div class="flex items-center space-x-1">
-                                <button type="button" @click="claimsCurrentPage > 1 && claimsCurrentPage--" :disabled="claimsCurrentPage === 1" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                <button type="button" @click="claimsCurrentPage > 1 && claimsCurrentPage--" :disabled="claimsCurrentPage === 1" title="Previous page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                     <i class="fa-solid fa-chevron-left"></i>
                                 </button>
-                                <button v-for="page in claimsTotalPages" :key="page" type="button" @click="claimsCurrentPage = page" :class="claimsCurrentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                                <button v-for="page in claimsTotalPages" :key="page" type="button" @click="claimsCurrentPage = page" :aria-label="'Page ' + page" :aria-current="claimsCurrentPage === page ? 'page' : null" :class="claimsCurrentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
                                     {{ page }}
                                 </button>
-                                <button type="button" @click="claimsCurrentPage < claimsTotalPages && claimsCurrentPage++" :disabled="claimsCurrentPage === claimsTotalPages" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                <button type="button" @click="claimsCurrentPage < claimsTotalPages && claimsCurrentPage++" :disabled="claimsCurrentPage === claimsTotalPages" title="Next page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </button>
                             </div>
@@ -1405,13 +1405,13 @@
                                 Page {{ vouchersCurrentPage }} of {{ vouchersTotalPages }}
                             </span>
                             <div class="flex items-center space-x-1">
-                                <button type="button" @click="vouchersCurrentPage > 1 && vouchersCurrentPage--" :disabled="vouchersCurrentPage === 1" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                <button type="button" @click="vouchersCurrentPage > 1 && vouchersCurrentPage--" :disabled="vouchersCurrentPage === 1" title="Previous page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                     <i class="fa-solid fa-chevron-left"></i>
                                 </button>
-                                <button v-for="page in vouchersTotalPages" :key="page" type="button" @click="vouchersCurrentPage = page" :class="vouchersCurrentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                                <button v-for="page in vouchersTotalPages" :key="page" type="button" @click="vouchersCurrentPage = page" :aria-label="'Page ' + page" :aria-current="vouchersCurrentPage === page ? 'page' : null" :class="vouchersCurrentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
                                     {{ page }}
                                 </button>
-                                <button type="button" @click="vouchersCurrentPage < vouchersTotalPages && vouchersCurrentPage++" :disabled="vouchersCurrentPage === vouchersTotalPages" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                <button type="button" @click="vouchersCurrentPage < vouchersTotalPages && vouchersCurrentPage++" :disabled="vouchersCurrentPage === vouchersTotalPages" title="Next page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </button>
                             </div>
@@ -1909,13 +1909,13 @@
                                     Page {{ currentPage }} of {{ totalPages }}
                                 </span>
                                 <div class="flex items-center space-x-1">
-                                    <button type="button" @click="currentPage > 1 && currentPage--" :disabled="currentPage === 1" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <button type="button" @click="currentPage > 1 && currentPage--" :disabled="currentPage === 1" title="Previous page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                         <i class="fa-solid fa-chevron-left"></i>
                                     </button>
-                                    <button v-for="page in totalPages" :key="page" type="button" @click="currentPage = page" :class="currentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                                    <button v-for="page in totalPages" :key="page" type="button" @click="currentPage = page" :aria-label="'Page ' + page" :aria-current="currentPage === page ? 'page' : null" :class="currentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
                                         {{ page }}
                                     </button>
-                                    <button type="button" @click="currentPage < totalPages && currentPage++" :disabled="currentPage === totalPages" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <button type="button" @click="currentPage < totalPages && currentPage++" :disabled="currentPage === totalPages" title="Next page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
                                         <i class="fa-solid fa-chevron-right"></i>
                                     </button>
                                 </div>
@@ -2259,7 +2259,7 @@
 
                             <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700 pt-2.5">
                                 <div class="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
-                                    <span :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 rounded-full"></span>
+                                    <span :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 rounded-full" :title="projectPicPresenceDetail(project)"></span>
                                     <span>{{ project.ownerName || 'ZENQOR Team' }}</span>
                                 </div>
                                 <button type="button" @click="openProjectDetails(project)" class="rounded-lg bg-brand-dark px-3 py-1.5 text-[10px] font-bold text-white hover:bg-brand-blue"><i class="fa-regular fa-eye mr-1"></i>View Details</button>
@@ -4037,14 +4037,14 @@
         <!-- TEMPLATE: APPROVED CLAIM (A4 PORTRAIT) -->
         <div v-if="activePrintModule === 'CLAIM' && claimPrint" id="print-template-claim" class="print-only claim-print p-8 text-sm print-container">
             <div class="flex justify-between items-start print-header-border pb-4 mb-6">
-                <div class="claim-print-brand flex items-center space-x-4"><img src="./logo.png" onerror="this.style.display='none'" class="claim-print-logo"><div><h1 class="text-2xl font-extrabold text-brand-dark">ZENQOR TECHNOLOGIES</h1><p class="text-xs text-slate-600">Approved {{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Expense Claim' }} Record</p></div></div>
+                <div class="claim-print-brand flex items-center space-x-4"><img src="./logo.png" onerror="this.style.display='none'" alt="" class="claim-print-logo"><div><h1 class="text-2xl font-extrabold text-brand-dark">ZENQOR TECHNOLOGIES</h1><p class="text-xs text-slate-600">Approved {{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Expense Claim' }} Record</p></div></div>
                 <div class="text-right"><span class="inline-block bg-emerald-600 text-white font-extrabold px-3 py-1 rounded text-xs uppercase">Approved</span><p class="font-bold mt-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Voucher' : 'Receipt' }} Ref: {{ claimPrint.documentType === 'Payment Voucher' ? claimPrint.voucherNo : claimPrint.receiptNo }}</p><p class="text-xs text-slate-600">Printed: {{ formatDateTime(new Date().toISOString()) }}</p></div>
             </div>
             <div class="grid grid-cols-2 gap-5 border-b border-slate-200 pb-5 mb-5"><div><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Requested By' : 'Applicant' }}</h3><p class="font-extrabold">{{ claimPrint.name }}</p><p>{{ claimPrint.empNo }} · {{ claimPrint.dept }}</p><p class="text-xs text-slate-600">{{ claimPrint.empEmail }}</p></div><div><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Details' : 'Expense Details' }}</h3><p><strong>Category:</strong> {{ claimPrint.category }}</p><p><strong>Sub-category:</strong> {{ claimPrint.subCategory }}</p><p><strong>{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment date' : 'Expense date' }}:</strong> {{ formatDateWithDay(claimPrint.documentType === 'Payment Voucher' ? claimPrint.paymentDate : claimPrint.expenseDate) }}</p><p><strong>Submitted:</strong> {{ formatDateTimeWithDay(claimPrint.createdAt) }}</p><p class="text-lg font-extrabold mt-2">{{ formatCurrency(claimPrint.amount) }}</p></div></div>
             <div v-if="claimPrint.documentType === 'Payment Voucher'" class="border border-amber-300 bg-amber-50 rounded p-4 mb-5"><h3 class="font-bold text-brand-dark mb-2">Payment Recipient</h3><div class="grid grid-cols-2 gap-2"><p><strong>Payee:</strong> {{ claimPrint.payeeName }}</p><p><strong>Type:</strong> {{ claimPrint.payeeType }}</p><p><strong>Reference:</strong> {{ claimPrint.payeeReference || '-' }}</p><p><strong>Purpose:</strong> {{ claimPrint.paymentPurpose }}</p></div></div>
             <div class="border border-slate-200 rounded p-4 mb-5"><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Description' : 'Expense Description' }}</h3><p class="whitespace-pre-wrap">{{ claimPrint.description }}</p></div>
             <div class="border border-slate-200 rounded p-4 mb-5"><h3 class="font-bold text-brand-dark mb-2">Approval Details</h3><p><strong>Approved by:</strong> {{ claimPrint.approvedByName }} ({{ claimPrint.approvedByRole }})</p><p><strong>Approval path:</strong> {{ claimPrint.approvalPath || 'Director Final Approval' }}</p><p v-if="claimPrint.bypassedReviews && claimPrint.bypassedReviews.length"><strong>Bypassed review:</strong> {{ claimPrint.bypassedReviews.join(', ') }}</p><p><strong>Approval date &amp; time:</strong> {{ formatDateTime(claimPrint.approvedAt) }}</p></div>
-            <div class="grid grid-cols-2 gap-5"><div class="border border-slate-200 rounded p-4"><h3 class="font-bold text-brand-dark mb-2">Receipt Attachment</h3><p class="text-xs mb-2">{{ claimPrint.receiptAttachmentName || 'Attachment included' }}</p><img v-if="isSupportedImageAttachment(claimPrint.receiptAttachment)" :src="claimPrint.receiptAttachment" class="max-h-56 mx-auto border"><p v-else class="text-xs text-slate-500">No supported image attachment is available.</p></div><div class="border border-slate-200 rounded p-4"><h3 class="font-bold text-brand-dark mb-2">Director Approval Document</h3><p class="text-xs mb-2">{{ claimPrint.directorApprovalAttachmentName || 'Attachment included' }}</p><img v-if="isSupportedImageAttachment(claimPrint.directorApprovalAttachment)" :src="claimPrint.directorApprovalAttachment" class="max-h-56 mx-auto border"><p v-else class="text-xs text-slate-500">No supported image attachment is available.</p></div></div>
+            <div class="grid grid-cols-2 gap-5"><div class="border border-slate-200 rounded p-4"><h3 class="font-bold text-brand-dark mb-2">Receipt Attachment</h3><p class="text-xs mb-2">{{ claimPrint.receiptAttachmentName || 'Attachment included' }}</p><img v-if="isSupportedImageAttachment(claimPrint.receiptAttachment)" :src="claimPrint.receiptAttachment" alt="Receipt attachment" class="max-h-56 mx-auto border"><p v-else class="text-xs text-slate-500">No supported image attachment is available.</p></div><div class="border border-slate-200 rounded p-4"><h3 class="font-bold text-brand-dark mb-2">Director Approval Document</h3><p class="text-xs mb-2">{{ claimPrint.directorApprovalAttachmentName || 'Attachment included' }}</p><img v-if="isSupportedImageAttachment(claimPrint.directorApprovalAttachment)" :src="claimPrint.directorApprovalAttachment" alt="Director approval document" class="max-h-56 mx-auto border"><p v-else class="text-xs text-slate-500">No supported image attachment is available.</p></div></div>
             <p class="mt-8 text-center text-xs text-slate-500">This is a computer-generated approved {{ claimPrint.documentType === 'Payment Voucher' ? 'payment voucher' : 'claim' }} record.</p>
         </div>
 
