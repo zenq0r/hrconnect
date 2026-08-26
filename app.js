@@ -793,7 +793,11 @@ createApp({
         // widget, Client Directory badges, the drawer's Set Tier pills).
         clientTaskGroups() {
             const buckets = { Consult: [], 'In-Progress': [], Complete: [] };
-            this.customers.forEach(cust => {
+            // Membership gate — only clients Director explicitly added via New
+            // Client Task (clientTaskCreatedAt set) ever appear here. A client
+            // added/registered through Client Directory or Billing & Documents
+            // has no effect on this board until a Director opts it in.
+            this.customers.filter(cust => cust.clientTaskCreatedAt).forEach(cust => {
                 buckets[this.clientTaskStatus(cust.id)].push(cust);
             });
             return [
@@ -3719,7 +3723,10 @@ createApp({
         // — the client's own registration date — so fall back to that instead
         // of showing nothing.
         clientTaskDateLabel(cust) {
-            if (cust.clientTierAssignedAt) return `Registered ${this.formatDateTime(cust.clientTierAssignedAt)}`;
+            // Every card shown has already passed the clientTaskCreatedAt gate in
+            // clientTaskGroups, so this is always present — the createdAt fallback
+            // only guards a stray direct call before that field existed.
+            if (cust.clientTaskCreatedAt) return `Registered ${this.formatDateTime(cust.clientTaskCreatedAt)}`;
             if (cust.createdAt) return `Registered ${this.formatDateTime(cust.createdAt)}`;
             return 'No date on record';
         },
@@ -4141,6 +4148,7 @@ createApp({
                     clientSSM: String(clientSSM || '').trim(),
                     clientTier: tier,
                     clientTierAssignedAt: now,
+                    clientTaskCreatedAt: now,
                     createdAt: now,
                     updatedAt: now,
                     updatedByUid: this.userProfile.uid,
@@ -4162,24 +4170,41 @@ createApp({
         closeClientTaskModal() {
             this.clientTaskModal.show = false;
         },
-        // Existing mode is a quick-find/jump: every Client Directory record
-        // already appears on the board automatically, so picking one here just
-        // opens its board directly — the same as clicking its card — sparing the
-        // Director from hunting through three columns, and steering them away
-        // from accidentally re-typing a client that already exists.
-        // Manual mode is the only path that actually creates anything: a
-        // brand-new customers record for a client that isn't in Client Directory
-        // yet. Tier is written as 'Standard' purely so the separate, unrelated
-        // clientTier feature (Priority Clients widget, Client Directory badges)
-        // has a defined value rather than an implicit fallback.
+        // Membership gate: a client appears on the Client Task board ONLY once
+        // clientTaskCreatedAt is set — never just because a customers record
+        // exists. Staff adding/registering a client through Client Directory or
+        // Billing & Documents does NOT touch this field, so it has zero effect
+        // on Client Task; the only two writers are createClientWithTier (manual
+        // mode below) and this method (existing mode) — both reachable only
+        // through the Director-only New Client Task modal.
+        async addClientToTask(cust) {
+            if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return false; }
+            if (!cust?.id) return false;
+            if (cust.clientTaskCreatedAt) return true;
+            try {
+                const now = new Date().toISOString();
+                await setDoc(doc(db, 'customers', cust.id), { clientTaskCreatedAt: now, updatedAt: now, updatedByUid: this.userProfile.uid }, { merge: true });
+                this.logAudit('CREATE', `Added ${cust.clientName} to Client Task`);
+                return true;
+            } catch (error) {
+                console.error('Add to Client Task failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'add this client to Client Task'));
+                return false;
+            }
+        },
         async saveClientTask() {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
             const modal = this.clientTaskModal;
             if (modal.mode === 'existing') {
                 const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
                 if (!cust) { this.showNotify('Select a client from the list.'); return; }
-                this.closeClientTaskModal();
-                this.viewClientBoard(cust);
+                modal.saving = true;
+                try {
+                    const ok = await this.addClientToTask(cust);
+                    if (ok) { this.closeClientTaskModal(); this.viewClientBoard(cust); }
+                } finally {
+                    modal.saving = false;
+                }
                 return;
             }
             modal.saving = true;

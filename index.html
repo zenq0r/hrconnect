@@ -2279,7 +2279,7 @@
                             </button>
                             <div>
                                 <h2 class="zq-text-page-title">Client Task</h2>
-                                <p class="zq-page-header-desc">Every client, grouped live by their project status. Click a company to view its projects; right-click a card to delete a wrongly-created one.</p>
+                                <p class="zq-page-header-desc">Clients added here by Director, grouped live by their project status. Registering a client in Client Directory alone does not add it here. Click a company to view its projects; right-click a card to delete a wrongly-created one.</p>
                             </div>
                         </div>
                         <button v-if="canCreateClientTask" type="button" @click="openClientTaskModal" class="zq-btn zq-btn-primary">
@@ -2343,7 +2343,7 @@
 
                             <template v-if="clientTaskModal.mode === 'existing'">
                                 <label class="zq-label">Client<select v-model="clientTaskModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }}<template v-if="cust.clientSSM"> · {{ cust.clientSSM }}</template></option></select></label>
-                                <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Already tracked automatically — this just opens its board directly.</p>
+                                <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Adds this client to Client Task (if not already added), then opens its board directly.</p>
                             </template>
                             <template v-else>
                                 <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">For a client that isn't in Client Directory yet — it starts in Consult.</p>
