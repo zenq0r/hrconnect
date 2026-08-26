@@ -445,7 +445,12 @@
                     <button v-if="hasAccess('client-tier')" type="button" @click="switchTab('client-tier')" :class="{'sidebar-item-active': currentTab === 'client-tier', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-tier'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-layer-group w-5 text-center"></i><span>Client Tier</span>
                     </button>
-                    <button v-if="hasAccess('project-activities')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
+                    <!-- Director/Superadmin/HR/Account (anyone with Client Tier access) now reach
+                         the board only through Client Tier, so this direct button is hidden for
+                         them — Client Tier's own "View All Projects" button is the equivalent.
+                         Staff/IT/Client have no Client Tier page at all, so they keep this as
+                         their only path (Client's own "My Projects" tracker included). -->
+                    <button v-if="hasAccess('project-activities') && !hasAccess('client-tier')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>
                     <template v-if="userProfile.role === 'Client'">
@@ -2276,9 +2281,14 @@
                                 <p class="zq-page-header-desc">Browse clients by tier. Click a company to view its projects.</p>
                             </div>
                         </div>
-                        <button v-if="canManageClients" type="button" @click="openClientTierModal" class="zq-btn zq-btn-primary">
-                            <i class="fa-solid fa-plus"></i><span>New Project Tier</span>
-                        </button>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" @click="boardClientFilter = null; switchTab('project-activities')" class="zq-btn zq-btn-outline">
+                                <i class="fa-solid fa-table-columns"></i><span>View All Projects</span>
+                            </button>
+                            <button v-if="canManageClients" type="button" @click="openClientTierModal" class="zq-btn zq-btn-primary">
+                                <i class="fa-solid fa-plus"></i><span>New Project Tier</span>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2368,11 +2378,16 @@
                         </div>
                     </div>
 
-                    <div v-if="boardClientFilter" class="flex flex-wrap items-center gap-2 rounded-xl border border-brand-blue/30 bg-blue-50/70 dark:bg-blue-950/20 px-3 py-2 text-xs">
-                        <i class="fa-solid fa-building text-brand-blue"></i>
-                        <span class="font-bold text-brand-dark dark:text-white">Showing: {{ boardClientFilter.name }}</span>
-                        <button type="button" @click="switchTab('client-tier')" class="ml-auto text-[10px] font-bold text-brand-blue hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i>Back to Client Tier</button>
-                        <button type="button" @click="boardClientFilter = null" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear</button>
+                    <!-- Breadcrumb: only meaningful for roles that have a Client Tier hub to
+                         come from (Director/Superadmin/HR/Account). Staff/IT/Client reach this
+                         page directly via their own sidebar button and see no trail. -->
+                    <div v-if="hasAccess('client-tier')" class="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        <button type="button" @click="boardClientFilter = null; switchTab('client-tier')" class="text-brand-blue hover:underline">Client Tier</button>
+                        <i class="fa-solid fa-chevron-right text-[8px]"></i>
+                        <span>{{ boardClientFilter ? boardClientFilter.name : 'All Projects' }}</span>
+                        <i class="fa-solid fa-chevron-right text-[8px]"></i>
+                        <span class="text-brand-dark dark:text-white">Project Activities</span>
+                        <button v-if="boardClientFilter" type="button" @click="boardClientFilter = null" class="zq-filter-reset ml-1"><i class="fa-solid fa-rotate-left"></i>View All Clients</button>
                     </div>
 
                     <!-- CLIENT-FACING PROJECT TRACKER (compact) -->
