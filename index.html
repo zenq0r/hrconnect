@@ -442,7 +442,10 @@
                         <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</p>
                     </div>
 
-                    <button v-if="hasAccess('project-activities')" type="button" @click="switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
+                    <button v-if="hasAccess('client-tier')" type="button" @click="switchTab('client-tier')" :class="{'sidebar-item-active': currentTab === 'client-tier', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-tier'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-layer-group w-5 text-center"></i><span>Client Tier</span>
+                    </button>
+                    <button v-if="hasAccess('project-activities')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>
                     <template v-if="userProfile.role === 'Client'">
@@ -2261,6 +2264,83 @@
                     </div>
                 </div>
 
+                <!-- CLIENT TIER MODULE -->
+                <div v-show="currentTab === 'client-tier'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center space-x-3">
+                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
+                                <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
+                            </button>
+                            <div>
+                                <h2 class="zq-text-page-title">Client Tier</h2>
+                                <p class="zq-page-header-desc">Browse clients by tier. Click a company to view its projects.</p>
+                            </div>
+                        </div>
+                        <button v-if="canManageClients" type="button" @click="openClientTierModal" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-plus"></i><span>New Project Tier</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <section v-for="group in clientTierGroups" :key="group.key" class="min-w-0 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40 p-3 shadow-sm">
+                            <header class="mb-3 flex items-center justify-between rounded-xl bg-white dark:bg-slate-800 px-3 py-3 border border-slate-200 dark:border-slate-700">
+                                <div class="flex items-center gap-2">
+                                    <span :class="clientTierMeta(group.key).badgeClass" class="h-2.5 w-2.5 rounded-full"></span>
+                                    <h3 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">{{ clientTierMeta(group.key).label }}</h3>
+                                </div>
+                                <span class="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300">{{ group.clients.length }}</span>
+                            </header>
+                            <div class="space-y-2 min-h-[120px]">
+                                <button type="button" v-for="cust in group.clients" :key="cust.id" @click="viewClientBoard(cust)" class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue">
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientName }}</span>
+                                        <span v-if="cust.clientSSM" class="block truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ cust.clientSSM }}</span>
+                                    </span>
+                                    <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300">{{ clientProjectCount(cust.id) }} proj</span>
+                                </button>
+                                <div v-if="!group.clients.length" class="zq-empty-state zq-empty-state-compact" style="min-height: 100px;">
+                                    <i class="fa-regular fa-building zq-empty-state-icon" aria-hidden="true"></i>
+                                    <p class="zq-empty-state-title">No {{ group.key }} clients yet</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- NEW PROJECT TIER MODAL -->
+                <div v-if="clientTierModal.show" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" aria-label="New Project Tier" @click.self="closeClientTierModal">
+                    <div class="zq-modal zq-modal-sm">
+                        <div class="zq-modal-header">
+                            <h3 class="zq-modal-title">New Project Tier</h3>
+                            <button type="button" @click="closeClientTierModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="zq-modal-body space-y-4">
+                            <div class="zq-segmented-control" role="group" aria-label="Client source">
+                                <button type="button" @click="clientTierModal.mode = 'existing'" :class="{ 'is-active': clientTierModal.mode === 'existing' }" :aria-pressed="clientTierModal.mode === 'existing'">Existing Client</button>
+                                <button type="button" @click="clientTierModal.mode = 'manual'" :class="{ 'is-active': clientTierModal.mode === 'manual' }" :aria-pressed="clientTierModal.mode === 'manual'">New / Manual</button>
+                            </div>
+
+                            <label v-if="clientTierModal.mode === 'existing'" class="zq-label">Client<select v-model="clientTierModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }} · {{ clientTierMeta(cust.clientTier).label }}</option></select></label>
+
+                            <template v-else>
+                                <label class="zq-label">Company Name *<input type="text" v-model="clientTierModal.clientName" required class="zq-input mt-1.5" placeholder="e.g. Zenqor Technologies"></label>
+                                <label class="zq-label">SSM No. (optional)<input type="text" v-model="clientTierModal.clientSSM" class="zq-input mt-1.5"></label>
+                            </template>
+
+                            <div>
+                                <span class="zq-label">Tier</span>
+                                <div class="mt-1.5 flex gap-1.5">
+                                    <button type="button" v-for="tier in ['Standard','Premium','Priority']" :key="`new-tier-${tier}`" @click="clientTierModal.tier = tier" :class="clientTierModal.tier === tier ? clientTierMeta(tier).badgeClass + ' ring-2 ring-offset-1 ring-brand-blue' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" class="rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase transition">{{ tier }}</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="zq-modal-footer">
+                            <button type="button" @click="closeClientTierModal" class="zq-btn zq-btn-outline">Cancel</button>
+                            <button type="button" @click="saveClientTierAssignment" :disabled="clientTierModal.saving || (clientTierModal.mode === 'existing' ? !clientTierModal.clientDirectoryId : !clientTierModal.clientName.trim())" class="zq-btn zq-btn-primary">{{ clientTierModal.saving ? 'Saving…' : 'Save' }}</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- PROJECT ACTIVITIES MODULE -->
                 <div v-show="currentTab === 'project-activities'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -2286,6 +2366,13 @@
                                 <i class="fa-solid fa-plus"></i><span>Add Project</span>
                             </button>
                         </div>
+                    </div>
+
+                    <div v-if="boardClientFilter" class="flex flex-wrap items-center gap-2 rounded-xl border border-brand-blue/30 bg-blue-50/70 dark:bg-blue-950/20 px-3 py-2 text-xs">
+                        <i class="fa-solid fa-building text-brand-blue"></i>
+                        <span class="font-bold text-brand-dark dark:text-white">Showing: {{ boardClientFilter.name }}</span>
+                        <button type="button" @click="switchTab('client-tier')" class="ml-auto text-[10px] font-bold text-brand-blue hover:underline"><i class="fa-solid fa-arrow-left mr-1"></i>Back to Client Tier</button>
+                        <button type="button" @click="boardClientFilter = null" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear</button>
                     </div>
 
                     <!-- CLIENT-FACING PROJECT TRACKER (compact) -->
@@ -2341,6 +2428,7 @@
                                 </header>
 
                                 <div class="space-y-2.5 min-h-[180px]">
+                                    <template v-if="!boardClientFilter">
                                     <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" :draggable="canDragClientGroup(group)" @dragstart="startGroupDrag($event, group, stage)" @dragend="endDrag" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md" :class="canDragClientGroup(group) ? 'cursor-grab active:cursor-grabbing' : ''">
                                         <div class="flex w-full items-start gap-2 rounded-xl p-3">
                                             <button type="button" @click="toggleClientGroup(`${stage}::${group.key}`)" class="flex min-w-0 flex-1 items-start gap-2 text-left" :title="isClientGroupExpanded(`${stage}::${group.key}`) ? 'Collapse tasks' : 'Expand tasks'">
@@ -2396,6 +2484,42 @@
                                             </div>
                                         </div>
                                     </article>
+                                    </template>
+                                    <!-- Drilled into one client from Client Tier: same per-project card as an
+                                         expanded group above, but flat (no client wrapper) since only one
+                                         client is in view. -->
+                                    <template v-else>
+                                    <div v-for="project in getProjectsByStage(stage)" :key="project.id" :draggable="canEditProject(project)" @dragstart="startProjectDrag($event, project, stage)" @dragend="endDrag" class="overflow-hidden rounded-lg border border-l-4 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm" :class="[projectTargetDateState(project).borderClass, canEditProject(project) ? 'cursor-grab active:cursor-grabbing' : '']">
+                                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-3 py-1.5">
+                                            <div class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                                                <span :title="project.projectRef" class="zq-badge zq-badge-neutral min-w-0 truncate">{{ project.projectRef }}</span>
+                                                <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase" :class="projectTargetDateState(project).className">{{ projectTargetDateState(project).label }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="View details"><i class="fa-regular fa-eye text-[10px]"></i></button>
+                                                <template v-if="canEditProject(project)">
+                                                    <button type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon zq-btn-sm" title="Edit project"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                                    <button type="button" @click="moveProject(project, -1)" :disabled="stageIndex === 0" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to previous stage"><i class="fa-solid fa-arrow-left text-[10px]"></i></button>
+                                                    <button type="button" @click="moveProject(project, 1)" :disabled="stageIndex === projectStages.length - 1" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to next stage"><i class="fa-solid fa-arrow-right text-[10px]"></i></button>
+                                                    <button v-if="project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(project)" class="zq-btn zq-btn-success zq-btn-icon zq-btn-sm" title="Assign / Mark Done"><i class="fa-solid fa-check text-[10px]"></i></button>
+                                                </template>
+                                                <button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Delete project"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="openProjectDetails(project)" class="block w-full p-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                            <h4 class="text-sm font-extrabold leading-snug text-brand-dark dark:text-white">{{ project.title }}</h4>
+                                            <div class="mt-2.5 flex items-center gap-2">
+                                                <img v-if="projectOwnerPhoto(project)" :src="projectOwnerPhoto(project)" :alt="project.ownerName" class="h-7 w-7 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
+                                                <div v-else class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[9px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(project.ownerName) }}</div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-500"> · {{ project.ownerEmpNo }}</span></p>
+                                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
+                                                </div>
+                                                <span v-if="project.ownerEmpNo" :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(project)"></span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    </template>
                                     <div v-if="!getProjectsByStage(stage).length" class="zq-empty-state zq-empty-state-compact" style="min-height: 150px;">
                                         <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
                                         <p class="zq-empty-state-title">No projects here</p>

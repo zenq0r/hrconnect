@@ -245,10 +245,10 @@ const RBAC_ROLES = {
     // (content/site_text). Restricted to Superadmin/Director/IT only — see
     // isContentAdmin() in firestore.rules, which grants write on exactly these
     // collections to that same set of roles (not the full isAdmin() surface).
-    'Director': ['dashboard', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'Superadmin': ['dashboard', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'HR': ['dashboard', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'profile'],
-    'Account': ['dashboard', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'reports', 'profile'],
+    'Director': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'Superadmin': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'HR': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'profile'],
+    'Account': ['dashboard', 'client-tier', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'reports', 'profile'],
     'IT': ['dashboard', 'project-activities', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
     'Staff': ['dashboard', 'project-activities', 'claims', 'profile']
@@ -426,6 +426,13 @@ createApp({
             expandedClientGroups: new Set(),
             draggingProject: null,
             dragOverStage: '',
+            // Set by viewClientBoard() when drilling into one client's board from
+            // the Client Tier page; consumed by filteredProjects (app-wide) and the
+            // board template (switches from grouped-by-client to a flat per-project
+            // list, since only one client is in view). Cleared when the sidebar's
+            // own Project Activities button is clicked directly.
+            boardClientFilter: null,
+            clientTierModal: { show: false, mode: 'existing', clientDirectoryId: '', clientName: '', clientSSM: '', tier: 'Standard', saving: false },
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
             clientDocumentsUnsubscribe: null,
@@ -508,6 +515,7 @@ createApp({
             // Management. Keys must match the module keys used by hasAccess()/RBAC_ROLES.
             accessModules: [
                 { key: 'dashboard', label: 'Dashboard' },
+                { key: 'client-tier', label: 'Client Tier' },
                 { key: 'project-activities', label: 'Project Activities' },
                 { key: 'doc-generator', label: 'Documents (Quotation / Invoice)' },
                 { key: 'payslip-generator', label: 'Payroll (Payslip Generator)' },
@@ -774,6 +782,21 @@ createApp({
         latestChangelog() { return APP_CHANGELOG[0] || null; },
         appChangelog() { return APP_CHANGELOG; },
         priorityClients() { return this.customers.filter(c => c.clientTier === 'Priority'); },
+        premiumClients() { return this.customers.filter(c => c.clientTier === 'Premium'); },
+        // Absent clientTier defaults to Standard everywhere else (clientTierMeta,
+        // clientTierForId) — match that here rather than requiring the field to
+        // literally equal 'Standard'.
+        standardClients() { return this.customers.filter(c => !c.clientTier || c.clientTier === 'Standard'); },
+        clientTierGroups() {
+            return [
+                { key: 'Standard', clients: this.standardClients },
+                { key: 'Premium', clients: this.premiumClients },
+                { key: 'Priority', clients: this.priorityClients }
+            ].map(group => ({
+                ...group,
+                clients: [...group.clients].sort((a, b) => String(a.clientName || '').localeCompare(String(b.clientName || '')))
+            }));
+        },
         claimsPipelineStats() {
             const stages = [
                 { key: 'Pending HR', label: 'Pending HR', color: '#F59E0B' },
@@ -1048,6 +1071,7 @@ createApp({
                 const email = String(this.userProfile.email || '').trim().toLowerCase();
                 records = records.filter(project => String(project.ownerEmail || '').trim().toLowerCase() === email);
             }
+            if (this.boardClientFilter) records = records.filter(project => project.clientDirectoryId === this.boardClientFilter.id);
             if (!queryText) return records;
             return records.filter(project => [project.projectRef, project.title, project.clientName, project.ownerName, project.status, project.description].some(value => String(value || '').toLowerCase().includes(queryText)));
         },
@@ -4034,16 +4058,80 @@ createApp({
             }
         },
         async updateClientTier(cust, tier) {
-            if (!this.canManageClients) { this.showNotify('You do not have permission to update client tier.'); return; }
-            if (!cust?.id) return;
+            if (!this.canManageClients) { this.showNotify('You do not have permission to update client tier.'); return false; }
+            if (!cust?.id) return false;
             try {
-                await setDoc(doc(db, 'customers', cust.id), { clientTier: tier, updatedAt: new Date().toISOString(), updatedByUid: this.userProfile.uid }, { merge: true });
+                const now = new Date().toISOString();
+                await setDoc(doc(db, 'customers', cust.id), { clientTier: tier, clientTierAssignedAt: now, updatedAt: now, updatedByUid: this.userProfile.uid }, { merge: true });
                 this.logAudit('UPDATE', `Set ${tier} tier for client ${cust.clientName}`);
                 this.showNotify(`${cust.clientName} tagged as ${tier} Client.`);
+                return true;
             } catch (error) {
                 console.error('Client tier update failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'update the client tier'));
+                return false;
             }
+        },
+        // Lightweight client registration from the Client Tier page's "New /
+        // Manual" mode — only a company name is required (unlike
+        // saveCustomerToDatabase's full billing-address validation), since this
+        // is a quick tier tag, not a billing profile. The record is a normal
+        // customers doc, so address/phone/etc. can be filled in later the first
+        // time someone bills this client — same doc, no duplication.
+        async createClientWithTier(clientName, clientSSM, tier) {
+            if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
+            const name = String(clientName || '').trim();
+            if (!name) { this.showNotify('Enter the company name.'); return false; }
+            try {
+                const docId = doc(collection(db, 'customers')).id;
+                const now = new Date().toISOString();
+                await setDoc(doc(db, 'customers', docId), {
+                    clientName: name,
+                    clientSSM: String(clientSSM || '').trim(),
+                    clientTier: tier,
+                    clientTierAssignedAt: now,
+                    createdAt: now,
+                    updatedAt: now,
+                    updatedByUid: this.userProfile.uid,
+                    updatedByEmail: this.userProfile.email
+                });
+                this.logAudit('CREATE', `Registered client ${name} as ${tier} tier`);
+                this.showNotify(`${name} added as ${tier} Client.`);
+                return true;
+            } catch (error) {
+                console.error('Client tier creation failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'create this client record'));
+                return false;
+            }
+        },
+        openClientTierModal() {
+            if (!this.canManageClients) { this.showNotify('You do not have permission to manage client tiers.'); return; }
+            this.clientTierModal = { show: true, mode: 'existing', clientDirectoryId: '', clientName: '', clientSSM: '', tier: 'Standard', saving: false };
+        },
+        closeClientTierModal() {
+            this.clientTierModal.show = false;
+        },
+        async saveClientTierAssignment() {
+            const modal = this.clientTierModal;
+            modal.saving = true;
+            try {
+                let ok = false;
+                if (modal.mode === 'existing') {
+                    const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
+                    if (!cust) { this.showNotify('Select a client from the list.'); return; }
+                    ok = await this.updateClientTier(cust, modal.tier);
+                } else {
+                    ok = await this.createClientWithTier(modal.clientName, modal.clientSSM, modal.tier);
+                }
+                if (ok) this.closeClientTierModal();
+            } finally {
+                modal.saving = false;
+            }
+        },
+        viewClientBoard(cust) {
+            if (!cust?.id) return;
+            this.boardClientFilter = { id: cust.id, name: cust.clientName || 'Unknown Client' };
+            this.switchTab('project-activities');
         },
         requestClientAction(action, cust) {
             this.clientActionConfirm = { show: true, action, client: cust };
