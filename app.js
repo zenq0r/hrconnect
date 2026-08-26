@@ -335,6 +335,7 @@ createApp({
             notificationsLog: [],
             notificationsPanelOpen: false,
             staffDirectoryPanelOpen: false,
+            staffDirectoryTab: 'staff',
             darkMode: false,
             appUpdateAvailable: false,
             appVersionMarker: '',
@@ -782,6 +783,30 @@ createApp({
                 if (onlineDiff !== 0) return onlineDiff;
                 return String(a.name || '').localeCompare(String(b.name || ''));
             });
+        },
+        // Same header dropdown, second tab: every Client-role portal login
+        // (this.users, already a live onSnapshot subscription — no extra reads),
+        // tagged with its linked customer/company name via the same
+        // clientEmail/additionalClientEmails matching isClientOnline() uses.
+        clientDirectoryList() {
+            return this.users
+                .filter(user => user.role === 'Client' && String(user.email || '').trim())
+                .map(user => {
+                    const email = String(user.email || '').trim().toLowerCase();
+                    const customer = this.customers.find(item => {
+                        const authorizedEmails = new Set([
+                            item.clientEmail,
+                            ...(Array.isArray(item.additionalClientEmails) ? item.additionalClientEmails : [])
+                        ].map(addr => String(addr || '').trim().toLowerCase()).filter(Boolean));
+                        return authorizedEmails.has(email);
+                    });
+                    return { ...user, companyName: customer?.clientName || '' };
+                })
+                .sort((a, b) => {
+                    const onlineDiff = (this.isPortalUserOnline(b) ? 1 : 0) - (this.isPortalUserOnline(a) ? 1 : 0);
+                    if (onlineDiff !== 0) return onlineDiff;
+                    return String(a.name || a.email).localeCompare(String(b.name || b.email));
+                });
         },
         unreadNotificationsCount() { return this.notificationsLog.filter(n => !n.read).length; },
         latestChangelog() { return APP_CHANGELOG[0] || null; },
@@ -3131,6 +3156,13 @@ createApp({
         employeeLastSeen(emp) {
             if (this.isEmployeeOnline(emp)) return 'Active now';
             return emp.lastSeen ? `Last seen ${this.formatDateTime(emp.lastSeen)}` : 'No login activity';
+        },
+        portalUserPresenceLabel(user) {
+            return this.isPortalUserOnline(user) ? 'Online' : 'Offline';
+        },
+        portalUserLastSeen(user) {
+            if (this.isPortalUserOnline(user)) return 'Active now';
+            return user.lastSeen ? `Last seen ${this.formatDateTime(user.lastSeen)}` : 'No login activity';
         },
         async setCurrentEmployeePresence(isOnline) {
             if (!auth.currentUser || !this.userProfile.email || !this.employees.length) return false;

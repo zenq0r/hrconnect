@@ -531,37 +531,66 @@
                         </button>
 
                         <div v-if="canViewStaffDirectory" class="relative">
-                            <button type="button" @click="toggleStaffDirectoryPanel" class="relative rounded-lg bg-slate-100 dark:bg-slate-700 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Staff Directory">
+                            <button type="button" @click="toggleStaffDirectoryPanel" class="relative rounded-lg bg-slate-100 dark:bg-slate-700 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Staff &amp; Client Directory">
                                 <i class="fa-solid fa-users text-sm"></i>
                             </button>
                             <div v-if="staffDirectoryPanelOpen" class="fixed inset-0 z-40" @click="staffDirectoryPanelOpen = false"></div>
                             <div v-if="staffDirectoryPanelOpen" class="absolute right-0 top-full z-50 mt-2 w-80 max-w-[90vw] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl">
                                 <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-4 py-3">
-                                    <h4 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">Staff Directory</h4>
-                                    <span class="text-[10px] font-bold text-slate-400">{{ staffDirectoryList.length }} staff</span>
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">Directory</h4>
+                                    <span class="text-[10px] font-bold text-slate-400">{{ staffDirectoryTab === 'staff' ? staffDirectoryList.length : clientDirectoryList.length }} {{ staffDirectoryTab === 'staff' ? 'staff' : 'clients' }}</span>
+                                </div>
+                                <div class="flex gap-1.5 border-b border-slate-100 dark:border-slate-700 px-4 py-2">
+                                    <button type="button" @click="staffDirectoryTab = 'staff'" :class="staffDirectoryTab === 'staff' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition">Staff</button>
+                                    <button type="button" @click="staffDirectoryTab = 'clients'" :class="staffDirectoryTab === 'clients' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition">Clients</button>
                                 </div>
                                 <div class="max-h-80 overflow-y-auto">
-                                    <div v-for="emp in staffDirectoryList" :key="emp.empNo" class="flex items-center gap-2.5 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs">
-                                        <div class="relative shrink-0">
-                                            <div class="w-8 h-8 rounded-full bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[10px] font-extrabold overflow-hidden">
-                                                <img v-if="employeePhotoByEmail(emp.email)" :src="employeePhotoByEmail(emp.email)" alt="" class="w-full h-full object-cover">
-                                                <span v-else>{{ getInitials(emp.name) }}</span>
+                                    <template v-if="staffDirectoryTab === 'staff'">
+                                        <div v-for="emp in staffDirectoryList" :key="emp.empNo" class="flex items-center gap-2.5 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs">
+                                            <div class="relative shrink-0">
+                                                <div class="w-8 h-8 rounded-full bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[10px] font-extrabold overflow-hidden">
+                                                    <img v-if="employeePhotoByEmail(emp.email)" :src="employeePhotoByEmail(emp.email)" alt="" class="w-full h-full object-cover">
+                                                    <span v-else>{{ getInitials(emp.name) }}</span>
+                                                </div>
+                                                <span :class="isEmployeeOnline(emp) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-800"></span>
                                             </div>
-                                            <span :class="isEmployeeOnline(emp) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-800"></span>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="truncate font-bold text-slate-700 dark:text-slate-200">{{ emp.name }}</p>
+                                                <p class="truncate text-[9px] text-slate-400">{{ emp.position || 'No position' }}<span v-if="emp.dept"> · {{ emp.dept }}</span></p>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <span :class="isEmployeeOnline(emp) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'" class="block text-[9px] font-extrabold uppercase">{{ employeePresenceLabel(emp) }}</span>
+                                                <span class="block text-[8px] text-slate-400">{{ employeeLastSeen(emp) }}</span>
+                                            </div>
                                         </div>
-                                        <div class="min-w-0 flex-1">
-                                            <p class="truncate font-bold text-slate-700 dark:text-slate-200">{{ emp.name }}</p>
-                                            <p class="truncate text-[9px] text-slate-400">{{ emp.position || 'No position' }}<span v-if="emp.dept"> · {{ emp.dept }}</span></p>
+                                        <div v-if="!staffDirectoryList.length" class="zq-empty-state zq-empty-state-compact">
+                                            <i class="fa-regular fa-user zq-empty-state-icon" aria-hidden="true"></i>
+                                            <p class="zq-empty-state-title">No staff on record</p>
                                         </div>
-                                        <div class="shrink-0 text-right">
-                                            <span :class="isEmployeeOnline(emp) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'" class="block text-[9px] font-extrabold uppercase">{{ employeePresenceLabel(emp) }}</span>
-                                            <span class="block text-[8px] text-slate-400">{{ employeeLastSeen(emp) }}</span>
+                                    </template>
+                                    <template v-else>
+                                        <div v-for="cu in clientDirectoryList" :key="cu.id" class="flex items-center gap-2.5 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs">
+                                            <div class="relative shrink-0">
+                                                <div class="w-8 h-8 rounded-full bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[10px] font-extrabold overflow-hidden">
+                                                    <img v-if="cu.photo" :src="cu.photo" alt="" class="w-full h-full object-cover">
+                                                    <span v-else>{{ getInitials(cu.name || cu.email) }}</span>
+                                                </div>
+                                                <span :class="isPortalUserOnline(cu) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-800"></span>
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="truncate font-bold text-slate-700 dark:text-slate-200">{{ cu.name || cu.email }}</p>
+                                                <p class="truncate text-[9px] text-slate-400">{{ cu.companyName || cu.email }}</p>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <span :class="isPortalUserOnline(cu) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'" class="block text-[9px] font-extrabold uppercase">{{ portalUserPresenceLabel(cu) }}</span>
+                                                <span class="block text-[8px] text-slate-400">{{ portalUserLastSeen(cu) }}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div v-if="!staffDirectoryList.length" class="zq-empty-state zq-empty-state-compact">
-                                        <i class="fa-regular fa-user zq-empty-state-icon" aria-hidden="true"></i>
-                                        <p class="zq-empty-state-title">No staff on record</p>
-                                    </div>
+                                        <div v-if="!clientDirectoryList.length" class="zq-empty-state zq-empty-state-compact">
+                                            <i class="fa-regular fa-address-book zq-empty-state-icon" aria-hidden="true"></i>
+                                            <p class="zq-empty-state-title">No client accounts on record</p>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
                         </div>
