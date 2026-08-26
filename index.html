@@ -445,9 +445,10 @@
                     <button v-if="hasAccess('client-task')" type="button" @click="switchTab('client-task')" :class="{'sidebar-item-active': currentTab === 'client-task', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-task'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-list-check w-5 text-center"></i><span>Client Task</span>
                     </button>
-                    <!-- Director/Superadmin/HR/Account (anyone with Client Task access) now reach
-                         the board only through Client Task, so this direct button is hidden for
-                         them — Client Task's own "View All Projects" button is the equivalent.
+                    <!-- Director/Superadmin/HR/Account (anyone with Client Task access) can only
+                         ever reach the board by drilling into one client from Client Task — there
+                         is deliberately no unfiltered "every project, every client" view for them
+                         anymore, so this direct button is hidden entirely.
                          Staff/IT/Client have no Client Task page at all, so they keep this as
                          their only path (Client's own "My Projects" tracker included). -->
                     <button v-if="hasAccess('project-activities') && !hasAccess('client-task')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
@@ -2281,14 +2282,9 @@
                                 <p class="zq-page-header-desc">Every client, grouped live by their project status. Click a company to view its projects; right-click a card to delete a wrongly-created one.</p>
                             </div>
                         </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button type="button" @click="boardClientFilter = null; switchTab('project-activities')" class="zq-btn zq-btn-outline">
-                                <i class="fa-solid fa-table-columns"></i><span>View All Projects</span>
-                            </button>
-                            <button v-if="canCreateClientTask" type="button" @click="openClientTaskModal" class="zq-btn zq-btn-primary">
-                                <i class="fa-solid fa-plus"></i><span>New Client Task</span>
-                            </button>
-                        </div>
+                        <button v-if="canCreateClientTask" type="button" @click="openClientTaskModal" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-plus"></i><span>New Client Task</span>
+                        </button>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -2387,7 +2383,6 @@
                         <span>{{ boardClientFilter ? boardClientFilter.name : 'All Projects' }}</span>
                         <i class="fa-solid fa-chevron-right text-[8px]"></i>
                         <span class="text-brand-dark dark:text-white">Project Activities</span>
-                        <button v-if="boardClientFilter" type="button" @click="boardClientFilter = null" class="zq-filter-reset ml-1"><i class="fa-solid fa-rotate-left"></i>View All Clients</button>
                     </div>
 
                     <!-- CLIENT-FACING PROJECT TRACKER (compact) -->
