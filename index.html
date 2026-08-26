@@ -200,14 +200,14 @@
                     <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300"><i class="fa-solid fa-circle-check text-xl"></i></div>
                     <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Password updated</h2>
                     <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Your password has been reset successfully. You can now sign in with your new password.</p>
-                    <button type="button" @click="exitPasswordResetFlow" class="mt-6 w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg transition duration-200 text-xs uppercase tracking-wider">Go to Sign In</button>
+                    <button type="button" @click="exitPasswordResetFlow" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Go to Sign In</button>
                 </template>
 
                 <template v-else-if="!passwordResetFlow.valid">
                     <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300"><i class="fa-solid fa-triangle-exclamation text-xl"></i></div>
                     <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Link no longer valid</h2>
                     <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{{ passwordResetFlow.error }}</p>
-                    <button type="button" @click="exitPasswordResetFlow" class="mt-6 w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg transition duration-200 text-xs uppercase tracking-wider">Back to Sign In</button>
+                    <button type="button" @click="exitPasswordResetFlow" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Back to Sign In</button>
                 </template>
 
                 <template v-else>
@@ -223,8 +223,8 @@
                             <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
                         </div>
                         <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
-                        <button type="submit" :disabled="passwordResetFlow.loading" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider disabled:opacity-60">
-                            {{ passwordResetFlow.loading ? 'Updating…' : 'Update Password' }}
+                        <button type="submit" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
+                            Update Password
                         </button>
                     </form>
                 </template>
@@ -237,7 +237,7 @@
                 <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
             <div class="relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
-                <button type="button" @click="exitForgotPasswordFlow" class="mb-5 inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-brand-dark dark:hover:text-white transition">
+                <button type="button" @click="exitForgotPasswordFlow" class="zq-btn zq-btn-ghost zq-btn-sm mb-5">
                     <i class="fa-solid fa-arrow-left"></i><span>Back to Sign In</span>
                 </button>
 
@@ -265,11 +265,11 @@
 
                     <div v-if="forgotPasswordFlow.error" class="zq-alert zq-alert-error">{{ forgotPasswordFlow.error }}</div>
 
-                    <button type="submit" :disabled="forgotPasswordFlow.loading" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider disabled:opacity-60">
-                        {{ forgotPasswordFlow.loading ? 'Sending…' : 'Send Reset Link' }}
+                    <button type="submit" :disabled="forgotPasswordFlow.loading" :class="{ 'is-loading': forgotPasswordFlow.loading }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
+                        Send Reset Link
                     </button>
                 </form>
-                <button v-else type="button" @click="exitForgotPasswordFlow" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider">Back to Sign In</button>
+                <button v-else type="button" @click="exitForgotPasswordFlow" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">Back to Sign In</button>
             </div>
         </div>
 
@@ -330,7 +330,7 @@
             <!-- LOGIN FORM: contextual to Staff or Client -->
             <div v-else class="relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
 
-                <button type="button" @click="selectAuthView('landing')" class="mb-5 inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-400 hover:text-brand-dark dark:hover:text-white transition">
+                <button type="button" @click="selectAuthView('landing')" class="zq-btn zq-btn-ghost zq-btn-sm mb-5">
                     <i class="fa-solid fa-arrow-left"></i><span>Back</span>
                 </button>
 
@@ -353,7 +353,7 @@
                     <div>
                         <label for="login-password" class="zq-label">Password</label>
                         <div class="relative">
-                            <input id="login-password" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" required autocomplete="current-password" placeholder="••••••••" class="w-full pl-4 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none text-xs">
+                            <input id="login-password" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" required autocomplete="current-password" placeholder="••••••••" class="zq-input font-medium pr-10">
                             <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none" title="Show / Hide Password">
                                 <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
                             </button>
@@ -368,14 +368,14 @@
 
                     <div v-if="loginError" class="zq-alert zq-alert-error">{{ loginError }}</div>
 
-                    <button type="submit" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition duration-200 text-xs uppercase tracking-wider">
+                    <button type="submit" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
                         {{ authView === 'client' ? 'Client Sign In' : 'Staff Sign In' }}
                     </button>
                 </form>
             </div>
 
             <!-- EMAIL OTP AND TRUSTED-DEVICE ENROLMENT FOR ALL RBAC ROLES -->
-            <div v-if="loginOtp.show" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+            <div v-if="loginOtp.show" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Verify Your Identity">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-7 space-y-4 text-center">
                     <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-2xl"><i class="fa-solid fa-shield-halved"></i></div>
                     <div>
@@ -383,18 +383,19 @@
                         <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">All portal accounts require a second verification step. {{ loginOtp.sending ? 'Sending a code to' : 'We sent a 6-digit code to' }} <span class="font-bold">{{ loginOtp.email }}</span>.</p>
                     </div>
                     <form @submit.prevent="verifyLoginOtp" class="space-y-3">
-                        <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending" placeholder="000000" autocomplete="one-time-code" class="w-full text-center text-2xl font-black tracking-[0.5em] px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-brand-blue focus:outline-none">
+                        <label for="login-otp-code" class="sr-only">6-digit verification code</label>
+                        <input id="login-otp-code" name="otpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending" placeholder="000000" autocomplete="one-time-code" class="zq-input text-center text-2xl font-black tracking-[0.5em] py-3">
                         <div v-if="loginOtp.error" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
                         <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-left dark:border-slate-600">
                             <input type="checkbox" v-model="loginOtp.trustDevice" class="zq-checkbox mt-0.5">
                             <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Trust this device</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Skip OTP on this browser for {{ pendingLoginContext && ['Superadmin', 'Director', 'HR', 'Account', 'IT'].includes(pendingLoginContext.role) ? '7 days' : '30 days' }}. Do not use on a shared device.</span></span>
                         </label>
-                        <button type="submit" :disabled="loginOtp.sending || loginOtp.verifying" class="w-full bg-brand-dark hover:bg-brand-blue text-white font-bold py-3 rounded-xl shadow-lg transition duration-200 text-xs uppercase tracking-wider disabled:opacity-50">
-                            {{ loginOtp.verifying ? 'Verifying…' : loginOtp.sending ? 'Sending Code…' : 'Verify & Sign In' }}
+                        <button type="submit" :disabled="loginOtp.sending || loginOtp.verifying" :class="{ 'is-loading': loginOtp.sending || loginOtp.verifying }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
+                            Verify &amp; Sign In
                         </button>
                         <div class="flex items-center justify-between text-xs pt-1">
-                            <button type="button" @click="cancelLoginOtp" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-semibold">Cancel</button>
-                            <button type="button" @click="requestLoginOtp" :disabled="loginOtp.sending" class="text-brand-gold hover:underline font-bold disabled:opacity-50">Resend Code</button>
+                            <button type="button" @click="cancelLoginOtp" class="zq-btn zq-btn-ghost zq-btn-sm">Cancel</button>
+                            <button type="button" @click="requestLoginOtp" :disabled="loginOtp.sending" class="zq-btn zq-btn-ghost zq-btn-sm">Resend Code</button>
                         </div>
                     </form>
                 </div>
