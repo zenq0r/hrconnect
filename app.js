@@ -432,7 +432,7 @@ createApp({
             // list, since only one client is in view). Cleared when the sidebar's
             // own Project Activities button is clicked directly.
             boardClientFilter: null,
-            clientTaskModal: { show: false, mode: 'manual', clientDirectoryId: '', clientName: '', clientSSM: '', saving: false },
+            clientTaskModal: { show: false, clientDirectoryId: '', saving: false },
             clientTaskContextMenu: { show: false, x: 0, y: 0, cust: null },
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
@@ -3781,6 +3781,20 @@ createApp({
             else { label = 'At Risk'; className = 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300'; }
             return { score, label, className };
         },
+        // Quotations + Invoices billed to this client — same matching rule as
+        // clientHealthScore (linked customer id, falling back to name match for
+        // older records saved before raw.customerId existed), reshaped with the
+        // same tagClass/isDoc fields filteredRecentActivities already adds so
+        // the Recent Activities table row markup can be reused as-is.
+        clientDocHistory(cust) {
+            if (!cust) return [];
+            const items = cust.id
+                ? this.docHistory.filter(d => d.raw && d.raw.customerId === cust.id)
+                : this.docHistory.filter(d => d.name === cust.clientName);
+            return items
+                .map(d => ({ ...d, tagClass: d.type === 'Invoice' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200', isDoc: true }))
+                .sort((a, b) => new Date(b.date) - new Date(a.date));
+        },
         isNewClient(clientDirectoryId) {
             if (!clientDirectoryId) return false;
             const customer = this.customers.find(c => c.id === clientDirectoryId);
@@ -4130,42 +4144,9 @@ createApp({
                 return false;
             }
         },
-        // Lightweight client registration from the Client Tier page's "New /
-        // Manual" mode — only a company name is required (unlike
-        // saveCustomerToDatabase's full billing-address validation), since this
-        // is a quick tier tag, not a billing profile. The record is a normal
-        // customers doc, so address/phone/etc. can be filled in later the first
-        // time someone bills this client — same doc, no duplication.
-        async createClientWithTier(clientName, clientSSM, tier) {
-            if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
-            const name = String(clientName || '').trim();
-            if (!name) { this.showNotify('Enter the company name.'); return false; }
-            try {
-                const docId = doc(collection(db, 'customers')).id;
-                const now = new Date().toISOString();
-                await setDoc(doc(db, 'customers', docId), {
-                    clientName: name,
-                    clientSSM: String(clientSSM || '').trim(),
-                    clientTier: tier,
-                    clientTierAssignedAt: now,
-                    clientTaskCreatedAt: now,
-                    createdAt: now,
-                    updatedAt: now,
-                    updatedByUid: this.userProfile.uid,
-                    updatedByEmail: this.userProfile.email
-                });
-                this.logAudit('CREATE', `Registered client ${name} as ${tier} tier`);
-                this.showNotify(`${name} added as ${tier} Client.`);
-                return true;
-            } catch (error) {
-                console.error('Client tier creation failed:', error);
-                this.showNotify(this.getFirestoreWriteError(error, 'create this client record'));
-                return false;
-            }
-        },
         openClientTaskModal() {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
-            this.clientTaskModal = { show: true, mode: 'manual', clientDirectoryId: '', clientName: '', clientSSM: '', saving: false };
+            this.clientTaskModal = { show: true, clientDirectoryId: '', saving: false };
         },
         closeClientTaskModal() {
             this.clientTaskModal.show = false;
@@ -4174,9 +4155,8 @@ createApp({
         // clientTaskCreatedAt is set — never just because a customers record
         // exists. Staff adding/registering a client through Client Directory or
         // Billing & Documents does NOT touch this field, so it has zero effect
-        // on Client Task; the only two writers are createClientWithTier (manual
-        // mode below) and this method (existing mode) — both reachable only
-        // through the Director-only New Client Task modal.
+        // on Client Task; this method is the ONLY writer, reachable only through
+        // the Director-only New Client Task modal (pick from Client Directory).
         async addClientToTask(cust) {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return false; }
             if (!cust?.id) return false;
@@ -4195,22 +4175,12 @@ createApp({
         async saveClientTask() {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
             const modal = this.clientTaskModal;
-            if (modal.mode === 'existing') {
-                const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
-                if (!cust) { this.showNotify('Select a client from the list.'); return; }
-                modal.saving = true;
-                try {
-                    const ok = await this.addClientToTask(cust);
-                    if (ok) { this.closeClientTaskModal(); this.viewClientBoard(cust); }
-                } finally {
-                    modal.saving = false;
-                }
-                return;
-            }
+            const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
+            if (!cust) { this.showNotify('Select a client from the list.'); return; }
             modal.saving = true;
             try {
-                const ok = await this.createClientWithTier(modal.clientName, modal.clientSSM, 'Standard');
-                if (ok) this.closeClientTaskModal();
+                const ok = await this.addClientToTask(cust);
+                if (ok) { this.closeClientTaskModal(); this.viewClientBoard(cust); }
             } finally {
                 modal.saving = false;
             }

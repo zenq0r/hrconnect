@@ -2336,24 +2336,12 @@
                             <button type="button" @click="closeClientTaskModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                         </div>
                         <div class="zq-modal-body space-y-4">
-                            <div class="zq-segmented-control" role="group" aria-label="Client source">
-                                <button type="button" @click="clientTaskModal.mode = 'existing'" :class="{ 'is-active': clientTaskModal.mode === 'existing' }" :aria-pressed="clientTaskModal.mode === 'existing'">From Client Directory</button>
-                                <button type="button" @click="clientTaskModal.mode = 'manual'" :class="{ 'is-active': clientTaskModal.mode === 'manual' }" :aria-pressed="clientTaskModal.mode === 'manual'">New / Manual</button>
-                            </div>
-
-                            <template v-if="clientTaskModal.mode === 'existing'">
-                                <label class="zq-label">Client<select v-model="clientTaskModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }}<template v-if="cust.clientSSM"> · {{ cust.clientSSM }}</template></option></select></label>
-                                <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Adds this client to Client Task (if not already added), then opens its board directly.</p>
-                            </template>
-                            <template v-else>
-                                <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">For a client that isn't in Client Directory yet — it starts in Consult.</p>
-                                <label class="zq-label">Company Name *<input type="text" v-model="clientTaskModal.clientName" required class="zq-input mt-1.5" placeholder="e.g. Zenqor Technologies"></label>
-                                <label class="zq-label">SSM No. (optional)<input type="text" v-model="clientTaskModal.clientSSM" class="zq-input mt-1.5"></label>
-                            </template>
+                            <label class="zq-label">Client<select v-model="clientTaskModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }}<template v-if="cust.clientSSM"> · {{ cust.clientSSM }}</template></option></select></label>
+                            <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Adds this client to Client Task (if not already added), then opens its board directly.</p>
                         </div>
                         <div class="zq-modal-footer">
                             <button type="button" @click="closeClientTaskModal" class="zq-btn zq-btn-outline">Cancel</button>
-                            <button type="button" @click="saveClientTask" :disabled="clientTaskModal.saving || (clientTaskModal.mode === 'existing' ? !clientTaskModal.clientDirectoryId : !clientTaskModal.clientName.trim())" class="zq-btn zq-btn-primary">{{ clientTaskModal.saving ? 'Saving…' : (clientTaskModal.mode === 'existing' ? 'View Board' : 'Save') }}</button>
+                            <button type="button" @click="saveClientTask" :disabled="clientTaskModal.saving || !clientTaskModal.clientDirectoryId" class="zq-btn zq-btn-primary">{{ clientTaskModal.saving ? 'Saving…' : 'View Board' }}</button>
                         </div>
                     </div>
                 </div>
@@ -3556,6 +3544,29 @@
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
                     <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-500">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
+                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <div class="mb-3"><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Documents & Billing History</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Every quotation and invoice created for this client.</p></div>
+                        <div v-if="!clientDocHistory(clientView.client).length" class="zq-empty-state zq-empty-state-compact">
+                            <i class="fa-regular fa-file-invoice zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">No documents yet</p>
+                            <p class="zq-empty-state-text">Quotations and invoices created for this client will appear here.</p>
+                        </div>
+                        <div v-else class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead><tr><th>Date</th><th>Module</th><th>Ref No.</th><th class="text-right">Amount (RM)</th><th>Status</th><th class="text-center w-16">View</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="item in clientDocHistory(clientView.client)" :key="item.id">
+                                        <td class="text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
+                                        <td><span :class="item.tagClass" class="px-2.5 py-1 rounded-full text-[11px] font-bold">{{ item.type }}</span></td>
+                                        <td class="font-bold text-brand-dark dark:text-slate-100">{{ item.docNo }}</td>
+                                        <td class="text-right font-extrabold text-brand-dark dark:text-slate-100">{{ formatCurrency(item.amount) }}</td>
+                                        <td><span :class="getActivityStatus(item).className" class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase">{{ getActivityStatus(item).label }}</span></td>
+                                        <td class="text-center"><button type="button" @click="viewRecord(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Record"><i class="fa-solid fa-eye"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <div class="mb-3 flex items-center justify-between gap-3">
                             <div><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Documents</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">All JPG, PNG and PDF files collected for this client, viewable by their Client Portal too.</p></div>
