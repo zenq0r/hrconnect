@@ -1009,6 +1009,67 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-form-section-title { font-size: 0.6875rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; color: var(--zq-text-muted); margin-bottom: var(--zq-space-3); }
 .zq-form-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: var(--zq-space-5); padding-top: var(--zq-space-4); border-top: 1px solid var(--zq-border); }
 
+/* ---- Modal system (Step 11) — one shell shared by every dialog.
+   Audit found 27 separate `fixed inset-0 ... flex items-center
+   justify-center bg-slate-9xx/6x backdrop-blur-sm` overlays, each with
+   its own one-off max-w-*, radius and shadow. This is the shell only;
+   each modal keeps its own v-if condition, close handler, form and
+   submit handler exactly as before — only the surrounding classes
+   change. Sizes: .zq-modal-sm (confirmations), default (most forms),
+   .zq-modal-lg / .zq-modal-xl (long forms, e.g. HR Employee). ---- */
+.zq-modal-overlay {
+    position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+}
+.zq-modal {
+    width: 100%; max-width: 28rem; max-height: 90vh; display: flex; flex-direction: column;
+    overflow: hidden; background: var(--zq-surface); border-radius: var(--zq-radius-lg);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.zq-modal-sm { max-width: 24rem; }
+.zq-modal-lg { max-width: 42rem; }
+.zq-modal-xl { max-width: 56rem; }
+.zq-modal-header {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    padding: 18px 20px; border-bottom: 1px solid var(--zq-border); flex-shrink: 0;
+}
+.zq-modal-title { font-size: 1rem; font-weight: 800; color: var(--zq-text); line-height: 1.3; }
+.zq-modal-description { margin-top: 2px; font-size: 0.75rem; color: var(--zq-text-muted); }
+.zq-modal-close {
+    display: inline-flex; align-items: center; justify-content: center; height: 32px; width: 32px;
+    border-radius: var(--zq-radius-md); color: var(--zq-text-muted); flex-shrink: 0; background: transparent;
+    transition: background-color var(--zq-transition), color var(--zq-transition);
+}
+.zq-modal-close:hover { background: var(--zq-surface-alt); color: var(--zq-text); }
+.zq-modal-body { padding: 20px; overflow-y: auto; flex: 1 1 auto; }
+.zq-modal-footer {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px;
+    padding: 14px 20px; border-top: 1px solid var(--zq-border); flex-shrink: 0;
+}
+
+/* ---- Confirmation dialogs — compact icon+title+message body, reuses
+   .zq-modal-sm/.zq-modal-footer for the shell. ---- */
+.zq-confirm-icon {
+    display: flex; align-items: center; justify-content: center; height: 40px; width: 40px;
+    border-radius: 50%; flex-shrink: 0;
+}
+.zq-confirm-icon.is-danger { background: var(--zq-error-bg); color: var(--zq-error); }
+.zq-confirm-icon.is-warning { background: var(--zq-warning-bg); color: var(--zq-warning); }
+
+/* ---- Drawer — slide-in from the right, for quick read-mostly
+   inspection panels (record/detail views), not multi-step workflows. ---- */
+.zq-drawer-overlay {
+    position: fixed; inset: 0; z-index: 60; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(2px);
+    display: flex; justify-content: flex-end;
+}
+.zq-drawer {
+    width: 100%; max-width: 32rem; height: 100%; max-height: 100vh; display: flex; flex-direction: column;
+    background: var(--zq-surface); box-shadow: -12px 0 40px rgba(0, 0, 0, 0.2);
+    animation: zq-drawer-in 220ms ease;
+}
+@keyframes zq-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.zq-drawer-lg { max-width: 42rem; }
+
 /* ---- Empty state ---- */
 .zq-empty-state {
     display: flex; flex-direction: column; align-items: center; justify-content: center;

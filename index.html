@@ -3352,90 +3352,98 @@
         </div>
 
         <!-- CLIENT ACTION CONFIRMATION -->
-        <div v-if="clientActionConfirm.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 no-print">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
-                <div class="flex items-center gap-3"><span :class="clientActionConfirm.action === 'delete' ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300'" class="flex h-10 w-10 items-center justify-center rounded-full"><i :class="clientActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="font-extrabold text-brand-dark dark:text-white">{{ clientActionConfirm.action === 'delete' ? 'Delete client record?' : 'Edit client record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ clientActionConfirm.client?.clientName }}</p></div></div>
-                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ clientActionConfirm.action === 'delete' ? 'This action removes the client record. Please confirm before continuing.' : 'You will be taken to Billing & Documents to update the client information.' }}</p>
-                <div class="mt-6 flex justify-end gap-2"><button type="button" @click="clientActionConfirm.show = false" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">No</button><button type="button" @click="confirmClientAction" :class="clientActionConfirm.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-dark hover:bg-brand-blue'" class="rounded-xl px-4 py-2 text-xs font-bold text-white">Yes, Continue</button></div>
+        <div v-if="clientActionConfirm.show" class="zq-modal-overlay" role="dialog" aria-modal="true" @click.self="clientActionConfirm.show = false">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <div class="flex items-center gap-3"><span :class="clientActionConfirm.action === 'delete' ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i :class="clientActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="zq-modal-title">{{ clientActionConfirm.action === 'delete' ? 'Delete client record?' : 'Edit client record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ clientActionConfirm.client?.clientName }}</p></div></div>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ clientActionConfirm.action === 'delete' ? 'This action removes the client record. Please confirm before continuing.' : 'You will be taken to Billing & Documents to update the client information.' }}</p>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="clientActionConfirm.show = false" class="zq-btn zq-btn-outline">No</button><button type="button" @click="confirmClientAction" :class="clientActionConfirm.action === 'delete' ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">Yes, Continue</button></div>
             </div>
         </div>
 
         <!-- GENERIC APP CONFIRMATION -->
-        <div v-if="appConfirm.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 no-print" @click.self="resolveAppConfirm(false)">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
-                <div class="flex items-center gap-3">
-                    <span :class="appConfirm.danger ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300'" class="flex h-10 w-10 items-center justify-center rounded-full shrink-0"><i class="fa-solid fa-triangle-exclamation"></i></span>
-                    <h3 class="font-extrabold text-brand-dark dark:text-white">{{ appConfirm.title }}</h3>
+        <div v-if="appConfirm.show" class="zq-modal-overlay z-[110]" role="dialog" aria-modal="true" :aria-label="appConfirm.title" @click.self="resolveAppConfirm(false)">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <div class="flex items-center gap-3">
+                        <span :class="appConfirm.danger ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <h3 class="zq-modal-title">{{ appConfirm.title }}</h3>
+                    </div>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ appConfirm.message }}</p>
                 </div>
-                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ appConfirm.message }}</p>
-                <div class="mt-6 flex justify-end gap-2">
-                    <button type="button" @click="resolveAppConfirm(false)" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">Cancel</button>
-                    <button type="button" @click="resolveAppConfirm(true)" :class="appConfirm.danger ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-dark hover:bg-brand-blue'" class="rounded-xl px-4 py-2 text-xs font-bold text-white">{{ appConfirm.confirmLabel }}</button>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="resolveAppConfirm(false)" class="zq-btn zq-btn-outline">Cancel</button>
+                    <button type="button" @click="resolveAppConfirm(true)" :class="appConfirm.danger ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">{{ appConfirm.confirmLabel }}</button>
                 </div>
             </div>
         </div>
 
         <!-- EMPLOYEE INFORMATION VIEW -->
-        <div v-if="employeeView.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[55] flex items-center justify-center p-4 no-print" @click.self="employeeView.show = false">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-                <div class="flex items-start justify-between gap-4 border-b border-slate-200 dark:border-slate-700 pb-4">
+        <div v-if="employeeView.show" class="zq-drawer-overlay z-[55]" role="dialog" aria-modal="true" aria-label="Employee Information" @click.self="employeeView.show = false">
+            <div class="zq-drawer zq-drawer-lg">
+                <div class="zq-modal-header">
                     <div>
                         <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">HR Employee Management</p>
-                        <h3 class="mt-1 text-lg font-extrabold text-brand-dark dark:text-white">Employee Information</h3>
-                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Sensitive identifiers are protected and shown only as the final four digits.</p>
+                        <h3 class="zq-modal-title mt-1">Employee Information</h3>
+                        <p class="zq-modal-description">Sensitive identifiers are protected and shown only as the final four digits.</p>
                     </div>
-                    <button type="button" @click="employeeView.show = false" aria-label="Close employee information" class="rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-xmark"></i></button>
+                    <button type="button" @click="employeeView.show = false" aria-label="Close employee information" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-5 text-xs">
+                <div class="zq-modal-body">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Employee</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ employeeView.employee.name }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">{{ employeeView.employee.empNo }} · {{ employeeView.employee.position }}</p></div><div class="text-right"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(employeeViewLiveRecord) }}</span><p class="mt-1 text-[9px] text-slate-400 dark:text-slate-500">{{ employeeLastSeen(employeeViewLiveRecord) }}</p></div></div></div>
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Department</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.dept }}</p></div>
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Employment</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.employmentType }} · {{ employeeView.employee.status }}</p></div>
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Work Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ employeeView.employee.email }}</p></div>
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Join Date</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.joinDate }}</p></div>
                 </div>
-                <div class="border-t border-slate-200 dark:border-slate-700 pt-4"><h4 class="font-extrabold text-brand-dark dark:text-white">Protected information</h4>
-                    <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div class="zq-form-section"><h4 class="zq-form-section-title">Protected information</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">ID / Passport</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.ic }}</span></p>
                         <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">Bank Account</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.bankAcc }}</span></p>
                         <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">EPF / SOCSO</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.epfNo }} · {{ employeeView.employee.socsoNo }}</span></p>
                         <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">EIS / Tax PCB</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.eisNo }} · {{ employeeView.employee.taxNo }}</span></p>
                     </div>
                 </div>
-                <div class="mt-5 flex justify-end"><button type="button" @click="employeeView.show = false" class="rounded-xl bg-brand-dark px-5 py-2 text-xs font-bold text-white hover:bg-brand-blue">Close</button></div>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="employeeView.show = false" class="zq-btn zq-btn-primary">Close</button></div>
             </div>
         </div>
 
         <!-- EMPLOYEE ACTION CONFIRMATION -->
-        <div v-if="employeeActionConfirm.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 no-print">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
-                <div class="flex items-center gap-3"><span :class="employeeActionConfirm.action === 'delete' ? 'bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-300'" class="flex h-10 w-10 items-center justify-center rounded-full"><i :class="employeeActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="font-extrabold text-brand-dark dark:text-white">{{ employeeActionConfirm.action === 'delete' ? 'Delete employee record?' : 'Edit employee record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ employeeActionConfirm.employee?.name }} · {{ employeeActionConfirm.employee?.empNo }}</p></div></div>
-                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ employeeActionConfirm.action === 'delete' ? 'This action removes the employee record. Please confirm before continuing.' : 'Sensitive fields remain protected and require a full value when changed.' }}</p>
-                <div class="mt-6 flex justify-end gap-2"><button type="button" @click="employeeActionConfirm.show = false" class="rounded-xl bg-slate-100 dark:bg-slate-700 px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600">No</button><button type="button" @click="confirmEmployeeAction" :class="employeeActionConfirm.action === 'delete' ? 'bg-red-600 hover:bg-red-700' : 'bg-brand-dark hover:bg-brand-blue'" class="rounded-xl px-4 py-2 text-xs font-bold text-white">Yes, Continue</button></div>
+        <div v-if="employeeActionConfirm.show" class="zq-modal-overlay" role="dialog" aria-modal="true" @click.self="employeeActionConfirm.show = false">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <div class="flex items-center gap-3"><span :class="employeeActionConfirm.action === 'delete' ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i :class="employeeActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="zq-modal-title">{{ employeeActionConfirm.action === 'delete' ? 'Delete employee record?' : 'Edit employee record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ employeeActionConfirm.employee?.name }} · {{ employeeActionConfirm.employee?.empNo }}</p></div></div>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ employeeActionConfirm.action === 'delete' ? 'This action removes the employee record. Please confirm before continuing.' : 'Sensitive fields remain protected and require a full value when changed.' }}</p>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="employeeActionConfirm.show = false" class="zq-btn zq-btn-outline">No</button><button type="button" @click="confirmEmployeeAction" :class="employeeActionConfirm.action === 'delete' ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">Yes, Continue</button></div>
             </div>
         </div>
 
         <!-- MODAL PEKERJA & AKSES -->
-        <div v-if="employeeModal.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
-                <div class="flex justify-between items-center border-b pb-3 dark:border-slate-700">
-                    <h3 class="text-base font-extrabold text-brand-dark dark:text-white">{{ employeeModal.isEdit ? 'Update Employee: ' + employeeModal.form.empNo : 'Add New Employee' }}</h3>
-                    <button type="button" @click="employeeModal.show = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div v-if="employeeModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="employeeModal.isEdit ? 'Update Employee' : 'Add New Employee'">
+            <form @submit.prevent="saveEmployee" class="zq-modal zq-modal-lg">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">{{ employeeModal.isEdit ? 'Update Employee: ' + employeeModal.form.empNo : 'Add New Employee' }}</h3>
+                    <button type="button" @click="employeeModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <form @submit.prevent="saveEmployee" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-                    <div class="md:col-span-2 border-b dark:border-slate-700 pb-2">
-                        <h4 class="font-extrabold text-brand-dark dark:text-white">Basic Information</h4>
-                        <p class="text-slate-400 mt-0.5">Core employment and department details.</p>
+                <div class="zq-modal-body grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div class="md:col-span-2 zq-form-section">
+                        <h4 class="zq-form-section-title">Basic Information</h4>
+                        <p class="text-slate-400 -mt-2">Core employment and department details.</p>
                     </div>
-                    <div><label for="emp-modal-id" class="zq-label">Employee ID * (ZEN-XXXXXXX)</label><input id="emp-modal-id" name="empModalId" v-model="employeeModal.form.empNo" :disabled="employeeModal.isEdit" required class="w-full p-2 border rounded-xl font-bold bg-slate-50 dark:bg-slate-700 dark:text-white"></div>
+                    <div><label for="emp-modal-id" class="zq-label">Employee ID * (ZEN-XXXXXXX)</label><input id="emp-modal-id" name="empModalId" v-model="employeeModal.form.empNo" :disabled="employeeModal.isEdit" required class="zq-input font-bold"></div>
                     <div><label for="emp-modal-name" class="zq-label">Full Name *</label><input id="emp-modal-name" name="empModalName" v-model="employeeModal.form.name" required class="zq-input font-semibold"></div>
                     <div><label for="emp-modal-email" class="zq-label">Work Email</label><input id="emp-modal-email" name="empModalEmail" type="email" v-model="employeeModal.form.email" class="zq-input"></div>
                     <div><label for="emp-modal-position" class="zq-label">Position</label><input id="emp-modal-position" name="empModalPosition" v-model="employeeModal.form.position" class="zq-input"></div>
                     <div><label for="emp-modal-dept" class="zq-label">Department *</label><input id="emp-modal-dept" name="empModalDept" v-model="employeeModal.form.dept" required placeholder="e.g. Human Resource" class="zq-input"></div>
                     <div><label for="emp-modal-type" class="zq-label">Employment Type *</label><select id="emp-modal-type" name="empModalType" v-model="employeeModal.form.employmentType" required class="zq-input font-semibold"><option value="Probation">Probation</option><option value="Permanent">Permanent</option><option value="Part-time">Part-time</option><option value="Intern">Intern</option></select></div>
                     <div><label for="emp-modal-join-date" class="zq-label">Join Date *</label><input id="emp-modal-join-date" name="empModalJoinDate" type="date" v-model="employeeModal.form.joinDate" required class="zq-input"></div>
-                    <div class="md:col-span-2 border-b dark:border-slate-700 pb-2 pt-2">
-                        <h4 class="font-extrabold text-brand-dark dark:text-white">Advanced Information</h4>
-                        <p class="text-slate-400 mt-0.5">Identity, statutory, banking and payroll details.</p>
+                    <div class="md:col-span-2 zq-form-section">
+                        <h4 class="zq-form-section-title">Advanced Information</h4>
+                        <p class="text-slate-400 -mt-2">Identity, statutory, banking and payroll details.</p>
                         <p v-if="employeeModal.isEdit && canEditLockedIdentityFields" class="mt-2 text-amber-700 font-semibold">Sensitive values are masked. Leave a field blank to keep it unchanged, or enter the complete new value to replace it.</p>
                         <p v-else-if="employeeModal.isEdit" class="mt-2 text-red-700 dark:text-red-400 font-semibold"><i class="fa-solid fa-lock mr-1"></i>National ID/Passport, Bank Account and EPF/SOCSO are locked once an employee record exists — only Superadmin/Director may change them.</p>
                     </div>
@@ -3452,21 +3460,21 @@
                         <input type="checkbox" id="isSenior" name="empModalSenior" v-model="employeeModal.form.isSenior" class="zq-checkbox">
                         <label for="isSenior" class="font-bold text-slate-700 dark:text-slate-300">Senior Citizen (60+ Years - EPF/SOCSO Exemption)</label>
                     </div>
-                    <div class="md:col-span-2 flex justify-end space-x-2 pt-3 border-t dark:border-slate-700">
-                        <button type="button" @click="employeeModal.show = false" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-xl font-bold text-slate-600">Cancel</button>
-                        <button type="submit" class="px-5 py-2 bg-brand-dark text-white rounded-xl font-bold hover:bg-brand-blue">Save Data</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="employeeModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Data</button>
+                </div>
+            </form>
         </div>
 
-        <div v-if="userModal.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-                <div class="flex justify-between items-center border-b pb-3 dark:border-slate-700">
-                    <h3 class="text-base font-extrabold text-brand-dark dark:text-white">{{ userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access' }}</h3>
-                    <button type="button" @click="userModal.show = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div v-if="userModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access'">
+            <form @submit.prevent="savePortalUser" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">{{ userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access' }}</h3>
+                    <button type="button" @click="userModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <form @submit.prevent="savePortalUser" class="space-y-4 text-xs">
+                <div class="zq-modal-body space-y-4 text-xs">
                     <div><label for="usr-modal-name" class="zq-label">Username *</label><input id="usr-modal-name" name="usrModalName" v-model="userModal.form.name" required class="zq-input"></div>
                     <div><label for="usr-modal-email" class="zq-label">Sign-In Email *</label><input id="usr-modal-email" name="usrModalEmail" type="email" v-model="userModal.form.email" :disabled="userModal.isEdit" required :placeholder="userModal.form.role === 'Client' ? 'client@gmail.com' : 'name@zenq0r.com'" :title="userModal.form.role === 'Client' ? 'External email domains are allowed for Client Users System Terminal.' : 'Must use official company domain @zenq0r.com.'" class="zq-input"><p v-if="userModal.form.role === 'Client'" class="text-[10px] text-emerald-600 font-semibold mt-1">Gmail and other external email domains are allowed for Client Users System Terminal.</p><p v-else class="text-[10px] text-slate-400 mt-1">This role must use the official company domain (@zenq0r.com).</p></div>
                     <div v-if="!userModal.isEdit"><label for="usr-modal-pass" class="zq-label">Temporary Password</label><input id="usr-modal-pass" name="usrModalPass" type="text" v-model="userModal.form.password" readonly aria-readonly="true" class="zq-input"><p class="text-[10px] text-slate-400 mt-1">Generated automatically and locked. The user must change it after first sign-in.</p></div>
@@ -3482,9 +3490,9 @@
                                             <option value="Client">Client Users System Terminal</option>
                         </select>
                     </div>
-                    <div class="pt-3 border-t dark:border-slate-700">
+                    <div class="zq-form-section">
                         <div class="flex items-center justify-between mb-1.5">
-                            <label class="font-bold block dark:text-slate-300">Custom Page Access (Optional)</label>
+                            <label class="zq-label">Custom Page Access (Optional)</label>
                         </div>
                         <p class="text-[9px] text-slate-400 mb-2">Leave a page unticked to keep this user's role's default access. Tick a page to override it — grants full access by default, then fine-tune Edit/Delete below.</p>
                         <div class="max-h-52 overflow-y-auto space-y-1 rounded-xl border dark:border-slate-600 p-2">
@@ -3500,28 +3508,25 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex justify-end space-x-2 pt-3 border-t dark:border-slate-700">
-                        <button type="button" @click="userModal.show = false" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-xl font-bold">Cancel</button>
-                        <button type="submit" class="px-5 py-2 bg-brand-dark text-white rounded-xl font-bold hover:bg-brand-blue">Save Access</button>
-                    </div>
-                </form>
-            </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="userModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Access</button>
+                </div>
+            </form>
         </div>
 
         <!-- MODAL TUKAR KATA LALUAN -->
-        <div v-if="changePasswordModal.show" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 no-print">
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5 border-t-4 border-brand-gold">
-                <div class="flex justify-between items-center border-b pb-3 dark:border-slate-700">
-                    <h3 class="text-sm font-extrabold text-brand-dark dark:text-white uppercase tracking-wider flex items-center">
+        <div v-if="changePasswordModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Kemaskini Kata Laluan Akaun">
+            <form @submit.prevent="handleChangePassword" class="zq-modal zq-modal-sm" style="border-top: 3px solid var(--zq-gold);">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title flex items-center">
                         <i class="fa-solid fa-shield-halved text-brand-gold mr-2 text-base"></i>
                         Kemaskini Kata Laluan Akaun
                     </h3>
-                    <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="text-slate-400 hover:text-slate-600">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
+                    <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                
-                <form @submit.prevent="handleChangePassword" class="space-y-4 text-xs">
+                <div class="zq-modal-body space-y-4 text-xs">
                     <div>
                         <label for="pwd-current" class="zq-label">Kata Laluan Semasa *</label>
                         <input id="pwd-current" type="password" v-model="changePasswordModal.currentPassword" required class="zq-input">
@@ -3535,18 +3540,15 @@
                         <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required minlength="8" class="zq-input">
                     </div>
 
-                    <div v-if="changePasswordModal.error" class="text-red-600 bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg text-xs font-semibold text-center">
-                        {{ changePasswordModal.error }}
-                    </div>
-
-                    <div class="flex justify-end space-x-2 pt-3 border-t dark:border-slate-700">
-                        <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-xl font-bold">Batal</button>
-                        <button type="submit" :disabled="changePasswordModal.loading" class="px-5 py-2 bg-brand-dark hover:bg-brand-blue text-white rounded-xl font-bold transition">
-                            {{ changePasswordModal.loading ? 'Mengesahkan...' : 'Simpan Kata Laluan' }}
-                        </button>
-                    </div>
-                </form>
-            </div>
+                    <p v-if="changePasswordModal.error" class="zq-error-text text-center bg-red-50 dark:bg-red-900/30 p-2.5 rounded-lg">{{ changePasswordModal.error }}</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="zq-btn zq-btn-ghost">Batal</button>
+                    <button type="submit" :disabled="changePasswordModal.loading" class="zq-btn zq-btn-primary">
+                        {{ changePasswordModal.loading ? 'Mengesahkan...' : 'Simpan Kata Laluan' }}
+                    </button>
+                </div>
+            </form>
         </div>
 
         <!-- =================================================================== -->
