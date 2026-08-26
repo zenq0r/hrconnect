@@ -887,9 +887,22 @@ html.dark {
 .zq-btn.is-loading { color: transparent !important; pointer-events: none; position: relative; }
 .zq-btn.is-loading::after {
     content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%;
-    border: 2px solid currentColor; border-right-color: transparent; color: inherit;
+    border: 2px solid currentColor; border-right-color: transparent;
     animation: zq-spin 0.6s linear infinite;
 }
+/* .is-loading forces the button's own `color` to transparent (to hide the
+   label) — a plain `color: inherit` on ::after would inherit that same
+   transparent value and make the spinner itself invisible too, so each
+   variant restores its own normal (pre-loading) foreground color here,
+   independent of the forced-transparent label. */
+.zq-btn-primary.is-loading::after,
+.zq-btn-secondary.is-loading::after,
+.zq-btn-destructive:hover.is-loading::after,
+.zq-btn-info:hover.is-loading::after { color: #ffffff; }
+.zq-btn-outline.is-loading::after { color: var(--zq-text); }
+.zq-btn-ghost.is-loading::after { color: var(--zq-text-muted); }
+.zq-btn-destructive.is-loading::after { color: var(--zq-error); }
+.zq-btn-info.is-loading::after { color: var(--zq-info); }
 .zq-btn-primary  { background: var(--zq-primary); color: var(--zq-text-on-primary); }
 .zq-btn-primary:hover:not(:disabled)  { background: var(--zq-primary-hover); }
 .zq-btn-primary:active:not(:disabled) { transform: translateY(0.5px); }
@@ -1103,6 +1116,17 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-empty-state-text { max-width: 32rem; font-size: 0.75rem; line-height: 1.5; color: var(--zq-text-muted); }
 .zq-empty-state-compact .zq-empty-state-text { font-size: 0.6875rem; }
 .zq-empty-state-action { margin-top: var(--zq-space-2); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--zq-space-2); }
+
+/* ---- Loading state (Step 14) — same shell as .zq-empty-state, for the
+   "waiting on Firestore/Storage" panels that were previously copy-pasted
+   verbatim in three places. Icon is expected to be `.fa-spin` itself. ---- */
+.zq-loading-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: var(--zq-space-2); padding: var(--zq-space-8) var(--zq-space-4);
+    border: 1px dashed var(--zq-border); border-radius: var(--zq-radius-lg); background: var(--zq-surface-alt);
+}
+.zq-loading-state-icon { font-size: 1.25rem; color: var(--zq-text-muted); }
+.zq-loading-state-text { font-size: 0.75rem; font-weight: 700; color: var(--zq-text-muted); }
 
 /* ---- Data table — subtle dividers, no per-cell borders, consistent row/cell
    rhythm across every table in the app. Structure (unchanged): <table
