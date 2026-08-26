@@ -1062,11 +1062,18 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-modal-overlay {
     position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
     padding: 16px; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    animation: zq-overlay-in 160ms ease;
 }
 .zq-modal {
     width: 100%; max-width: 28rem; max-height: 90vh; display: flex; flex-direction: column;
     overflow: hidden; background: var(--zq-surface); border-radius: var(--zq-radius-lg);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+    animation: zq-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes zq-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes zq-modal-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+    .zq-modal-overlay, .zq-modal, .zq-drawer { animation: none; }
 }
 .zq-modal-sm { max-width: 24rem; }
 .zq-modal-lg { max-width: 42rem; }
