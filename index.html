@@ -2000,8 +2000,8 @@
                                 <p class="zq-page-header-desc">Register and maintain client company records used across projects, quotations and invoices.</p>
                             </div>
                         </div>
-                        <button v-if="canManageClients && hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" class="zq-btn zq-btn-primary">
-                            <i class="fa-solid fa-plus"></i><span>Create New Document</span>
+                        <button v-if="canManageClients" type="button" @click="openClientInformation()" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-building-circle-check"></i><span>Client Information</span>
                         </button>
                     </div>
 
@@ -2030,6 +2030,7 @@
                                                 <div class="min-w-0">
                                                     <span class="font-bold text-slate-900 dark:text-slate-100 block text-sm truncate">{{ cust.clientName }}</span>
                                                     <span v-if="cust.clientId" class="block font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ cust.clientId }}</span>
+                                                    <span v-if="cust.companyType" class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ cust.companyType }}</span>
                                                     <span v-if="cust.clientPosition" class="text-xs text-slate-500 dark:text-slate-400">{{ cust.clientPosition }}</span>
                                                     <div class="mt-1.5 flex flex-wrap items-center gap-1">
                                                         <span v-if="isNewClient(cust.id)" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-emerald-700">New</span>
@@ -2052,7 +2053,7 @@
                                             <button @click="openClientView(cust)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Client Information">
                                                 <i class="fa-solid fa-eye"></i>
                                             </button>
-                                            <button v-if="canManageClients && hasAccess('doc-generator')" @click="requestClientAction('edit', cust)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Client">
+                                            <button v-if="canManageClients" @click="requestClientAction('edit', cust)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Client">
                                                 <i class="fa-solid fa-pen"></i>
                                             </button>
                                             <button v-if="canDeleteClients" @click="requestClientAction('delete', cust)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Client">
@@ -2066,8 +2067,8 @@
                                             <div class="zq-empty-state zq-empty-state-compact">
                                                 <i class="fa-solid fa-users zq-empty-state-icon" aria-hidden="true"></i>
                                                 <p class="zq-empty-state-title">No clients yet</p>
-                                                <p class="zq-empty-state-text">Client records are created automatically the first time you generate a quotation or invoice for them.</p>
-                                                <div v-if="canManageClients && hasAccess('doc-generator')" class="zq-empty-state-action"><button type="button" @click="switchTab('doc-generator')" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Create New Document</span></button></div>
+                                                <p class="zq-empty-state-text">Register your first client here before creating projects, quotations or invoices.</p>
+                                                <div v-if="canManageClients" class="zq-empty-state-action"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Client Information</span></button></div>
                                             </div>
                                         </td>
                                     </tr>
@@ -3515,6 +3516,69 @@
             </div>
         </div>
 
+        <!-- CLIENT INFORMATION REGISTRATION / EDIT -->
+        <div v-if="clientInformationModal.show" class="zq-modal-overlay z-[105] no-print" role="dialog" aria-modal="true" aria-label="Client Information form" @click.self="closeClientInformation()">
+            <form @submit.prevent="saveClientInformation" class="zq-modal zq-modal-lg max-h-[94vh] flex flex-col">
+                <div class="zq-modal-header shrink-0">
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Registration</p>
+                        <h3 class="zq-modal-title mt-1">{{ clientInformationModal.isEdit ? 'Update Client Information' : 'Client Information' }}</h3>
+                        <p class="zq-modal-description">{{ clientInformationModal.isEdit ? 'Only this selected legacy record will be updated.' : 'Save to create the client’s permanent Client ID.' }}</p>
+                    </div>
+                    <button type="button" @click="closeClientInformation()" :disabled="clientInformationModal.saving" aria-label="Close client information form" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body overflow-y-auto">
+                    <div class="rounded-xl border border-brand-blue/20 bg-brand-blue/5 dark:bg-brand-blue/10 px-4 py-3 text-xs text-slate-700 dark:text-slate-200">
+                        <div class="flex items-start gap-2.5"><i class="fa-solid fa-fingerprint mt-0.5 text-brand-blue"></i><p><strong>Permanent Client ID:</strong> <span v-if="clientInformationModal.form.clientId" class="font-mono font-extrabold text-brand-blue dark:text-teal-300">{{ clientInformationModal.form.clientId }}</span><span v-else>generated automatically after you save this new client.</span></p></div>
+                    </div>
+
+                    <section class="zq-form-section">
+                        <h4 class="zq-form-section-title">Company profile</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label for="client-info-name" class="zq-label">Client / Company Name *</label><input id="client-info-name" v-model="clientInformationModal.form.clientName" required autocomplete="organization" placeholder="Registered company name" class="zq-input font-semibold"></div>
+                            <div><label for="client-info-ssm" class="zq-label">Business Reg. / TIN</label><input id="client-info-ssm" v-model="clientInformationModal.form.clientSSM" placeholder="200901029271 (872376-W)" class="zq-input"></div>
+                            <div><label for="client-info-type" class="zq-label">Company Type</label><select id="client-info-type" v-model="clientInformationModal.form.companyType" class="zq-input"><option value="">Select company type</option><option>Sole Proprietorship / Enterprise</option><option>Partnership</option><option>Private Limited (Sdn. Bhd.)</option><option>Public Limited (Berhad)</option><option>Limited Liability Partnership (LLP)</option><option>Government / GLC</option><option>Association / NGO</option><option>Other</option></select></div>
+                            <div><label for="client-info-industry" class="zq-label">Industry / Business Category</label><input id="client-info-industry" v-model="clientInformationModal.form.industry" placeholder="e.g. Retail, Construction, Professional Services" class="zq-input"></div>
+                            <div><label for="client-info-tier" class="zq-label">Client Tier</label><select id="client-info-tier" v-model="clientInformationModal.form.clientTier" class="zq-input"><option>Standard</option><option>Premium</option><option>Priority</option></select></div>
+                        </div>
+                    </section>
+
+                    <section class="zq-form-section">
+                        <h4 class="zq-form-section-title">Primary contact</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><label for="client-info-contact" class="zq-label">Contact Person</label><input id="client-info-contact" v-model="clientInformationModal.form.clientContactPerson" autocomplete="name" placeholder="Officer or director name" class="zq-input"></div>
+                            <div><label for="client-info-position" class="zq-label">Position</label><input id="client-info-position" v-model="clientInformationModal.form.clientPosition" placeholder="Director / Executive" class="zq-input"></div>
+                            <div><label for="client-info-phone" class="zq-label">Phone Number *</label><input id="client-info-phone" v-model="clientInformationModal.form.clientPhone" required autocomplete="tel" placeholder="+60 13-XXXX XXX" class="zq-input"></div>
+                            <div><label for="client-info-email" class="zq-label">Email Address</label><input id="client-info-email" v-model="clientInformationModal.form.clientEmail" type="email" autocomplete="email" placeholder="email@company.com" class="zq-input"></div>
+                            <div class="md:col-span-2"><label for="client-info-additional-email" class="zq-label">Additional Authorized Emails <span class="font-normal normal-case">(optional, separated by commas)</span></label><input id="client-info-additional-email" v-model="clientInformationModal.form.additionalClientEmailsText" placeholder="finance@example.com, authorised@example.com" class="zq-input"></div>
+                        </div>
+                    </section>
+
+                    <section class="zq-form-section">
+                        <h4 class="zq-form-section-title">Registered address</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div class="md:col-span-2"><label for="client-info-address1" class="zq-label">Address Line 1 *</label><input id="client-info-address1" v-model="clientInformationModal.form.clientAddress1" required autocomplete="street-address" placeholder="Building / Lot No. and Street" class="zq-input"></div>
+                            <div><label for="client-info-address2" class="zq-label">Address Line 2</label><input id="client-info-address2" v-model="clientInformationModal.form.clientAddress2" placeholder="Building / area / industrial park" class="zq-input"></div>
+                            <div><label for="client-info-address3" class="zq-label">Address Line 3</label><input id="client-info-address3" v-model="clientInformationModal.form.clientAddress3" placeholder="Optional locality / district" class="zq-input"></div>
+                            <div><label for="client-info-postcode" class="zq-label">Postcode *</label><input id="client-info-postcode" v-model="clientInformationModal.form.clientPostcode" required inputmode="numeric" maxlength="5" pattern="[0-9]{5}" placeholder="43000" class="zq-input"></div>
+                            <div><label for="client-info-city" class="zq-label">City *</label><input id="client-info-city" v-model="clientInformationModal.form.clientCity" required autocomplete="address-level2" placeholder="Kajang" class="zq-input"></div>
+                            <div><label for="client-info-state" class="zq-label">State *</label><input id="client-info-state" v-model="clientInformationModal.form.clientState" required autocomplete="address-level1" placeholder="Selangor" class="zq-input"></div>
+                            <div><label for="client-info-country" class="zq-label">Country *</label><input id="client-info-country" v-model="clientInformationModal.form.clientCountry" required autocomplete="country-name" class="zq-input"></div>
+                        </div>
+                    </section>
+
+                    <section class="zq-form-section">
+                        <h4 class="zq-form-section-title">Internal notes <span class="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span></h4>
+                        <label for="client-info-notes" class="sr-only">Internal notes</label><textarea id="client-info-notes" v-model="clientInformationModal.form.clientNotes" rows="3" placeholder="Useful registration or account notes for staff" class="zq-input resize-y"></textarea>
+                    </section>
+                </div>
+                <div class="zq-modal-footer shrink-0">
+                    <button type="button" @click="closeClientInformation()" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-outline">Cancel</button>
+                    <button type="submit" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-primary"><i :class="clientInformationModal.saving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-floppy-disk'"></i>{{ clientInformationModal.saving ? 'Saving…' : (clientInformationModal.isEdit ? 'Save Client Information' : 'Register Client') }}</button>
+                </div>
+            </form>
+        </div>
+
         <!-- CLIENT INFORMATION VIEW -->
         <div v-if="clientView.show" class="zq-drawer-overlay z-[102] no-print" role="dialog" aria-modal="true" aria-label="Client Information" @click.self="closeClientView()">
             <div class="zq-drawer zq-drawer-lg">
@@ -3526,7 +3590,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p></div>
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p><p v-if="clientView.client.companyType || clientView.client.industry" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ [clientView.client.companyType, clientView.client.industry].filter(Boolean).join(' · ') }}</p></div>
                             <div class="flex shrink-0 items-center gap-1.5">
                                 <span v-if="clientView.client.id && isNewClient(clientView.client.id)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 text-[9px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
                                 <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning · {{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }}</span>
@@ -3544,6 +3608,7 @@
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
                     <div><p class="font-bold text-slate-400 dark:text-slate-500">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
                     <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-500">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
+                    <div v-if="clientView.client.clientNotes" class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-500">Internal Notes</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p></div>
                     <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <div class="mb-3"><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Documents & Billing History</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Every quotation and invoice created for this client.</p></div>
                         <div v-if="!clientDocHistory(clientView.client).length" class="zq-empty-state zq-empty-state-compact">
@@ -3605,7 +3670,7 @@
             <div class="zq-modal zq-modal-sm">
                 <div class="zq-modal-body">
                     <div class="flex items-center gap-3"><span :class="clientActionConfirm.action === 'delete' ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i :class="clientActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="zq-modal-title">{{ clientActionConfirm.action === 'delete' ? 'Delete client record?' : 'Edit client record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ clientActionConfirm.client?.clientName }}</p></div></div>
-                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ clientActionConfirm.action === 'delete' ? 'This action removes the client record. Please confirm before continuing.' : 'You will be taken to Billing & Documents to update the client information.' }}</p>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ clientActionConfirm.action === 'delete' ? 'This action removes the client record. Please confirm before continuing.' : 'You will open the dedicated Client Information form. Only this selected client record changes when you save.' }}</p>
                 </div>
                 <div class="zq-modal-footer"><button type="button" @click="clientActionConfirm.show = false" class="zq-btn zq-btn-outline">No</button><button type="button" @click="confirmClientAction" :class="clientActionConfirm.action === 'delete' ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">Yes, Continue</button></div>
             </div>

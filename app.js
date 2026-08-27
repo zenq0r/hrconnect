@@ -577,6 +577,20 @@ createApp({
             employeeView: { show: false, employee: {} },
             employeeActionConfirm: { show: false, action: '', employee: null },
             clientView: { show: false, client: {} },
+            // This is intentionally separate from docForm. A client can be registered
+            // before any quotation or invoice is created, and legacy records are only
+            // extended when a staff member explicitly saves that individual record.
+            clientInformationModal: {
+                show: false,
+                isEdit: false,
+                saving: false,
+                form: {
+                    id: '', clientId: '', clientName: '', clientSSM: '', companyType: '', industry: '', clientTier: 'Standard',
+                    clientContactPerson: '', clientPosition: '', clientEmail: '', clientPhone: '', additionalClientEmailsText: '',
+                    clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '',
+                    clientCountry: 'Malaysia', clientNotes: ''
+                }
+            },
             clientActionConfirm: { show: false, action: '', client: null },
             appConfirm: { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null },
 
@@ -3875,6 +3889,91 @@ createApp({
             const letter = String.fromCharCode(65 + (digitSum % 26));
             return `ZCT-${sixDigits}-${letter}`;
         },
+        emptyClientInformationForm() {
+            return {
+                id: '', clientId: '', clientName: '', clientSSM: '', companyType: '', industry: '', clientTier: 'Standard',
+                clientContactPerson: '', clientPosition: '', clientEmail: '', clientPhone: '', additionalClientEmailsText: '',
+                clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '',
+                clientCountry: 'Malaysia', clientNotes: ''
+            };
+        },
+        openClientInformation(cust = null) {
+            if (!this.canManageClients) { this.showNotify('You do not have permission to manage client records.'); return; }
+            const record = cust || {};
+            const additionalClientEmails = Array.isArray(record.additionalClientEmails)
+                ? record.additionalClientEmails.join(', ')
+                : String(record.additionalClientEmailsText || '');
+            this.clientInformationModal.isEdit = Boolean(record.id);
+            this.clientInformationModal.form = {
+                ...this.emptyClientInformationForm(),
+                id: record.id || '', clientId: record.clientId || '', clientName: record.clientName || '', clientSSM: record.clientSSM || '',
+                companyType: record.companyType || '', industry: record.industry || '', clientTier: record.clientTier || 'Standard',
+                clientContactPerson: record.clientContactPerson || '', clientPosition: record.clientPosition || '',
+                clientEmail: record.clientEmail || '', clientPhone: record.clientPhone || '', additionalClientEmailsText: additionalClientEmails,
+                clientAddress1: record.clientAddress1 || record.clientAddress || '', clientAddress2: record.clientAddress2 || '', clientAddress3: record.clientAddress3 || '',
+                clientCity: record.clientCity || '', clientState: record.clientState || '', clientPostcode: record.clientPostcode || '',
+                clientCountry: record.clientCountry || 'Malaysia', clientNotes: record.clientNotes || ''
+            };
+            this.clientInformationModal.show = true;
+        },
+        closeClientInformation() {
+            if (this.clientInformationModal.saving) return;
+            this.clientInformationModal.show = false;
+            this.clientInformationModal.isEdit = false;
+            this.clientInformationModal.form = this.emptyClientInformationForm();
+        },
+        async saveClientInformation() {
+            if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
+            const form = this.clientInformationModal.form;
+            if (!form.clientName || !form.clientPhone || !form.clientAddress1) return this.showNotify('Enter Client Name, Phone, and Address Line 1.');
+            if (!/^\d{5}$/.test(String(form.clientPostcode || '')) || !form.clientCity || !form.clientState) return this.showNotify('Enter a valid 5-digit postcode, City, and State.');
+            this.clientInformationModal.saving = true;
+            try {
+                const isNewRecord = !form.id;
+                const docId = form.id || doc(collection(db, 'customers')).id;
+                const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
+                const additionalClientEmails = String(form.additionalClientEmailsText || '')
+                    .split(',').map(email => email.trim().toLowerCase()).filter(email => email && email.includes('@'));
+                const clientId = existingCust?.clientId || form.clientId || this.generateClientId(form.clientSSM);
+                const now = new Date().toISOString();
+                const clientTier = ['Standard', 'Premium', 'Priority'].includes(form.clientTier) ? form.clientTier : (existingCust?.clientTier || 'Standard');
+                const clientRecord = this.normalizeOfficialRecord({
+                    clientId,
+                    clientName: String(form.clientName).trim(), clientSSM: String(form.clientSSM || '').trim(),
+                    companyType: String(form.companyType || '').trim(), industry: String(form.industry || '').trim(), clientTier,
+                    clientContactPerson: String(form.clientContactPerson || '').trim(), clientPosition: String(form.clientPosition || '').trim(),
+                    clientEmail: String(form.clientEmail || '').trim().toLowerCase(), clientPhone: String(form.clientPhone || '').trim(),
+                    additionalClientEmails,
+                    clientAddress: String(form.clientAddress1).trim(), clientAddress1: String(form.clientAddress1).trim(),
+                    clientAddress2: String(form.clientAddress2 || '').trim(), clientAddress3: String(form.clientAddress3 || '').trim(),
+                    clientCity: String(form.clientCity).trim(), clientState: String(form.clientState).trim(),
+                    clientPostcode: String(form.clientPostcode).trim(), clientCountry: String(form.clientCountry || 'Malaysia').trim(),
+                    clientNotes: String(form.clientNotes || '').trim(), updatedAt: now, updatedByUid: this.userProfile.uid || '', updatedByName: this.userProfile.name || ''
+                });
+                if (isNewRecord) {
+                    clientRecord.createdAt = now;
+                    clientRecord.createdByUid = this.userProfile.uid || '';
+                    clientRecord.createdByName = this.userProfile.name || '';
+                    clientRecord.clientTierAssignedAt = now;
+                } else if (!existingCust?.clientTierAssignedAt && clientTier) {
+                    clientRecord.clientTierAssignedAt = now;
+                }
+                // merge:true is deliberate: an old client is never migrated or altered
+                // in bulk. Only the exact record a staff member opened and saved changes.
+                await setDoc(doc(db, 'customers', docId), clientRecord, { merge: true });
+                this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `${isNewRecord ? 'Registered' : 'Updated'} client ${clientRecord.clientName} (${clientId})`);
+                this.showNotify(isNewRecord ? `Client registered. Permanent Client ID: ${clientId}` : `Client information updated. Client ID remains ${clientId}.`);
+                this.clientInformationModal.saving = false;
+                this.closeClientInformation();
+                return true;
+            } catch (error) {
+                console.error('Client information save failed:', error);
+                this.showNotify('Unable to save client information.');
+                return false;
+            } finally {
+                this.clientInformationModal.saving = false;
+            }
+        },
         async saveCustomerToDatabase() {
             if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
             if (!this.docForm.clientName || !this.docForm.clientPhone || !(this.docForm.clientAddress1 || this.docForm.clientAddress)) return this.showNotify('Enter Client Name, Phone, and Address Line 1.');
@@ -3929,7 +4028,7 @@ createApp({
                 id: cust.id || '', clientId: cust.clientId || '', clientName: cust.clientName || '-', clientSSM: cust.clientSSM || '-', clientContactPerson: cust.clientContactPerson || '-',
                 clientPosition: cust.clientPosition || '-', clientEmail: cust.clientEmail || '-', clientPhone: cust.clientPhone || '-',
                 clientAddress: cust.clientAddress || '', clientAddress1: cust.clientAddress1 || cust.clientAddress || '', clientAddress2: cust.clientAddress2 || '', clientAddress3: cust.clientAddress3 || '', clientCity: cust.clientCity || '', clientState: cust.clientState || '',
-                clientPostcode: cust.clientPostcode || '', clientCountry: cust.clientCountry || 'Malaysia', clientTier: cust.clientTier || 'Standard'
+                clientPostcode: cust.clientPostcode || '', clientCountry: cust.clientCountry || 'Malaysia', clientTier: cust.clientTier || 'Standard', companyType: cust.companyType || '', industry: cust.industry || '', clientNotes: cust.clientNotes || ''
             };
             this.clientView.show = true;
             if (cust.id) this.loadClientDocuments(cust.id, cust.clientName, cust.clientEmail);
@@ -4644,8 +4743,7 @@ createApp({
         },
         editCustomer(cust) {
             if (!this.canManageClients) { this.showNotify('You do not have permission to update client records.'); return; }
-            if (!this.hasAccess('doc-generator')) { this.showNotify('Editing client details requires Billing & Documents access, which your role does not have.'); return; }
-            this.selectCustomerFromTable(cust); this.switchTab('doc-generator');
+            this.openClientInformation(cust);
         },
         async deleteCustomer(clientOrName, requiresConfirmation = true) {
             const client = typeof clientOrName === 'string' ? this.customers.find(cust => cust.clientName === clientOrName) : clientOrName;
