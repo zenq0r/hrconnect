@@ -1176,6 +1176,310 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-table-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
 .zq-table-empty td { padding: var(--zq-space-8) var(--zq-space-4); text-align: center; color: var(--zq-text-muted); }
 
+/* ============================================================
+   PORTAL EXPERIENCE REFRESH
+   A shared composition layer for staff and client sessions. This is visual
+   only: role checks, routes, data and permissions continue to be handled by
+   app.js exactly as before.
+   ============================================================ */
+@media screen {
+    #app .zq-main {
+        background: #f4f7fb;
+        isolation: isolate;
+    }
+
+    .dark #app .zq-main {
+        background: #0b1220;
+    }
+
+    #app .zq-staff-main {
+        background-image:
+            radial-gradient(circle at 86% -8%, rgba(20, 184, 166, 0.12), transparent 26rem),
+            linear-gradient(180deg, #f8fafc 0%, #f2f6fa 100%);
+    }
+
+    #app .zq-client-main {
+        background-image:
+            radial-gradient(circle at 90% -5%, rgba(59, 130, 246, 0.12), transparent 25rem),
+            radial-gradient(circle at 3% 18%, rgba(20, 184, 166, 0.08), transparent 20rem),
+            linear-gradient(180deg, #f8fafc 0%, #eff5f8 100%);
+    }
+
+    .dark #app .zq-staff-main,
+    .dark #app .zq-client-main {
+        background-image: radial-gradient(circle at 90% -8%, rgba(45, 212, 191, 0.08), transparent 26rem), linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+    }
+
+    #app .zq-sidebar {
+        background: linear-gradient(180deg, #111c2c 0%, #0c1523 100%) !important;
+        border-right: 1px solid rgba(148, 163, 184, 0.16) !important;
+        box-shadow: 14px 0 36px rgba(15, 23, 42, 0.10) !important;
+    }
+
+    #app .zq-sidebar > div:first-child {
+        min-height: 76px;
+        padding: 16px !important;
+        background: rgba(255, 255, 255, 0.025);
+    }
+
+    #app .zq-sidebar > div:first-child::before {
+        left: 16px;
+        right: 16px;
+        background: linear-gradient(90deg, #14b8a6, #60a5fa);
+        opacity: 0.8;
+    }
+
+    #app .zq-sidebar nav {
+        padding: 14px 10px;
+    }
+
+    #app .zq-sidebar nav > div > p {
+        letter-spacing: 0.14em;
+        color: #718096;
+    }
+
+    #app .zq-nav-item {
+        min-height: 40px;
+        padding: 10px 12px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        color: #aab8cb;
+    }
+
+    #app .zq-nav-item:hover {
+        background: rgba(148, 163, 184, 0.10) !important;
+        border-color: rgba(148, 163, 184, 0.10);
+        color: #f8fafc !important;
+    }
+
+    #app .sidebar-item-active,
+    #app .client-portal-theme .sidebar-item-active {
+        background: linear-gradient(110deg, rgba(15, 118, 110, 0.98), rgba(20, 184, 166, 0.92)) !important;
+        border: 1px solid rgba(153, 246, 228, 0.22) !important;
+        border-left: 1px solid rgba(153, 246, 228, 0.30) !important;
+        box-shadow: 0 7px 16px rgba(15, 118, 110, 0.23);
+        color: #ffffff !important;
+    }
+
+    #app .client-portal-theme .sidebar-item-active {
+        background: linear-gradient(110deg, #1d4ed8, #2563eb) !important;
+        box-shadow: 0 7px 16px rgba(37, 99, 235, 0.25);
+    }
+
+    #app .zq-topbar {
+        min-height: 72px;
+        border-bottom: 1px solid rgba(203, 213, 225, 0.9) !important;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+    }
+
+    .dark #app .zq-topbar {
+        border-bottom-color: rgba(71, 85, 105, 0.72) !important;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+    }
+
+    #app .zq-topbar > div:first-child > button {
+        height: 40px;
+        width: 40px;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: var(--zq-shadow-sm);
+    }
+
+    .dark #app .zq-topbar > div:first-child > button {
+        border-color: #475569;
+        background: #1e293b;
+    }
+
+    #app .zq-topbar input {
+        min-height: 40px;
+        border: 1px solid transparent;
+        background: #f1f5f9;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
+    }
+
+    #app .zq-topbar input:focus {
+        background: #ffffff;
+        border-color: rgba(20, 184, 166, 0.72);
+    }
+
+    .dark #app .zq-topbar input {
+        background: #263449;
+    }
+
+    #app .zq-dashboard,
+    #app .zq-client-workspace {
+        padding-top: 28px;
+        padding-bottom: 40px;
+    }
+
+    #app .zq-dashboard > .zq-card,
+    #app .zq-client-workspace > .zq-card,
+    #app .zq-staff-dashboard > .zq-card {
+        border-color: rgba(203, 213, 225, 0.92);
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
+    }
+
+    .dark #app .zq-dashboard > .zq-card,
+    .dark #app .zq-client-workspace > .zq-card,
+    .dark #app .zq-staff-dashboard > .zq-card {
+        border-color: #334155;
+    }
+
+    #app .zq-staff-dashboard > div:first-child,
+    #app .zq-client-overview > div:first-child {
+        padding: 2px 0 4px;
+    }
+
+    #app .zq-staff-dashboard .zq-text-page-title,
+    #app .zq-client-overview h2 {
+        font-size: clamp(1.35rem, 2vw, 1.75rem);
+        letter-spacing: -0.035em;
+    }
+
+    #app .zq-kpi-card {
+        min-height: 132px;
+        border-color: rgba(203, 213, 225, 0.92);
+        background: rgba(255, 255, 255, 0.92);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.035);
+    }
+
+    #app .zq-kpi-card:hover {
+        border-color: rgba(20, 184, 166, 0.55);
+        box-shadow: 0 12px 24px rgba(15, 118, 110, 0.10);
+    }
+
+    .dark #app .zq-kpi-card {
+        border-color: #334155;
+        background: rgba(30, 41, 59, 0.9);
+    }
+
+    #app .project-summary-card {
+        min-height: 118px;
+        border: 1px solid rgba(203, 213, 225, 0.88) !important;
+        border-top: 3px solid #14b8a6 !important;
+        border-radius: 12px !important;
+        background: rgba(255, 255, 255, 0.86) !important;
+        box-shadow: 0 5px 15px rgba(15, 23, 42, 0.035);
+    }
+
+    .dark #app .project-summary-card {
+        background: rgba(30, 41, 59, 0.92) !important;
+        border-color: #334155 !important;
+    }
+
+    #app .zq-client-hero {
+        min-height: 210px;
+        border-radius: 20px !important;
+        background:
+            radial-gradient(circle at 88% 20%, rgba(96, 165, 250, 0.26), transparent 21rem),
+            radial-gradient(circle at 18% 105%, rgba(45, 212, 191, 0.18), transparent 18rem),
+            linear-gradient(120deg, #142033 0%, #172a40 52%, #0f3f3a 100%) !important;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.20) !important;
+    }
+
+    #app .zq-client-hero h2 {
+        max-width: 720px;
+        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        line-height: 1.08;
+        letter-spacing: -0.045em;
+    }
+
+    #app .zq-client-hero button,
+    #app .zq-client-identity button {
+        min-height: 44px;
+    }
+
+    #app .zq-client-identity {
+        border-radius: 16px !important;
+        background: linear-gradient(145deg, #16263a, #102f38) !important;
+        box-shadow: 0 12px 25px rgba(15, 23, 42, 0.15) !important;
+    }
+
+    #app .zq-client-workspace > .grid > button,
+    #app .zq-client-workspace > section + .grid > button {
+        min-height: 92px;
+        border-color: rgba(203, 213, 225, 0.9);
+        background: rgba(255, 255, 255, 0.93);
+    }
+
+    .dark #app .zq-client-workspace > .grid > button,
+    .dark #app .zq-client-workspace > section + .grid > button {
+        border-color: #334155;
+        background: rgba(30, 41, 59, 0.90);
+    }
+
+    #app .zq-client-workspace .zq-table thead th,
+    #app .zq-dashboard .zq-table thead th {
+        background: #edf4f5;
+        color: #47606a;
+    }
+
+    .dark #app .zq-client-workspace .zq-table thead th,
+    .dark #app .zq-dashboard .zq-table thead th {
+        background: #1d3340;
+        color: #cbd5e1;
+    }
+
+    @media (max-width: 767px) {
+        #app .zq-topbar { min-height: 62px; }
+        #app .zq-dashboard,
+        #app .zq-client-workspace { padding-top: 16px; padding-bottom: 28px; }
+        #app .zq-client-hero { min-height: auto; border-radius: 16px !important; }
+        #app .zq-client-hero h2 { font-size: 1.55rem; }
+        #app .zq-client-workspace > .grid > button,
+        #app .zq-client-workspace > section + .grid > button { min-height: 80px; }
+    }
+}
+
+/* Sign-in gateway: separates internal and client access before credentials
+   are requested, while retaining the existing authentication flow. */
+.zq-auth-landing {
+    max-width: 880px !important;
+}
+
+.zq-auth-landing > .text-center {
+    margin-bottom: 2rem !important;
+}
+
+.zq-auth-choice {
+    position: relative;
+    min-height: 246px;
+    overflow: hidden;
+    border-radius: 18px !important;
+    box-shadow: 0 18px 38px rgba(3, 11, 24, 0.20) !important;
+}
+
+.zq-auth-choice::after {
+    content: '';
+    position: absolute;
+    right: -3rem;
+    bottom: -4rem;
+    width: 11rem;
+    height: 11rem;
+    border-radius: 50%;
+    opacity: 0.8;
+    transition: transform 220ms ease;
+}
+
+.zq-auth-choice:hover::after {
+    transform: scale(1.14);
+}
+
+.zq-auth-choice-staff::after { background: rgba(20, 184, 166, 0.14); }
+.zq-auth-choice-client::after { background: rgba(96, 165, 250, 0.16); }
+
+.zq-auth-choice > * { position: relative; z-index: 1; }
+
+.zq-auth-choice:hover {
+    border-color: rgba(45, 212, 191, 0.55) !important;
+    box-shadow: 0 24px 44px rgba(3, 11, 24, 0.28) !important;
+}
+
+@media (max-width: 640px) {
+    .zq-auth-choice { min-height: 0; }
+}
+
 /* ---- Search & filter toolbar system (Step 12) — one consistent shell for
    every record-list toolbar (search + filter selects/pills + sort +
    export + primary action), plus a shared segmented-control for the

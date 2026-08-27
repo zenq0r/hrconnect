@@ -285,7 +285,7 @@
             <template v-else>
 
             <!-- LANDING PAGE: choose Company Staff or Client Portal -->
-            <div v-if="authView === 'landing'" class="relative z-10 max-w-3xl w-full">
+            <div v-if="authView === 'landing'" class="zq-auth-landing relative z-10 max-w-3xl w-full">
                 <div class="text-center mb-10">
                     <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
                         <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-14 w-auto object-contain">
@@ -300,13 +300,13 @@
                 <div v-if="loginError" class="zq-alert zq-alert-error max-w-md mx-auto mb-6">{{ loginError }}</div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    <button type="button" @click="selectAuthView('staff')" class="group text-left bg-white dark:bg-slate-800 rounded-2xl p-7 shadow-2xl border border-slate-100 dark:border-slate-700 transition hover:-translate-y-1 hover:shadow-brand-gold/10">
+                    <button type="button" @click="selectAuthView('staff')" class="zq-auth-choice zq-auth-choice-staff group text-left bg-white dark:bg-slate-800 rounded-2xl p-7 shadow-2xl border border-slate-100 dark:border-slate-700 transition hover:-translate-y-1 hover:shadow-brand-gold/10">
                         <div class="w-14 h-14 rounded-2xl bg-brand-dark text-white flex items-center justify-center text-2xl mb-5 transition group-hover:bg-brand-blue"><i class="fa-solid fa-user-tie"></i></div>
                         <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Company Staff</h2>
                         <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Sign in to manage payroll, billing, claims, projects and employee records.</p>
                         <span class="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-brand-blue">Staff Sign In <i class="fa-solid fa-arrow-right transition group-hover:translate-x-1"></i></span>
                     </button>
-                    <button type="button" @click="selectAuthView('client')" class="group text-left bg-white dark:bg-slate-800 rounded-2xl p-7 shadow-2xl border border-slate-100 dark:border-slate-700 transition hover:-translate-y-1 hover:shadow-brand-gold/10">
+                    <button type="button" @click="selectAuthView('client')" class="zq-auth-choice zq-auth-choice-client group text-left bg-white dark:bg-slate-800 rounded-2xl p-7 shadow-2xl border border-slate-100 dark:border-slate-700 transition hover:-translate-y-1 hover:shadow-brand-gold/10">
                         <div class="w-14 h-14 rounded-2xl bg-brand-gold text-brand-dark flex items-center justify-center text-2xl mb-5 transition group-hover:bg-amber-400"><i class="fa-solid fa-building-user"></i></div>
                         <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Client Portal</h2>
                         <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Access your quotations, invoices, payment status and live project progress.</p>
@@ -402,7 +402,7 @@
                        desktopSidebarOpen ? 'md:w-64 md:block' : 'md:w-0 md:hidden md:overflow-hidden',
                        userProfile.role === 'Client' ? 'client-portal-theme' : ''
                    ]"
-                   class="w-64 bg-brand-dark text-white flex flex-col no-print shrink-0 shadow-2xl fixed inset-y-0 left-0 z-50 md:relative transition-all duration-300 ease-in-out border-r border-slate-800">
+                   class="zq-sidebar w-64 bg-brand-dark text-white flex flex-col no-print shrink-0 shadow-2xl fixed inset-y-0 left-0 z-50 md:relative transition-all duration-300 ease-in-out border-r border-slate-800">
                 
                 <div class="p-4 border-b border-slate-800 flex items-center justify-between">
                     <div class="flex items-center space-x-3 overflow-hidden">
@@ -493,10 +493,10 @@
             </aside>
 
             <!-- MAIN WORKING AREA -->
-            <main class="flex-1 overflow-y-auto no-print bg-slate-50 dark:bg-brand-bg flex flex-col w-full">
+            <main :class="userProfile.role === 'Client' ? 'zq-client-main' : 'zq-staff-main'" class="zq-main flex-1 overflow-y-auto no-print bg-slate-50 dark:bg-brand-bg flex flex-col w-full">
                 
                 <!-- TOP NAVBAR -->
-                <header class="bg-white dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-30 gap-4 backdrop-blur-md">
+                <header class="zq-topbar bg-white dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-30 gap-4 backdrop-blur-md">
                     <div class="flex items-center space-x-3 flex-1">
                         <button type="button" @click="toggleSidebar" class="text-slate-600 dark:text-slate-300 hover:text-brand-dark p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-base transition" title="Toggle Sidebar">
                             <i class="fa-solid fa-bars"></i>
@@ -1476,7 +1476,7 @@
                 </div>
 
                 <!-- DASHBOARD MODULE -->
-                <div v-if="currentTab === 'dashboard'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                <div v-if="currentTab === 'dashboard'" class="zq-dashboard p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
 
                     <section v-if="userProfile.role !== 'Client'" class="zq-card p-5">
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 class="zq-text-section-title">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live project workflow overview.</p></div><button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
@@ -1489,7 +1489,7 @@
                     </section>
                     
                     <!-- 1. VIEW PEKERJA (STAFF DASHBOARD) -->
-                    <div v-if="userProfile.role === 'Staff'" class="space-y-6">
+                    <div v-if="userProfile.role === 'Staff'" class="zq-staff-dashboard space-y-6">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                                 <h2 class="zq-text-page-title">Staff Employee Dashboard</h2>
@@ -1574,7 +1574,7 @@
                     </div>
 
                     <!-- 2. VIEW PELANGGAN (CLIENT DASHBOARD) -->
-                    <div v-else-if="userProfile.role === 'Client'" class="space-y-6">
+                    <div v-else-if="userProfile.role === 'Client'" class="zq-client-overview space-y-6">
                         <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark via-brand-dark to-blue-900 p-6 text-white shadow-lg">
                             <div class="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
@@ -2847,7 +2847,7 @@
                 </div>
 
                 <!-- CLIENT PORTAL MODULE -->
-                <div v-show="['client-portal', 'client-documents', 'client-updates', 'client-support'].includes(currentTab)" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                <div v-show="['client-portal', 'client-documents', 'client-updates', 'client-support'].includes(currentTab)" class="zq-client-workspace p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div v-if="currentTab !== 'client-portal'" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center gap-3">
                             <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu"><i class="fa-solid fa-bars"></i><span class="sr-only">Open menu</span></button>
@@ -2856,7 +2856,7 @@
                         <button type="button" @click="returnToDashboard" class="zq-btn zq-btn-outline"><i class="fa-solid fa-arrow-left"></i><span>Back to Dashboard</span></button>
                     </div>
 
-                    <section v-if="currentTab === 'client-portal'" class="relative overflow-hidden rounded-3xl bg-brand-dark px-5 py-6 md:px-8 md:py-8 text-white shadow-xl border border-white/5">
+                    <section v-if="currentTab === 'client-portal'" class="zq-client-hero relative overflow-hidden rounded-3xl bg-brand-dark px-5 py-6 md:px-8 md:py-8 text-white shadow-xl border border-white/5">
                         <div class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-blue/15 blur-2xl"></div>
                         <div class="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                             <div class="flex items-start gap-4">
@@ -2875,7 +2875,7 @@
                     </section>
 
                     <div v-if="currentTab === 'client-portal'" class="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
-                        <section class="relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-lg border border-white/5">
+                        <section class="zq-client-identity relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-lg border border-white/5">
                             <div class="absolute -bottom-10 -right-8 h-32 w-32 rounded-full bg-brand-blue/20"></div>
                             <div class="relative flex items-center gap-4">
                                 <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-xl font-black shadow-inner">{{ getInitials(clientPortalIdentity.clientName) }}</div>
