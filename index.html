@@ -693,7 +693,7 @@
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Company Identity</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                        <div><label for="doc-client-name" class="zq-label">Client / Company Name *</label><input id="doc-client-name" name="clientName" type="text" v-model="docForm.clientName" @input="clientSavedForDocument = false" required placeholder="Company Name Sdn. Bhd." class="zq-input font-bold"></div>
+                                        <div><label for="doc-client-name" class="zq-label">Client / Company Name *</label><input id="doc-client-name" name="clientName" type="text" v-model="docForm.clientName" @input="clientSavedForDocument = false" required placeholder="Enter client or company name" class="zq-input font-bold"></div>
                                         <div><label for="doc-client-ssm" class="zq-label">Business Reg. / TIN</label><input id="doc-client-ssm" name="clientSSM" type="text" v-model="docForm.clientSSM" @input="clientSavedForDocument = false" placeholder="200901029271 (872376-W)" class="zq-input"></div>
                                     </div>
                                 </div>
@@ -711,7 +711,7 @@
                                 <div>
                                     <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-user-group w-4 text-center text-brand-gold"></i><span class="ml-1.5">Client Portal Access</span></p>
                                     <label for="doc-client-additional-emails" class="zq-label">Additional Authorized Emails (Optional)</label>
-                                    <input id="doc-client-additional-emails" name="additionalClientEmails" type="text" v-model="docForm.additionalClientEmailsText" @input="clientSavedForDocument = false" placeholder="finance@company.com, director@company.com" class="zq-input">
+                                    <input id="doc-client-additional-emails" name="additionalClientEmails" type="text" v-model="docForm.additionalClientEmailsText" @input="clientSavedForDocument = false" placeholder="finance@example.com, authorised@example.com" class="zq-input">
                                     <p class="mt-1 text-[9px] text-slate-400">Comma-separated. Anyone signing in with these emails can also access this client's Client Portal, projects and documents — in addition to the primary Email Address above.</p>
                                 </div>
 
@@ -1120,7 +1120,7 @@
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4 items-center">
                             <div class="md:col-span-2">
                                 <label for="claim-description" class="zq-label">EXPENSE DESCRIPTION <span class="text-red-500">*</span></label>
-                                <input id="claim-description" name="claimDescription" type="text" v-model="claimForm.description" required placeholder="Example: Client lunch meeting with XYZ Company" class="zq-input font-medium">
+                                <input id="claim-description" name="claimDescription" type="text" v-model="claimForm.description" required placeholder="e.g. client meeting refreshments" class="zq-input font-medium">
                             </div>
 
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
@@ -3138,7 +3138,7 @@
                                 </template>
                                 <template v-else>
                                     <label class="zq-label">Tag / Category *<input v-model="websiteContentModal.form.tag" required maxlength="60" placeholder="e.g. BUSINESS AUTOMATION" class="zq-input mt-1.5"></label>
-                                    <label class="zq-label">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. Monsta Studios Sdn. Bhd." class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Client / company this engagement was for — shown on the card.</span></label>
+                                    <label class="zq-label">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. client company name" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Client / company this engagement was for — shown on the card.</span></label>
                                     <label class="zq-label">Activity Title *<input v-model="websiteContentModal.form.title" required maxlength="120" placeholder="e.g. Ruang Legar Permit Approval" class="zq-input mt-1.5"></label>
                                     <label class="zq-label">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
                                     <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>

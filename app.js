@@ -4136,6 +4136,7 @@ createApp({
                 }
                 payload = { tag, companyName, title, eventDate, desc };
             }
+            payload = this.normalizeOfficialRecord(payload);
             const label = isServices ? payload.name : payload.title;
             this.websiteContentModal.uploading = isPortfolioWeb
                 ? this.websiteContentModal.mediaItems.some(media => media.file)
