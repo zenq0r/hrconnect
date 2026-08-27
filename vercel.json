@@ -5,6 +5,10 @@
   "outputDirectory": ".",
   "rewrites": [
     {
+      "source": "/favicon.ico",
+      "destination": "/icon-192.png"
+    },
+    {
       "source": "/((?!api/|.*\\.).*)",
       "destination": "/index.html"
     }

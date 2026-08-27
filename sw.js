@@ -3,8 +3,8 @@
 // so we never want a stale cached response to shadow real data. Caching only speeds up the
 // static shell (HTML/CSS/JS/logo) on repeat visits and satisfies PWA "installable" criteria.
 
-const SHELL_CACHE = 'zenqor-shell-v2';
-const SHELL_ASSETS = ['/', '/index.html', '/app.js', '/custom.css', '/logo.png'];
+const SHELL_CACHE = 'zenqor-shell-v3';
+const SHELL_ASSETS = ['/', '/index.html', '/app.js', '/custom.css', '/tailwind.css', '/logo.png', '/icon-192.png'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
