@@ -1213,6 +1213,17 @@ createApp({
         projectStaffOptions() {
             return this.employees.filter(employee => employee.email && employee.empNo).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         },
+        projectWithLiveClientData(project) {
+            const customer = this.customers.find(item => item.id === project.clientDirectoryId);
+            if (!customer) return project;
+            return {
+                ...project,
+                clientName: customer.clientName || project.clientName || '',
+                clientEmail: String(customer.clientEmail || project.clientEmail || '').trim().toLowerCase(),
+                clientSSM: customer.clientSSM || project.clientSSM || '',
+                clientTier: customer.clientTier || project.clientTier || 'Standard'
+            };
+        },
         myPendingProjectActivities() {
             const email = String(this.userProfile.email || '').trim().toLowerCase();
             return this.projectActivities.filter(activity => activity.status !== 'Done' && String(activity.assignedEmail || '').trim().toLowerCase() === email).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
@@ -5281,6 +5292,13 @@ createApp({
                         this.userProfile.role = currentUser.role || this.userProfile.role;
                         this.userProfile.name = currentUser.name || this.userProfile.name;
                         this.userProfile.photo = currentUser.photo || this.userProfile.photo;
+                        if (Object.prototype.hasOwnProperty.call(currentUser, 'clientDirectoryId')) {
+                            this.userProfile.clientDirectoryId = currentUser.clientDirectoryId || '';
+                        }
+                        if (Object.prototype.hasOwnProperty.call(currentUser, 'themePreference')) {
+                            this.userProfile.themePreference = currentUser.themePreference || 'light';
+                            this.applyDarkModePreference();
+                        }
                     }
                 }, 'portal users')
                 : subscribeWithReadySignal(doc(db, 'users', this.userProfile.uid), (snapshot) => {
@@ -5290,6 +5308,13 @@ createApp({
                     this.userProfile.role = currentUser.role || this.userProfile.role;
                     this.userProfile.name = currentUser.name || this.userProfile.name;
                     this.userProfile.photo = currentUser.photo || this.userProfile.photo;
+                    if (Object.prototype.hasOwnProperty.call(currentUser, 'clientDirectoryId')) {
+                        this.userProfile.clientDirectoryId = currentUser.clientDirectoryId || '';
+                    }
+                    if (Object.prototype.hasOwnProperty.call(currentUser, 'themePreference')) {
+                        this.userProfile.themePreference = currentUser.themePreference || 'light';
+                        this.applyDarkModePreference();
+                    }
                 }, 'current portal user');
 
             const initialLoads = [
@@ -5300,12 +5325,19 @@ createApp({
                     ? subscribeWithReadySignal(employeesSource, (snapshot) => { this.employees = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'employees')
                     : Promise.resolve(),
                 (this.hasAccess('client-directory') || this.hasAccess('doc-generator'))
-                    ? subscribeWithReadySignal(collection(db, "customers"), (snapshot) => { this.customers = snapshot.docs.map(d => { const data = d.data(); return { id: d.id, ...data, clientAddress1: data.clientAddress1 || data.clientAddress || '' }; }); }, 'clients')
+                    ? subscribeWithReadySignal(collection(db, "customers"), (snapshot) => {
+                        this.customers = snapshot.docs.map(d => {
+                            const data = d.data();
+                            return { id: d.id, ...data, clientAddress1: data.clientAddress1 || data.clientAddress || '' };
+                        });
+                        this.projects = this.projects.map(project => this.projectWithLiveClientData(project));
+                    }, 'clients')
                     : role === 'Client' && this.userProfile.clientDirectoryId
                         ? subscribeWithReadySignal(doc(db, 'customers', this.userProfile.clientDirectoryId), (snapshot) => {
                             this.customers = snapshot.exists()
                                 ? [{ id: snapshot.id, ...snapshot.data(), clientAddress1: snapshot.data().clientAddress1 || snapshot.data().clientAddress || '' }]
                                 : [];
+                            this.projects = this.projects.map(project => this.projectWithLiveClientData(project));
                         }, 'client profile')
                     : Promise.resolve(),
                 documentsSource
@@ -5345,7 +5377,9 @@ createApp({
                         this.siteTextOverrides = snapshot.exists() ? snapshot.data() : {};
                     }, 'website content — Page Text')
                     : Promise.resolve(),
-                subscribeWithReadySignal(projectsSource, (snapshot) => { this.projects = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'project activities'),
+                subscribeWithReadySignal(projectsSource, (snapshot) => {
+                    this.projects = snapshot.docs.map(d => this.projectWithLiveClientData({ id: d.id, ...d.data() }));
+                }, 'project activities'),
                 projectActivitiesSource ? subscribeWithReadySignal(projectActivitiesSource, (snapshot) => {
                     const previousIds = new Set(this.projectActivities.map(activity => activity.id));
                     this.projectActivities = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
