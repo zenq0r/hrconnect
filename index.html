@@ -448,8 +448,8 @@
                         <button type="button" @click="switchTab('client-updates')" :class="{'sidebar-item-active': currentTab === 'client-updates', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-updates'}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientRecentUpdates.length" class="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] text-amber-300">{{ clientRecentUpdates.length }}</span></button>
                     </template>
                     <div v-if="hasAccess('doc-generator')" class="pt-3 pb-1"><p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Billing &amp; Documents</p></div>
-                    <button v-if="hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-folder-open w-5 text-center"></i><span>Document Centre</span>
+                    <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-address-card w-5 text-center"></i><span>Client Information</span>
                     </button>
                     <button v-if="hasAccess('document-quotations')" type="button" @click="openDocumentPage('Quotation')" :class="{'sidebar-item-active': currentTab === 'document-quotations', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'document-quotations'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-file-signature w-5 text-center"></i><span>Quotations</span>
@@ -519,7 +519,7 @@
 
                     <div class="flex items-center space-x-3 shrink-0">
                         <div class="hidden sm:flex items-center bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-600">
-                            <button v-if="hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" :class="currentTab === 'doc-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Documents</button>
+                            <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="currentTab === 'doc-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Clients</button>
                             <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="currentTab === 'payslip-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Payroll</button>
                             <button v-if="hasAccess('claims')" type="button" @click="switchTab('claims')" :class="currentTab === 'claims' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Claims</button>
                         </div>
@@ -629,8 +629,8 @@
                     </div>
                 </header>
 
-                <!-- MODULE 1: DOCUMENT GENERATOR -->
-                <div v-show="['doc-generator', 'document-quotations', 'document-invoices'].includes(currentTab)" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+                <!-- MODULE 1: QUOTATIONS & INVOICES -->
+                <div v-show="['document-quotations', 'document-invoices'].includes(currentTab)" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
                             <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
@@ -638,8 +638,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="zq-text-page-title">{{ currentTab === 'document-quotations' ? 'Quotations' : currentTab === 'document-invoices' ? 'Invoices' : 'Document Centre' }}</h2>
-                                <p class="zq-page-header-desc">{{ currentTab === 'document-quotations' ? 'Create, issue and manage quotation records.' : currentTab === 'document-invoices' ? 'Create, issue and manage invoice and payment records.' : 'Create and manage client quotations and invoices in one document centre.' }}</p>
+                                <h2 class="zq-text-page-title">{{ currentTab === 'document-quotations' ? 'Quotations' : 'Invoices' }}</h2>
+                                <p class="zq-page-header-desc">{{ currentTab === 'document-quotations' ? 'Create, issue and manage quotation records.' : 'Create, issue and manage invoice and payment records.' }}</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
@@ -3516,18 +3516,25 @@
             </div>
         </div>
 
-        <!-- CLIENT INFORMATION REGISTRATION / EDIT -->
-        <div v-if="clientInformationModal.show" class="zq-modal-overlay z-[105] no-print" role="dialog" aria-modal="true" aria-label="Client Information form" @click.self="closeClientInformation()">
-            <form @submit.prevent="saveClientInformation" class="zq-modal zq-modal-lg max-h-[94vh] flex flex-col">
-                <div class="zq-modal-header shrink-0">
+        <!-- CLIENT INFORMATION PAGE -->
+        <div v-show="currentTab === 'doc-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6 no-print">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu"><i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span></button>
+                    <div><h2 class="zq-text-page-title">Client Information</h2><p class="zq-page-header-desc">Register new client records or update one selected client without affecting other records.</p></div>
+                </div>
+                <div class="flex items-center gap-2"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-outline"><i class="fa-solid fa-plus"></i><span>New Client</span></button><button type="button" @click="closeClientInformation()" class="zq-btn zq-btn-ghost"><i class="fa-solid fa-list"></i><span>Client Directory</span></button></div>
+            </div>
+            <form @submit.prevent="saveClientInformation" class="zq-card p-4 md:p-6 space-y-5">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-700 pb-4">
                     <div>
                         <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Registration</p>
-                        <h3 class="zq-modal-title mt-1">{{ clientInformationModal.isEdit ? 'Update Client Information' : 'Client Information' }}</h3>
-                        <p class="zq-modal-description">{{ clientInformationModal.isEdit ? 'Only this selected legacy record will be updated.' : 'Save to create the client’s permanent Client ID.' }}</p>
+                        <h3 class="zq-text-section-title mt-1">{{ clientInformationModal.isEdit ? 'Update Client Information' : 'Client Information' }}</h3>
+                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ clientInformationModal.isEdit ? 'Only this selected client record will be updated.' : 'Save to create the client’s permanent Client ID.' }}</p>
                     </div>
-                    <button type="button" @click="closeClientInformation()" :disabled="clientInformationModal.saving" aria-label="Close client information form" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                    <span v-if="clientInformationModal.form.clientId" class="inline-flex shrink-0 items-center gap-2 rounded-lg border border-brand-blue/20 bg-brand-blue/5 px-3 py-2 font-mono text-xs font-extrabold text-brand-blue dark:bg-brand-blue/10 dark:text-teal-300"><i class="fa-solid fa-fingerprint"></i>{{ clientInformationModal.form.clientId }}</span>
                 </div>
-                <div class="zq-modal-body overflow-y-auto">
+                <div>
                     <div class="rounded-xl border border-brand-blue/20 bg-brand-blue/5 dark:bg-brand-blue/10 px-4 py-3 text-xs text-slate-700 dark:text-slate-200">
                         <div class="flex items-start gap-2.5"><i class="fa-solid fa-fingerprint mt-0.5 text-brand-blue"></i><p><strong>Permanent Client ID:</strong> <span v-if="clientInformationModal.form.clientId" class="font-mono font-extrabold text-brand-blue dark:text-teal-300">{{ clientInformationModal.form.clientId }}</span><span v-else>generated automatically after you save this new client.</span></p></div>
                     </div>
@@ -3572,8 +3579,8 @@
                         <label for="client-info-notes" class="sr-only">Internal notes</label><textarea id="client-info-notes" v-model="clientInformationModal.form.clientNotes" rows="3" placeholder="Useful registration or account notes for staff" class="zq-input resize-y"></textarea>
                     </section>
                 </div>
-                <div class="zq-modal-footer shrink-0">
-                    <button type="button" @click="closeClientInformation()" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-outline">Cancel</button>
+                <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 pt-5">
+                    <button type="button" @click="openClientInformation()" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-outline"><i class="fa-solid fa-rotate-left"></i>Clear Form</button>
                     <button type="submit" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-primary"><i :class="clientInformationModal.saving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-floppy-disk'"></i>{{ clientInformationModal.saving ? 'Saving…' : (clientInformationModal.isEdit ? 'Save Client Information' : 'Register Client') }}</button>
                 </div>
             </form>

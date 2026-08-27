@@ -3914,13 +3914,17 @@ createApp({
                 clientCity: record.clientCity || '', clientState: record.clientState || '', clientPostcode: record.clientPostcode || '',
                 clientCountry: record.clientCountry || 'Malaysia', clientNotes: record.clientNotes || ''
             };
-            this.clientInformationModal.show = true;
+            // Client Information is a full Document Centre page, not a pop-up.
+            // The separate page makes long registration records easier to review.
+            this.clientInformationModal.show = false;
+            this.switchTab('doc-generator');
         },
         closeClientInformation() {
             if (this.clientInformationModal.saving) return;
             this.clientInformationModal.show = false;
             this.clientInformationModal.isEdit = false;
             this.clientInformationModal.form = this.emptyClientInformationForm();
+            this.switchTab('client-directory');
         },
         async saveClientInformation() {
             if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
@@ -3963,8 +3967,10 @@ createApp({
                 await setDoc(doc(db, 'customers', docId), clientRecord, { merge: true });
                 this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `${isNewRecord ? 'Registered' : 'Updated'} client ${clientRecord.clientName} (${clientId})`);
                 this.showNotify(isNewRecord ? `Client registered. Permanent Client ID: ${clientId}` : `Client information updated. Client ID remains ${clientId}.`);
-                this.clientInformationModal.saving = false;
-                this.closeClientInformation();
+                // Stay on the full page and show the newly issued permanent ID.
+                this.clientInformationModal.form.id = docId;
+                this.clientInformationModal.form.clientId = clientId;
+                this.clientInformationModal.isEdit = true;
                 return true;
             } catch (error) {
                 console.error('Client information save failed:', error);
@@ -5342,7 +5348,7 @@ createApp({
         },
         editRecord(item) {
             this.mobileMenuOpen = false;
-            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.raw.status || item.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); } this.switchTab('doc-generator'); }
+            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.raw.status || item.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); } this.switchTab(item.type === 'Invoice' ? 'document-invoices' : 'document-quotations'); }
             else if (item.isPay) { this.editingPayId = item.id; if (item.raw) { this.payForm = JSON.parse(JSON.stringify(item.raw)); this.selectedPayEmployeeId = this.payForm.empNo || ''; } this.autoCalculatePayroll(); this.switchTab('payslip-generator'); }
             else if (item.isVoucher) this.editPaymentVoucher(item);
             else if (item.isClaim) this.editClaimRecord(item);
