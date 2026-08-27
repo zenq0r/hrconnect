@@ -397,6 +397,8 @@ createApp({
 
             notification: { show: false, message: '' },
             notificationsLog: [],
+            portalNotifications: [],
+            portalNotificationsLoaded: false,
             notificationsPanelOpen: false,
             staffDirectoryPanelOpen: false,
             staffDirectoryTab: 'staff',
@@ -855,7 +857,14 @@ createApp({
                     return String(a.name || a.email).localeCompare(String(b.name || b.email));
                 });
         },
-        unreadNotificationsCount() { return this.notificationsLog.filter(n => !n.read).length; },
+        notificationsForDisplay() {
+            const local = this.notificationsLog.map(notification => ({ ...notification, source: 'local' }));
+            const realtime = this.portalNotifications.filter(notification => !notification.hiddenAt).map(notification => ({ ...notification, timestamp: notification.createdAt, source: 'portal' }));
+            return [...realtime, ...local]
+                .sort((a, b) => String(b.timestamp || '').localeCompare(String(a.timestamp || '')))
+                .slice(0, 50);
+        },
+        unreadNotificationsCount() { return this.notificationsForDisplay.filter(n => !n.read).length; },
         latestChangelog() { return APP_CHANGELOG[0] || null; },
         appChangelog() { return APP_CHANGELOG; },
         priorityClients() { return this.customers.filter(c => c.clientTier === 'Priority'); },
@@ -2854,14 +2863,18 @@ createApp({
         toggleStaffDirectoryPanel() {
             this.staffDirectoryPanelOpen = !this.staffDirectoryPanelOpen;
         },
-        markAllNotificationsRead() {
+        async markAllNotificationsRead() {
             this.notificationsLog.forEach(n => { n.read = true; });
             this.syncNotificationsLog();
+            const unreadPortal = this.portalNotifications.filter(notification => !notification.read && !notification.hiddenAt);
+            await Promise.all(unreadPortal.map(notification => updateDoc(doc(db, 'portal_notifications', notification.id), { read: true, readAt: new Date().toISOString() }).catch(error => console.warn('Unable to mark website notification as read:', error))));
         },
-        clearNotificationsLog() {
+        async clearNotificationsLog() {
             this.notificationsLog = [];
             this.notificationsPanelOpen = false;
             this.syncNotificationsLog();
+            const visiblePortal = this.portalNotifications.filter(notification => !notification.hiddenAt);
+            await Promise.all(visiblePortal.map(notification => updateDoc(doc(db, 'portal_notifications', notification.id), { hiddenAt: new Date().toISOString() }).catch(error => console.warn('Unable to hide website notification:', error))));
         },
 
         isSupportedImageAttachment(attachment) {
@@ -5334,6 +5347,7 @@ createApp({
                         : [])
                 ]
                 : [collection(db, 'project_client_updates')];
+            const portalNotificationsSource = query(collection(db, 'portal_notifications'), where('recipientUid', '==', this.userProfile.uid));
 
             const userSubscription = canReadUserDirectory
                 ? subscribeWithReadySignal(collection(db, 'users'), (snapshot) => {
@@ -5455,6 +5469,18 @@ createApp({
                     }
                     this.projectClientUpdatesLoaded = true;
                 }, 'Client activity history'),
+                subscribeWithReadySignal(portalNotificationsSource, (snapshot) => {
+                    const previousIds = new Set(this.portalNotifications.map(notification => notification.id));
+                    this.portalNotifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    if (this.portalNotificationsLoaded) {
+                        const latest = this.portalNotifications.find(notification => !previousIds.has(notification.id) && !notification.hiddenAt);
+                        if (latest) {
+                            this.notification = { show: true, message: latest.title || 'You have a new portal notification.' };
+                            setTimeout(() => { this.notification.show = false; }, 3500);
+                        }
+                    }
+                    this.portalNotificationsLoaded = true;
+                }, 'website notifications'),
                 userSubscription,
                 canReadAuditLogs
                     ? subscribeWithReadySignal(collection(db, "audit_logs"), (snapshot) => { this.auditLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)); }, 'audit logs')
@@ -5632,6 +5658,8 @@ createApp({
                 this.websiteContent = { portfolio_web: [], portfolio_gaming: [], services: [] };
                 this.siteTextOverrides = {};
                 this.notificationsLog = [];
+                this.portalNotifications = [];
+                this.portalNotificationsLoaded = false;
                 this.notificationsPanelOpen = false;
                 if (this.notificationsSyncTimer) { clearTimeout(this.notificationsSyncTimer); this.notificationsSyncTimer = null; }
                 this.stopIdleTimeoutWatch();

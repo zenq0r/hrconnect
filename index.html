@@ -597,15 +597,15 @@
                                     <h4 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">Notifications</h4>
                                     <div class="flex gap-2">
                                         <button v-if="unreadNotificationsCount" type="button" @click="markAllNotificationsRead" class="text-[10px] font-bold text-brand-blue hover:underline">Mark all read</button>
-                                        <button v-if="notificationsLog.length" type="button" @click="clearNotificationsLog" class="text-[10px] font-bold text-red-500 hover:underline">Clear</button>
+                                        <button v-if="notificationsForDisplay.length" type="button" @click="clearNotificationsLog" class="text-[10px] font-bold text-red-500 hover:underline">Clear</button>
                                     </div>
                                 </div>
                                 <div class="max-h-80 overflow-y-auto">
-                                    <div v-for="n in notificationsLog" :key="n.id" class="flex items-start gap-2 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs" :class="!n.read ? 'bg-blue-50/50 dark:bg-slate-700/30' : ''">
+                                    <div v-for="n in notificationsForDisplay" :key="n.id" class="flex items-start gap-2 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs" :class="!n.read ? 'bg-blue-50/50 dark:bg-slate-700/30' : ''">
                                         <span :class="!n.read ? 'bg-brand-blue' : 'bg-slate-300'" class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"></span>
                                         <div class="min-w-0"><p class="text-slate-700 dark:text-slate-200">{{ n.message }}</p><p class="mt-0.5 text-[9px] text-slate-400">{{ formatDateTime(n.timestamp) }}</p></div>
                                     </div>
-                                    <div v-if="!notificationsLog.length" class="zq-empty-state zq-empty-state-compact">
+                                    <div v-if="!notificationsForDisplay.length" class="zq-empty-state zq-empty-state-compact">
                                         <i class="fa-regular fa-bell zq-empty-state-icon" aria-hidden="true"></i>
                                         <p class="zq-empty-state-title">No notifications yet</p>
                                         <p class="zq-empty-state-text">You'll see updates here as they happen.</p>
@@ -2710,7 +2710,7 @@
 
                     <div v-if="clientUpdateModal.show && clientUpdateModal.project" class="zq-modal-overlay z-[99]" role="dialog" aria-modal="true" :aria-label="clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update'" @click.self="closeClientUpdateModal">
                         <form @submit.prevent="saveClientUpdate" class="zq-modal zq-modal-lg">
-                            <header class="zq-modal-header zq-modal-header-brand"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ clientUpdateModal.project.projectRef }}</p><h3 class="zq-modal-title mt-1">{{ clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update' }}</h3><p class="zq-modal-description !text-slate-300">This message will appear in the Client Activity History.</p></div><button type="button" @click="closeClientUpdateModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+                            <header class="zq-modal-header zq-modal-header-brand"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ clientUpdateModal.project.projectRef }}</p><h3 class="zq-modal-title mt-1">{{ clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update' }}</h3><p class="zq-modal-description !text-slate-300">This message will appear in the Client Activity History and notify every authorized client contact by email and in the portal.</p></div><button type="button" @click="closeClientUpdateModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
                             <div class="zq-modal-body grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <label class="zq-label">Update Type *<select v-model="clientUpdateModal.form.updateType" required class="zq-input mt-1.5"><option v-for="type in clientUpdateTypes" :key="type" :value="type">{{ type }}</option></select></label>
                                 <label class="zq-label">Update Date *<input v-model="clientUpdateModal.form.updateDate" type="date" required class="zq-input mt-1.5"></label>

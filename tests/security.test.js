@@ -121,3 +121,16 @@ test('Client Portal does not render obsolete dashboard layers or overlapping her
     assert.doesNotMatch(source, /portal-hero-dot-/);
     assert.match(source, /relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between/);
 });
+
+test('incoming portal notifications are recipient-scoped and protected from client-side creation', () => {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const notifier = fs.readFileSync(path.join(__dirname, '..', 'api', 'notify.js'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+    assert.match(rules, /match \/portal_notifications\/\{notificationId\}/);
+    assert.match(rules, /resource\.data\.recipientUid == request\.auth\.uid/);
+    assert.match(rules, /allow create, delete: if false/);
+    assert.match(notifier, /createWebsiteNotifications/);
+    assert.match(notifier, /expandAuthorizedClientRecipients/);
+    assert.match(app, /portalNotificationsSource/);
+});

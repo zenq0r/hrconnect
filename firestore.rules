@@ -584,6 +584,18 @@ service cloud.firestore {
       );
     }
 
+    // Recipient-specific alerts created by the trusted /api/notify endpoint.
+    // A signed-in user can only see and acknowledge their own alerts; browser
+    // clients can never create, redirect, or delete notifications for others.
+    match /portal_notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.recipientUid == request.auth.uid;
+      allow update: if isAuthenticated() &&
+        resource.data.recipientUid == request.auth.uid &&
+        request.resource.data.recipientUid == resource.data.recipientUid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read', 'readAt', 'hiddenAt']);
+      allow create, delete: if false;
+    }
+
     match /audit_logs/{logId} {
       allow read: if isAdmin() || isIT();
       // Audit events are written only by /api/audit-log through the Admin SDK.

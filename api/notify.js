@@ -47,6 +47,60 @@ async function isAllowedRecipient(db, email, callerRole) {
     return !byUserEmail.empty || !byClientEmail.empty || !byAdditionalClientEmail.empty;
 }
 
+// Website notifications are stored independently from a user's profile.  This
+// avoids two browser sessions overwriting each other's notification log and lets
+// Firestore deliver the alert immediately to a recipient who is already online.
+async function createWebsiteNotifications(db, recipientEmails, notification) {
+    const recipientUsers = new Map();
+    const uniqueEmails = [...new Set(recipientEmails.map(email => email.toLowerCase()))];
+
+    for (let index = 0; index < uniqueEmails.length; index += 10) {
+        const batchEmails = uniqueEmails.slice(index, index + 10);
+        const snapshot = await db.collection('users').where('email', 'in', batchEmails).get();
+        snapshot.docs.forEach((userDoc) => {
+            const user = userDoc.data();
+            recipientUsers.set(userDoc.id, String(user.email || '').toLowerCase());
+        });
+    }
+
+    if (!recipientUsers.size) return 0;
+
+    const batch = db.batch();
+    const timestamp = new Date().toISOString();
+    recipientUsers.forEach((recipientEmail, recipientUid) => {
+        const noticeRef = db.collection('portal_notifications').doc();
+        batch.set(noticeRef, {
+            recipientUid,
+            recipientEmail,
+            title: notification.heading,
+            message: notification.message,
+            actionLabel: notification.ctaLabel || 'OPEN PORTAL',
+            actionUrl: isAllowedPortalUrl(notification.ctaUrl) ? notification.ctaUrl : 'https://www.hrct.portal.zenqor.com.my/',
+            createdAt: timestamp,
+            read: false
+        });
+    });
+    await batch.commit();
+    return recipientUsers.size;
+}
+
+// A client directory can authorize more than one contact.  Sending to the
+// primary client address must therefore include every approved additional
+// contact instead of leaving finance/operations users without the update.
+async function expandAuthorizedClientRecipients(db, emails) {
+    const expanded = new Set(emails);
+    for (const email of emails) {
+        const clients = await db.collection('customers').where('clientEmail', '==', email).limit(1).get();
+        clients.docs.forEach((clientDoc) => {
+            const additional = Array.isArray(clientDoc.data().additionalClientEmails)
+                ? clientDoc.data().additionalClientEmails
+                : [];
+            additional.map(normalizeEmail).filter(Boolean).forEach(address => expanded.add(address));
+        });
+    }
+    return [...expanded].slice(0, 20);
+}
+
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
@@ -70,7 +124,8 @@ module.exports = async function handler(req, res) {
         }
 
         const { to, subject, heading, message, ctaLabel, ctaUrl } = req.body || {};
-        const candidates = [...new Set((Array.isArray(to) ? to : [to]).map(normalizeEmail).filter(Boolean))].slice(0, 20);
+        const requestedRecipients = [...new Set((Array.isArray(to) ? to : [to]).map(normalizeEmail).filter(Boolean))].slice(0, 20);
+        const candidates = await expandAuthorizedClientRecipients(db, requestedRecipients);
         if (!candidates.length) { res.status(400).json({ error: 'At least one valid recipient email is required.' }); return; }
         if (typeof subject !== 'string' || !subject.trim() || subject.length > 200 ||
             typeof heading !== 'string' || !heading.trim() || heading.length > 160 ||
@@ -84,26 +139,35 @@ module.exports = async function handler(req, res) {
         const recipients = candidates.filter((_, i) => knownChecks[i]);
         if (!recipients.length) { res.status(400).json({ error: 'No recipient matches a known staff or client account.' }); return; }
 
+        // Always create the real-time website alert first.  An email-provider
+        // outage must never hide a document or chat notification in the portal.
+        const websiteRecipients = await createWebsiteNotifications(db, recipients, { heading, message, ctaLabel, ctaUrl });
+
+        let emailStatus = 'unavailable';
         const apiKey = process.env.RESEND_API_KEY;
-        if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not set.');
-
-        const response = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from: 'Zenqor Technologies <noreply@zenq0r.com>',
-                to: recipients,
-                subject: String(subject).slice(0, 200),
-                html: buildEmailHtml({ heading, message, ctaLabel, ctaUrl })
-            })
-        });
-
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`Resend send failed: ${response.status} ${errText}`);
+        if (apiKey) {
+            try {
+                const response = await fetch('https://api.resend.com/emails', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        from: process.env.RESEND_FROM_EMAIL || 'Zenqor Technologies <noreply@zenq0r.com>',
+                        to: recipients,
+                        subject: String(subject).slice(0, 200),
+                        html: buildEmailHtml({ heading, message, ctaLabel, ctaUrl })
+                    })
+                });
+                if (!response.ok) throw new Error(`Resend send failed: ${response.status} ${await response.text()}`);
+                emailStatus = 'sent';
+            } catch (emailError) {
+                emailStatus = 'failed';
+                console.error('Notification email failed after website notification was created:', emailError);
+            }
+        } else {
+            console.error('RESEND_API_KEY is not configured; website notification was created without email delivery.');
         }
 
-        res.status(200).json({ success: true });
+        res.status(200).json({ success: true, websiteRecipients, emailStatus });
     } catch (error) {
         console.error('notify error:', error);
         // Non-fatal by design: the caller (app.js) treats this as fire-and-forget
