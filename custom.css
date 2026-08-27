@@ -1819,3 +1819,60 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     background: #223047 !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20) !important;
 }
+
+/* Quotation & invoice workspace — explicit paired surfaces prevent a stale
+   Tailwind build from leaving a light panel inside the dark workspace. */
+#app .zq-document-editor {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.07);
+}
+.dark #app .zq-document-editor {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.26);
+}
+
+#app .zq-party-selector,
+#app .zq-payment-details {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: #f8fafc;
+}
+.dark #app .zq-party-selector,
+.dark #app .zq-payment-details {
+    border-color: #475569;
+    background: #162235;
+}
+.zq-party-selector-title,
+.zq-document-section-heading {
+    color: #0f172a;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.zq-party-selector-title i { color: #0f766e; }
+.zq-party-selector-help {
+    margin-top: 4px;
+    color: #64748b;
+    font-size: 0.6875rem;
+}
+.dark #app .zq-party-selector-title,
+.dark #app .zq-document-section-heading { color: #f8fafc; }
+.dark #app .zq-party-selector-title i { color: #2dd4bf; }
+.dark #app .zq-party-selector-help { color: #cbd5e1; }
+
+#app .zq-party-selector-summary {
+    border: 1px solid #dbe3ec;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #475569;
+}
+#app .zq-party-selector-summary span:first-child { color: #0f172a; }
+.dark #app .zq-party-selector-summary {
+    border-color: #475569;
+    background: #253247;
+    color: #cbd5e1;
+}
+.dark #app .zq-party-selector-summary span:first-child { color: #f8fafc; }

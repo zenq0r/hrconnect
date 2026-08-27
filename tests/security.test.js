@@ -162,3 +162,15 @@ test('dynamic status colors include their dark-mode counterparts in the built st
     assert.match(theme, /Theme compatibility layer/);
     assert.match(theme, /text-brand-blue:not\(\[class\*="dark:text-"\]\)/);
 });
+
+test('quotation and invoice workspace uses explicit paired light and dark theme surfaces', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const theme = fs.readFileSync(path.join(__dirname, '..', 'custom.css'), 'utf8');
+
+    ['zq-document-editor', 'zq-party-selector', 'zq-party-selector-summary', 'zq-payment-details', 'zq-document-section-heading'].forEach(className => {
+        assert.match(html, new RegExp(className));
+    });
+    assert.match(theme, /\.dark #app \.zq-document-editor/);
+    assert.match(theme, /\.dark #app \.zq-party-selector,/);
+    assert.match(theme, /\.dark #app \.zq-party-selector-summary/);
+});
