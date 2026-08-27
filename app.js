@@ -31,7 +31,7 @@ import {
 } from "./firebase-config.js";
 
 // Vercel Web Analytics
-import { inject } from '@vercel/analytics';
+import { inject } from "https://unpkg.com/@vercel/analytics@2.0.1/dist/index.mjs";
 inject();
 
 const { createApp } = Vue;
