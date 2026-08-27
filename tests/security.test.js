@@ -149,3 +149,16 @@ test('only the current project PIC can load or manage project activity details',
     assert.match(html, /v-if="canViewProjectActivityDetails\(projectPreview\.project\)"/);
     assert.match(html, /Only this project's Person In Charge, Director or Superadmin can view or change Activity Type and Assigned To/);
 });
+
+test('dynamic status colors include their dark-mode counterparts in the built stylesheet', () => {
+    const config = fs.readFileSync(path.join(__dirname, '..', 'tailwind.config.js'), 'utf8');
+    const css = fs.readFileSync(path.join(__dirname, '..', 'tailwind.css'), 'utf8');
+    const theme = fs.readFileSync(path.join(__dirname, '..', 'custom.css'), 'utf8');
+
+    assert.match(config, /'\.\/app\.js'/);
+    ['.dark\\:bg-blue-900\\/50', '.dark\\:bg-amber-900\\/50', '.dark\\:bg-emerald-900\\/50', '.dark\\:bg-purple-900\\/50'].forEach(selector => {
+        assert.equal(css.includes(selector), true, `Missing compiled selector: ${selector}`);
+    });
+    assert.match(theme, /Theme compatibility layer/);
+    assert.match(theme, /text-brand-blue:not\(\[class\*="dark:text-"\]\)/);
+});

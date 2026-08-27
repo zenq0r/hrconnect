@@ -1276,3 +1276,24 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-segmented-control button.is-active {
     background: var(--zq-primary); color: var(--zq-text-on-primary); font-weight: 800; box-shadow: var(--zq-shadow-sm);
 }
+
+/* ---- Theme compatibility layer ----
+   Most page markup declares a paired `dark:` utility. This safeguard covers
+   the remaining legacy utilities that do not have a dark counterpart, so a
+   dark surface can never retain low-contrast light-mode text, borders or
+   cards. Explicit `dark:` choices still win and remain available for true
+   semantic exceptions (success, warning, error and information states). */
+html.dark #app .text-slate-500:not([class*="dark:text-"]),
+html.dark #app .text-slate-600:not([class*="dark:text-"]) { color: var(--zq-text-muted); }
+html.dark #app .text-slate-700:not([class*="dark:text-"]),
+html.dark #app .text-slate-800:not([class*="dark:text-"]),
+html.dark #app .text-slate-900:not([class*="dark:text-"]),
+html.dark #app .text-brand-dark:not([class*="dark:text-"]) { color: var(--zq-text); }
+html.dark #app .text-brand-blue:not([class*="dark:text-"]) { color: #2dd4bf; }
+
+html.dark #app .bg-white:not([class*="dark:bg-"]) { background-color: var(--zq-surface); }
+html.dark #app .bg-slate-50:not([class*="dark:bg-"]) { background-color: var(--zq-surface-alt); }
+html.dark #app .bg-slate-100:not([class*="dark:bg-"]) { background-color: var(--zq-neutral-bg); }
+html.dark #app .border-slate-100:not([class*="dark:border-"]),
+html.dark #app .border-slate-200:not([class*="dark:border-"]),
+html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: var(--zq-border); }

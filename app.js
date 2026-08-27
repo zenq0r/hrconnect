@@ -1568,15 +1568,15 @@ createApp({
             }
         },
         projectActivityDueState(activity) {
-            if (activity.status === 'Done') return { label: 'Done', className: 'bg-slate-200 text-slate-700', borderClass: 'border-l-slate-400', dotClass: 'bg-slate-400', daysRemaining: null };
+            if (activity.status === 'Done') return { label: 'Done', className: 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200', borderClass: 'border-l-slate-400 dark:border-l-slate-600', dotClass: 'bg-slate-400', daysRemaining: null };
             const today = this.getLocalDateKey();
             const dueDate = String(activity.dueDate || '');
             const daysRemaining = Math.round((Date.parse(`${dueDate}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
-            if (!Number.isFinite(daysRemaining)) return { label: 'No Due Date', className: 'bg-slate-200 text-slate-700', borderClass: 'border-l-slate-400', dotClass: 'bg-slate-400', daysRemaining: null };
-            if (daysRemaining < 0) return { label: `${Math.abs(daysRemaining)} Day${Math.abs(daysRemaining) === 1 ? '' : 's'} Overdue`, className: 'bg-red-100 text-red-800', borderClass: 'border-l-red-500', dotClass: 'bg-red-500', daysRemaining };
-            if (daysRemaining === 0) return { label: 'Due Today', className: 'bg-amber-100 text-amber-800', borderClass: 'border-l-amber-400', dotClass: 'bg-amber-400', daysRemaining };
-            if (daysRemaining <= 3) return { label: `Due In ${daysRemaining} Day${daysRemaining === 1 ? '' : 's'}`, className: 'bg-emerald-100 text-emerald-800', borderClass: 'border-l-emerald-500', dotClass: 'bg-emerald-500', daysRemaining };
-            return { label: `Scheduled · ${daysRemaining} Days`, className: 'bg-blue-100 text-blue-800', borderClass: 'border-l-blue-500', dotClass: 'bg-blue-500', daysRemaining };
+            if (!Number.isFinite(daysRemaining)) return { label: 'No Due Date', className: 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200', borderClass: 'border-l-slate-400 dark:border-l-slate-600', dotClass: 'bg-slate-400', daysRemaining: null };
+            if (daysRemaining < 0) return { label: `${Math.abs(daysRemaining)} Day${Math.abs(daysRemaining) === 1 ? '' : 's'} Overdue`, className: 'bg-red-100 dark:bg-red-950/40 text-red-800 dark:text-red-300', borderClass: 'border-l-red-500', dotClass: 'bg-red-500', daysRemaining };
+            if (daysRemaining === 0) return { label: 'Due Today', className: 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300', borderClass: 'border-l-amber-400', dotClass: 'bg-amber-400', daysRemaining };
+            if (daysRemaining <= 3) return { label: `Due In ${daysRemaining} Day${daysRemaining === 1 ? '' : 's'}`, className: 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300', borderClass: 'border-l-emerald-500', dotClass: 'bg-emerald-500', daysRemaining };
+            return { label: `Scheduled · ${daysRemaining} Days`, className: 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300', borderClass: 'border-l-blue-500', dotClass: 'bg-blue-500', daysRemaining };
         },
         projectTargetDateState(project) {
             if (project.status === 'Completed & Done') return { label: 'Completed', className: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300', borderClass: 'border-l-emerald-500', daysRemaining: null };
@@ -3942,9 +3942,9 @@ createApp({
         },
         clientTierMeta(tier) {
             const map = {
-                Priority: { label: 'Priority', badgeClass: 'bg-rose-100 text-rose-700' },
-                Premium: { label: 'Premium', badgeClass: 'bg-amber-100 text-amber-700' },
-                Standard: { label: 'Standard', badgeClass: 'bg-slate-100 text-slate-600' }
+                Priority: { label: 'Priority', badgeClass: 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300' },
+                Premium: { label: 'Premium', badgeClass: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
+                Standard: { label: 'Standard', badgeClass: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200' }
             };
             return map[tier] || map.Standard;
         },
