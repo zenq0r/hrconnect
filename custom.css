@@ -1601,3 +1601,193 @@ html.dark #app .bg-slate-100:not([class*="dark:bg-"]) { background-color: var(--
 html.dark #app .border-slate-100:not([class*="dark:border-"]),
 html.dark #app .border-slate-200:not([class*="dark:border-"]),
 html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: var(--zq-border); }
+
+/* ============================================================
+   PROFESSIONAL WORKSPACE SYSTEM
+   The portal behaves like a familiar business application: quiet page
+   surfaces, compact information hierarchy and a small, intentional accent
+   palette. This layer applies equally to Staff and Client views.
+   ============================================================ */
+
+/* A conventional sign-in screen — no watermark or oversized feature cards. */
+.zq-auth-shell {
+    background: #f1f5f9 !important;
+}
+.zq-auth-shell > .pointer-events-none { display: none !important; }
+.zq-auth-landing {
+    max-width: 820px !important;
+    padding: 32px;
+    border: 1px solid #dbe3ec;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.10);
+}
+.zq-auth-landing > .text-center { margin-bottom: 24px !important; }
+.zq-auth-landing > .text-center h1 { color: #0f172a !important; font-size: 1.55rem; }
+.zq-auth-landing > .text-center p { color: #64748b !important; }
+.zq-auth-landing > .text-center span {
+    margin-top: 10px !important;
+    border-color: #bfe7e1 !important;
+    background: #ecfdf5 !important;
+    color: #0f766e !important;
+}
+.zq-auth-choice {
+    min-height: 188px;
+    padding: 22px !important;
+    border: 1px solid #dbe3ec !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+.zq-auth-choice::after { display: none; }
+.zq-auth-choice:hover {
+    transform: translateY(-2px) !important;
+    border-color: #5eead4 !important;
+    box-shadow: 0 8px 20px rgba(15, 118, 110, 0.08) !important;
+}
+.zq-auth-choice h2 { color: #0f172a !important; }
+.zq-auth-choice p { color: #64748b !important; }
+.zq-auth-choice-staff > div { background: #0f766e !important; }
+.zq-auth-choice-client > div { background: #2563eb !important; color: #ffffff !important; }
+.dark .zq-auth-shell { background: #0f172a !important; }
+.dark .zq-auth-landing {
+    border-color: #334155;
+    background: #1e293b;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.26);
+}
+.dark .zq-auth-landing > .text-center h1 { color: #f8fafc !important; }
+.dark .zq-auth-landing > .text-center p { color: #94a3b8 !important; }
+.dark .zq-auth-choice { border-color: #475569 !important; background: #263449 !important; }
+.dark .zq-auth-choice h2 { color: #f8fafc !important; }
+.dark .zq-auth-choice p { color: #cbd5e1 !important; }
+
+/* Shared staff/client application shell. */
+#app .zq-main {
+    background: #f6f8fb;
+}
+.dark #app .zq-main { background: #111827; }
+#app .zq-topbar {
+    min-height: 66px;
+    border-bottom-color: #e2e8f0 !important;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03) !important;
+}
+.dark #app .zq-topbar {
+    border-bottom-color: #334155 !important;
+    box-shadow: 0 1px 0 rgba(148, 163, 184, 0.08) !important;
+}
+#app .zq-topbar input { border-radius: 8px; }
+#app .zq-sidebar {
+    background: #172033 !important;
+    box-shadow: none !important;
+}
+#app .zq-sidebar > div:first-child { min-height: 70px; padding: 14px 16px !important; }
+#app .zq-sidebar nav { padding: 12px 10px; }
+#app .zq-nav-item { min-height: 40px; padding: 9px 11px; border-radius: 8px; }
+#app .sidebar-item-active,
+#app .client-portal-theme .sidebar-item-active {
+    background: #0f766e !important;
+    border-left-color: #5eead4 !important;
+    box-shadow: none !important;
+}
+#app .client-portal-theme .sidebar-item-active {
+    background: #2563eb !important;
+    border-left-color: #bfdbfe !important;
+}
+
+/* Staff dashboard: an operational header, followed by compact cards. */
+#app .zq-staff-dashboard > div:first-child {
+    margin-bottom: 2px;
+    padding: 2px 0 10px;
+}
+#app .zq-staff-dashboard .zq-text-page-title { font-size: 1.45rem; letter-spacing: -0.025em; }
+#app .zq-kpi-card {
+    min-height: 124px;
+    border: 1px solid #dbe3ec;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: none;
+}
+#app .zq-kpi-card:hover { border-color: #99d9d0; box-shadow: 0 8px 18px rgba(15, 118, 110, 0.07); }
+.dark #app .zq-kpi-card { border-color: #334155; background: #1e293b; }
+
+/* Client workspace: a standard page header, account summary and data cards. */
+#app .zq-client-workspace { max-width: 1280px; padding-top: 24px; padding-bottom: 32px; }
+#app .zq-client-hero {
+    min-height: 154px;
+    border: 1px solid #dbe3ec !important;
+    border-left: 4px solid #0f766e !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+#app .zq-client-hero > div:first-child { display: none; }
+#app .zq-client-hero h2,
+#app .zq-client-hero .text-white,
+#app .zq-client-hero .text-slate-200,
+#app .zq-client-hero .text-slate-300 { color: #0f172a !important; }
+#app .zq-client-hero h2 { font-size: 1.6rem; letter-spacing: -0.025em; }
+#app .zq-client-hero .bg-white\/10 { background: #f1f5f9 !important; }
+#app .zq-client-hero .border-white\/20,
+#app .zq-client-hero .border-white\/25 { border-color: #cbd5e1 !important; }
+#app .zq-client-hero button:first-child { background: #f8fafc !important; color: #334155 !important; }
+#app .zq-client-hero button:last-child { background: #0f766e !important; color: #ffffff !important; border-color: #0f766e !important; }
+.dark #app .zq-client-hero {
+    border-color: #334155 !important;
+    border-left-color: #2dd4bf !important;
+    background: #1e293b !important;
+}
+.dark #app .zq-client-hero h2,
+.dark #app .zq-client-hero .text-white,
+.dark #app .zq-client-hero .text-slate-200,
+.dark #app .zq-client-hero .text-slate-300 { color: #f8fafc !important; }
+.dark #app .zq-client-hero .bg-white\/10 { background: #263449 !important; }
+.dark #app .zq-client-hero .border-white\/20,
+.dark #app .zq-client-hero .border-white\/25 { border-color: #475569 !important; }
+.dark #app .zq-client-hero button:first-child { background: #263449 !important; color: #e2e8f0 !important; }
+
+#app .zq-client-identity {
+    border: 1px solid #dbe3ec !important;
+    border-radius: 12px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+}
+#app .zq-client-identity .text-white,
+#app .zq-client-identity .text-slate-300 { color: #334155 !important; }
+#app .zq-client-identity .border-white\/15,
+#app .zq-client-identity .border-white\/20 { border-color: #e2e8f0 !important; }
+#app .zq-client-identity .bg-white\/10 { background: #eff6ff !important; }
+.dark #app .zq-client-identity { border-color: #334155 !important; background: #1e293b !important; }
+.dark #app .zq-client-identity .text-white,
+.dark #app .zq-client-identity .text-slate-300 { color: #e2e8f0 !important; }
+
+#app .zq-client-workspace > .grid > section:last-child > div,
+#app .zq-client-workspace > .grid > section:last-child > div:nth-child(n) {
+    min-height: 124px;
+    border-color: #dbe3ec !important;
+    border-radius: 12px;
+    box-shadow: none;
+}
+.dark #app .zq-client-workspace > .grid > section:last-child > div { border-color: #334155 !important; }
+#app .zq-client-workspace > section + .grid > button {
+    min-height: 86px;
+    border-color: #dbe3ec !important;
+    border-radius: 12px;
+    box-shadow: none;
+}
+#app .zq-client-workspace > section + .grid > button:hover { transform: translateY(-1px); background: #f8fafc; }
+.dark #app .zq-client-workspace > section + .grid > button { border-color: #334155 !important; }
+.dark #app .zq-client-workspace > section + .grid > button:hover { background: #263449; }
+#app .zq-client-workspace > div.bg-white {
+    border-color: #dbe3ec !important;
+    border-radius: 12px !important;
+    box-shadow: none !important;
+}
+.dark #app .zq-client-workspace > div.bg-white { border-color: #334155 !important; }
+
+@media (max-width: 767px) {
+    .zq-auth-landing { padding: 22px; border-radius: 12px; }
+    .zq-auth-choice { min-height: 0; }
+    #app .zq-client-workspace { padding-top: 16px; }
+    #app .zq-client-hero { min-height: 0; border-radius: 10px !important; }
+    #app .zq-client-hero h2 { font-size: 1.35rem; }
+}
