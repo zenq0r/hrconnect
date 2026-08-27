@@ -480,15 +480,26 @@ service cloud.firestore {
     }
 
     match /project_activities/{activityId} {
-      allow read: if isAuthenticated() && !isClient();
+      // Activity Type, Assigned To and all other activity details are private to
+      // the project's current PIC (or a Project Manager). Other staff still have
+      // access to the project's Client Activity/Status History, but cannot read
+      // these documents directly through the browser or a crafted SDK request.
+      allow read: if isProjectManager() || (
+        isAuthenticated() && !isClient() &&
+        resource.data.projectOwnerEmail == request.auth.token.email
+      );
       allow create: if (
         isProjectManager() ||
         (isAuthenticated() && !isClient() &&
           get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail == request.auth.token.email)
       ) &&
+        exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
+        request.resource.data.projectOwnerEmail == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail &&
         request.resource.data.createdByUid == request.auth.uid &&
         request.resource.data.projectId is string &&
         request.resource.data.projectId.size() > 0 &&
+        request.resource.data.activityType is string &&
+        request.resource.data.activityType.size() > 0 &&
         request.resource.data.assignedEmpNo is string &&
         request.resource.data.assignedEmpNo.size() > 0 &&
         request.resource.data.assignedEmail is string &&
@@ -503,17 +514,30 @@ service cloud.firestore {
         isAuthenticated() && !isClient() &&
         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
         request.resource.data.projectId == resource.data.projectId &&
+        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
         request.resource.data.status == resource.data.status &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'activityType', 'summary', 'dueDate', 'assignedEmpNo', 'assignedName', 'assignedEmail', 'assignedPosition', 'details', 'updatedAt', 'updatedByUid', 'updatedByEmail'
         ])
       ) || (
-        isAuthenticated() &&
-        resource.data.assignedEmail == request.auth.token.email &&
+        isAuthenticated() && !isClient() &&
+        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
         request.resource.data.status == 'Done' &&
         request.resource.data.completedByUid == request.auth.uid &&
+        request.resource.data.completedByEmail == request.auth.token.email &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'completedAt', 'completedByUid', 'completedByEmail'
+        ])
+      ) || (
+        // The outgoing PIC can refresh the safe owner-email index only when a
+        // project handover is committed in the same batch. getAfter() prevents
+        // a standalone activity write from granting access to another user.
+        isAuthenticated() && !isClient() &&
+        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectOwnerEmail == getAfter(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'projectOwnerEmail'
         ])
       );
       allow delete: if isProjectManager();

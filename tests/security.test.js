@@ -134,3 +134,18 @@ test('incoming portal notifications are recipient-scoped and protected from clie
     assert.match(notifier, /expandAuthorizedClientRecipients/);
     assert.match(app, /portalNotificationsSource/);
 });
+
+test('only the current project PIC can load or manage project activity details', () => {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(rules, /resource\.data\.projectOwnerEmail == request\.auth\.token\.email/);
+    assert.match(rules, /request\.resource\.data\.projectOwnerEmail == get\(\/databases\/\$\(database\)\/documents\/projects\/\$\(request\.resource\.data\.projectId\)\)\.data\.ownerEmail/);
+    assert.match(rules, /getAfter\(\/databases\/\$\(database\)\/documents\/projects\/\$\(resource\.data\.projectId\)\)\.data\.ownerEmail/);
+    assert.match(app, /where\('projectOwnerEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
+    assert.match(app, /canViewProjectActivityDetails\(project\)/);
+    assert.match(app, /projectOwnerEmail: String\(project\.ownerEmail \|\| ''\)\.trim\(\)\.toLowerCase\(\)/);
+    assert.match(html, /v-if="canViewProjectActivityDetails\(projectPreview\.project\)"/);
+    assert.match(html, /Only this project's Person In Charge, Director or Superadmin can view or change Activity Type and Assigned To/);
+});

@@ -435,6 +435,7 @@ createApp({
             presenceNotificationsReady: false,
             portalUserOnlineStates: {},
             legacyClaimMigrationRunning: false,
+            activityOwnerSyncRunning: false,
 
             changePasswordModal: {
                 show: false,
@@ -1224,7 +1225,30 @@ createApp({
             return this.unlinkedProjectClientEmails.filter(email => !blocked.has(email));
         },
         projectStaffOptions() {
-            return this.employees.filter(employee => employee.email && employee.empNo).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+            // A Project PIC may schedule work for any provisioned colleague, but
+            // Staff/IT users deliberately cannot read the full employees collection
+            // (which contains payroll and identity data). Build the safe assignment
+            // list from the already-authorized portal directory, then enrich it with
+            // HR details only when those are available to the current role.
+            const byEmail = new Map();
+            this.users
+                .filter(user => user.role !== 'Client' && String(user.email || '').trim())
+                .forEach(user => {
+                    const email = String(user.email || '').trim().toLowerCase();
+                    byEmail.set(email, {
+                        empNo: user.empNo || `PORTAL-${user.id}`,
+                        name: user.name || email,
+                        email,
+                        position: user.position || user.role || 'STAFF'
+                    });
+                });
+            this.employees
+                .filter(employee => employee.email && employee.empNo)
+                .forEach(employee => {
+                    const email = String(employee.email || '').trim().toLowerCase();
+                    byEmail.set(email, { ...byEmail.get(email), ...employee, email });
+                });
+            return [...byEmail.values()].sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         },
         myPendingProjectActivities() {
             const email = String(this.userProfile.email || '').trim().toLowerCase();
@@ -1355,6 +1379,34 @@ createApp({
         },
         projectActivitiesFor(projectId) {
             return this.projectActivities.filter(activity => activity.projectId === projectId).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+        },
+        async syncProjectActivityOwners() {
+            // Existing activities predate projectOwnerEmail. A Director or
+            // Superadmin repairs only that safe access index after deployment;
+            // no activity content, status, assignee, or audit fields are changed.
+            if (!this.canManageProjects || this.activityOwnerSyncRunning || !this.projects.length || !this.projectActivities.length) return;
+            const projectOwnerById = new Map(this.projects.map(project => [project.id, String(project.ownerEmail || '').trim().toLowerCase()]));
+            const pending = this.projectActivities.filter(activity => {
+                const ownerEmail = projectOwnerById.get(activity.projectId);
+                return ownerEmail && String(activity.projectOwnerEmail || '').trim().toLowerCase() !== ownerEmail;
+            });
+            if (!pending.length) return;
+            this.activityOwnerSyncRunning = true;
+            try {
+                for (let start = 0; start < pending.length; start += 450) {
+                    const batch = writeBatch(db);
+                    pending.slice(start, start + 450).forEach(activity => {
+                        batch.update(doc(db, 'project_activities', activity.id), {
+                            projectOwnerEmail: projectOwnerById.get(activity.projectId)
+                        });
+                    });
+                    await batch.commit();
+                }
+            } catch (error) {
+                console.error('Unable to synchronize project activity access:', error);
+            } finally {
+                this.activityOwnerSyncRunning = false;
+            }
         },
         clientUpdatesFor(projectId) {
             return this.projectClientUpdates.filter(update => update.projectId === projectId).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
@@ -1569,8 +1621,11 @@ createApp({
         canManageProjectActivities(project) {
             return this.canManageProjects || this.isProjectOwner(project);
         },
+        canViewProjectActivityDetails(project) {
+            return this.canManageProjectActivities(project);
+        },
         canCompleteProjectActivity(activity) {
-            return this.canManageProjects || (this.userProfile.role !== 'Client' && String(activity?.assignedEmail || '').trim().toLowerCase() === String(this.userProfile.email || '').trim().toLowerCase());
+            return this.canEditProjectActivity(activity);
         },
         canEditProjectActivity(activity) {
             const project = this.projects.find(p => p.id === activity?.projectId);
@@ -1613,6 +1668,10 @@ createApp({
                 projectId: project.id,
                 projectRef: project.projectRef,
                 projectTitle: project.title,
+                // This is a non-sensitive access index. It lets Firestore return
+                // activity details only to the current project PIC without giving
+                // every staff account a readable copy of every activity.
+                projectOwnerEmail: String(project.ownerEmail || '').trim().toLowerCase(),
                 clientPortalUid: project.clientPortalUid,
                 clientEmail: project.clientEmail,
                 activityType: form.activityType,
@@ -1639,7 +1698,7 @@ createApp({
             }
         },
         async markProjectActivityDone(activity) {
-            if (!this.canCompleteProjectActivity(activity)) { this.showNotify('Only the assigned employee, Director or Superadmin may complete this activity.'); return; }
+            if (!this.canCompleteProjectActivity(activity)) { this.showNotify('Only this project\'s Person In Charge, Director or Superadmin may complete this activity.'); return; }
             try {
                 await updateDoc(doc(db, 'project_activities', activity.id), { status: 'Done', completedAt: new Date().toISOString(), completedByUid: this.userProfile.uid, completedByEmail: this.userProfile.email });
                 this.logAudit('UPDATE', `Completed project activity ${activity.summary}`);
@@ -1801,7 +1860,20 @@ createApp({
                 ...(isEdit ? {} : { createdAt: now, createdByUid: this.userProfile.uid, createdByEmail: this.userProfile.email })
             });
             try {
-                await setDoc(doc(db, 'projects', projectId), payload, { merge: isEdit });
+                const ownerChanged = isEdit && String(original?.ownerEmail || '').trim().toLowerCase() !== payload.ownerEmail;
+                if (ownerChanged) {
+                    // Director/Superadmin may change the PIC from the project form.
+                    // Update all linked access indexes atomically so the old PIC
+                    // cannot retain activity access after the transfer.
+                    const ownerChangeBatch = writeBatch(db);
+                    ownerChangeBatch.set(doc(db, 'projects', projectId), payload, { merge: true });
+                    this.projectActivitiesFor(projectId).forEach(activity => {
+                        ownerChangeBatch.update(doc(db, 'project_activities', activity.id), { projectOwnerEmail: payload.ownerEmail });
+                    });
+                    await ownerChangeBatch.commit();
+                } else {
+                    await setDoc(doc(db, 'projects', projectId), payload, { merge: isEdit });
+                }
                 this.logAudit(isEdit ? 'UPDATE' : 'CREATE', `Project activity ${payload.projectRef}`);
                 this.closeProjectModal();
                 this.showNotify('Project activity saved successfully.');
@@ -1915,7 +1987,12 @@ createApp({
                             handedOverByUid: this.userProfile.uid, handedOverByEmail: this.userProfile.email, handedOverAt: nowIso
                         }
                     ];
-                    await updateDoc(doc(db, 'projects', project.id), {
+                    // Keep the activity access index in the same atomic write as
+                    // the handover. The incoming PIC can therefore open Activity
+                    // Type and Assigned To immediately; the outgoing PIC loses
+                    // access at the same time.
+                    const handoverBatch = writeBatch(db);
+                    handoverBatch.update(doc(db, 'projects', project.id), {
                         ownerEmpNo: newOwner.empNo,
                         ownerName: newOwner.name || '',
                         ownerEmail: newOwnerEmail,
@@ -1929,6 +2006,10 @@ createApp({
                         handoverHistory,
                         updatedAt: nowIso, updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email
                     });
+                    this.projectActivitiesFor(project.id).forEach(activity => {
+                        handoverBatch.update(doc(db, 'project_activities', activity.id), { projectOwnerEmail: newOwnerEmail });
+                    });
+                    await handoverBatch.commit();
                     this.logAudit('UPDATE', `Handed over project ${project.projectRef} from ${project.ownerName || 'Unassigned'} to ${newOwner.name}`);
                     this.showNotify(`Project handed over to ${newOwner.name}.`);
                     if (newOwnerEmail) this.notifyByEmail({
@@ -5332,7 +5413,11 @@ createApp({
                     ? query(collection(db, 'projects'), where('clientDirectoryId', '==', this.userProfile.clientDirectoryId))
                     : query(collection(db, 'projects'), where('clientEmail', '==', this.userProfile.email), where('clientPortalUid', '==', this.userProfile.uid)))
                 : collection(db, 'projects');
-            const projectActivitiesSource = role === 'Client' ? null : collection(db, 'project_activities');
+            const projectActivitiesSource = role === 'Client'
+                ? null
+                : this.canManageProjects
+                    ? collection(db, 'project_activities')
+                    : query(collection(db, 'project_activities'), where('projectOwnerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()));
             // clientDirectoryId was only added to project_client_updates records once the
             // Multi-user Client Portal support landed, so older records only carry
             // clientPortalUid. Subscribe to both queries and merge by doc id so a Client
@@ -5445,6 +5530,7 @@ createApp({
                     : Promise.resolve(),
                 subscribeWithReadySignal(projectsSource, (snapshot) => {
                     this.projects = snapshot.docs.map(d => this.projectWithLiveClientData({ id: d.id, ...d.data() }));
+                    this.syncProjectActivityOwners();
                 }, 'project activities'),
                 projectActivitiesSource ? subscribeWithReadySignal(projectActivitiesSource, (snapshot) => {
                     const previousIds = new Set(this.projectActivities.map(activity => activity.id));
@@ -5459,6 +5545,7 @@ createApp({
                         if (newAssigned) this.showNotify(`New project activity assigned: ${newAssigned.summary}`);
                     }
                     this.projectActivitiesLoaded = true;
+                    this.syncProjectActivityOwners();
                 }, 'project activity issues') : Promise.resolve(),
                 subscribeMergedWithReadySignal(projectClientUpdatesSources, (merged) => {
                     const previousIds = new Set(this.projectClientUpdates.map(update => update.id));
