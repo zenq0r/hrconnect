@@ -310,6 +310,8 @@
                     <span class="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full bg-brand-gold/10 border border-brand-gold/30 text-[10px] font-extrabold uppercase tracking-wider text-brand-gold"><i class="fa-solid fa-star text-[9px]"></i>Malaysia's First Unified HR &amp; Client Management System</span>
                 </div>
 
+                <div v-if="loginError" class="zq-alert zq-alert-error max-w-md mx-auto mb-6">{{ loginError }}</div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <button type="button" @click="selectAuthView('staff')" class="group text-left bg-white dark:bg-slate-800 rounded-2xl p-7 shadow-2xl border border-slate-100 dark:border-slate-700 transition hover:-translate-y-1 hover:shadow-brand-gold/10">
                         <div class="w-14 h-14 rounded-2xl bg-brand-dark text-white flex items-center justify-center text-2xl mb-5 transition group-hover:bg-brand-blue"><i class="fa-solid fa-user-tie"></i></div>

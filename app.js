@@ -3257,12 +3257,21 @@ createApp({
                 this.loginOtp.sending = false;
             }
         },
+        // Rejects after `ms` milliseconds so an await'd call that would otherwise hang
+        // forever (a stalled fetch, an offline Firestore read waiting for reconnect) is
+        // instead bounded — callers race this against the real work via Promise.race.
+        timeoutPromise(ms, message) {
+            return new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms));
+        },
         async checkTrustedDevice(firebaseUser, attempt = 0) {
+            const controller = new AbortController();
+            const abortTimer = setTimeout(() => controller.abort(), 10000);
             try {
                 const idToken = await firebaseUser.getIdToken();
                 const resp = await fetch('/api/check-trusted-device', {
                     method: 'POST',
-                    headers: { 'Authorization': `Bearer ${idToken}` }
+                    headers: { 'Authorization': `Bearer ${idToken}` },
+                    signal: controller.signal
                 });
                 const data = await resp.json().catch(() => ({}));
                 return resp.ok && data.trusted === true;
@@ -3271,9 +3280,14 @@ createApp({
                 // call's own network path, everything — at once, which occasionally trips a
                 // transient failure here that a normal refresh wouldn't hit. One retry avoids
                 // forcing an already-trusted device through a fresh OTP over a network blip.
+                // The AbortController above ensures a stalled request never hangs the login
+                // screen indefinitely — it's cut loose after 10s and treated the same as any
+                // other failure (retry once, then fall back to requiring a fresh OTP).
                 if (attempt < 1) return this.checkTrustedDevice(firebaseUser, attempt + 1);
                 console.warn('Trusted-device check failed; OTP will be required:', error);
                 return false;
+            } finally {
+                clearTimeout(abortTimer);
             }
         },
         async verifyLoginOtp() {
@@ -3318,9 +3332,12 @@ createApp({
             window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
             if (mustChangePassword) { this.changePasswordModal.required = true; this.changePasswordModal.show = true; }
             else this.maybeShowOnboarding();
-            await this.initFirebaseRealtime();
-            await this.startPresenceTracking();
             this.loginLoading = false;
+            this.initFirebaseRealtime().catch(error => {
+                console.error('Realtime data initialization failed after login:', error);
+                this.portalDataReady = false;
+            });
+            this.startPresenceTracking().catch(error => console.error('Presence tracking failed after login:', error));
             this.refreshDashboardCharts();
         },
 
@@ -5469,7 +5486,16 @@ createApp({
                 if (this.isLoggedIn && this.userProfile.uid === firebaseUser.uid) { this.authLoading = false; return; }
                 try {
                     this.loginLoading = true;
-                    const userData = await this.loadOrMigrateUserMetadata(firebaseUser);
+                    // A restored session on a slow/flaky connection (mobile data, a cold
+                    // Firestore connection right after a hard refresh) can otherwise leave
+                    // this getDoc() waiting indefinitely for a server round-trip — which
+                    // reads as the whole portal being stuck on the landing screen with no
+                    // spinner, no error, nothing. Bound it so that failure mode surfaces as
+                    // a real, actionable error instead (see the catch block below).
+                    const userData = await Promise.race([
+                        this.loadOrMigrateUserMetadata(firebaseUser),
+                        this.timeoutPromise(15000, 'Timed out while loading your account. Please check your connection and sign in again.')
+                    ]);
                     const isSeedAdmin = firebaseUser.email === 'admin@zenq0r.com';
 
                     if (!userData && !isSeedAdmin) {
@@ -5526,14 +5552,23 @@ createApp({
                     if (mustChangePassword) { this.currentTab = 'profile'; this.changePasswordModal.required = true; this.changePasswordModal.show = true; }
                     else { this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard'; this.maybeShowOnboarding(); }
                     window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
-                    await this.initFirebaseRealtime();
-                    await this.startPresenceTracking();
                     this.loginLoading = false;
+                    this.initFirebaseRealtime().catch(error => {
+                        console.error('Realtime data initialization failed after login:', error);
+                        this.portalDataReady = false;
+                    });
+                    this.startPresenceTracking().catch(error => console.error('Presence tracking failed after login:', error));
                     this.refreshDashboardCharts();
                 } catch (e) {
                     console.error("Error fetching user metadata:", e);
                     this.isLoggedIn = false;
                     this.loginLoading = false;
+                    // Surface this instead of silently dropping back to the role-chooser
+                    // landing screen with no explanation — that's what read as a "hang" to
+                    // begin with. Sign out too: Firebase still considers this session valid,
+                    // so without it every subsequent refresh would hit this same error again.
+                    this.loginError = 'We could not restore your session. Please sign in again.';
+                    try { await signOut(auth); } catch (signOutError) { console.error('Sign-out after failed session restore also failed:', signOutError); }
                 }
             } else {
                 this.stopPresenceTracking();
