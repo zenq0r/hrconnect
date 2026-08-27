@@ -3100,13 +3100,17 @@ createApp({
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         openDocumentPage(type) {
-            const tabName = type === 'Invoice' ? 'document-invoices' : 'document-quotations';
+            const tabName = 'document-quotations';
             if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to documents.'); return; }
-            if (!this.editingDocId && this.docForm.type !== type) {
+            if (type && !this.editingDocId && this.docForm.type !== type) {
                 this.docForm.type = type;
                 this.generateDocNo();
             }
             this.switchTab(tabName);
+        },
+        openDocumentWorkspace() {
+            if (!this.hasAccess('document-quotations')) { this.showNotify('Access Denied: Your role does not permit access to documents.'); return; }
+            this.switchTab('document-quotations');
         },
         returnToDashboard() {
             if (this.userProfile.role === 'Client') this.switchTab('client-portal');
@@ -3114,7 +3118,8 @@ createApp({
         },
         restoreTabFromHistory(tabName) {
             const homeTab = this.userProfile.role === 'Client' ? 'client-portal' : 'dashboard';
-            const safeTab = typeof tabName === 'string' && this.hasAccess(tabName) ? tabName : homeTab;
+            const resolvedTab = tabName === 'document-invoices' ? 'document-quotations' : tabName;
+            const safeTab = typeof resolvedTab === 'string' && this.hasAccess(resolvedTab) ? resolvedTab : homeTab;
             this.currentTab = safeTab;
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
@@ -3828,7 +3833,7 @@ createApp({
             if (!cust?.id) return;
             const previousCustomerId = this.docForm.customerId || '';
             const switchedCompany = previousCustomerId !== cust.id;
-            const clientFields = ['clientName', 'clientPhone', 'clientSSM', 'clientAddress', 'clientAddress1', 'clientAddress2', 'clientAddress3', 'clientCity', 'clientState', 'clientPostcode', 'clientEmail', 'clientContactPerson', 'clientPosition'];
+            const clientFields = ['clientId', 'clientName', 'clientPhone', 'clientSSM', 'clientAddress', 'clientAddress1', 'clientAddress2', 'clientAddress3', 'clientCity', 'clientState', 'clientPostcode', 'clientEmail', 'clientContactPerson', 'clientPosition'];
 
             // Assign every client field explicitly, including empty values. This
             // prevents an optional field from the previous company leaking into the
@@ -4686,7 +4691,7 @@ createApp({
         clientDirectoryRowMenuItems(cust) {
             return [
                 { label: 'View Client Information', icon: 'fa-eye', action: () => this.openClientView(cust) },
-                (this.canManageClients && this.hasAccess('doc-generator')) ? { label: 'Edit Client', icon: 'fa-pen', action: () => this.requestClientAction('edit', cust) } : null,
+                this.canManageClients ? { label: 'Edit Client', icon: 'fa-pen', action: () => this.requestClientAction('edit', cust) } : null,
                 this.canDeleteClients ? { label: 'Delete Client', icon: 'fa-trash', danger: true, action: () => this.requestClientAction('delete', cust) } : null
             ];
         },
@@ -5245,7 +5250,7 @@ createApp({
         },
 
         setPrintOrientation(orientation, margin) { const styleEl = document.getElementById('dynamic-print-orientation'); if (styleEl) styleEl.innerHTML = `@media print { @page { size: A4 ${orientation}; margin: ${margin} !important; } }`; },
-        async printDocumentModule() { if (!this.clientSavedForDocument) return this.showNotify('Save Client information before previewing or printing this document.'); this.activePrintModule = this.docForm.type === 'Quotation' ? 'QUOTATION' : 'INVOICE'; this.setPrintOrientation('portrait', '15mm'); setTimeout(() => { window.print(); }, 250); },
+        async printDocumentModule() { if (!this.clientSavedForDocument) return this.showNotify('Select a registered client before previewing or printing this document.'); this.activePrintModule = this.docForm.type === 'Quotation' ? 'QUOTATION' : 'INVOICE'; this.setPrintOrientation('portrait', '15mm'); setTimeout(() => { window.print(); }, 250); },
         async printPayslipModule() { if (!this.payForm.name || !this.payForm.empNo) return this.showNotify('Enter Name and Emp ID.'); this.autoCalculatePayroll(); this.activePrintModule = 'PAYSLIP'; this.setPrintOrientation('landscape', '0mm'); setTimeout(() => { window.print(); }, 250); },
         
         async saveDocRecord() {
@@ -5258,15 +5263,15 @@ createApp({
                 Object.assign(this.docForm, normalizedDocForm);
                 const docId = String(this.editingDocId || Date.now());
                 const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, raw: JSON.parse(JSON.stringify(this.docForm)) };
-                if (!this.clientSavedForDocument) { this.showNotify('Save Client information before saving this document.'); return false; }
+                if (!this.clientSavedForDocument) { this.showNotify('Select a registered client before saving this document.'); return false; }
                 // Hard guarantee, not just an implied one: every document must carry
                 // its client's real customers/{id}, never just a name snapshot — two
                 // clients can share a display name, and a name can be retyped/edited
                 // later, but the id never changes. clientSavedForDocument being true
-                // should already make this impossible to hit (saveCustomerToDatabase
+                // should already make this impossible to hit (selectCustomerForDoc
                 // always sets docForm.customerId first), so this is a defensive
                 // backstop, not the primary mechanism.
-                if (!payload.raw.customerId) { this.showNotify('This document is missing its linked client ID — reselect the client from Client Directory and save it again before saving this document.'); return false; }
+                if (!payload.raw.customerId) { this.showNotify('This document is missing its linked client ID — reselect a client from Client Information before saving this document.'); return false; }
                 await setDoc(doc(db, "docs", docId), payload, { merge: true }); this.editingDocId = docId; this.showNotify(`Document saved.`); return true;
             } catch (error) { console.error('Document save failed:', error); this.showNotify('Unable to save document. Check the attachment size and try again.'); return false; }
         },
@@ -5348,7 +5353,7 @@ createApp({
         },
         editRecord(item) {
             this.mobileMenuOpen = false;
-            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.raw.status || item.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); } this.switchTab(item.type === 'Invoice' ? 'document-invoices' : 'document-quotations'); }
+            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.raw.status || item.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); } this.switchTab('document-quotations'); }
             else if (item.isPay) { this.editingPayId = item.id; if (item.raw) { this.payForm = JSON.parse(JSON.stringify(item.raw)); this.selectedPayEmployeeId = this.payForm.empNo || ''; } this.autoCalculatePayroll(); this.switchTab('payslip-generator'); }
             else if (item.isVoucher) this.editPaymentVoucher(item);
             else if (item.isClaim) this.editClaimRecord(item);
