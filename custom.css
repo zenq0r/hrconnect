@@ -1791,3 +1791,31 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     #app .zq-client-hero { min-height: 0; border-radius: 10px !important; }
     #app .zq-client-hero h2 { font-size: 1.35rem; }
 }
+
+/* Keep the portal entry experience aligned with the dark ZENQOR product
+   identity. The light workspace treatment begins after the user signs in. */
+.zq-auth-shell { background: #101827 !important; }
+.zq-auth-landing {
+    border-color: rgba(71, 85, 105, 0.82);
+    background: #172235;
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.26);
+}
+.zq-auth-landing > .text-center h1 { color: #f8fafc !important; }
+.zq-auth-landing > .text-center p { color: #a8b6c8 !important; }
+.zq-auth-landing > .text-center span {
+    border-color: rgba(45, 212, 191, 0.28) !important;
+    background: rgba(20, 184, 166, 0.12) !important;
+    color: #5eead4 !important;
+}
+.zq-auth-choice {
+    border-color: #334155 !important;
+    background: #1e293b !important;
+}
+.zq-auth-choice h2 { color: #f8fafc !important; }
+.zq-auth-choice p { color: #a8b6c8 !important; }
+.zq-auth-choice > span { color: #5eead4 !important; }
+.zq-auth-choice:hover {
+    border-color: #2dd4bf !important;
+    background: #223047 !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20) !important;
+}
