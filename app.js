@@ -30,10 +30,6 @@ import {
     deleteObject
 } from "./firebase-config.js";
 
-// Vercel Web Analytics
-import { inject } from '@vercel/analytics';
-inject();
-
 const { createApp } = Vue;
 
 const MALAYSIA_POSTCODE_PREFIXES = [
