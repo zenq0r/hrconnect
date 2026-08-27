@@ -1217,17 +1217,6 @@ createApp({
         projectStaffOptions() {
             return this.employees.filter(employee => employee.email && employee.empNo).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
         },
-        projectWithLiveClientData(project) {
-            const customer = this.customers.find(item => item.id === project.clientDirectoryId);
-            if (!customer) return project;
-            return {
-                ...project,
-                clientName: customer.clientName || project.clientName || '',
-                clientEmail: String(customer.clientEmail || project.clientEmail || '').trim().toLowerCase(),
-                clientSSM: customer.clientSSM || project.clientSSM || '',
-                clientTier: customer.clientTier || project.clientTier || 'Standard'
-            };
-        },
         myPendingProjectActivities() {
             const email = String(this.userProfile.email || '').trim().toLowerCase();
             return this.projectActivities.filter(activity => activity.status !== 'Done' && String(activity.assignedEmail || '').trim().toLowerCase() === email).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
@@ -1280,6 +1269,17 @@ createApp({
         }
     },
     methods: {
+        projectWithLiveClientData(project) {
+            const customer = this.customers.find(item => item.id === project.clientDirectoryId);
+            if (!customer) return project;
+            return {
+                ...project,
+                clientName: customer.clientName || project.clientName || '',
+                clientEmail: String(customer.clientEmail || project.clientEmail || '').trim().toLowerCase(),
+                clientSSM: customer.clientSSM || project.clientSSM || '',
+                clientTier: customer.clientTier || project.clientTier || 'Standard'
+            };
+        },
         toOfficialUppercase(value) {
             return typeof value === 'string' ? value.trim().toLocaleUpperCase('en-MY') : value;
         },
