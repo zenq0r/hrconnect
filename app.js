@@ -4356,6 +4356,36 @@ createApp({
                 modal.saving = false;
             }
         },
+        requestDeleteClientTask(cust) {
+            if (!this.canDelete) { this.showNotify('Only Superadmin and Director can remove a client from Client Task.'); return; }
+            if (!cust?.id) { this.showNotify('Unable to remove this Client Task.'); return; }
+            const projectCount = this.projects.filter(project => project.clientDirectoryId === cust.id).length;
+            this.requestConfirm({
+                title: 'Remove from Client Task?',
+                message: `${cust.clientName || 'This client'} will be removed from the Client Task board. Its Client Directory record, portal access, documents, and ${projectCount} linked project(s) will be kept.`,
+                confirmLabel: 'Yes, Remove from Client Task',
+                danger: true,
+                onConfirm: () => this.deleteClientTask(cust)
+            });
+        },
+        async deleteClientTask(cust) {
+            if (!this.canDelete || !cust?.id) return false;
+            try {
+                await updateDoc(doc(db, 'customers', cust.id), {
+                    clientTaskCreatedAt: deleteField(),
+                    updatedAt: new Date().toISOString(),
+                    updatedByUid: this.userProfile.uid
+                });
+                if (this.boardClientFilter?.id === cust.id) this.boardClientFilter = null;
+                this.logAudit('REMOVE_FROM_CLIENT_TASK', `Removed ${cust.clientName || cust.id} from Client Task`);
+                this.showNotify('Client removed from Client Task. Client Directory data was kept.');
+                return true;
+            } catch (error) {
+                console.error('Remove from Client Task failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'remove this client from Client Task'));
+                return false;
+            }
+        },
         // Generic context menu — desktop right-click (@contextmenu.prevent) and
         // mobile/tablet long-press (v-longpress directive) both call this with
         // an `items` array of {label, icon, action, danger|undefined} built at
@@ -4393,7 +4423,7 @@ createApp({
             return [
                 { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) },
                 { label: 'View Client Information', icon: 'fa-circle-info', action: () => this.openClientView(cust) },
-                this.canDelete ? { label: 'Delete Client Task', icon: 'fa-trash', danger: true, action: () => this.requestClientAction('delete', cust) } : null
+                this.canDelete ? { label: 'Remove from Client Task', icon: 'fa-trash', danger: true, action: () => this.requestDeleteClientTask(cust) } : null
             ];
         },
         // Shared by the board card (grouped + drilled-down variants) and the

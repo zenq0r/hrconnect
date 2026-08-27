@@ -102,3 +102,15 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
     assert.match(appSource, /const canReadUserDirectory = role !== 'Client'/);
     assert.match(rulesSource, /allow read: if isAuthenticated\(\) && \(!isClient\(\) \|\| request\.auth\.uid == userId\)/);
 });
+
+test('removing a Client Task never deletes its Client Directory record', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const taskMenuStart = appSource.indexOf('clientTaskMenuItems(cust)');
+    const taskMenu = appSource.slice(taskMenuStart, appSource.indexOf('// Shared by the board card', taskMenuStart));
+    const removeTaskStart = appSource.indexOf('async deleteClientTask(cust)');
+    const removeTask = appSource.slice(removeTaskStart, appSource.indexOf('// Generic context menu', removeTaskStart));
+    assert.match(taskMenu, /requestDeleteClientTask\(cust\)/);
+    assert.match(removeTask, /clientTaskCreatedAt:\s*deleteField\(\)/);
+    assert.match(removeTask, /updateDoc\(doc\(db, 'customers', cust\.id\)/);
+    assert.doesNotMatch(removeTask, /deleteDoc\(/);
+});
