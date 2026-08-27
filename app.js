@@ -427,6 +427,8 @@ createApp({
             chartRenderAttempts: 0,
             presenceHeartbeatTimer: null,
             presenceClockTimer: null,
+            clientStatusClockTimer: null,
+            clientStatusNow: Date.now(),
             lastProjectPresenceSyncAt: 0,
             presenceNow: Date.now(),
             presencePageHideHandler: null,
@@ -588,7 +590,7 @@ createApp({
                     id: '', clientId: '', clientName: '', clientSSM: '', companyType: '', industry: '', clientTier: 'Standard',
                     clientContactPerson: '', clientPosition: '', clientEmail: '', clientPhone: '', additionalClientEmailsText: '',
                     clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '',
-                    clientCountry: 'Malaysia', clientNotes: ''
+                    clientCountry: 'Malaysia', clientNotes: '', createdAt: ''
                 }
             },
             clientActionConfirm: { show: false, action: '', client: null },
@@ -2290,6 +2292,14 @@ createApp({
             if (result.postcode.length === 5) this.docForm.clientCountry = 'Malaysia';
             this.clientSavedForDocument = false;
         },
+        detectClientInformationPostcode() {
+            const form = this.clientInformationModal.form;
+            const result = lookupMalaysiaPostcode(form.clientPostcode);
+            form.clientPostcode = result.postcode;
+            if (result.city) form.clientCity = result.city;
+            if (result.state) form.clientState = result.state;
+            if (result.postcode.length === 5) form.clientCountry = 'Malaysia';
+        },
         detectCompanyPostcode() {
             const result = lookupMalaysiaPostcode(this.company.postcode);
             this.company.postcode = result.postcode;
@@ -3099,6 +3109,17 @@ createApp({
             this.currentTab = tabName; this.mobileMenuOpen = false; this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
+        startClientStatusClock() {
+            if (this.clientStatusClockTimer) clearInterval(this.clientStatusClockTimer);
+            this.clientStatusNow = Date.now();
+            // The New tag is time-derived rather than saved state. Refreshing this
+            // clock makes it disappear at the 24-hour boundary on every open portal.
+            this.clientStatusClockTimer = setInterval(() => { this.clientStatusNow = Date.now(); }, 1000);
+        },
+        stopClientStatusClock() {
+            if (this.clientStatusClockTimer) clearInterval(this.clientStatusClockTimer);
+            this.clientStatusClockTimer = null;
+        },
         openDocumentPage(type) {
             const tabName = 'document-quotations';
             if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to documents.'); return; }
@@ -3899,7 +3920,7 @@ createApp({
                 id: '', clientId: '', clientName: '', clientSSM: '', companyType: '', industry: '', clientTier: 'Standard',
                 clientContactPerson: '', clientPosition: '', clientEmail: '', clientPhone: '', additionalClientEmailsText: '',
                 clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '',
-                clientCountry: 'Malaysia', clientNotes: ''
+                clientCountry: 'Malaysia', clientNotes: '', createdAt: ''
             };
         },
         openClientInformation(cust = null) {
@@ -3917,7 +3938,7 @@ createApp({
                 clientEmail: record.clientEmail || '', clientPhone: record.clientPhone || '', additionalClientEmailsText: additionalClientEmails,
                 clientAddress1: record.clientAddress1 || record.clientAddress || '', clientAddress2: record.clientAddress2 || '', clientAddress3: record.clientAddress3 || '',
                 clientCity: record.clientCity || '', clientState: record.clientState || '', clientPostcode: record.clientPostcode || '',
-                clientCountry: record.clientCountry || 'Malaysia', clientNotes: record.clientNotes || ''
+                clientCountry: record.clientCountry || 'Malaysia', clientNotes: record.clientNotes || '', createdAt: record.createdAt || ''
             };
             // Client Information is a full Document Centre page, not a pop-up.
             // The separate page makes long registration records easier to review.
@@ -3975,6 +3996,7 @@ createApp({
                 // Stay on the full page and show the newly issued permanent ID.
                 this.clientInformationModal.form.id = docId;
                 this.clientInformationModal.form.clientId = clientId;
+                this.clientInformationModal.form.createdAt = clientRecord.createdAt || existingCust?.createdAt || '';
                 this.clientInformationModal.isEdit = true;
                 return true;
             } catch (error) {
@@ -4187,12 +4209,14 @@ createApp({
         },
         isNewClient(clientDirectoryId) {
             if (!clientDirectoryId) return false;
-            const customer = this.customers.find(c => c.id === clientDirectoryId);
+            const customer = typeof clientDirectoryId === 'object'
+                ? clientDirectoryId
+                : this.customers.find(c => c.id === clientDirectoryId);
             if (!customer?.createdAt) return false;
             const createdMs = Date.parse(customer.createdAt);
             if (!Number.isFinite(createdMs)) return false;
-            const ageMs = Date.now() - createdMs;
-            return ageMs >= 0 && ageMs <= 3 * 24 * 60 * 60 * 1000;
+            const ageMs = this.clientStatusNow - createdMs;
+            return ageMs >= 0 && ageMs < 24 * 60 * 60 * 1000;
         },
         clientGroupNewestCreatedAt(group) {
             const timestamps = group.projects.map(p => Date.parse(p.createdAt || '')).filter(Number.isFinite);
@@ -5829,6 +5853,7 @@ createApp({
                         console.error('Realtime data initialization failed after login:', error);
                         this.portalDataReady = false;
                     });
+                    this.startClientStatusClock();
                     this.startPresenceTracking().catch(error => console.error('Presence tracking failed after login:', error));
                     this.refreshDashboardCharts();
                 } catch (e) {
@@ -5844,6 +5869,7 @@ createApp({
                 }
             } else {
                 this.stopPresenceTracking();
+                this.stopClientStatusClock();
                 this.isLoggedIn = false;
                 this.loginLoading = false;
                 this.destroyDashboardCharts();
@@ -5882,6 +5908,7 @@ createApp({
     unmounted() {
         if (this.isLoggedIn) this.setCurrentEmployeePresence(false);
         this.stopPresenceTracking();
+        this.stopClientStatusClock();
         this.unsubscribers.forEach(unsub => unsub && unsub());
         if (this.clientDocumentsUnsubscribe) this.clientDocumentsUnsubscribe();
         if (this.browserBackHandler) window.removeEventListener('popstate', this.browserBackHandler);
