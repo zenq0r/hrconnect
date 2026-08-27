@@ -2698,14 +2698,21 @@ createApp({
         },
 
         hasAccess(moduleName) {
-            const override = this.userProfile.customAccess && this.userProfile.customAccess[moduleName];
+            // Quotation and Invoice are dedicated workspaces backed by the
+            // existing document permission. They intentionally do not create
+            // an additional RBAC surface or loosen document access.
+            const permissionModule = {
+                'document-quotations': 'doc-generator',
+                'document-invoices': 'doc-generator'
+            }[moduleName] || moduleName;
+            const override = this.userProfile.customAccess && this.userProfile.customAccess[permissionModule];
             if (override && typeof override.view === 'boolean') return override.view;
-            if (['client-documents', 'client-updates', 'client-support'].includes(moduleName)) {
+            if (['client-documents', 'client-updates', 'client-support'].includes(permissionModule)) {
                 const portalOverride = this.userProfile.customAccess && this.userProfile.customAccess['client-portal'];
                 if (portalOverride && typeof portalOverride.view === 'boolean') return portalOverride.view;
             }
             const allowedModules = RBAC_ROLES[this.userProfile.role] || ['dashboard'];
-            return allowedModules.includes(moduleName);
+            return allowedModules.includes(permissionModule);
         },
         // Per-module permission check used by Portal Access Management's custom overrides.
         // action: 'view' | 'edit' | 'delete'. Falls back to the role's default when the
@@ -3077,6 +3084,15 @@ createApp({
             window.history.pushState({ zenqorPortal: true, tab: tabName }, '', window.location.href);
             this.currentTab = tabName; this.mobileMenuOpen = false; this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        openDocumentPage(type) {
+            const tabName = type === 'Invoice' ? 'document-invoices' : 'document-quotations';
+            if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to documents.'); return; }
+            if (!this.editingDocId && this.docForm.type !== type) {
+                this.docForm.type = type;
+                this.generateDocNo();
+            }
+            this.switchTab(tabName);
         },
         returnToDashboard() {
             if (this.userProfile.role === 'Client') this.switchTab('client-portal');

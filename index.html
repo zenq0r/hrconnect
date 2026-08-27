@@ -447,8 +447,15 @@
                         <button type="button" @click="switchTab('client-documents')" :class="{'sidebar-item-active': currentTab === 'client-documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-documents'}" class="zq-nav-item w-full"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-cyan-400/15 px-2 py-0.5 text-[9px] text-cyan-300">{{ clientPortalDocs.length }}</span></button>
                         <button type="button" @click="switchTab('client-updates')" :class="{'sidebar-item-active': currentTab === 'client-updates', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-updates'}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientRecentUpdates.length" class="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] text-amber-300">{{ clientRecentUpdates.length }}</span></button>
                     </template>
+                    <div v-if="hasAccess('doc-generator')" class="pt-3 pb-1"><p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Billing &amp; Documents</p></div>
                     <button v-if="hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-file-invoice-dollar w-5 text-center"></i><span>Billing &amp; Documents</span>
+                        <i class="fa-solid fa-folder-open w-5 text-center"></i><span>Document Centre</span>
+                    </button>
+                    <button v-if="hasAccess('document-quotations')" type="button" @click="openDocumentPage('Quotation')" :class="{'sidebar-item-active': currentTab === 'document-quotations', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'document-quotations'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-file-signature w-5 text-center"></i><span>Quotations</span>
+                    </button>
+                    <button v-if="hasAccess('document-invoices')" type="button" @click="openDocumentPage('Invoice')" :class="{'sidebar-item-active': currentTab === 'document-invoices', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'document-invoices'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-file-invoice w-5 text-center"></i><span>Invoices</span>
                     </button>
                     <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="{'sidebar-item-active': currentTab === 'payslip-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'payslip-generator'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-money-check-dollar w-5 text-center"></i><span>Payroll Management</span>
@@ -457,7 +464,7 @@
                         <i class="fa-solid fa-receipt w-5 text-center"></i><span>Claims &amp; Vouchers</span>
                     </button>
                     <button v-if="hasAccess('client-directory')" type="button" @click="switchTab('client-directory')" :class="{'sidebar-item-active': currentTab === 'client-directory', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-directory'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-address-book w-5 text-center"></i><span>Client Directory</span>
+                        <i class="fa-solid fa-address-book w-5 text-center"></i><span>Client Registration</span>
                     </button>
                     <button v-if="hasAccess('hr-employees')" type="button" @click="switchTab('hr-employees')" :class="{'sidebar-item-active': currentTab === 'hr-employees', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'hr-employees'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-users-gear w-5 text-center"></i><span>HR Employees</span>
@@ -466,7 +473,7 @@
                         <i class="fa-solid fa-chart-line w-5 text-center"></i><span>Reports & Analytics</span>
                     </button>
                     <button v-if="hasAccess('website-content')" type="button" @click="switchTab('website-content')" :class="{'sidebar-item-active': currentTab === 'website-content', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'website-content'}" class="zq-nav-item w-full">
-                        <i class="fa-solid fa-photo-film w-5 text-center"></i><span>Website Content</span>
+                        <i class="fa-solid fa-photo-film w-5 text-center"></i><span>Website Management</span>
                     </button>
 
                     <div v-if="hasAccess('settings') || hasAccess('profile') || hasAccess('audit-logs')" class="pt-3 pb-1">
@@ -623,7 +630,7 @@
                 </header>
 
                 <!-- MODULE 1: DOCUMENT GENERATOR -->
-                <div v-show="currentTab === 'doc-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+                <div v-show="['doc-generator', 'document-quotations', 'document-invoices'].includes(currentTab)" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
                             <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
@@ -631,8 +638,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="zq-text-page-title">Billing &amp; Documents</h2>
-                                <p class="zq-page-header-desc">Create and manage client quotations and invoices in a standard corporate format.</p>
+                                <h2 class="zq-text-page-title">{{ currentTab === 'document-quotations' ? 'Quotations' : currentTab === 'document-invoices' ? 'Invoices' : 'Document Centre' }}</h2>
+                                <p class="zq-page-header-desc">{{ currentTab === 'document-quotations' ? 'Create, issue and manage quotation records.' : currentTab === 'document-invoices' ? 'Create, issue and manage invoice and payment records.' : 'Create and manage client quotations and invoices in one document centre.' }}</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
@@ -722,7 +729,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 border-t border-slate-100 dark:border-slate-700 pt-5">
                             <div>
                                 <label for="doc-type" class="zq-label">DOCUMENT TYPE</label>
-                                <select id="doc-type" name="docType" v-model="docForm.type" @change="generateDocNo" :disabled="!!editingDocId" class="zq-select font-extrabold">
+                                <select id="doc-type" name="docType" v-model="docForm.type" @change="generateDocNo" :disabled="!!editingDocId || ['document-quotations', 'document-invoices'].includes(currentTab)" class="zq-select font-extrabold">
                                     <option value="Quotation">Quotation</option>
                                     <option value="Invoice">Invoice</option>
                                 </select>
@@ -1989,8 +1996,8 @@
                                 <span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="zq-text-page-title">Client Directory</h2>
-                                <p class="zq-page-header-desc">Maintain client company records used across quotations and invoices.</p>
+                                <h2 class="zq-text-page-title">Client Registration</h2>
+                                <p class="zq-page-header-desc">Register and maintain client company records used across projects, quotations and invoices.</p>
                             </div>
                         </div>
                         <button v-if="canManageClients && hasAccess('doc-generator')" type="button" @click="switchTab('doc-generator')" class="zq-btn zq-btn-primary">
