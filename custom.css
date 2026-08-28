@@ -67,7 +67,9 @@ body {
     border: 1px solid rgba(94, 234, 212, 0.26);
     border-radius: 50%;
     transform: translateX(-50%) rotateX(68deg);
-    animation: splash-orbit-spin 8s linear infinite;
+    /* The splash is only a loading overlay. Keeping this ornament static avoids
+       reporting its transient transform as a layout shift during session restore. */
+    animation: none;
 }
 
 .splash-orbit-two {
