@@ -633,10 +633,6 @@
                 <div v-show="currentTab === 'document-quotations'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Quotation &amp; Invoice</h2>
                                 <p class="zq-page-header-desc">Prepare and manage quotation or invoice records for registered clients.</p>
@@ -811,10 +807,6 @@
                 <div v-show="currentTab === 'payslip-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Payroll Management</h2>
                                 <p class="zq-page-header-desc">Automated statutory contribution engine for EPF, SOCSO, EIS and PCB, with MTD/YTD tracking.</p>
@@ -945,10 +937,6 @@
                 <div v-show="currentTab === 'claims'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Claims &amp; Payment Vouchers</h2>
                                 <p class="zq-page-header-desc">Submit and track expense claims and payment vouchers through the approval workflow.</p>
@@ -1926,10 +1914,6 @@
                 <div v-show="currentTab === 'client-directory'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Client Registration</h2>
                                 <p class="zq-page-header-desc">Register and maintain client company records used across projects, quotations and invoices.</p>
@@ -2017,10 +2001,6 @@
                 <div v-show="currentTab === 'hr-employees'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Employee Management</h2>
                                 <p class="zq-page-header-desc">Maintain employee profiles, statutory contributions, and employment records.</p>
@@ -2121,10 +2101,6 @@
                 <div v-show="currentTab === 'reports'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Enterprise Reports &amp; Data Export</h2>
                                 <p class="zq-page-header-desc">Export financial, employee, and document reports to CSV/Excel.</p>
@@ -2207,9 +2183,6 @@
                 <div v-show="currentTab === 'client-task'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6" @click="closeContextMenu">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Client Task</h2>
                                 <p class="zq-page-header-desc">{{ canManageProjects ? 'Client Task is the parent of every Project Activity and is grouped live by project status. Registering a client alone does not add it here; the first project creates its Client Task automatically. Click a company to view its projects; deleting a Client Task also deletes all of its projects.' : 'View registered Client Tasks and their latest status. Project Activities are visible only to the assigned Person In Charge.' }}</p>
@@ -2284,9 +2257,6 @@
                 <div v-show="currentTab === 'project-activities'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">{{ userProfile.role === 'Client' ? 'My Project Tracker' : (canManageProjects ? 'Project Activities' : 'My Assigned Project Activities') }}</h2>
                                 <p class="zq-page-header-desc">{{ userProfile.role === 'Client' ? 'Follow your project progress across five workflow stages, in real time.' : (canManageProjects ? 'Real-time project progress across five controlled workflow stages.' : 'Only Project Activities assigned to you as Person In Charge are shown here.') }}</p>
@@ -2800,7 +2770,6 @@
                 <div v-show="['client-portal', 'client-documents', 'client-updates', 'client-support'].includes(currentTab)" class="zq-client-workspace p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div v-if="currentTab !== 'client-portal'" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center gap-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu"><i class="fa-solid fa-bars"></i><span class="sr-only">Open menu</span></button>
                             <div><p class="text-[9px] font-black uppercase tracking-[0.2em] text-teal-600">Client Workspace</p><h2 class="mt-1 text-xl font-black text-slate-900 dark:text-white">{{ currentTab === 'client-documents' ? 'Documents & Billing' : currentTab === 'client-updates' ? 'Project Updates' : 'Help & Support' }}</h2><p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{{ currentTab === 'client-documents' ? 'Manage your quotations, invoices and payment records.' : currentTab === 'client-updates' ? 'Follow the latest information shared by your project team.' : 'Get assistance and contact the ZENQOR support team.' }}</p></div>
                         </div>
                         <button type="button" @click="returnToDashboard" class="zq-btn zq-btn-outline"><i class="fa-solid fa-arrow-left"></i><span>Back to Dashboard</span></button>
@@ -2810,7 +2779,6 @@
                         <div class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-blue/15 blur-2xl"></div>
                         <div class="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                             <div class="flex items-start gap-4">
-                                <button type="button" @click="openSidebar" class="mt-0.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white transition hover:bg-white/20" title="Open Navigation Menu"><i class="fa-solid fa-bars"></i><span class="sr-only">Menu</span></button>
                                 <div>
                                     <div class="mb-2 flex flex-wrap items-center gap-2"><span class="text-[10px] font-black uppercase tracking-[0.24em] text-slate-300">Client Workspace</span><span class="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[9px] font-extrabold text-emerald-300"><i class="fa-solid fa-shield-halved"></i>Secure &amp; Live</span></div>
                                     <h2 class="text-2xl font-black tracking-tight md:text-3xl">Welcome, {{ clientPortalIdentity.clientName }}</h2>
@@ -2976,10 +2944,6 @@
                 <div v-show="currentTab === 'website-content'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">Website Content</h2>
                                 <p class="zq-page-header-desc">Manage what's shown on zenqor-tech / www.zenqor.com.my — changes go live immediately. Restricted to Superadmin, Director and IT.</p>
@@ -3156,10 +3120,6 @@
                 <div v-show="currentTab === 'audit-logs'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <h2 class="zq-text-page-title">System Audit &amp; Security Logs</h2>
                                 <p class="zq-page-header-desc">Real-time user security and activity logs from Firebase.</p>
@@ -3238,10 +3198,6 @@
                 <div v-show="['settings', 'profile'].includes(currentTab)" class="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div class="flex items-center space-x-3">
-                            <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu">
-                                <i class="fa-solid fa-bars"></i>
-                                <span class="hidden sm:inline">Menu</span>
-                            </button>
                             <div>
                                 <p v-if="currentTab === 'settings'" class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue dark:text-brand-gold">System Configuration</p>
                                 <h2 class="text-xl font-extrabold text-brand-dark dark:text-white capitalize">{{ currentTab === 'settings' ? 'Global Company Settings' : 'Admin Profile & Portal Access Management' }}</h2>
@@ -3504,7 +3460,6 @@
         <div v-show="currentTab === 'doc-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6 no-print">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div class="flex items-center space-x-3">
-                    <button type="button" @click="openSidebar" class="zq-btn zq-btn-outline zq-btn-sm shadow-sm" title="Open Navigation Menu"><i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span></button>
                     <div><h2 class="zq-text-page-title">Client Information</h2><p class="zq-page-header-desc">Register new client records or update one selected client without affecting other records.</p></div>
                 </div>
                 <div class="flex items-center gap-2"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-outline"><i class="fa-solid fa-plus"></i><span>New Client</span></button><button type="button" @click="closeClientInformation()" class="zq-btn zq-btn-ghost"><i class="fa-solid fa-list"></i><span>Client Directory</span></button></div>
