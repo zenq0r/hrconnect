@@ -405,7 +405,15 @@ service cloud.firestore {
 
     match /projects/{projectId} {
       allow read: if isAuthenticated() && (
-        !isClient() || (
+        // Director/Superadmin can supervise every process. Other internal
+        // staff may only read projects where they are the assigned PIC.
+        // This is intentionally paired with the ownerEmail query in app.js so
+        // a crafted client request cannot retrieve another staff member's work.
+        isProjectManager() || (
+          !isClient() &&
+          resource.data.ownerEmail is string &&
+          resource.data.ownerEmail == request.auth.token.email
+        ) || (
           resource.data.clientEmail is string &&
           resource.data.clientEmail == request.auth.token.email &&
           resource.data.clientPortalUid == request.auth.uid

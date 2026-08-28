@@ -195,6 +195,21 @@ test('only the current project PIC can load or manage project activity details',
     assert.match(html, /Only this project's Person In Charge, Director or Superadmin can view or change Activity Type and Assigned To/);
 });
 
+test('only Directors and Superadmins can view all Project Activities', () => {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(rules, /isProjectManager\(\) \|\| \(\s*!isClient\(\) &&\s*resource\.data\.ownerEmail is string/);
+    assert.match(app, /const mustUseAssignedScope = this\.userProfile\.role !== 'Client' && !this\.canManageProjects/);
+    assert.match(app, /where\('ownerEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
+    assert.match(app, /Only Director or Superadmin can open Project Activities from Client Task/);
+    assert.match(app, /this\.canManageProjects \? \{ label: 'View Board'/);
+    assert.match(html, /v-if="canManageProjects && userProfile\.role !== 'Client'"/);
+    assert.match(html, /My Assigned Project Activities/);
+    assert.match(html, /Project Activities are visible only to the assigned Person In Charge/);
+});
+
 test('dynamic status colors include their dark-mode counterparts in the built stylesheet', () => {
     const config = fs.readFileSync(path.join(__dirname, '..', 'tailwind.config.js'), 'utf8');
     const css = fs.readFileSync(path.join(__dirname, '..', 'tailwind.css'), 'utf8');

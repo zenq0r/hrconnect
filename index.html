@@ -2209,7 +2209,7 @@
                             </button>
                             <div>
                                 <h2 class="zq-text-page-title">Client Task</h2>
-                                <p class="zq-page-header-desc">Client Task is the parent of every Project Activity and is grouped live by project status. Registering a client alone does not add it here; the first project creates its Client Task automatically. Click a company to view its projects; deleting a Client Task also deletes all of its projects.</p>
+                                <p class="zq-page-header-desc">{{ canManageProjects ? 'Client Task is the parent of every Project Activity and is grouped live by project status. Registering a client alone does not add it here; the first project creates its Client Task automatically. Click a company to view its projects; deleting a Client Task also deletes all of its projects.' : 'View registered Client Tasks and their latest status. Project Activities are visible only to the assigned Person In Charge.' }}</p>
                             </div>
                         </div>
                         <button v-if="canCreateClientTask" type="button" @click="openClientTaskModal" class="zq-btn zq-btn-primary">
@@ -2227,7 +2227,7 @@
                                 <span class="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300">{{ group.clients.length }}</span>
                             </header>
                             <div class="space-y-2 min-h-[120px]">
-                                <div v-for="cust in group.clients" :key="cust.id" tabindex="0" role="button" @click="viewClientBoard(cust)" @keydown.enter="viewClientBoard(cust)" @contextmenu.prevent.stop="openContextMenu($event, clientTaskMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientTaskMenuItems(cust))" class="flex w-full cursor-pointer flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue">
+                                <div v-for="cust in group.clients" :key="cust.id" :tabindex="canManageProjects ? 0 : -1" :role="canManageProjects ? 'button' : undefined" @click="viewClientBoard(cust)" @keydown.enter="viewClientBoard(cust)" @contextmenu.prevent.stop="openContextMenu($event, clientTaskMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientTaskMenuItems(cust))" :class="canManageProjects ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue' : 'cursor-default'" class="flex w-full flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition">
                                     <div class="flex items-start justify-between gap-2">
                                         <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientName }}</span>
                                         <span :class="clientTaskStatusMeta(clientTaskStatus(cust.id)).badgeClass" class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTaskStatusMeta(clientTaskStatus(cust.id)).label }}</span>
@@ -2285,15 +2285,16 @@
                                 <i class="fa-solid fa-bars"></i><span class="hidden sm:inline">Menu</span>
                             </button>
                             <div>
-                                <h2 class="zq-text-page-title">{{ userProfile.role === 'Client' ? 'My Project Tracker' : 'Project Activities' }}</h2>
-                                <p class="zq-page-header-desc">{{ userProfile.role === 'Client' ? 'Follow your project progress across five workflow stages, in real time.' : 'Real-time project progress across five controlled workflow stages.' }}</p>
+                                <h2 class="zq-text-page-title">{{ userProfile.role === 'Client' ? 'My Project Tracker' : (canManageProjects ? 'Project Activities' : 'My Assigned Project Activities') }}</h2>
+                                <p class="zq-page-header-desc">{{ userProfile.role === 'Client' ? 'Follow your project progress across five workflow stages, in real time.' : (canManageProjects ? 'Real-time project progress across five controlled workflow stages.' : 'Only Project Activities assigned to you as Person In Charge are shown here.') }}</p>
                             </div>
                         </div>
                         <div class="flex flex-wrap items-center gap-2">
-                            <div v-if="userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project scope selection">
+                            <div v-if="canManageProjects && userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project scope selection">
                                 <button type="button" @click="projectScopeFilter = 'all'" :class="{ 'is-active': projectScopeFilter === 'all' }" :aria-pressed="projectScopeFilter === 'all'">All Projects</button>
                                 <button type="button" @click="projectScopeFilter = 'mine'" :class="{ 'is-active': projectScopeFilter === 'mine' }" :aria-pressed="projectScopeFilter === 'mine'"><i class="fa-solid fa-user mr-1.5"></i>My Projects</button>
                             </div>
+                            <span v-else-if="userProfile.role !== 'Client'" class="inline-flex items-center rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-[10px] font-extrabold text-teal-700 dark:text-teal-300"><i class="fa-solid fa-user-check mr-1.5"></i>My Assigned Projects</span>
                             <div v-if="userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project view selection">
                                 <button type="button" @click="projectViewMode = 'board'" :class="{ 'is-active': projectViewMode === 'board' }" :aria-pressed="projectViewMode === 'board'"><i class="fa-solid fa-table-columns mr-1.5"></i>Board</button>
                                 <button type="button" @click="projectViewMode = 'list'" :class="{ 'is-active': projectViewMode === 'list' }" :aria-pressed="projectViewMode === 'list'"><i class="fa-solid fa-list mr-1.5"></i>List</button>

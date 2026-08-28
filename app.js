@@ -1201,7 +1201,13 @@ createApp({
             let records = this.projects
                 .filter(project => this.isProjectLinkedToRegisteredClientTask(project))
                 .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
-            if (this.projectScopeFilter === 'mine' && this.userProfile.role !== 'Client') {
+            // Director and Superadmin supervise every Client Task and Project
+            // Activity. Every other internal role is deliberately limited to the
+            // projects for which they are the assigned PIC; this mirrors the
+            // Firestore query/rule below, so changing the visual scope cannot
+            // reveal another employee's work.
+            const mustUseAssignedScope = this.userProfile.role !== 'Client' && !this.canManageProjects;
+            if ((mustUseAssignedScope || this.projectScopeFilter === 'mine') && this.userProfile.role !== 'Client') {
                 const email = String(this.userProfile.email || '').trim().toLowerCase();
                 records = records.filter(project => String(project.ownerEmail || '').trim().toLowerCase() === email);
             }
@@ -4920,6 +4926,10 @@ createApp({
             if (item && typeof item.action === 'function') item.action();
         },
         viewClientBoard(cust) {
+            if (!this.canManageProjects) {
+                this.showNotify('Only Director or Superadmin can open Project Activities from Client Task.');
+                return;
+            }
             if (!cust?.id || !cust.clientTaskCreatedAt) {
                 this.showNotify('Register this client in Client Task before viewing Project Activities.');
                 return;
@@ -4932,7 +4942,7 @@ createApp({
         // reach the exact same actions/permissions, defined once.
         clientTaskMenuItems(cust) {
             return [
-                { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) },
+                this.canManageProjects ? { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) } : null,
                 { label: 'View Client Information', icon: 'fa-circle-info', action: () => this.openClientView(cust) },
                 this.canDelete ? { label: 'Delete Client Task and Projects', icon: 'fa-trash', danger: true, action: () => this.requestDeleteClientTask(cust) } : null
             ];
@@ -5828,7 +5838,13 @@ createApp({
                 ? (this.userProfile.clientDirectoryId
                     ? query(collection(db, 'projects'), where('clientDirectoryId', '==', this.userProfile.clientDirectoryId))
                     : query(collection(db, 'projects'), where('clientEmail', '==', this.userProfile.email), where('clientPortalUid', '==', this.userProfile.uid)))
-                : collection(db, 'projects');
+                // Directors and Superadmins oversee every Project Activity.
+                // Other internal staff load only their PIC assignments, matching
+                // the Firestore read rule and preventing an all-project payload
+                // from reaching their browser.
+                : this.canManageProjects
+                    ? collection(db, 'projects')
+                    : query(collection(db, 'projects'), where('ownerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()));
             const projectActivitiesSource = role === 'Client'
                 ? null
                 : this.canManageProjects
