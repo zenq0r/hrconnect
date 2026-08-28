@@ -168,7 +168,7 @@
         </div>
 
         <!-- PASSWORD RESET LANDING (reached via ?resetToken=... from our own custom reset email, see /api/*.js) -->
-        <div v-if="passwordResetFlow.active" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
+        <main v-if="passwordResetFlow.active" id="auth-main" aria-label="Password reset" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
                 <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
@@ -215,10 +215,10 @@
                     </form>
                 </template>
             </div>
-        </div>
+        </main>
 
         <!-- FORGOT PASSWORD REQUEST (step 1: enter email, before the reset link is sent) -->
-        <div v-else-if="forgotPasswordFlow.active" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
+        <main v-else-if="forgotPasswordFlow.active" id="auth-main" aria-label="Password assistance" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
                 <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
@@ -234,12 +234,12 @@
 
                     <template v-if="!forgotPasswordFlow.sent">
                         <h2 class="zq-text-page-title">Reset Your Password</h2>
-                        <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug">Enter the email linked to your account and we'll send you a link to reset your password.</p>
+                        <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1 leading-snug">Enter the email linked to your account and we'll send you a link to reset your password.</p>
                     </template>
                     <template v-else>
                         <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300"><i class="fa-solid fa-envelope-circle-check text-xl"></i></div>
                         <h2 class="zq-text-page-title">Check Your Email</h2>
-                        <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug lowercase">If an account exists for {{ forgotPasswordFlow.email }}, a reset link is on its way.</p>
+                        <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1 leading-snug lowercase">If an account exists for {{ forgotPasswordFlow.email }}, a reset link is on its way.</p>
                     </template>
                 </div>
 
@@ -257,7 +257,7 @@
                 </form>
                 <button v-else type="button" @click="exitForgotPasswordFlow" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">Back to Sign In</button>
             </div>
-        </div>
+        </main>
 
         <!-- LOGIN SYSTEM & RBAC GUARD — also doubles as the session-restore wait shell:
              Firebase Auth restoring a persisted session (and the follow-up Firestore/OTP/
@@ -271,7 +271,7 @@
              the ENTIRE loading window too, only flipping true once restore fully completes —
              so gating on it alone showed the interactive login form immediately on every
              refresh, indistinguishable from actually being logged out.) -->
-        <div v-else-if="!isLoggedIn" class="zq-auth-shell relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
+        <main v-else-if="!isLoggedIn" id="auth-main" aria-label="Sign in" class="zq-auth-shell relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
 
             <!-- WORDMARK WATERMARK — proprietary in-house system, not a rented/subscribed SaaS -->
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
@@ -327,7 +327,7 @@
                         <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
                     </div>
                     <h2 class="zq-text-page-title">{{ authView === 'client' ? 'Client Portal Sign In' : 'Staff & Management Sign In' }}</h2>
-                    <p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-1 leading-snug">
+                    <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1 leading-snug">
                         {{ authView === 'client' ? 'Access your official documents and live project tracker.' : 'Access payroll, billing, claims and HR modules.' }}
                     </p>
                 </div>
@@ -389,7 +389,7 @@
                 </div>
             </div>
             </template>
-        </div>
+        </main>
 
         <!-- MAIN PLATFORM LAYOUT -->
         <div v-else class="fixed inset-0 flex overflow-hidden">
