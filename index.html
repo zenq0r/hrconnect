@@ -2252,10 +2252,10 @@
                     </div>
                 </div>
 
-                <!-- SHARED CONTEXT MENU — right-click (desktop) / long-press (mobile & tablet)
-                     for any row/card that binds openContextMenu with its own item list. -->
+                <!-- SHARED CONTEXT MENU — right-click (desktop) / long-press (mobile & tablet).
+                     Rows/cards provide their own contextual actions; every button provides a safe quick-action menu. -->
                 <div v-if="contextMenu.show" class="fixed inset-0 z-[96]" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu"></div>
-                <div v-if="contextMenu.show" class="fixed z-[97] w-52 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl py-1.5" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+                <div v-if="contextMenu.show" class="zq-context-menu fixed z-[97] w-52 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl py-1.5" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
                     <button v-for="(item, idx) in contextMenu.items" :key="idx" type="button" @click="runContextMenuAction(item)" class="flex w-full items-center gap-2 px-3 py-3.5 text-left text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60" :class="item.danger ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200'"><i :class="'fa-solid ' + item.icon" class="w-4 text-center"></i>{{ item.label }}</button>
                 </div>
 

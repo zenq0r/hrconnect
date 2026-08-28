@@ -283,12 +283,9 @@ const APP_CHANGELOG = [
     }
 ];
 
-// Mobile/tablet equivalent of a desktop right-click, for any element that also
-// has @contextmenu.prevent="openContextMenu($event, items)" — v-longpress="(touch)
-// => openContextMenu(touch, items)" opens the SAME menu via a touch hold instead.
-// No existing directive/composable did this in the app before; this is new,
-// self-contained infrastructure, deliberately NOT auto-applied anywhere — only
-// bound explicitly on elements that already expose secondary actions.
+// Mobile/tablet equivalent of a desktop right-click. Rich records/cards bind
+// their own context menu explicitly; every portal button also receives the
+// same interaction through the delegated handlers installed after mount.
 const LONGPRESS_THRESHOLD_MS = 600;
 const LONGPRESS_MOVE_TOLERANCE_PX = 10;
 const longpressDirective = {
@@ -511,6 +508,8 @@ createApp({
             // surface — just a second way to reach what a visible button
             // already reaches.
             contextMenu: { show: false, x: 0, y: 0, items: [] },
+            buttonContextLongPress: { timer: null, startX: 0, startY: 0, button: null },
+            buttonContextHandlers: { contextmenu: null, touchstart: null, touchmove: null, touchend: null },
             projectPreview: { show: false, project: null },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
             clientDocumentsUnsubscribe: null,
@@ -4648,6 +4647,86 @@ createApp({
             const y = Math.max(8, Math.min(event.clientY, window.innerHeight - menuHeight - 8));
             this.contextMenu = { show: true, x, y, items: validItems };
         },
+        getButtonContextLabel(button) {
+            const rawLabel = button?.getAttribute('aria-label') || button?.getAttribute('title') || button?.innerText || button?.textContent || 'Button';
+            const label = String(rawLabel).replace(/\s+/g, ' ').trim();
+            return label.length > 46 ? `${label.slice(0, 43)}…` : (label || 'Button');
+        },
+        isButtonContextEligible(button) {
+            return !!(button && this.$el?.contains(button) && !button.disabled && button.getAttribute('aria-disabled') !== 'true' && !button.closest('.zq-context-menu'));
+        },
+        openButtonContextMenu(event, button) {
+            if (!this.isButtonContextEligible(button)) return;
+            const label = this.getButtonContextLabel(button);
+            this.openContextMenu(event, [
+                { label: `Use: ${label}`, icon: 'fa-arrow-pointer', action: () => button.click() },
+                { label: 'Copy action name', icon: 'fa-copy', action: () => this.copyButtonContextLabel(label) }
+            ]);
+        },
+        async copyButtonContextLabel(label) {
+            try {
+                await navigator.clipboard.writeText(label);
+                this.showNotify(`Copied action: ${label}`);
+            } catch (error) {
+                this.showNotify(`Action: ${label}`);
+            }
+        },
+        clearButtonContextLongPress() {
+            if (this.buttonContextLongPress.timer) clearTimeout(this.buttonContextLongPress.timer);
+            this.buttonContextLongPress = { timer: null, startX: 0, startY: 0, button: null };
+        },
+        installUniversalButtonContextMenu() {
+            const findButton = (target) => target instanceof Element ? target.closest('button, [role="button"]') : null;
+            this.buttonContextHandlers.contextmenu = (event) => {
+                const button = findButton(event.target);
+                if (!this.isButtonContextEligible(button)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                this.openButtonContextMenu(event, button);
+            };
+            this.buttonContextHandlers.touchstart = (event) => {
+                const button = findButton(event.target);
+                if (!this.isButtonContextEligible(button) || !event.touches || event.touches.length !== 1) return;
+                const touch = event.touches[0];
+                event.stopPropagation();
+                this.clearButtonContextLongPress();
+                this.buttonContextLongPress = { timer: null, startX: touch.clientX, startY: touch.clientY, button };
+                this.buttonContextLongPress.timer = setTimeout(() => {
+                    const heldButton = this.buttonContextLongPress.button;
+                    const heldTouch = { clientX: this.buttonContextLongPress.startX, clientY: this.buttonContextLongPress.startY };
+                    this.clearButtonContextLongPress();
+                    if (!this.isButtonContextEligible(heldButton)) return;
+                    const suppressClick = (clickEvent) => { clickEvent.preventDefault(); clickEvent.stopImmediatePropagation(); };
+                    heldButton.addEventListener('click', suppressClick, { capture: true, once: true });
+                    setTimeout(() => heldButton.removeEventListener('click', suppressClick, { capture: true }), 500);
+                    this.openButtonContextMenu(heldTouch, heldButton);
+                }, LONGPRESS_THRESHOLD_MS);
+            };
+            this.buttonContextHandlers.touchmove = (event) => {
+                if (!this.buttonContextLongPress.timer) return;
+                const touch = event.touches && event.touches[0];
+                if (!touch || Math.abs(touch.clientX - this.buttonContextLongPress.startX) > LONGPRESS_MOVE_TOLERANCE_PX || Math.abs(touch.clientY - this.buttonContextLongPress.startY) > LONGPRESS_MOVE_TOLERANCE_PX) this.clearButtonContextLongPress();
+            };
+            this.buttonContextHandlers.touchend = () => this.clearButtonContextLongPress();
+            this.$el.addEventListener('contextmenu', this.buttonContextHandlers.contextmenu, true);
+            this.$el.addEventListener('touchstart', this.buttonContextHandlers.touchstart, true);
+            this.$el.addEventListener('touchmove', this.buttonContextHandlers.touchmove, true);
+            this.$el.addEventListener('touchend', this.buttonContextHandlers.touchend, true);
+            this.$el.addEventListener('touchcancel', this.buttonContextHandlers.touchend, true);
+        },
+        removeUniversalButtonContextMenu() {
+            this.clearButtonContextLongPress();
+            if (!this.$el) return;
+            const handlers = this.buttonContextHandlers;
+            if (handlers.contextmenu) this.$el.removeEventListener('contextmenu', handlers.contextmenu, true);
+            if (handlers.touchstart) this.$el.removeEventListener('touchstart', handlers.touchstart, true);
+            if (handlers.touchmove) this.$el.removeEventListener('touchmove', handlers.touchmove, true);
+            if (handlers.touchend) {
+                this.$el.removeEventListener('touchend', handlers.touchend, true);
+                this.$el.removeEventListener('touchcancel', handlers.touchend, true);
+            }
+            this.buttonContextHandlers = { contextmenu: null, touchstart: null, touchmove: null, touchend: null };
+        },
         closeContextMenu() {
             this.contextMenu.show = false;
         },
@@ -5735,6 +5814,7 @@ createApp({
         this.checkPasswordResetLink();
         this.autoCalculatePayroll();
         this.generateDocNo();
+        this.installUniversalButtonContextMenu();
         window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
         this.browserBackHandler = (event) => {
             if (this.isLoggedIn) this.restoreTabFromHistory(event.state?.tab);
@@ -5915,6 +5995,7 @@ createApp({
         if (this.appUpdateCheckInterval) clearInterval(this.appUpdateCheckInterval);
         if (this.appVisibilityHandler) document.removeEventListener('visibilitychange', this.appVisibilityHandler);
         if (this.notificationsSyncTimer) clearTimeout(this.notificationsSyncTimer);
+        this.removeUniversalButtonContextMenu();
         this.stopIdleTimeoutWatch();
     }
 }).directive('longpress', longpressDirective).mount('#app');

@@ -185,3 +185,17 @@ test('dark mode cannot override the light print palette', () => {
     assert.match(theme.slice(printGuard), /\.text-slate-500,\n    html\.dark #app \.print-container \.text-slate-600/);
     assert.match(theme.slice(printGuard), /\.print-table th,\n    html\.dark #app \.print-container \.print-total-box/);
 });
+
+test('every portal button has a safe right-click and long-press quick-action menu', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(app, /installUniversalButtonContextMenu\(\)/);
+    assert.match(app, /closest\('button, \[role="button"\]'\)/);
+    assert.match(app, /addEventListener\('contextmenu', this\.buttonContextHandlers\.contextmenu, true\)/);
+    assert.match(app, /addEventListener\('touchstart', this\.buttonContextHandlers\.touchstart, true\)/);
+    assert.match(app, /Use: \$\{label\}/);
+    assert.match(app, /Copy action name/);
+    assert.match(app, /removeUniversalButtonContextMenu\(\)/);
+    assert.match(html, /zq-context-menu/);
+});
