@@ -982,13 +982,41 @@ createApp({
         clientActiveProjectsCount() { return this.projects.filter(project => project.status !== 'Completed & Done').length; },
         clientUpdatesTimeline() {
             // This is the Client Portal conversation feed, not a general activity log.
-            // A client must only see messages created from one of their current Project
-            // Activities: staff updates and the client's own replies to those projects.
+            // A client sees only safe project-status events and conversation messages
+            // belonging to their own current projects. Internal Activity Type, PIC and
+            // work notes are intentionally never copied to this collection.
             const visibleProjectIds = new Set(this.projects.map(project => String(project.id || '')).filter(Boolean));
-            const allowedTypes = new Set([...this.clientUpdateTypes, 'Client Reply']);
-            return this.projectClientUpdates
-                .filter(update => visibleProjectIds.has(String(update?.projectId || '')))
+            const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+            const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
+            const allowedTypes = new Set([...this.clientUpdateTypes, 'Client Reply', 'Project Activity Update', 'Project Status']);
+            const persistedUpdates = this.projectClientUpdates
+                .filter(update => visibleProjectIds.has(String(update?.projectId || '')) ||
+                    (clientDirectoryId && String(update?.clientDirectoryId || '') === clientDirectoryId) ||
+                    (clientEmail && String(update?.clientEmail || '').trim().toLowerCase() === clientEmail))
                 .filter(update => allowedTypes.has(String(update?.updateType || '')))
+                .map(update => ({ ...update, isStatusSnapshot: false }));
+
+            // Existing projects may predate the Client Portal update feed. Until an
+            // activity/status event is recorded, show one live, safe status snapshot so
+            // the client never receives an empty feed despite having an active project.
+            const projectsWithPersistedUpdate = new Set(persistedUpdates.map(update => String(update.projectId || '')));
+            const statusSnapshots = this.projects
+                .filter(project => project?.id && !projectsWithPersistedUpdate.has(String(project.id)))
+                .map(project => ({
+                    id: `STATUS-SNAPSHOT-${project.id}-${project.updatedAt || project.createdAt || 'CURRENT'}`,
+                    projectId: project.id,
+                    projectRef: project.projectRef,
+                    projectTitle: project.title,
+                    updateType: 'Project Status',
+                    updateDate: String(project.updatedAt || project.createdAt || this.getLocalDateKey()).slice(0, 10),
+                    message: `Current project status: ${project.status || 'Project Planning'}.`,
+                    senderRole: 'System',
+                    senderName: 'ZENQOR Project Team',
+                    createdAt: project.updatedAt || project.createdAt || '',
+                    isStatusSnapshot: true
+                }));
+
+            return [...persistedUpdates, ...statusSnapshots]
                 .sort((a, b) => String(b.createdAt || b.updateDate || '').localeCompare(String(a.createdAt || a.updateDate || '')));
         },
         clientRecentUpdates() {
@@ -1505,6 +1533,40 @@ createApp({
         closeClientUpdateModal() {
             this.clientUpdateModal = { show: false, isEdit: false, updateId: '', original: null, project: null, form: { updateType: 'Progress Update', updateDate: '', message: '' } };
         },
+        // Converts an internal project action into a deliberately minimal update for
+        // the Client Portal. Never pass activity type, task summary, assignee or any
+        // staff-only notes here: clients receive project progress only.
+        async publishClientProjectEvent(project, message, updateType = 'Project Activity Update') {
+            if (!project?.id || !project?.clientDirectoryId || !project?.clientPortalUid || !project?.clientEmail) return false;
+            const updateId = `SYS-UPD-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+            const payload = this.normalizeOfficialRecord({
+                projectId: project.id,
+                projectRef: project.projectRef,
+                projectTitle: project.title,
+                clientDirectoryId: project.clientDirectoryId,
+                clientPortalUid: project.clientPortalUid,
+                clientEmail: String(project.clientEmail || '').trim().toLowerCase(),
+                updateType,
+                updateDate: this.getLocalDateKey(),
+                message,
+                senderUid: this.userProfile.uid,
+                senderName: 'ZENQOR Project Team',
+                senderEmail: this.userProfile.email,
+                senderPosition: 'Project Team',
+                senderRole: this.userProfile.role,
+                systemGenerated: true,
+                createdAt: new Date().toISOString()
+            });
+            try {
+                await setDoc(doc(db, 'project_client_updates', updateId), payload);
+                return true;
+            } catch (error) {
+                // Do not roll back the completed internal action. The activity/project
+                // remains correct; log the separate feed failure for follow-up.
+                console.error('Client project event publish failed:', error);
+                return false;
+            }
+        },
         async saveClientUpdate() {
             const project = this.clientUpdateModal.project;
             const form = this.clientUpdateModal.form;
@@ -1718,6 +1780,7 @@ createApp({
             if (this.activityModal.isEdit) {
                 try {
                     await setDoc(doc(db, 'project_activities', this.activityModal.activityId), this.normalizeOfficialRecord({ activityType: form.activityType, summary: form.summary, dueDate: form.dueDate, assignedEmpNo: form.assignedEmpNo, assignedName: form.assignedName, assignedEmail: form.assignedEmail, assignedPosition: form.assignedPosition, details: form.details, updatedAt: new Date().toISOString(), updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email }), { merge: true });
+                    await this.publishClientProjectEvent(project, 'A scheduled project activity has been updated. Our project team will continue the required work.');
                     this.logAudit('UPDATE', `Updated project activity for ${project.projectRef}`);
                     this.closeActivityModal();
                     this.showNotify('Project activity updated.');
@@ -1753,6 +1816,7 @@ createApp({
             });
             try {
                 await setDoc(doc(db, 'project_activities', activityId), payload);
+                await this.publishClientProjectEvent(project, 'A new project activity has been scheduled. Our project team will continue the required work.');
                 this.logAudit('CREATE', `Scheduled ${payload.activityType} for ${payload.projectRef} and assigned to ${payload.assignedName}`);
                 this.closeActivityModal();
                 this.showNotify('Project activity scheduled. The assigned employee will receive an in-portal alert.');
@@ -1765,6 +1829,8 @@ createApp({
             if (!this.canCompleteProjectActivity(activity)) { this.showNotify('Only this project\'s Person In Charge, Director or Superadmin may complete this activity.'); return; }
             try {
                 await updateDoc(doc(db, 'project_activities', activity.id), { status: 'Done', completedAt: new Date().toISOString(), completedByUid: this.userProfile.uid, completedByEmail: this.userProfile.email });
+                const project = this.projects.find(item => item.id === activity.projectId);
+                if (project) await this.publishClientProjectEvent(project, 'A scheduled project activity has been completed. Our project team will continue with the next step.');
                 this.logAudit('UPDATE', `Completed project activity ${activity.summary}`);
                 this.showNotify('Project activity marked as done.');
             } catch (error) {
@@ -1869,6 +1935,7 @@ createApp({
                 });
                 try {
                     await setDoc(doc(db, 'projects', source.id), payload, { merge: true });
+                    if (source.status !== original.status) await this.publishClientProjectEvent(original, `Project status changed to ${source.status}.`, 'Project Status');
                     this.logAudit('UPDATE', `Project progress updated for ${original.projectRef}`);
                     this.closeProjectModal();
                     this.showNotify('Project progress updated successfully.');
@@ -1952,6 +2019,7 @@ createApp({
                     await setDoc(doc(db, 'projects', projectId), payload, { merge: isEdit });
                 }
                 this.logAudit(isEdit ? 'UPDATE' : 'CREATE', `Project activity ${payload.projectRef}`);
+                if (isEdit && original && source.status !== original.status) await this.publishClientProjectEvent(payload, `Project status changed to ${source.status}.`, 'Project Status');
                 this.closeProjectModal();
                 this.showNotify('Project activity saved successfully.');
                 if (isEdit && original && source.status !== original.status) this.notifyByEmail({
@@ -1980,6 +2048,7 @@ createApp({
             if (project.status === targetStage) return false;
             try {
                 await updateDoc(doc(db, 'projects', project.id), { status: targetStage, updatedAt: new Date().toISOString(), updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email });
+                await this.publishClientProjectEvent(project, `Project status changed to ${targetStage}.`, 'Project Status');
                 this.logAudit('UPDATE', `Project ${project.projectRef} moved to ${targetStage}`);
                 this.notifyByEmail({
                     to: project.clientEmail,
@@ -2101,6 +2170,7 @@ createApp({
                         completedAt: nowIso, completedByUid: this.userProfile.uid, completedByEmail: this.userProfile.email,
                         updatedAt: nowIso, updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email
                     });
+                    await this.publishClientProjectEvent(project, 'Project status changed to Completed & Done.', 'Project Status');
                     this.logAudit('UPDATE', `Marked project ${project.projectRef} as Completed & Done`);
                     this.showNotify('Project marked as Done.');
                     if (project.clientEmail) this.notifyByEmail({
@@ -5854,17 +5924,18 @@ createApp({
                 : this.canManageProjects
                     ? collection(db, 'project_activities')
                     : query(collection(db, 'project_activities'), where('projectOwnerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()));
-            // clientDirectoryId was only added to project_client_updates records once the
-            // Multi-user Client Portal support landed, so older records only carry
-            // clientPortalUid. Subscribe to both queries and merge by doc id so a Client
-            // account keeps seeing its full history regardless of which field a given
-            // record was written with, and a secondary contact sees records addressed to
-            // the shared customer record even though they never match clientPortalUid.
+            // Client updates have existed through three linkage versions: primary portal
+            // uid, shared Client Directory id, and the original primary email. Subscribe
+            // to each available safe key and merge by doc id so legacy updates remain
+            // visible after the Client Directory migration.
             const projectClientUpdatesSources = role === 'Client'
                 ? [
                     query(collection(db, 'project_client_updates'), where('clientPortalUid', '==', this.userProfile.uid)),
                     ...(this.userProfile.clientDirectoryId
                         ? [query(collection(db, 'project_client_updates'), where('clientDirectoryId', '==', this.userProfile.clientDirectoryId))]
+                        : []),
+                    ...(String(this.userProfile.email || '').trim()
+                        ? [query(collection(db, 'project_client_updates'), where('clientEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()))]
                         : [])
                 ]
                 : [collection(db, 'project_client_updates')];

@@ -570,6 +570,13 @@ service cloud.firestore {
           // rather than the project's single clientPortalUid.
           'clientDirectoryId' in resource.data &&
           resource.data.clientDirectoryId == request.auth.token.clientDirectoryId
+        ) || (
+          // Older updates predate both uid and Client Directory linkage. Their
+          // clientEmail is the authenticated primary client's email, so keep
+          // this narrow compatibility path for the historic conversation feed.
+          'clientEmail' in resource.data &&
+          resource.data.clientEmail is string &&
+          resource.data.clientEmail == request.auth.token.email
         )
       );
       allow create: if isAuthenticated() &&
