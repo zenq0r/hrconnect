@@ -1936,6 +1936,9 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
         linear-gradient(180deg, #17243a 0%, #121d30 48%, #0c1525 100%) !important;
     border-right-color: rgba(148, 163, 184, 0.20) !important;
     box-shadow: 16px 0 38px rgba(2, 8, 23, 0.26) !important;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     overflow: hidden;
 }
 #app .client-portal-theme {
@@ -2004,8 +2007,8 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 #app .zq-sidebar-nav {
     padding: 16px 12px !important;
-    flex: 1 1 0 !important;
-    height: 0;
+    flex: 1 1 auto !important;
+    height: auto;
     min-height: 0;
     overflow-y: scroll !important;
     touch-action: pan-y;
