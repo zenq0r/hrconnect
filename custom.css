@@ -2004,21 +2004,30 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 #app .zq-sidebar-nav {
     padding: 16px 12px !important;
+    flex: 1 1 0 !important;
+    height: 0;
     min-height: 0;
-    overflow-y: auto !important;
+    overflow-y: scroll !important;
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    scrollbar-color: rgba(100, 116, 139, 0.72) transparent;
-    scrollbar-width: thin;
+    scrollbar-color: rgba(125, 145, 171, 0.92) rgba(15, 23, 42, 0.20);
+    scrollbar-gutter: stable;
+    scrollbar-width: auto;
 }
-#app .zq-sidebar-nav::-webkit-scrollbar { width: 7px; }
-#app .zq-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
-#app .zq-sidebar-nav::-webkit-scrollbar-thumb {
-    border: 2px solid transparent;
+#app .zq-sidebar-nav::-webkit-scrollbar { width: 10px; }
+#app .zq-sidebar-nav::-webkit-scrollbar-track {
+    margin: 6px 0;
     border-radius: 999px;
-    background: rgba(100, 116, 139, 0.62);
+    background: rgba(15, 23, 42, 0.20);
+}
+#app .zq-sidebar-nav::-webkit-scrollbar-thumb {
+    border: 2px solid rgba(15, 23, 42, 0.20);
+    border-radius: 999px;
+    background: rgba(125, 145, 171, 0.92);
     background-clip: padding-box;
 }
-#app .zq-sidebar-nav::-webkit-scrollbar-thumb:hover { background-color: rgba(148, 163, 184, 0.82); }
+#app .zq-sidebar-nav::-webkit-scrollbar-thumb:hover { background-color: #cbd5e1; }
 #app .zq-sidebar-nav > div { margin-top: 8px; }
 #app .zq-sidebar-nav > div > p {
     margin: 0 7px 8px;
