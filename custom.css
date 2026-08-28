@@ -2007,8 +2007,10 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 #app .zq-sidebar-nav {
     padding: 16px 12px !important;
-    flex: 1 1 auto !important;
-    height: auto;
+    /* A zero flex basis reserves the available middle lane for menu items,
+       rather than allowing their content height to swallow the footer. */
+    flex: 1 1 0 !important;
+    height: 0;
     min-height: 0;
     overflow-y: scroll !important;
     touch-action: pan-y;

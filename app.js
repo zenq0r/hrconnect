@@ -3173,6 +3173,17 @@ createApp({
             if (window.innerWidth < 768) this.mobileMenuOpen = true;
             else this.desktopSidebarOpen = true;
         },
+        handleSidebarWheel(event) {
+            // The portal shell intentionally locks the outer page. Route a
+            // mouse-wheel gesture from any part of the sidebar to its menu so
+            // navigation remains reliably scrollable over buttons and labels.
+            if (event.ctrlKey || !event.deltaY) return;
+            const nav = event.currentTarget?.querySelector('.zq-sidebar-nav');
+            if (!nav) return;
+            const previousTop = nav.scrollTop;
+            nav.scrollTop += event.deltaY;
+            if (nav.scrollTop !== previousTop) event.preventDefault();
+        },
         applyDarkModePreference() {
             this.darkMode = this.userProfile.themePreference === 'dark';
             document.documentElement.classList.toggle('dark', this.darkMode);
