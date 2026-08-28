@@ -103,16 +103,31 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
     assert.match(rulesSource, /allow read: if isAuthenticated\(\) && \(!isClient\(\) \|\| request\.auth\.uid == userId\)/);
 });
 
-test('removing a Client Task never deletes its Client Directory record', () => {
+test('deleting a Client Task cascades its projects but preserves its Client Directory record', () => {
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const taskMenuStart = appSource.indexOf('clientTaskMenuItems(cust)');
     const taskMenu = appSource.slice(taskMenuStart, appSource.indexOf('// Shared by the board card', taskMenuStart));
     const removeTaskStart = appSource.indexOf('async deleteClientTask(cust)');
     const removeTask = appSource.slice(removeTaskStart, appSource.indexOf('// Generic context menu', removeTaskStart));
     assert.match(taskMenu, /requestDeleteClientTask\(cust\)/);
+    assert.match(taskMenu, /Delete Client Task and Projects/);
+    assert.match(removeTask, /linkedProjects/);
+    assert.match(removeTask, /project_activities/);
+    assert.match(removeTask, /project_client_updates/);
+    assert.match(removeTask, /childDeletes\.forEach\(item => batch\.delete\(doc\(db, item\.collection, item\.id\)\)/);
     assert.match(removeTask, /clientTaskCreatedAt:\s*deleteField\(\)/);
-    assert.match(removeTask, /updateDoc\(doc\(db, 'customers', cust\.id\)/);
-    assert.doesNotMatch(removeTask, /deleteDoc\(/);
+    assert.match(removeTask, /batch\.update\(customerRef/);
+    assert.doesNotMatch(removeTask, /deleteDoc\(doc\(db, 'customers'/);
+});
+
+test('each new project creates or uses a mandatory Client Task parent atomically', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.match(appSource, /creationBatch\.set\(doc\(db, 'customers', payload\.clientDirectoryId\)/);
+    assert.match(appSource, /creationBatch\.set\(doc\(db, 'projects', projectId\), payload\)/);
+    assert.match(appSource, /ensureClientTasksForExistingProjects/);
+    assert.match(rulesSource, /function hasClientTaskParent\(clientDirectoryId\)/);
+    assert.match(rulesSource, /hasClientTaskParent\(request\.resource\.data\.clientDirectoryId\)/);
 });
 
 test('Client Portal does not render obsolete dashboard layers or overlapping hero grid', () => {

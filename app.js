@@ -476,6 +476,9 @@ createApp({
             claimsHistory: [],
             paymentVouchers: [],
             projects: [],
+            // Prevent duplicate automatic Client Task repairs while Firestore's
+            // live customer/project listeners settle after sign-in.
+            clientTaskRepairRunning: false,
             projectActivities: [],
             projectActivitiesLoaded: false,
             projectClientUpdates: [],
@@ -890,10 +893,9 @@ createApp({
         // widget, Client Directory badges, the drawer's Set Tier pills).
         clientTaskGroups() {
             const buckets = { Consult: [], 'In-Progress': [], Complete: [] };
-            // Membership gate — only clients Director explicitly added via New
-            // Client Task (clientTaskCreatedAt set) ever appear here. A client
-            // added/registered through Client Directory or Billing & Documents
-            // has no effect on this board until a Director opts it in.
+            // Membership gate — a client appears once it has a Client Task
+            // parent. A Client Directory registration alone stays separate;
+            // creating the first project adds this parent automatically.
             this.customers.filter(cust => cust.clientTaskCreatedAt).forEach(cust => {
                 buckets[this.clientTaskStatus(cust.id)].push(cust);
             });
@@ -1876,7 +1878,20 @@ createApp({
             });
             try {
                 const ownerChanged = isEdit && String(original?.ownerEmail || '').trim().toLowerCase() !== payload.ownerEmail;
-                if (ownerChanged) {
+                if (!isEdit && !this.customers.find(customer => customer.id === payload.clientDirectoryId)?.clientTaskCreatedAt) {
+                    // A Client Task is the mandatory parent of every Project
+                    // Activity. Create the missing parent in the same batch as
+                    // the project: a project can never be committed by this UI
+                    // without its Client Task.
+                    const creationBatch = writeBatch(db);
+                    creationBatch.set(doc(db, 'customers', payload.clientDirectoryId), {
+                        clientTaskCreatedAt: now,
+                        updatedAt: now,
+                        updatedByUid: this.userProfile.uid
+                    }, { merge: true });
+                    creationBatch.set(doc(db, 'projects', projectId), payload);
+                    await creationBatch.commit();
+                } else if (ownerChanged) {
                     // Director/Superadmin may change the PIC from the project form.
                     // Update all linked access indexes atomically so the old PIC
                     // cannot retain activity access after the transfer.
@@ -4565,12 +4580,9 @@ createApp({
         closeClientTaskModal() {
             this.clientTaskModal.show = false;
         },
-        // Membership gate: a client appears on the Client Task board ONLY once
-        // clientTaskCreatedAt is set — never just because a customers record
-        // exists. Staff adding/registering a client through Client Directory or
-        // Billing & Documents does NOT touch this field, so it has zero effect
-        // on Client Task; this method is the ONLY writer, reachable only through
-        // the Director-only New Client Task modal (pick from Client Directory).
+        // A Client Directory record stays separate from a Client Task. The task
+        // becomes mandatory once a project exists; creating a directory record
+        // alone still does not add an empty task to the board.
         async addClientToTask(cust) {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return false; }
             if (!cust?.id) return false;
@@ -4584,6 +4596,44 @@ createApp({
                 console.error('Add to Client Task failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'add this client to Client Task'));
                 return false;
+            }
+        },
+        // Repairs projects created before Client Task became the required parent.
+        // It only touches customer records which already have at least one
+        // project, and never creates or changes a Client Directory record.
+        async ensureClientTasksForExistingProjects() {
+            if (!this.canManageProjects || this.clientTaskRepairRunning || !this.projects.length || !this.customers.length) return;
+            const firstProjectByClientId = new Map();
+            this.projects.forEach(project => {
+                if (!project.clientDirectoryId || firstProjectByClientId.has(project.clientDirectoryId)) return;
+                firstProjectByClientId.set(project.clientDirectoryId, project);
+            });
+            const missing = this.customers.filter(customer => !customer.clientTaskCreatedAt && firstProjectByClientId.has(customer.id));
+            if (!missing.length) return;
+
+            this.clientTaskRepairRunning = true;
+            try {
+                const repairedAt = new Date().toISOString();
+                for (let start = 0; start < missing.length; start += 450) {
+                    const batch = writeBatch(db);
+                    missing.slice(start, start + 450).forEach(customer => {
+                        const firstProject = firstProjectByClientId.get(customer.id);
+                        batch.set(doc(db, 'customers', customer.id), {
+                            clientTaskCreatedAt: firstProject?.createdAt || repairedAt,
+                            clientTaskRestoredAt: repairedAt,
+                            updatedAt: repairedAt,
+                            updatedByUid: this.userProfile.uid
+                        }, { merge: true });
+                    });
+                    await batch.commit();
+                }
+                this.logAudit('REPAIR_CLIENT_TASKS', `Restored Client Task parent for ${missing.length} client${missing.length === 1 ? '' : 's'} with existing projects`);
+                this.showNotify(`Client Task restored for ${missing.length} client${missing.length === 1 ? '' : 's'} with existing projects.`);
+            } catch (error) {
+                console.error('Client Task repair failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'restore the missing Client Task'));
+            } finally {
+                this.clientTaskRepairRunning = false;
             }
         },
         async saveClientTask() {
@@ -4600,13 +4650,19 @@ createApp({
             }
         },
         requestDeleteClientTask(cust) {
-            if (!this.canDelete) { this.showNotify('Only Superadmin and Director can remove a client from Client Task.'); return; }
-            if (!cust?.id) { this.showNotify('Unable to remove this Client Task.'); return; }
+            if (!this.canDelete) { this.showNotify('Only Superadmin and Director can delete a Client Task.'); return; }
+            if (!cust?.id) { this.showNotify('Unable to delete this Client Task.'); return; }
             const projectCount = this.projects.filter(project => project.clientDirectoryId === cust.id).length;
+            const activityCount = this.projects
+                .filter(project => project.clientDirectoryId === cust.id)
+                .reduce((count, project) => count + this.projectActivitiesFor(project.id).length, 0);
+            const updateCount = this.projects
+                .filter(project => project.clientDirectoryId === cust.id)
+                .reduce((count, project) => count + this.clientUpdatesFor(project.id).length, 0);
             this.requestConfirm({
-                title: 'Remove from Client Task?',
-                message: `${cust.clientName || 'This client'} will be removed from the Client Task board. Its Client Directory record, portal access, documents, and ${projectCount} linked project(s) will be kept.`,
-                confirmLabel: 'Yes, Remove from Client Task',
+                title: 'Delete Client Task and Projects?',
+                message: `${cust.clientName || 'This client'} has ${projectCount} project(s), ${activityCount} project activity record(s), and ${updateCount} client update(s). Deleting this Client Task permanently deletes all of them. The Client Directory record, portal access, and documents will be kept.`,
+                confirmLabel: 'Yes, Delete Client Task',
                 danger: true,
                 onConfirm: () => this.deleteClientTask(cust)
             });
@@ -4614,18 +4670,51 @@ createApp({
         async deleteClientTask(cust) {
             if (!this.canDelete || !cust?.id) return false;
             try {
-                await updateDoc(doc(db, 'customers', cust.id), {
-                    clientTaskCreatedAt: deleteField(),
-                    updatedAt: new Date().toISOString(),
-                    updatedByUid: this.userProfile.uid
-                });
+                const linkedProjects = this.projects.filter(project => project.clientDirectoryId === cust.id);
+                const linkedActivities = linkedProjects.flatMap(project => this.projectActivitiesFor(project.id));
+                const linkedUpdates = linkedProjects.flatMap(project => this.clientUpdatesFor(project.id));
+                const childDeletes = [
+                    ...linkedActivities.map(activity => ({ collection: 'project_activities', id: activity.id })),
+                    ...linkedUpdates.map(update => ({ collection: 'project_client_updates', id: update.id })),
+                    ...linkedProjects.map(project => ({ collection: 'projects', id: project.id }))
+                ];
+                const customerRef = doc(db, 'customers', cust.id);
+                const now = new Date().toISOString();
+
+                // Keep the parent task until every child has been deleted. Most
+                // tasks fit in one atomic commit; large historical tasks are
+                // safely processed in delete-only chunks before the parent flag
+                // is removed, respecting Firestore's 500-write limit.
+                if (childDeletes.length < 450) {
+                    const batch = writeBatch(db);
+                    childDeletes.forEach(item => batch.delete(doc(db, item.collection, item.id)));
+                    batch.update(customerRef, {
+                        clientTaskCreatedAt: deleteField(),
+                        clientTaskRestoredAt: deleteField(),
+                        updatedAt: now,
+                        updatedByUid: this.userProfile.uid
+                    });
+                    await batch.commit();
+                } else {
+                    for (let start = 0; start < childDeletes.length; start += 450) {
+                        const batch = writeBatch(db);
+                        childDeletes.slice(start, start + 450).forEach(item => batch.delete(doc(db, item.collection, item.id)));
+                        await batch.commit();
+                    }
+                    await updateDoc(customerRef, {
+                        clientTaskCreatedAt: deleteField(),
+                        clientTaskRestoredAt: deleteField(),
+                        updatedAt: now,
+                        updatedByUid: this.userProfile.uid
+                    });
+                }
                 if (this.boardClientFilter?.id === cust.id) this.boardClientFilter = null;
-                this.logAudit('REMOVE_FROM_CLIENT_TASK', `Removed ${cust.clientName || cust.id} from Client Task`);
-                this.showNotify('Client removed from Client Task. Client Directory data was kept.');
+                this.logAudit('DELETE_CLIENT_TASK', `Deleted Client Task ${cust.clientName || cust.id} with ${linkedProjects.length} project(s), ${linkedActivities.length} activity record(s), and ${linkedUpdates.length} client update(s)`);
+                this.showNotify('Client Task and all linked projects were deleted. Client Directory data was kept.');
                 return true;
             } catch (error) {
-                console.error('Remove from Client Task failed:', error);
-                this.showNotify(this.getFirestoreWriteError(error, 'remove this client from Client Task'));
+                console.error('Delete Client Task failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'delete this Client Task and its projects'));
                 return false;
             }
         },
@@ -4746,7 +4835,7 @@ createApp({
             return [
                 { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) },
                 { label: 'View Client Information', icon: 'fa-circle-info', action: () => this.openClientView(cust) },
-                this.canDelete ? { label: 'Remove from Client Task', icon: 'fa-trash', danger: true, action: () => this.requestDeleteClientTask(cust) } : null
+                this.canDelete ? { label: 'Delete Client Task and Projects', icon: 'fa-trash', danger: true, action: () => this.requestDeleteClientTask(cust) } : null
             ];
         },
         // Shared by the board card (grouped + drilled-down variants) and the
@@ -5710,6 +5799,7 @@ createApp({
                             return { id: d.id, ...data, clientAddress1: data.clientAddress1 || data.clientAddress || '' };
                         });
                         this.projects = this.projects.map(project => this.projectWithLiveClientData(project));
+                        this.ensureClientTasksForExistingProjects();
                     }, 'clients')
                     : role === 'Client' && this.userProfile.clientDirectoryId
                         ? subscribeWithReadySignal(doc(db, 'customers', this.userProfile.clientDirectoryId), (snapshot) => {
@@ -5758,6 +5848,7 @@ createApp({
                     : Promise.resolve(),
                 subscribeWithReadySignal(projectsSource, (snapshot) => {
                     this.projects = snapshot.docs.map(d => this.projectWithLiveClientData({ id: d.id, ...d.data() }));
+                    this.ensureClientTasksForExistingProjects();
                     this.syncProjectActivityOwners();
                 }, 'project activities'),
                 projectActivitiesSource ? subscribeWithReadySignal(projectActivitiesSource, (snapshot) => {

@@ -96,6 +96,16 @@ service cloud.firestore {
         data.ownerEmail.size() > 0;
     }
 
+    // Client Task is the required parent of every project. getAfter() permits
+    // the portal to create a missing parent customer task and its first project
+    // in one atomic batch, while rejecting a standalone project without one.
+    function hasClientTaskParent(clientDirectoryId) {
+      return exists(/databases/$(database)/documents/customers/$(clientDirectoryId)) &&
+        'clientTaskCreatedAt' in getAfter(/databases/$(database)/documents/customers/$(clientDirectoryId)).data &&
+        getAfter(/databases/$(database)/documents/customers/$(clientDirectoryId)).data.clientTaskCreatedAt is string &&
+        getAfter(/databases/$(database)/documents/customers/$(clientDirectoryId)).data.clientTaskCreatedAt.size() > 0;
+    }
+
     function hasAllowedRoleEmail(data) {
       return data.role == 'Client' || (
         data.email is string && data.email.matches('.*@zenq0r[.]com$')
@@ -413,6 +423,7 @@ service cloud.firestore {
         request.resource.data.updatedByUid == request.auth.uid &&
         request.resource.data.updatedByEmail == request.auth.token.email &&
         hasValidProjectLinks(request.resource.data) &&
+        hasClientTaskParent(request.resource.data.clientDirectoryId) &&
         request.resource.data.projectRef is string &&
         request.resource.data.title is string &&
         request.resource.data.clientEmail is string &&
