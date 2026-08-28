@@ -1182,9 +1182,24 @@ createApp({
             const start = (this.currentPage - 1) * this.itemsPerPage;
             return this.filteredRecentActivities.slice(start, start + this.itemsPerPage);
         },
+        // A Project Activity is only valid for the board when its Client Directory
+        // record is an active Client Task parent. This single gate is used by both
+        // the board and list views so an orphaned/legacy record can never appear
+        // under an unrelated company's Client Task group.
+        registeredClientTaskIds() {
+            return new Set(this.customers
+                .filter(customer => customer?.id && customer.clientTaskCreatedAt)
+                .map(customer => String(customer.id)));
+        },
+        isProjectLinkedToRegisteredClientTask(project) {
+            const clientDirectoryId = String(project?.clientDirectoryId || '').trim();
+            return Boolean(clientDirectoryId) && this.registeredClientTaskIds.has(clientDirectoryId);
+        },
         filteredProjects() {
             const queryText = this.searchQuery.trim().toLowerCase();
-            let records = [...this.projects].sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+            let records = this.projects
+                .filter(project => this.isProjectLinkedToRegisteredClientTask(project))
+                .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
             if (this.projectScopeFilter === 'mine' && this.userProfile.role !== 'Client') {
                 const email = String(this.userProfile.email || '').trim().toLowerCase();
                 records = records.filter(project => String(project.ownerEmail || '').trim().toLowerCase() === email);
@@ -1369,10 +1384,13 @@ createApp({
             const groups = [];
             const indexByKey = new Map();
             this.getProjectsByStage(stage).forEach(project => {
-                const key = project.clientDirectoryId || `unlinked-${project.clientName || 'unknown'}`;
+                // filteredProjects already rejects unlinked projects. Keeping the
+                // explicit guard here protects this grouping if it is reused.
+                if (!this.isProjectLinkedToRegisteredClientTask(project)) return;
+                const key = project.clientDirectoryId;
                 if (!indexByKey.has(key)) {
                     indexByKey.set(key, groups.length);
-                    groups.push({ key, clientDirectoryId: project.clientDirectoryId || '', clientName: project.clientName || 'Unknown Client', projects: [] });
+                    groups.push({ key, clientDirectoryId: project.clientDirectoryId, clientName: project.clientName || 'Unknown Client', projects: [] });
                 }
                 groups[indexByKey.get(key)].projects.push(project);
             });
@@ -4842,7 +4860,10 @@ createApp({
             if (item && typeof item.action === 'function') item.action();
         },
         viewClientBoard(cust) {
-            if (!cust?.id) return;
+            if (!cust?.id || !cust.clientTaskCreatedAt) {
+                this.showNotify('Register this client in Client Task before viewing Project Activities.');
+                return;
+            }
             this.boardClientFilter = { id: cust.id, name: cust.clientName || 'Unknown Client' };
             this.switchTab('project-activities');
         },

@@ -130,6 +130,22 @@ test('each new project creates or uses a mandatory Client Task parent atomically
     assert.match(rulesSource, /hasClientTaskParent\(request\.resource\.data\.clientDirectoryId\)/);
 });
 
+test('Project Activities only display projects under a registered Client Task', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const filterStart = appSource.indexOf('registeredClientTaskIds()');
+    const filterEnd = appSource.indexOf('projectClientAccessUsers()', filterStart);
+    const projectFilter = appSource.slice(filterStart, filterEnd);
+    const groupingStart = appSource.indexOf('getClientGroupsByStage(stage)');
+    const groupingEnd = appSource.indexOf('toggleClientGroup(groupKey)', groupingStart);
+    const projectGrouping = appSource.slice(groupingStart, groupingEnd);
+
+    assert.match(projectFilter, /customer\.clientTaskCreatedAt/);
+    assert.match(projectFilter, /isProjectLinkedToRegisteredClientTask\(project\)/);
+    assert.match(projectFilter, /\.filter\(project => this\.isProjectLinkedToRegisteredClientTask\(project\)\)/);
+    assert.match(projectGrouping, /if \(!this\.isProjectLinkedToRegisteredClientTask\(project\)\) return;/);
+    assert.doesNotMatch(projectGrouping, /unlinked-/);
+});
+
 test('Client Portal does not render obsolete dashboard layers or overlapping hero grid', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     assert.match(source, /<div v-if="currentTab === 'dashboard'"/);
