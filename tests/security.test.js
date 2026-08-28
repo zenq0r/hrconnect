@@ -146,6 +146,20 @@ test('Project Activities only display projects under a registered Client Task', 
     assert.doesNotMatch(projectGrouping, /unlinked-/);
 });
 
+test('legacy Project Activities can only be re-linked to one matching registered Client Task', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const repairStart = appSource.indexOf('async repairLegacyProjectClientLinks()');
+    const repairEnd = appSource.indexOf('async saveClientTask()', repairStart);
+    const repair = appSource.slice(repairStart, repairEnd);
+
+    assert.match(repair, /this\.customers\.filter\(customer => customer\?\.id && customer\.clientTaskCreatedAt\)/);
+    assert.match(repair, /normalizeClientKey\(customer\.clientSSM\) === projectSSM/);
+    assert.match(repair, /normalizeClientKey\(customer\.clientName\) === projectName/);
+    assert.match(repair, /if \(candidates\.length === 1\)/);
+    assert.match(repair, /batch\.update\(doc\(db, 'projects', project\.id\)/);
+    assert.doesNotMatch(repair, /deleteDoc|batch\.delete/);
+});
+
 test('Client Portal does not render obsolete dashboard layers or overlapping hero grid', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     assert.match(source, /<div v-if="currentTab === 'dashboard'"/);

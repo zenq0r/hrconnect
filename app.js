@@ -479,6 +479,7 @@ createApp({
             // Prevent duplicate automatic Client Task repairs while Firestore's
             // live customer/project listeners settle after sign-in.
             clientTaskRepairRunning: false,
+            legacyProjectLinkRepairRunning: false,
             projectActivities: [],
             projectActivitiesLoaded: false,
             projectClientUpdates: [],
@@ -4672,6 +4673,65 @@ createApp({
                 this.clientTaskRepairRunning = false;
             }
         },
+        // Some projects saved before Client Task was made mandatory have a valid
+        // company name/SSM snapshot but no usable Client Directory id. Repairing
+        // those IDs restores the correct board entry without guessing: a project
+        // is changed only when exactly one registered Client Task matches its SSM,
+        // or (when SSM is absent) its exact company name.
+        async repairLegacyProjectClientLinks() {
+            if (!this.canManageProjects || this.legacyProjectLinkRepairRunning || !this.projects.length || !this.customers.length) return;
+
+            const normalizeClientKey = value => String(value || '')
+                .trim()
+                .toLocaleUpperCase('en-MY')
+                .replace(/[^A-Z0-9]/g, '');
+            const registeredTasks = this.customers.filter(customer => customer?.id && customer.clientTaskCreatedAt);
+            if (!registeredTasks.length) return;
+
+            const repairs = this.projects.reduce((list, project) => {
+                if (this.isProjectLinkedToRegisteredClientTask(project)) return list;
+                const projectSSM = normalizeClientKey(project.clientSSM);
+                const projectName = normalizeClientKey(project.clientName);
+                const candidates = projectSSM
+                    ? registeredTasks.filter(customer => normalizeClientKey(customer.clientSSM) === projectSSM)
+                    : projectName
+                        ? registeredTasks.filter(customer => normalizeClientKey(customer.clientName) === projectName)
+                        : [];
+                if (candidates.length === 1) list.push({ project, customer: candidates[0] });
+                return list;
+            }, []);
+            if (!repairs.length) return;
+
+            this.legacyProjectLinkRepairRunning = true;
+            try {
+                const repairedAt = new Date().toISOString();
+                for (let start = 0; start < repairs.length; start += 450) {
+                    const batch = writeBatch(db);
+                    repairs.slice(start, start + 450).forEach(({ project, customer }) => {
+                        batch.update(doc(db, 'projects', project.id), {
+                            clientDirectoryId: customer.id,
+                            clientName: customer.clientName || project.clientName || '',
+                            clientEmail: String(customer.clientEmail || project.clientEmail || '').trim().toLowerCase(),
+                            clientSSM: customer.clientSSM || project.clientSSM || '',
+                            clientTier: customer.clientTier || project.clientTier || 'Standard',
+                            clientTaskLinkRepairedAt: repairedAt,
+                            clientTaskLinkRepairedByUid: this.userProfile.uid,
+                            updatedAt: repairedAt,
+                            updatedByUid: this.userProfile.uid,
+                            updatedByEmail: String(this.userProfile.email || '').trim().toLowerCase()
+                        });
+                    });
+                    await batch.commit();
+                }
+                this.logAudit('REPAIR_PROJECT_CLIENT_TASK_LINKS', `Restored Client Task links for ${repairs.length} project${repairs.length === 1 ? '' : 's'}`);
+                this.showNotify(`Restored the Client Task link for ${repairs.length} project${repairs.length === 1 ? '' : 's'}.`);
+            } catch (error) {
+                console.error('Legacy project Client Task link repair failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'restore the project Client Task link'));
+            } finally {
+                this.legacyProjectLinkRepairRunning = false;
+            }
+        },
         async saveClientTask() {
             if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
             const modal = this.clientTaskModal;
@@ -5839,6 +5899,7 @@ createApp({
                         });
                         this.projects = this.projects.map(project => this.projectWithLiveClientData(project));
                         this.ensureClientTasksForExistingProjects();
+                        this.repairLegacyProjectClientLinks();
                     }, 'clients')
                     : role === 'Client' && this.userProfile.clientDirectoryId
                         ? subscribeWithReadySignal(doc(db, 'customers', this.userProfile.clientDirectoryId), (snapshot) => {
@@ -5888,6 +5949,7 @@ createApp({
                 subscribeWithReadySignal(projectsSource, (snapshot) => {
                     this.projects = snapshot.docs.map(d => this.projectWithLiveClientData({ id: d.id, ...d.data() }));
                     this.ensureClientTasksForExistingProjects();
+                    this.repairLegacyProjectClientLinks();
                     this.syncProjectActivityOwners();
                 }, 'project activities'),
                 projectActivitiesSource ? subscribeWithReadySignal(projectActivitiesSource, (snapshot) => {
