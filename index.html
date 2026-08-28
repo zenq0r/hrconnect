@@ -349,7 +349,7 @@
                     </div>
 
                     <div class="flex justify-end text-xs pt-1">
-                        <a href="#" @click.prevent="openForgotPasswordFlow" class="text-brand-gold hover:underline font-bold">
+                        <a href="#" @click.prevent="openForgotPasswordFlow" class="text-amber-700 hover:underline font-bold dark:text-amber-300">
                             Forgot my password?
                         </a>
                     </div>
@@ -1433,23 +1433,23 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="zq-kpi-card">
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-emerald-600 dark:text-emerald-400 truncate">{{ formatCurrency(myLatestNetSalary) }}</h3>
+                                <h3 class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myLatestNetSalary) }}</h3>
                                 <p class="zq-kpi-card-label truncate">Latest Net Salary</p>
-                                <p class="zq-kpi-card-context text-slate-400 truncate">Last Generated Payslip</p>
+                                <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Last Generated Payslip</p>
                             </div>
 
                             <div class="zq-kpi-card">
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-clock-rotate-left text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-xl text-amber-500 truncate">{{ myPendingClaimsCount }}</h3>
+                                <h3 class="zq-kpi-card-value text-xl text-amber-700 dark:text-amber-300 truncate">{{ myPendingClaimsCount }}</h3>
                                 <p class="zq-kpi-card-label truncate">Pending Claims</p>
-                                <p class="zq-kpi-card-context text-amber-600 truncate">Status: Pending</p>
+                                <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">Status: Pending</p>
                             </div>
 
                             <div class="zq-kpi-card">
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                 <h3 class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(myApprovedClaimsAmount) }}</h3>
                                 <p class="zq-kpi-card-label truncate">Approved Claims (YTD)</p>
-                                <p class="zq-kpi-card-context text-emerald-600 truncate">Status: Approved</p>
+                                <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">Status: Approved</p>
                             </div>
                         </div>
 
@@ -1522,28 +1522,28 @@
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-file-invoice text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                 <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ myClientDocs.length }}</h3>
                                 <p class="zq-kpi-card-label truncate">Total Documents</p>
-                                <p class="zq-kpi-card-context text-slate-400 truncate">Quotations &amp; Invoices</p>
+                                <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Quotations &amp; Invoices</p>
                             </div>
 
                             <div class="zq-kpi-card">
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span><i class="fa-solid fa-circle-exclamation text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-red-500 truncate">{{ formatCurrency(myUnpaidInvoicesAmount) }}</h3>
+                                <h3 class="zq-kpi-card-value text-lg text-red-700 dark:text-red-300 truncate">{{ formatCurrency(myUnpaidInvoicesAmount) }}</h3>
                                 <p class="zq-kpi-card-label truncate">Unpaid Invoices</p>
-                                <p class="zq-kpi-card-context text-red-500 truncate">{{ myUnpaidInvoicesCount }} Invois Unpaid</p>
+                                <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ myUnpaidInvoicesCount }} Invois Unpaid</p>
                             </div>
 
                             <div class="zq-kpi-card">
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-emerald-600 truncate">{{ formatCurrency(myPaidInvoicesAmount) }}</h3>
+                                <h3 class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myPaidInvoicesAmount) }}</h3>
                                 <p class="zq-kpi-card-label truncate">Total Paid Amount</p>
-                                <p class="zq-kpi-card-context text-emerald-600 truncate">Status: Paid</p>
+                                <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">Status: Paid</p>
                             </div>
 
                             <div class="zq-kpi-card">
                                 <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span><i class="fa-solid fa-diagram-project text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-xl text-violet-600 dark:text-violet-400 truncate">{{ clientActiveProjectsCount }}</h3>
+                                <h3 class="zq-kpi-card-value text-xl text-violet-700 dark:text-violet-300 truncate">{{ clientActiveProjectsCount }}</h3>
                                 <p class="zq-kpi-card-label truncate">Active Projects</p>
-                                <p class="zq-kpi-card-context text-slate-400 truncate">{{ projects.length }} total project(s)</p>
+                                <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">{{ projects.length }} total project(s)</p>
                             </div>
                         </div>
 
@@ -1645,42 +1645,42 @@
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                     <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ employees.length }}</h3>
                                     <p class="zq-kpi-card-label truncate">Total Employees</p>
-                                    <p class="zq-kpi-card-context text-emerald-600 dark:text-emerald-400 truncate">{{ activeEmployeesCount }} Active</p>
+                                    <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ activeEmployeesCount }} Active</p>
                                 </div>
                                 <!-- 2. Total Clients -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                     <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ customers.length }}</h3>
                                     <p class="zq-kpi-card-label truncate">Total Clients</p>
-                                    <p class="zq-kpi-card-context text-brand-gold truncate">{{ priorityClients.length }} Priority</p>
+                                    <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ priorityClients.length }} Priority</p>
                                 </div>
                                 <!-- 3. Total Quotations -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                     <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalQuotations }}</h3>
                                     <p class="zq-kpi-card-label truncate">Total Quotations</p>
-                                    <p class="zq-kpi-card-context text-indigo-600 dark:text-indigo-400 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
+                                    <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
                                 </div>
                                 <!-- 4. Total Invoices -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                     <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalInvoices }}</h3>
                                     <p class="zq-kpi-card-label truncate">Total Invoices</p>
-                                    <p class="zq-kpi-card-context text-emerald-600 dark:text-emerald-400 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
+                                    <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
                                 </div>
                                 <!-- 5. Revenue (Paid) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-lg text-emerald-600 dark:text-emerald-400 truncate">{{ formatCurrency(totalRevenuePaid) }}</h3>
+                                    <h3 class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(totalRevenuePaid) }}</h3>
                                     <p class="zq-kpi-card-label truncate">Revenue (Paid)</p>
-                                    <p class="zq-kpi-card-context text-slate-400 truncate">Collected Inflow</p>
+                                    <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
                                 </div>
                                 <!-- 6. Pending Receivables -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-lg text-orange-500 dark:text-orange-400 truncate">{{ formatCurrency(totalRevenuePending) }}</h3>
+                                    <h3 class="zq-kpi-card-value text-lg text-orange-700 dark:text-orange-300 truncate">{{ formatCurrency(totalRevenuePending) }}</h3>
                                     <p class="zq-kpi-card-label truncate">Pending Receivables</p>
-                                    <p class="zq-kpi-card-context text-red-500 truncate">{{ unpaidInvoicesCount }} Invoices Unpaid</p>
+                                    <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ unpaidInvoicesCount }} Invoices Unpaid</p>
                                 </div>
                                 <!-- 7. Total Payroll (Net) -->
                                 <div class="zq-kpi-card">
@@ -1694,7 +1694,7 @@
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
                                     <h3 class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(totalApprovedClaimsAmount) }}</h3>
                                     <p class="zq-kpi-card-label truncate">Claims &amp; Vouchers (Approved)</p>
-                                    <p class="zq-kpi-card-context text-amber-500 truncate">{{ pendingClaimsCount }} Pending Approval</p>
+                                    <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending Approval</p>
                                 </div>
                             </div>
                         </section>
