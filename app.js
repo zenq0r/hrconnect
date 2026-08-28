@@ -373,7 +373,9 @@ createApp({
             pendingLoginContext: null,
             currentTab: 'dashboard',
             mobileMenuOpen: false,
-            desktopSidebarOpen: false,
+            // Keep the desktop frame stable between views. The user can still
+            // collapse it deliberately from the single menu control.
+            desktopSidebarOpen: true,
             chartTimeFilter: 'monthly',
             sortOption: 'latest',
             recentActivityFilter: 'all',
@@ -3259,12 +3261,14 @@ createApp({
             if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to this module.'); return; }
             if (this.currentTab === tabName) {
                 this.mobileMenuOpen = false;
-                this.desktopSidebarOpen = false;
+                if (window.innerWidth < 768) this.desktopSidebarOpen = false;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 return;
             }
             window.history.pushState({ zenqorPortal: true, tab: tabName }, '', window.location.href);
-            this.currentTab = tabName; this.mobileMenuOpen = false; this.desktopSidebarOpen = false;
+            this.currentTab = tabName;
+            this.mobileMenuOpen = false;
+            if (window.innerWidth < 768) this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         startClientStatusClock() {
@@ -3301,7 +3305,7 @@ createApp({
             const safeTab = typeof resolvedTab === 'string' && this.hasAccess(resolvedTab) ? resolvedTab : homeTab;
             this.currentTab = safeTab;
             this.mobileMenuOpen = false;
-            this.desktopSidebarOpen = false;
+            if (window.innerWidth < 768) this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'auto' });
         },
         refreshDashboardCharts(attempt = 0) {
@@ -3637,7 +3641,7 @@ createApp({
             this.startIdleTimeoutWatch();
             await this.syncUserClaims();
 
-            this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = false; this.mobileMenuOpen = false;
+            this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = window.innerWidth >= 768; this.mobileMenuOpen = false;
             await this.logAudit('LOGIN', `User logged in with role ${this.getRoleDisplayName(role)}`);
             this.showNotify(`Welcome back (${this.getRoleDisplayName(role)}): ${name}`);
             this.currentTab = mustChangePassword ? 'profile' : (role === 'Client' ? 'client-portal' : 'dashboard');
