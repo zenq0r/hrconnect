@@ -620,7 +620,7 @@
 
                         <div class="text-right hidden md:block">
                             <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ userProfile.name }}</p>
-                            <span class="inline-block bg-brand-gold/20 text-brand-dark dark:text-brand-gold text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">{{ userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role) }}</span>
+                            <span class="inline-block bg-brand-gold/20 text-brand-dark dark:text-amber-100 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">{{ userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role) }}</span>
                         </div>
                         <img :src="userProfile.photo" :alt="userProfile.name" class="w-8 h-8 rounded-full object-cover border-2 border-brand-gold shrink-0 shadow-sm">
                     </div>
@@ -2818,7 +2818,7 @@
                         <section class="zq-client-identity relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-lg border border-white/5">
                             <div class="absolute -bottom-10 -right-8 h-32 w-32 rounded-full bg-brand-blue/20"></div>
                             <div class="relative flex items-center gap-4">
-                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 text-xl font-black shadow-inner">{{ getInitials(clientPortalIdentity.clientName) }}</div>
+                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-slate-100 text-brand-dark text-xl font-black shadow-inner dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">{{ getInitials(clientPortalIdentity.clientName) }}</div>
                                 <div class="min-w-0"><p class="truncate text-base font-black">{{ clientPortalIdentity.clientName }}</p><p class="mt-1 truncate text-[11px] text-slate-300">{{ clientPortalIdentity.clientSSM || 'Business profile pending' }}</p><span :class="clientTierMeta(clientPortalIdentity.clientTier).badgeClass" class="mt-2 inline-flex rounded-full px-2 py-1 text-[9px] font-black">{{ clientTierMeta(clientPortalIdentity.clientTier).label }} Client</span></div>
                             </div>
                             <div class="relative mt-5 border-t border-white/15 pt-4 text-[10px] text-slate-300"><p class="flex items-center gap-2 truncate"><i class="fa-solid fa-envelope"></i>{{ clientPortalIdentity.clientEmail }}</p><p class="mt-2 flex items-center gap-2"><i class="fa-solid fa-lock"></i>Protected client access</p></div>
