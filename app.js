@@ -1019,8 +1019,25 @@ createApp({
             return [...persistedUpdates, ...statusSnapshots]
                 .sort((a, b) => String(b.createdAt || b.updateDate || '').localeCompare(String(a.createdAt || a.updateDate || '')));
         },
+        clientProjectStatusCards() {
+            return this.projects
+                .filter(project => project?.id)
+                .map(project => {
+                    const latestProjectEvent = this.clientUpdatesTimeline
+                        .filter(update => String(update.projectId || '') === String(project.id) &&
+                            (update.isStatusSnapshot || update.systemGenerated || update.updateType === 'Project Status'))
+                        .sort((a, b) => String(b.createdAt || b.updateDate || '').localeCompare(String(a.createdAt || a.updateDate || '')))[0] || null;
+                    return { ...project, latestProjectEvent };
+                })
+                .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+        },
+        clientConversationHistory() {
+            // Human-written messages only. System activity/status events live in
+            // Current Project Status above, keeping the conversation easy to scan.
+            return this.clientUpdatesTimeline.filter(update => !update.isStatusSnapshot && !update.systemGenerated && update.updateType !== 'Project Status');
+        },
         clientRecentUpdates() {
-            return this.clientUpdatesTimeline.slice(0, 4);
+            return this.clientConversationHistory.slice(0, 4);
         },
         clientRecentDocuments() {
             return [...this.myClientDocs].sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 5);

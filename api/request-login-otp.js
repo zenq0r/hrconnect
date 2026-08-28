@@ -69,7 +69,7 @@ module.exports = async function handler(req, res) {
             method: 'POST',
             headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                from: 'Zenqor Technologies <noreply@zenq0r.com>',
+                from: 'Zenqor Support <support@zenqor.com.my>',
                 to: [decoded.email],
                 subject: 'Your ZENQOR Portal Verification Code',
                 html: buildOtpEmailHtml(code)

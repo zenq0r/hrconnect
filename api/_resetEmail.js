@@ -29,7 +29,7 @@ async function sendResetEmail(toEmail, resetLink) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            from: 'Zenqor Technologies <noreply@zenq0r.com>',
+            from: 'Zenqor Support <support@zenqor.com.my>',
             to: [toEmail],
             subject: 'Password Reset Request – ZENQOR HRMS/CDTS',
             html: buildResetEmailHtml(resetLink)
