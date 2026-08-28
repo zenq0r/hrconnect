@@ -2568,6 +2568,7 @@
                                     </div>
                                 </section>
                                 <section><h4 class="mb-3 text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Description</h4><div class="min-h-[90px] whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4 text-xs leading-relaxed text-slate-700 dark:text-slate-200">{{ projectPreview.project.description || 'No project description provided.' }}</div></section>
+                                <template v-if="projectPreview.detailsReady">
                                 <section>
                                     <div class="mb-3 flex items-center justify-between gap-3">
                                         <div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Documents</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Centralized repository — JPG, PNG and PDF files shared between your team and the client.</p></div>
@@ -2632,6 +2633,11 @@
                                         <button type="button" @click="sendClientReply" class="shrink-0 rounded-xl bg-brand-blue px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-paper-plane"></i></button>
                                     </div>
                                 </section>
+                                </template>
+                                <div v-else class="zq-loading-state" role="status" aria-live="polite">
+                                    <i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i>
+                                    <p class="zq-loading-state-text">Preparing project details…</p>
+                                </div>
                             </div>
                             <div class="zq-modal-footer"><button v-if="canManageProjects" type="button" @click="deleteProjectFromPreview" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button><button v-if="canEditProject(projectPreview.project)" type="button" @click="editProjectFromPreview" class="zq-btn zq-btn-info"><i class="fa-solid fa-pen mr-1.5"></i>Edit Project</button><button v-if="canEditProject(projectPreview.project) && projectPreview.project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(projectPreview.project)" class="zq-btn zq-btn-success"><i class="fa-solid fa-check mr-1.5"></i>Assign / Mark Done</button><button type="button" @click="closeProjectDetails" class="zq-btn zq-btn-primary">Close</button></div>
                         </div>

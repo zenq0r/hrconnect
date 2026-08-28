@@ -513,7 +513,7 @@ createApp({
             contextMenu: { show: false, x: 0, y: 0, items: [] },
             buttonContextLongPress: { timer: null, startX: 0, startY: 0, button: null },
             buttonContextHandlers: { contextmenu: null, touchstart: null, touchmove: null, touchend: null },
-            projectPreview: { show: false, project: null },
+            projectPreview: { show: false, project: null, detailsReady: false },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
             clientDocumentsUnsubscribe: null,
 
@@ -1379,11 +1379,22 @@ createApp({
             return this.expandedClientGroups.has(groupKey);
         },
         openProjectDetails(project) {
-            this.projectPreview = { show: true, project: JSON.parse(JSON.stringify(project)) };
-            this.loadClientDocuments(project.clientDirectoryId, project.clientName, project.clientEmail);
+            const projectSnapshot = JSON.parse(JSON.stringify(project));
+            // Open the essential project summary first so the click can paint promptly.
+            // The document/activity timelines can be expensive on large client accounts,
+            // therefore they mount on the following frame without changing their data.
+            this.projectPreview = { show: true, project: projectSnapshot, detailsReady: false };
+            const defer = typeof window.requestAnimationFrame === 'function'
+                ? window.requestAnimationFrame.bind(window)
+                : (callback) => window.setTimeout(callback, 0);
+            defer(() => defer(() => {
+                if (!this.projectPreview.show || this.projectPreview.project?.id !== projectSnapshot.id) return;
+                this.projectPreview.detailsReady = true;
+                this.loadClientDocuments(projectSnapshot.clientDirectoryId, projectSnapshot.clientName, projectSnapshot.clientEmail);
+            }));
         },
         closeProjectDetails() {
-            this.projectPreview = { show: false, project: null };
+            this.projectPreview = { show: false, project: null, detailsReady: false };
             this.clientReplyMessage = '';
             this.editingReplyId = '';
             this.editingReplyMessage = '';
