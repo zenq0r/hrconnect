@@ -1926,3 +1926,175 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     color: #cbd5e1;
 }
 .dark #app .zq-party-selector-summary span:first-child { color: #f8fafc; }
+
+/* Premium workspace navigation: the sidebar is deliberately subdued so the
+   selected module carries the visual emphasis, with a clear role distinction
+   between internal staff (teal) and the Client Portal (blue). */
+#app .zq-sidebar {
+    background:
+        radial-gradient(circle at 10% -4%, rgba(45, 212, 191, 0.16), transparent 19rem),
+        linear-gradient(180deg, #17243a 0%, #121d30 48%, #0c1525 100%) !important;
+    border-right-color: rgba(148, 163, 184, 0.20) !important;
+    box-shadow: 16px 0 38px rgba(2, 8, 23, 0.26) !important;
+}
+#app .client-portal-theme {
+    background:
+        radial-gradient(circle at 10% -4%, rgba(96, 165, 250, 0.18), transparent 19rem),
+        linear-gradient(180deg, #182541 0%, #111c32 48%, #0b1426 100%) !important;
+}
+#app .zq-sidebar-brand {
+    min-height: 84px !important;
+    padding: 17px 16px !important;
+    position: relative;
+    background: linear-gradient(125deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)) !important;
+    border-bottom-color: rgba(148, 163, 184, 0.16) !important;
+}
+#app .zq-sidebar-brand::before {
+    left: 16px !important;
+    right: 16px !important;
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, #2dd4bf 0%, #60a5fa 55%, transparent 100%) !important;
+    opacity: 0.85 !important;
+}
+#app .client-portal-theme .zq-sidebar-brand::before {
+    background: linear-gradient(90deg, #60a5fa 0%, #818cf8 55%, transparent 100%) !important;
+}
+#app .zq-sidebar-logo {
+    width: 38px;
+    height: 38px;
+    padding: 5px !important;
+    border-color: rgba(251, 191, 36, 0.30) !important;
+    box-shadow: 0 8px 18px rgba(2, 8, 23, 0.32);
+}
+#app .zq-sidebar-logo img { max-height: 26px; }
+#app .zq-sidebar-brand-copy h1 {
+    letter-spacing: 0.035em !important;
+    font-size: 0.78rem !important;
+}
+#app .zq-sidebar-brand-copy p {
+    margin-top: 3px;
+    color: #f4a261 !important;
+    letter-spacing: 0.15em !important;
+}
+#app .client-portal-theme .zq-sidebar-brand-copy p { color: #fca5a5 !important; }
+#app .zq-sidebar-collapse {
+    width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 9px;
+    background: rgba(15, 23, 42, 0.34);
+    color: #94a3b8;
+    font-size: 0.7rem;
+    transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+#app .zq-sidebar-collapse:hover {
+    transform: translateX(-1px);
+    border-color: rgba(94, 234, 212, 0.48);
+    background: rgba(45, 212, 191, 0.12);
+    color: #e2e8f0;
+}
+#app .client-portal-theme .zq-sidebar-collapse:hover {
+    border-color: rgba(147, 197, 253, 0.52);
+    background: rgba(96, 165, 250, 0.14);
+}
+#app .zq-sidebar-nav {
+    padding: 16px 12px !important;
+    scrollbar-color: rgba(100, 116, 139, 0.72) transparent;
+}
+#app .zq-sidebar-nav > div { margin-top: 8px; }
+#app .zq-sidebar-nav > div > p {
+    margin: 0 7px 8px;
+    color: #7f91ab !important;
+    font-size: 0.59rem !important;
+    letter-spacing: 0.17em !important;
+}
+#app .zq-nav-item {
+    position: relative;
+    min-height: 44px !important;
+    padding: 9px 11px !important;
+    border: 1px solid transparent !important;
+    border-radius: 11px !important;
+    color: #b7c5d7 !important;
+    overflow: hidden;
+    transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease !important;
+}
+#app .zq-nav-item::after {
+    content: '';
+    position: absolute;
+    inset: 7px auto 7px 0;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: transparent;
+    transition: background-color 160ms ease;
+}
+#app .zq-nav-item > i:first-child {
+    display: inline-flex;
+    width: 27px !important;
+    height: 27px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.09);
+    color: #9fb0c7;
+    transition: background-color 160ms ease, color 160ms ease;
+}
+#app .zq-nav-item:hover {
+    transform: translateX(2px);
+    border-color: rgba(148, 163, 184, 0.18) !important;
+    background: rgba(148, 163, 184, 0.12) !important;
+    color: #f8fafc !important;
+}
+#app .zq-nav-item:hover > i:first-child {
+    background: rgba(45, 212, 191, 0.14);
+    color: #5eead4;
+}
+#app .client-portal-theme .zq-nav-item:hover > i:first-child {
+    background: rgba(96, 165, 250, 0.16);
+    color: #93c5fd;
+}
+#app .sidebar-item-active,
+#app .client-portal-theme .sidebar-item-active {
+    transform: none !important;
+    background: linear-gradient(105deg, #0e766d 0%, #12958c 100%) !important;
+    border-color: rgba(153, 246, 228, 0.30) !important;
+    border-left-color: rgba(153, 246, 228, 0.30) !important;
+    box-shadow: 0 8px 19px rgba(6, 78, 73, 0.30) !important;
+    color: #ffffff !important;
+}
+#app .client-portal-theme .sidebar-item-active {
+    background: linear-gradient(105deg, #1d4ed8 0%, #3567e9 100%) !important;
+    border-color: rgba(191, 219, 254, 0.32) !important;
+    box-shadow: 0 8px 19px rgba(30, 64, 175, 0.30) !important;
+}
+#app .sidebar-item-active::after { background: #f8fafc; }
+#app .sidebar-item-active > i:first-child,
+#app .client-portal-theme .sidebar-item-active > i:first-child {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fef3c7;
+}
+#app .zq-sidebar-footer {
+    padding: 14px 12px 16px !important;
+    border-top-color: rgba(148, 163, 184, 0.16) !important;
+    background: rgba(2, 8, 23, 0.15);
+}
+#app .zq-sidebar-signout {
+    min-height: 42px;
+    border: 1px solid rgba(251, 113, 133, 0.18);
+    border-radius: 11px !important;
+    background: rgba(190, 24, 93, 0.13) !important;
+    color: #fda4af !important;
+}
+#app .zq-sidebar-signout:hover {
+    border-color: rgba(251, 113, 133, 0.46);
+    background: #be123c !important;
+    color: #fff1f2 !important;
+    box-shadow: 0 8px 18px rgba(159, 18, 57, 0.22);
+}
+@media (max-width: 767px) {
+    #app .zq-sidebar { box-shadow: 18px 0 42px rgba(2, 8, 23, 0.48) !important; }
+    #app .zq-sidebar-brand { min-height: 78px !important; }
+    #app .zq-sidebar-nav { padding-top: 13px !important; }
+}

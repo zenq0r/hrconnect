@@ -404,22 +404,27 @@
                    ]"
                    class="zq-sidebar w-64 bg-brand-dark text-white flex flex-col no-print shrink-0 shadow-2xl fixed inset-y-0 left-0 z-50 md:relative transition-all duration-300 ease-in-out border-r border-slate-800">
                 
-                <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="zq-sidebar-brand p-4 border-b border-slate-800 flex items-center justify-between">
                     <div class="flex items-center space-x-3 overflow-hidden">
-                        <div class="bg-white p-1 rounded-xl shrink-0 flex items-center justify-center border border-brand-gold/30">
+                        <div class="zq-sidebar-logo bg-white p-1 rounded-xl shrink-0 flex items-center justify-center border border-brand-gold/30">
                             <img src="./logo.png" onerror="this.style.display='none'" alt="" class="h-6 w-auto object-contain">
                         </div>
-                        <div class="truncate">
+                        <div class="zq-sidebar-brand-copy truncate">
                             <h1 class="font-extrabold text-xs tracking-wide text-white truncate">{{ userProfile.role === 'Client' ? 'ZENQOR Client Portal' : 'ZENQOR Enterprise' }}</h1>
                             <p class="text-[9px] text-brand-gold uppercase tracking-widest font-semibold truncate">{{ userProfile.role === 'Client' ? (userProfile.name || 'Client Access') : 'Staff Workspace' }}</p>
                         </div>
                     </div>
-                    <button type="button" @click="mobileMenuOpen = false" class="md:hidden text-slate-400 hover:text-white text-lg" title="Close menu" aria-label="Close menu">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" @click="desktopSidebarOpen = false" class="zq-sidebar-collapse hidden md:inline-flex" title="Collapse navigation" aria-label="Collapse navigation">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </button>
+                        <button type="button" @click="mobileMenuOpen = false" class="zq-sidebar-collapse md:hidden" title="Close menu" aria-label="Close menu">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <nav class="flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold">
+                <nav class="zq-sidebar-nav flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold" aria-label="Workspace navigation">
                     <button v-if="userProfile.role !== 'Client' && hasAccess('dashboard')" type="button" @click="switchTab('dashboard')" :class="{'sidebar-item-active': currentTab === 'dashboard', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'dashboard'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-chart-pie w-5 text-center"></i><span>Dashboard</span>
                     </button>
@@ -489,8 +494,8 @@
                     <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-support')" :class="{'sidebar-item-active': currentTab === 'client-support', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-support'}" class="zq-nav-item w-full"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
                 </nav>
 
-                <div class="p-3 border-t border-slate-800">
-                    <button type="button" @click="requestLogout" class="w-full bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2">
+                <div class="zq-sidebar-footer p-3 border-t border-slate-800">
+                    <button type="button" @click="requestLogout" class="zq-sidebar-signout w-full bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2">
                         <i class="fa-solid fa-right-from-bracket"></i><span>Sign Out</span>
                     </button>
                 </div>
