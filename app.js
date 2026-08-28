@@ -1530,6 +1530,16 @@ createApp({
             // clientDirectoryId claim instead of comparing uids directly.
             return this.userProfile.role === 'Client' && Boolean(this.userProfile.clientDirectoryId) && String(project?.clientDirectoryId || '') === String(this.userProfile.clientDirectoryId || '');
         },
+        clientProjectStatusBadgeClass(status) {
+            const statusClasses = {
+                'Project Planning': 'bg-blue-100 text-blue-800 dark:bg-blue-950/50 dark:text-blue-200',
+                'Pending Documentation': 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200',
+                'In Progress': 'bg-orange-100 text-orange-800 dark:bg-orange-950/50 dark:text-orange-200',
+                'Pending By Government': 'bg-violet-100 text-violet-800 dark:bg-violet-950/50 dark:text-violet-200',
+                'Completed & Done': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
+            };
+            return statusClasses[status] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200';
+        },
         canEditClientUpdate(update) {
             return this.canManageProjects || String(update?.senderUid || '') === String(this.userProfile.uid || '');
         },
