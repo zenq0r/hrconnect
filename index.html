@@ -3165,10 +3165,10 @@
                             </div>
                             <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
                                 <label class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Keep records for
-                                    <input v-model.number="auditRetention.value" type="number" min="1" max="999" class="zq-input mt-1 w-full sm:w-28">
+                                    <input id="audit-retention-value" name="auditRetentionValue" v-model.number="auditRetention.value" type="number" min="1" max="999" class="zq-input mt-1 w-full sm:w-28">
                                 </label>
                                 <label class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Unit
-                                    <select v-model="auditRetention.unit" class="zq-select mt-1 w-full sm:w-36">
+                                    <select id="audit-retention-unit" name="auditRetentionUnit" v-model="auditRetention.unit" class="zq-select mt-1 w-full sm:w-36">
                                         <option value="hour">Hour(s)</option><option value="day">Day(s)</option><option value="week">Week(s)</option><option value="month">Month(s)</option><option value="year">Year(s)</option>
                                     </select>
                                 </label>

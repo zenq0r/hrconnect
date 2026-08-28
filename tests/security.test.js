@@ -210,6 +210,13 @@ test('only Directors and Superadmins can view all Project Activities', () => {
     assert.match(html, /Project Activities are visible only to the assigned Person In Charge/);
 });
 
+test('audit retention form fields have stable identifiers for browser autofill', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(html, /id="audit-retention-value" name="auditRetentionValue"/);
+    assert.match(html, /id="audit-retention-unit" name="auditRetentionUnit"/);
+});
+
 test('dynamic status colors include their dark-mode counterparts in the built stylesheet', () => {
     const config = fs.readFileSync(path.join(__dirname, '..', 'tailwind.config.js'), 'utf8');
     const css = fs.readFileSync(path.join(__dirname, '..', 'tailwind.css'), 'utf8');
