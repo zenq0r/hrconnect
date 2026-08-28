@@ -980,7 +980,14 @@ createApp({
         myClientUnpaidCount() { return this.clientPortalDocs.filter(d => d.type === 'Invoice' && d.status !== 'Paid').length; },
         clientActiveProjectsCount() { return this.projects.filter(project => project.status !== 'Completed & Done').length; },
         clientUpdatesTimeline() {
-            return [...this.projectClientUpdates]
+            // This is the Client Portal conversation feed, not a general activity log.
+            // A client must only see messages created from one of their current Project
+            // Activities: staff updates and the client's own replies to those projects.
+            const visibleProjectIds = new Set(this.projects.map(project => String(project.id || '')).filter(Boolean));
+            const allowedTypes = new Set([...this.clientUpdateTypes, 'Client Reply']);
+            return this.projectClientUpdates
+                .filter(update => visibleProjectIds.has(String(update?.projectId || '')))
+                .filter(update => allowedTypes.has(String(update?.updateType || '')))
                 .sort((a, b) => String(b.createdAt || b.updateDate || '').localeCompare(String(a.createdAt || a.updateDate || '')));
         },
         clientRecentUpdates() {
