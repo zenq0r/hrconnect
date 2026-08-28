@@ -1579,7 +1579,7 @@
                             <div class="space-y-3">
                                 <button v-for="project in projects.slice(0, 3)" :key="`client-dashboard-track-${project.id}`" type="button" @click="openProjectDetails(project)" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
                                     <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <div class="min-w-0">
+                                        <div class="min-w-0 flex-1">
                                             <span class="rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[9px] font-extrabold text-brand-blue dark:text-blue-300 border border-blue-100 dark:border-blue-900">{{ project.projectRef }}</span>
                                             <p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ project.title }}</p>
                                         </div>
@@ -2852,7 +2852,7 @@
                         <div v-if="projects.length" class="space-y-3">
                             <button type="button" v-for="project in projects.slice(0, 4)" :key="`portal-project-${project.id}`" @click="openProjectDetails(project)" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <div class="min-w-0">
+                                    <div class="min-w-0 flex-1">
                                         <span class="rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[9px] font-extrabold text-brand-blue dark:text-blue-300 border border-blue-100 dark:border-blue-900">{{ project.projectRef }}</span>
                                         <p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ project.title }}</p>
                                     </div>
