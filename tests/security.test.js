@@ -174,3 +174,14 @@ test('quotation and invoice workspace uses explicit paired light and dark theme 
     assert.match(theme, /\.dark #app \.zq-party-selector,/);
     assert.match(theme, /\.dark #app \.zq-party-selector-summary/);
 });
+
+test('dark mode cannot override the light print palette', () => {
+    const theme = fs.readFileSync(path.join(__dirname, '..', 'custom.css'), 'utf8');
+    const printGuard = theme.lastIndexOf('Print is always a light document');
+    const darkCompatibility = theme.indexOf('Theme compatibility layer');
+
+    assert.ok(printGuard > darkCompatibility, 'print palette must be declared after dark compatibility rules');
+    assert.match(theme.slice(printGuard), /html\.dark #app \.print-container/);
+    assert.match(theme.slice(printGuard), /\.text-slate-500,\n    html\.dark #app \.print-container \.text-slate-600/);
+    assert.match(theme.slice(printGuard), /\.print-table th,\n    html\.dark #app \.print-container \.print-total-box/);
+});

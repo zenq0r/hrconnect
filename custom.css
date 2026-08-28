@@ -1820,6 +1820,44 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20) !important;
 }
 
+/* Print is always a light document, regardless of the active portal theme.
+   This rule intentionally sits after all dark-mode compatibility rules. */
+@media print {
+    html.dark,
+    html.dark body,
+    html.dark #app {
+        background: #ffffff !important;
+        color: #0f172a !important;
+    }
+    html.dark #app .print-container {
+        background: #ffffff !important;
+        color: #0f172a !important;
+    }
+    html.dark #app .print-container .text-brand-dark,
+    html.dark #app .print-container .text-slate-800,
+    html.dark #app .print-container .text-slate-900 { color: #0f172a !important; }
+    html.dark #app .print-container .text-slate-700 { color: #334155 !important; }
+    html.dark #app .print-container .text-slate-500,
+    html.dark #app .print-container .text-slate-600 { color: #64748b !important; }
+    html.dark #app .print-container .text-brand-blue { color: #0f766e !important; }
+    html.dark #app .print-container .text-brand-gold { color: #b45309 !important; }
+    html.dark #app .print-container .text-emerald-700 { color: #047857 !important; }
+    html.dark #app .print-container .bg-white { background-color: #ffffff !important; }
+    html.dark #app .print-container .bg-slate-50 { background-color: #f8fafc !important; }
+    html.dark #app .print-container .border-slate-200,
+    html.dark #app .print-container .border-slate-300,
+    html.dark #app .print-container .border-slate-400 { border-color: #cbd5e1 !important; }
+    html.dark #app .print-container .print-table th,
+    html.dark #app .print-container .print-total-box,
+    html.dark #app .print-container .text-white {
+        color: #ffffff !important;
+    }
+    html.dark #app .print-container .print-table th,
+    html.dark #app .print-container .print-total-box {
+        background-color: #0b1e36 !important;
+    }
+}
+
 /* Quotation & invoice workspace — explicit paired surfaces prevent a stale
    Tailwind build from leaving a light panel inside the dark workspace. */
 #app .zq-document-editor {
