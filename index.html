@@ -399,7 +399,9 @@
             <!-- SIDEBAR -->
             <aside :class="[
                        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-                       desktopSidebarOpen ? 'md:w-64 md:block' : 'md:w-0 md:hidden md:overflow-hidden',
+                       // Do not use md:block here: it overrides the sidebar's
+                       // flex layout and collapses the scrollable menu lane.
+                       desktopSidebarOpen ? 'md:w-64' : 'md:w-0 md:hidden md:overflow-hidden',
                        userProfile.role === 'Client' ? 'client-portal-theme' : ''
                    ]"
                    @wheel="handleSidebarWheel"
