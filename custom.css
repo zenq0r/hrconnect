@@ -1936,6 +1936,7 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
         linear-gradient(180deg, #17243a 0%, #121d30 48%, #0c1525 100%) !important;
     border-right-color: rgba(148, 163, 184, 0.20) !important;
     box-shadow: 16px 0 38px rgba(2, 8, 23, 0.26) !important;
+    overflow: hidden;
 }
 #app .client-portal-theme {
     background:
@@ -1948,6 +1949,7 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     position: relative;
     background: linear-gradient(125deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.015)) !important;
     border-bottom-color: rgba(148, 163, 184, 0.16) !important;
+    flex-shrink: 0;
 }
 #app .zq-sidebar-brand::before {
     left: 16px !important;
@@ -2002,8 +2004,21 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 #app .zq-sidebar-nav {
     padding: 16px 12px !important;
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
     scrollbar-color: rgba(100, 116, 139, 0.72) transparent;
+    scrollbar-width: thin;
 }
+#app .zq-sidebar-nav::-webkit-scrollbar { width: 7px; }
+#app .zq-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+#app .zq-sidebar-nav::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: rgba(100, 116, 139, 0.62);
+    background-clip: padding-box;
+}
+#app .zq-sidebar-nav::-webkit-scrollbar-thumb:hover { background-color: rgba(148, 163, 184, 0.82); }
 #app .zq-sidebar-nav > div { margin-top: 8px; }
 #app .zq-sidebar-nav > div > p {
     margin: 0 7px 8px;
@@ -2079,6 +2094,7 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     padding: 14px 12px 16px !important;
     border-top-color: rgba(148, 163, 184, 0.16) !important;
     background: rgba(2, 8, 23, 0.15);
+    flex-shrink: 0;
 }
 #app .zq-sidebar-signout {
     min-height: 42px;

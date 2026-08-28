@@ -414,14 +414,9 @@
                             <p class="text-[9px] text-brand-gold uppercase tracking-widest font-semibold truncate">{{ userProfile.role === 'Client' ? (userProfile.name || 'Client Access') : 'Staff Workspace' }}</p>
                         </div>
                     </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <button type="button" @click="desktopSidebarOpen = false" class="zq-sidebar-collapse hidden md:inline-flex" title="Collapse navigation" aria-label="Collapse navigation">
-                            <i class="fa-solid fa-chevron-left"></i>
-                        </button>
-                        <button type="button" @click="mobileMenuOpen = false" class="zq-sidebar-collapse md:hidden" title="Close menu" aria-label="Close menu">
-                            <i class="fa-solid fa-xmark"></i>
-                        </button>
-                    </div>
+                    <button type="button" @click="mobileMenuOpen = false" class="zq-sidebar-collapse md:hidden shrink-0" title="Close menu" aria-label="Close menu">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
 
                 <nav class="zq-sidebar-nav flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold" aria-label="Workspace navigation">
