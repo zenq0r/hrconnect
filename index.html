@@ -60,7 +60,7 @@
                 <i class="fa-solid fa-rotate text-sm"></i>
                 <span class="text-xs font-semibold">A new version of this portal is available.</span>
                 <button type="button" @click="refreshApp" class="rounded-lg bg-white px-3 py-1 text-[11px] font-extrabold text-brand-blue hover:bg-slate-100">Refresh Now</button>
-                <button type="button" @click="appUpdateAvailable = false" class="text-white/70 hover:text-white" title="Dismiss for now"><i class="fa-solid fa-xmark"></i></button>
+                <button type="button" @click="appUpdateAvailable = false" class="text-white/70 hover:text-white" title="Dismiss for now" aria-label="Dismiss update notification"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </transition>
 
@@ -342,7 +342,7 @@
                         <label for="login-password" class="zq-label">Password</label>
                         <div class="relative">
                             <input id="login-password" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" required autocomplete="current-password" placeholder="••••••••" class="zq-input font-medium pr-10">
-                            <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none" title="Show / Hide Password">
+                            <button type="button" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" title="Show / Hide Password">
                                 <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
                             </button>
                         </div>

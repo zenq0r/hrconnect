@@ -1792,6 +1792,16 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     #app .zq-client-workspace { padding-top: 16px; }
     #app .zq-client-hero { min-height: 0; border-radius: 10px !important; }
     #app .zq-client-hero h2 { font-size: 1.35rem; }
+
+    /* Keep the primary controls comfortably tappable without enlarging dense
+       tables or status chips. The same selectors cover the Client and Staff
+       workspace headers, where touch navigation is most frequent. */
+    #app .zq-topbar > div:first-child > button,
+    #app .zq-client-hero button,
+    #app .zq-page-header .zq-btn,
+    #app .zq-modal-footer .zq-btn {
+        min-height: 42px;
+    }
 }
 
 /* Keep the portal entry experience aligned with the dark ZENQOR product
