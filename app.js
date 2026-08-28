@@ -1192,10 +1192,6 @@ createApp({
                 .filter(customer => customer?.id && customer.clientTaskCreatedAt)
                 .map(customer => String(customer.id)));
         },
-        isProjectLinkedToRegisteredClientTask(project) {
-            const clientDirectoryId = String(project?.clientDirectoryId || '').trim();
-            return Boolean(clientDirectoryId) && this.registeredClientTaskIds.has(clientDirectoryId);
-        },
         filteredProjects() {
             const queryText = this.searchQuery.trim().toLowerCase();
             let records = this.projects
@@ -1348,6 +1344,14 @@ createApp({
         }
     },
     methods: {
+        // This needs to be a method (rather than a computed value) because each
+        // project is checked individually. The registered task IDs themselves
+        // remain computed above, so the result still refreshes live with Client
+        // Task changes without causing a Vue render error.
+        isProjectLinkedToRegisteredClientTask(project) {
+            const clientDirectoryId = String(project?.clientDirectoryId || '').trim();
+            return Boolean(clientDirectoryId) && this.registeredClientTaskIds.has(clientDirectoryId);
+        },
         projectWithLiveClientData(project) {
             const customer = this.customers.find(item => item.id === project.clientDirectoryId);
             if (!customer) return project;
