@@ -3504,6 +3504,11 @@ createApp({
 
         async handleLogin() {
             this.loginError = '';
+            // Never reveal a previous workspace frame while a new sign-in is
+            // being validated. The navigation reopens only after the session
+            // is fully ready.
+            this.mobileMenuOpen = false;
+            this.desktopSidebarOpen = false;
             this.loginLoading = true;
             this.interactiveLoginInProgress = true;
             try {
@@ -3640,6 +3645,8 @@ createApp({
         async cancelLoginOtp() {
             this.loginOtp.show = false;
             this.pendingLoginContext = null;
+            this.mobileMenuOpen = false;
+            this.desktopSidebarOpen = false;
             try { await signOut(auth); } catch (error) { console.error('Sign-out during OTP cancel failed:', error); }
         },
         async completeLogin({ firebaseUser, userData, role, name, photo, mustChangePassword }) {
@@ -3684,7 +3691,7 @@ createApp({
                 this.showNotify('Sign-out ran into an issue, but your local session has been cleared. Close this tab if you are on a shared device.');
             } finally {
                 this.destroyDashboardCharts();
-                this.isLoggedIn = false; this.loginLoading = false; this.portalDataReady = false; this.portalDataReadyPromise = null; this.userProfile = { name: '', email: '', role: '', photo: '' };
+                this.isLoggedIn = false; this.loginLoading = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false; this.portalDataReady = false; this.portalDataReadyPromise = null; this.userProfile = { name: '', email: '', role: '', photo: '' };
                 this.resetAllForms(); this.currentTab = 'dashboard'; this.loginForm = { email: '', password: '' }; this.searchQuery = ''; this.authView = 'landing';
                 try { sessionStorage.removeItem('zenqorOtpVerifiedUid'); } catch (error) { console.error('Failed to clear OTP-verified marker:', error); }
                 this.forgetTrustedDeviceOnLogout = false;
@@ -6183,6 +6190,10 @@ createApp({
 
         onAuthStateChanged(auth, async (firebaseUser) => {
             if (firebaseUser) {
+                // Session restoration can race with a cached layout. Keep the
+                // navigation closed until the restored session is ready.
+                this.mobileMenuOpen = false;
+                this.desktopSidebarOpen = false;
                 if (this.interactiveLoginInProgress) { this.authLoading = false; return; }
                 if (this.isLoggedIn && this.userProfile.uid === firebaseUser.uid) { this.authLoading = false; return; }
                 try {
@@ -6250,6 +6261,11 @@ createApp({
                     await this.syncUserClaims();
                     this.resetAllForms();
                     this.isLoggedIn = true;
+                    // The sidebar remains hidden by the template until
+                    // loginLoading is cleared below; prepare its normal
+                    // desktop state only after the restored account is ready.
+                    this.desktopSidebarOpen = window.innerWidth >= 768;
+                    this.mobileMenuOpen = false;
                     if (mustChangePassword) { this.currentTab = 'profile'; this.changePasswordModal.required = true; this.changePasswordModal.show = true; }
                     else { this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard'; this.maybeShowOnboarding(); }
                     window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
@@ -6263,7 +6279,7 @@ createApp({
                     this.refreshDashboardCharts();
                 } catch (e) {
                     console.error("Error fetching user metadata:", e);
-                    this.isLoggedIn = false;
+                    this.isLoggedIn = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false;
                     this.loginLoading = false;
                     // Surface this instead of silently dropping back to the role-chooser
                     // landing screen with no explanation — that's what read as a "hang" to
@@ -6275,7 +6291,7 @@ createApp({
             } else {
                 this.stopPresenceTracking();
                 this.stopClientStatusClock();
-                this.isLoggedIn = false;
+                this.isLoggedIn = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false;
                 this.loginLoading = false;
                 this.destroyDashboardCharts();
                 this.portalDataReady = false;

@@ -397,7 +397,7 @@
             <div v-if="mobileMenuOpen" @click="mobileMenuOpen = false" class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
 
             <!-- SIDEBAR -->
-            <aside :class="[
+            <aside v-show="isLoggedIn && !authLoading && !loginLoading" :class="[
                        mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
                        // Do not use md:block here: it overrides the sidebar's
                        // flex layout and collapses the scrollable menu lane.

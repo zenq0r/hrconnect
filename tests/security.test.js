@@ -266,3 +266,13 @@ test('every portal button has a safe right-click and long-press quick-action men
     assert.match(app, /removeUniversalButtonContextMenu\(\)/);
     assert.match(html, /zq-context-menu/);
 });
+
+test('workspace navigation stays hidden throughout sign-in and session restoration', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(html, /<aside v-show="isLoggedIn && !authLoading && !loginLoading"/);
+    assert.match(app, /async handleLogin\(\) \{[\s\S]{0,500}?this\.desktopSidebarOpen = false;/);
+    assert.match(app, /onAuthStateChanged\(auth, async \(firebaseUser\) => \{[\s\S]{0,300}?this\.desktopSidebarOpen = false;/);
+    assert.match(app, /async handleLogout\(\) \{[\s\S]{0,1400}?this\.desktopSidebarOpen = false;/);
+});
