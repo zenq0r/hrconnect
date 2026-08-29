@@ -24,6 +24,10 @@ import {
     updatePassword,
     EmailAuthProvider,
     reauthenticateWithCredential,
+    verifyPasswordResetCode,
+    confirmPasswordReset,
+    checkActionCode,
+    applyActionCode,
     storageRef,
     uploadBytes,
     getDownloadURL,
@@ -35,6 +39,27 @@ import { inject } from "https://unpkg.com/@vercel/analytics@2.0.1/dist/index.mjs
 inject();
 
 const { createApp } = Vue;
+
+// A fresh state object is required whenever a Firebase (or legacy) action link
+// is opened so no password, code, or success state leaks between attempts.
+const createEmailActionFlow = (overrides = {}) => ({
+    active: false,
+    source: '',
+    mode: '',
+    oobCode: '',
+    email: '',
+    previousEmail: '',
+    verifying: true,
+    valid: false,
+    error: '',
+    newPassword: '',
+    confirmPassword: '',
+    loading: false,
+    success: false,
+    successTitle: '',
+    successDescription: '',
+    ...overrides
+});
 
 const MALAYSIA_POSTCODE_PREFIXES = [
     ['463', 'Petaling Jaya', 'Selangor'], ['460', 'Petaling Jaya', 'Selangor'], ['461', 'Petaling Jaya', 'Selangor'], ['462', 'Petaling Jaya', 'Selangor'],
@@ -351,7 +376,7 @@ createApp({
             logoutConfirm: false,
             forgetTrustedDeviceOnLogout: false,
             postLogoutChoice: false,
-            passwordResetFlow: { active: false, oobCode: '', email: '', verifying: true, valid: false, error: '', newPassword: '', confirmPassword: '', loading: false, success: false },
+            passwordResetFlow: createEmailActionFlow(),
             forgotPasswordFlow: { active: false, email: '', loading: false, sent: false, error: '' },
             browserBackHandler: null,
             appUpdateCheckInterval: null,
@@ -3454,25 +3479,56 @@ createApp({
         },
         async checkPasswordResetLink() {
             const params = new URLSearchParams(window.location.search);
-            const token = params.get('resetToken');
-            if (!token) return;
-            this.passwordResetFlow.active = true;
-            this.passwordResetFlow.oobCode = token;
+            const firebaseMode = params.get('mode');
+            const firebaseOobCode = params.get('oobCode');
+            const legacyToken = params.get('resetToken');
+            if (!firebaseOobCode && !legacyToken) return;
+
+            // Firebase sends mode + oobCode to every custom action URL. Retain
+            // the code only in Vue state, then remove it from the browser address
+            // bar so it cannot be copied into history, screenshots, or referrers.
+            const isFirebaseAction = Boolean(firebaseMode && firebaseOobCode);
+            this.passwordResetFlow = createEmailActionFlow({
+                active: true,
+                source: isFirebaseAction ? 'firebase' : 'legacy',
+                mode: isFirebaseAction ? firebaseMode : 'resetPassword',
+                oobCode: isFirebaseAction ? firebaseOobCode : legacyToken
+            });
             window.history.replaceState({}, '', window.location.pathname);
+
             try {
+                if (isFirebaseAction) {
+                    if (firebaseMode === 'resetPassword') {
+                        this.passwordResetFlow.email = await verifyPasswordResetCode(auth, firebaseOobCode);
+                        this.passwordResetFlow.valid = true;
+                        return;
+                    }
+
+                    if (firebaseMode === 'verifyEmail' || firebaseMode === 'recoverEmail') {
+                        const actionInfo = await checkActionCode(auth, firebaseOobCode);
+                        this.passwordResetFlow.email = actionInfo?.data?.email || '';
+                        this.passwordResetFlow.previousEmail = actionInfo?.data?.previousEmail || '';
+                        this.passwordResetFlow.valid = true;
+                        return;
+                    }
+
+                    this.passwordResetFlow.error = 'This account action is not supported by the Zenqor Portal.';
+                    return;
+                }
+
                 const response = await fetch('/api/verify-reset-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token })
+                    body: JSON.stringify({ token: legacyToken })
                 });
                 const data = await response.json();
                 this.passwordResetFlow.valid = Boolean(data.valid);
                 if (data.valid) this.passwordResetFlow.email = data.email;
                 else this.passwordResetFlow.error = data.reason || 'This reset link is invalid. Please request a new one.';
             } catch (error) {
-                console.error('Password reset link verification failed:', error);
+                console.error('Email action link verification failed:', error);
                 this.passwordResetFlow.valid = false;
-                this.passwordResetFlow.error = 'Unable to verify this reset link. Please request a new one.';
+                this.passwordResetFlow.error = 'This link is invalid or has expired. Please request a new one.';
             } finally {
                 this.passwordResetFlow.verifying = false;
             }
@@ -3483,23 +3539,51 @@ createApp({
             if (this.passwordResetFlow.newPassword !== this.passwordResetFlow.confirmPassword) { this.passwordResetFlow.error = 'Passwords do not match.'; return; }
             this.passwordResetFlow.loading = true;
             try {
-                const response = await fetch('/api/confirm-password-reset', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: this.passwordResetFlow.oobCode, newPassword: this.passwordResetFlow.newPassword })
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Unable to reset your password.');
+                if (this.passwordResetFlow.source === 'firebase') {
+                    await confirmPasswordReset(auth, this.passwordResetFlow.oobCode, this.passwordResetFlow.newPassword);
+                } else {
+                    const response = await fetch('/api/confirm-password-reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: this.passwordResetFlow.oobCode, newPassword: this.passwordResetFlow.newPassword })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.error || 'Unable to reset your password.');
+                }
                 this.passwordResetFlow.success = true;
+                this.passwordResetFlow.successTitle = 'Password updated';
+                this.passwordResetFlow.successDescription = 'Your password has been reset successfully. You can now sign in with your new password.';
             } catch (error) {
                 console.error('Password reset confirmation failed:', error);
-                this.passwordResetFlow.error = error.message || 'Unable to reset your password. Please try again.';
+                this.passwordResetFlow.error = error?.code === 'auth/weak-password'
+                    ? 'Please choose a stronger password with at least 8 characters.'
+                    : (error.message || 'Unable to reset your password. Please try again.');
+            } finally {
+                this.passwordResetFlow.loading = false;
+            }
+        },
+        async completeFirebaseEmailAction() {
+            this.passwordResetFlow.error = '';
+            this.passwordResetFlow.loading = true;
+            try {
+                await applyActionCode(auth, this.passwordResetFlow.oobCode);
+                this.passwordResetFlow.success = true;
+                this.passwordResetFlow.successTitle = this.passwordResetFlow.mode === 'recoverEmail'
+                    ? 'Email address restored'
+                    : 'Email address verified';
+                this.passwordResetFlow.successDescription = this.passwordResetFlow.mode === 'recoverEmail'
+                    ? 'Your account email address has been restored. You can now sign in securely.'
+                    : 'Your email address is now verified. Thank you for confirming your account.';
+            } catch (error) {
+                console.error('Firebase email action confirmation failed:', error);
+                this.passwordResetFlow.error = 'This link is invalid or has expired. Please request a new one.';
             } finally {
                 this.passwordResetFlow.loading = false;
             }
         },
         exitPasswordResetFlow() {
-            this.passwordResetFlow = { active: false, oobCode: '', email: '', verifying: true, valid: false, error: '', newPassword: '', confirmPassword: '', loading: false, success: false };
+            this.passwordResetFlow = createEmailActionFlow();
+            window.history.replaceState({}, '', '/');
         },
 
         async handleLogin() {

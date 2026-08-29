@@ -54,7 +54,9 @@ module.exports = async function handler(req, res) {
                 });
 
                 try {
-                    const resetLink = `https://www.hrct.portal.zenqor.com.my/?resetToken=${token}`;
+                    // Old reset links at the root remain supported by the client. New
+                    // messages use the dedicated action route for a clearer, durable URL.
+                    const resetLink = `https://www.hrct.portal.zenqor.com.my/auth/action?resetToken=${token}`;
                     await sendResetEmail(normalizedEmail, resetLink);
                 } catch (sendError) {
                     // The email never reached the user, so this token is useless — remove it

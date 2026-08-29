@@ -27,7 +27,11 @@ import {
     onAuthStateChanged,
     updatePassword,
     EmailAuthProvider,
-    reauthenticateWithCredential
+    reauthenticateWithCredential,
+    verifyPasswordResetCode,
+    confirmPasswordReset,
+    checkActionCode,
+    applyActionCode
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
     getStorage,
@@ -97,6 +101,10 @@ export {
     updatePassword,
     EmailAuthProvider,
     reauthenticateWithCredential,
+    verifyPasswordResetCode,
+    confirmPasswordReset,
+    checkActionCode,
+    applyActionCode,
     storageRef,
     uploadBytes,
     getDownloadURL,

@@ -167,8 +167,8 @@
             </div>
         </div>
 
-        <!-- PASSWORD RESET LANDING (reached via ?resetToken=... from our own custom reset email, see /api/*.js) -->
-        <main v-if="passwordResetFlow.active" id="auth-main" aria-label="Password reset" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
+        <!-- EMAIL ACTION HANDLER: Firebase sends mode + oobCode here. Legacy ?resetToken links remain supported. -->
+        <main v-if="passwordResetFlow.active" id="auth-main" aria-label="Account email action" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
                 <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
@@ -179,13 +179,13 @@
 
                 <template v-if="passwordResetFlow.verifying">
                     <i class="fa-solid fa-circle-notch fa-spin text-2xl text-brand-blue"></i>
-                    <p class="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400">Verifying your reset link…</p>
+                    <p class="mt-3 text-xs font-bold text-slate-500 dark:text-slate-400">Verifying your secure link…</p>
                 </template>
 
                 <template v-else-if="passwordResetFlow.success">
                     <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-300"><i class="fa-solid fa-circle-check text-xl"></i></div>
-                    <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Password updated</h2>
-                    <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Your password has been reset successfully. You can now sign in with your new password.</p>
+                    <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">{{ passwordResetFlow.successTitle }}</h2>
+                    <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{{ passwordResetFlow.successDescription }}</p>
                     <button type="button" @click="exitPasswordResetFlow" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Go to Sign In</button>
                 </template>
 
@@ -196,7 +196,7 @@
                     <button type="button" @click="exitPasswordResetFlow" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Back to Sign In</button>
                 </template>
 
-                <template v-else>
+                <template v-else-if="passwordResetFlow.mode === 'resetPassword'">
                     <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Set a new password</h2>
                     <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 lowercase">{{ passwordResetFlow.email }}</p>
                     <form @submit.prevent="submitPasswordReset" class="mt-5 space-y-4 text-left">
@@ -213,6 +213,22 @@
                             Update Password
                         </button>
                     </form>
+                </template>
+
+                <template v-else-if="passwordResetFlow.mode === 'verifyEmail'">
+                    <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue"><i class="fa-solid fa-envelope-circle-check text-xl"></i></div>
+                    <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Verify your email address</h2>
+                    <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Confirm <span class="font-bold lowercase">{{ passwordResetFlow.email }}</span> to complete your Zenqor Portal account setup.</p>
+                    <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error mt-5">{{ passwordResetFlow.error }}</div>
+                    <button type="button" @click="completeFirebaseEmailAction" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Verify Email Address</button>
+                </template>
+
+                <template v-else-if="passwordResetFlow.mode === 'recoverEmail'">
+                    <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"><i class="fa-solid fa-shield-heart text-xl"></i></div>
+                    <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Restore your email address</h2>
+                    <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Restore <span class="font-bold lowercase">{{ passwordResetFlow.previousEmail || passwordResetFlow.email }}</span> for your Zenqor Portal account.</p>
+                    <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error mt-5">{{ passwordResetFlow.error }}</div>
+                    <button type="button" @click="completeFirebaseEmailAction" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Restore Email Address</button>
                 </template>
             </div>
         </main>

@@ -276,3 +276,25 @@ test('workspace navigation stays hidden throughout sign-in and session restorati
     assert.match(app, /onAuthStateChanged\(auth, async \(firebaseUser\) => \{[\s\S]{0,300}?this\.desktopSidebarOpen = false;/);
     assert.match(app, /async handleLogout\(\) \{[\s\S]{0,1400}?this\.desktopSidebarOpen = false;/);
 });
+
+test('Firebase email action URLs are handled safely alongside legacy reset links', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const config = fs.readFileSync(path.join(__dirname, '..', 'firebase-config.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const resetApi = fs.readFileSync(path.join(__dirname, '..', 'api', 'request-password-reset.js'), 'utf8');
+
+    assert.match(config, /verifyPasswordResetCode/);
+    assert.match(config, /confirmPasswordReset/);
+    assert.match(config, /checkActionCode/);
+    assert.match(config, /applyActionCode/);
+    assert.match(app, /const firebaseMode = params\.get\('mode'\)/);
+    assert.match(app, /const firebaseOobCode = params\.get\('oobCode'\)/);
+    assert.match(app, /await verifyPasswordResetCode\(auth, firebaseOobCode\)/);
+    assert.match(app, /await confirmPasswordReset\(auth, this\.passwordResetFlow\.oobCode/);
+    assert.match(app, /await checkActionCode\(auth, firebaseOobCode\)/);
+    assert.match(app, /await applyActionCode\(auth, this\.passwordResetFlow\.oobCode\)/);
+    assert.match(app, /window\.history\.replaceState\(\{\}, '', window\.location\.pathname\)/);
+    assert.match(html, /passwordResetFlow\.mode === 'verifyEmail'/);
+    assert.match(html, /passwordResetFlow\.mode === 'recoverEmail'/);
+    assert.match(resetApi, /\/auth\/action\?resetToken=/);
+});
