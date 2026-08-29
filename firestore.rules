@@ -279,11 +279,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Hashed trusted-device tokens are server-only authentication credentials.
-    match /trusted_login_devices/{tokenHash} {
-      allow read, write: if false;
-    }
-
     // Per-account API abuse counters are maintained only by server-side Admin SDK code.
     match /security_rate_limits/{limitId} {
       allow read, write: if false;

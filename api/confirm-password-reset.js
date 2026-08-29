@@ -1,5 +1,4 @@
 const { getAdminApp } = require('./_firebaseAdmin');
-const { revokeTrustedDevices } = require('./_trustedDevice');
 const { hashResetToken } = require('./_security');
 
 module.exports = async function handler(req, res) {
@@ -33,7 +32,6 @@ module.exports = async function handler(req, res) {
 
         try {
             await admin.auth().updateUser(claim.uid, { password: newPassword });
-            await revokeTrustedDevices(db, claim.uid);
             await docRef.update({ used: true, processing: false, usedAt: new Date().toISOString() });
         } catch (updateError) {
             await docRef.update({ processing: false }).catch(() => {});

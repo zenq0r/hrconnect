@@ -6,7 +6,6 @@ const fs = require('node:fs');
 const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, requiresOtpRole } = require('../api/_security');
 const { getClientIp, parseUserAgent } = require('../api/_auditMetadata');
 const { normalizeRetention, retentionDurationMs } = require('../api/_auditRetention');
-const { clearTrustedCookie, hashToken, parseCookie, trustedCookie, trustedDurationMs } = require('../api/_trustedDevice');
 const { rateLimitId } = require('../api/_rateLimit');
 
 test('OTP is always a six-digit string', () => {
@@ -70,22 +69,12 @@ test('audit retention validates supported units and calculates expiry duration',
     assert.equal(normalizeRetention(1, 'minute'), null);
 });
 
-test('trusted-device duration is shorter for sensitive roles', () => {
-    const day = 24 * 60 * 60 * 1000;
-    ['Superadmin', 'Director', 'HR', 'Account', 'IT'].forEach(role => assert.equal(trustedDurationMs(role), 7 * day));
-    ['Staff', 'Client'].forEach(role => assert.equal(trustedDurationMs(role), 30 * day));
-});
-
-test('trusted-device tokens are hashed and cookies use strict security flags', () => {
-    const rawToken = 'secret-device-token';
-    assert.equal(hashToken(rawToken).length, 64);
-    assert.equal(hashToken(rawToken).includes(rawToken), false);
-    const cookie = trustedCookie(rawToken, 3600);
-    assert.match(cookie, /HttpOnly/);
-    assert.match(cookie, /Secure/);
-    assert.match(cookie, /SameSite=Strict/);
-    assert.equal(parseCookie(`other=x; ${cookie}`), rawToken);
-    assert.match(clearTrustedCookie(), /Max-Age=0/);
+test('RBAC sign-in has no trusted-device bypass', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const otpSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'verify-login-otp.js'), 'utf8');
+    assert.doesNotMatch(appSource, /checkTrustedDevice|trustDevice|revokeTrustedDeviceAccess|forgetTrustedDevice/);
+    assert.doesNotMatch(otpSource, /trusted_login_devices|trustedUntil|trustDevice/);
+    assert.equal(fs.existsSync(path.join(__dirname, '..', 'api', '_trustedDevice.js')), false);
 });
 
 test('API rate-limit identifiers are deterministic and do not expose user identifiers', () => {

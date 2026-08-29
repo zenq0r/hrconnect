@@ -104,10 +104,6 @@
                     <span class="zq-confirm-icon is-danger"><i class="fa-solid fa-right-from-bracket"></i></span>
                     <h3 class="zq-modal-title mt-4">Sign out from the portal?</h3>
                     <p class="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">Are you sure you want to end this session? Any unsaved changes may be lost.</p>
-                    <label class="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-left dark:border-slate-700">
-                        <input type="checkbox" v-model="forgetTrustedDeviceOnLogout" class="zq-checkbox mt-0.5">
-                        <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Sign out and forget trusted devices</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Require a new 6-digit OTP on every device at the next sign-in.</span></span>
-                    </label>
                 </div>
                 <div class="zq-modal-footer">
                     <button type="button" @click="logoutConfirm = false" class="zq-btn zq-btn-outline">No</button>
@@ -390,7 +386,7 @@
                 </form>
             </div>
 
-            <!-- EMAIL OTP AND TRUSTED-DEVICE ENROLMENT FOR ALL RBAC ROLES -->
+            <!-- EMAIL OTP VERIFICATION FOR ALL RBAC ROLES -->
             <div v-if="loginOtp.show" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Verify Your Identity">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-7 space-y-4 text-center">
                     <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-2xl"><i class="fa-solid fa-shield-halved"></i></div>
@@ -404,10 +400,6 @@
                         <div class="zq-alert-slot" aria-live="polite">
                             <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
                         </div>
-                        <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-left dark:border-slate-600">
-                            <input type="checkbox" v-model="loginOtp.trustDevice" class="zq-checkbox mt-0.5">
-                            <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Trust this device</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Skip OTP on this browser for {{ pendingLoginContext && ['Superadmin', 'Director', 'HR', 'Account', 'IT'].includes(pendingLoginContext.role) ? '7 days' : '30 days' }}. Do not use on a shared device.</span></span>
-                        </label>
                         <button type="submit" :disabled="loginOtp.sending || loginOtp.verifying" :class="{ 'is-loading': loginOtp.sending || loginOtp.verifying }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
                             Verify &amp; Sign In
                         </button>
@@ -1589,7 +1581,7 @@
                                 <div v-if="clientRecentUpdates.length" class="space-y-3"><button v-for="update in clientRecentUpdates" :key="`dashboard-update-${update.id}`" type="button" @click="switchTab('client-updates')" class="flex w-full items-start gap-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3 text-left transition hover:border-brand-blue hover:bg-blue-50/40 dark:hover:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="update.senderRole === 'Client' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' : 'bg-blue-100 text-brand-blue dark:bg-blue-950/50 dark:text-blue-300'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-reply' : 'fa-bullhorn'"></i></span><span class="min-w-0"><span class="flex flex-wrap items-center gap-1.5"><span class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ update.projectRef }}</span><span class="text-[9px] text-slate-400">· {{ update.updateType }}</span></span><span class="mt-1 block truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{{ update.message }}</span><span class="mt-1 block text-[9px] text-slate-400">{{ formatDateTime(update.createdAt || update.updateDate) }}</span></span></button></div>
                                 <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No updates yet</p><p class="zq-empty-state-text">Project updates will appear here once your project starts.</p></div>
                             </div>
-                            <div class="relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-sm"><div class="relative z-10"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300"><i class="fa-solid fa-shield-halved"></i></span><h3 class="mt-4 text-sm font-extrabold">Your workspace is protected</h3><p class="mt-2 text-[10px] leading-relaxed text-slate-300">Secure sign-in, trusted-device verification and role-based access help protect your company records.</p><div class="mt-4 space-y-2 text-[10px] font-semibold"><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Identity verified</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Private company workspace</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Activity securely logged</p></div></div><i class="fa-solid fa-fingerprint absolute -bottom-8 -right-5 text-[110px] text-white/5"></i></div>
+                            <div class="relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-sm"><div class="relative z-10"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300"><i class="fa-solid fa-shield-halved"></i></span><h3 class="mt-4 text-sm font-extrabold">Your workspace is protected</h3><p class="mt-2 text-[10px] leading-relaxed text-slate-300">Secure sign-in, email verification and role-based access help protect your company records.</p><div class="mt-4 space-y-2 text-[10px] font-semibold"><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Identity verified</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Private company workspace</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Activity securely logged</p></div></div><i class="fa-solid fa-fingerprint absolute -bottom-8 -right-5 text-[110px] text-white/5"></i></div>
                         </section>
 
                         <section class="zq-card p-5">

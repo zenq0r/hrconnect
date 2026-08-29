@@ -6,12 +6,6 @@
       "fieldPath": "expireAt",
       "ttl": true,
       "indexes": []
-    },
-    {
-      "collectionGroup": "trusted_login_devices",
-      "fieldPath": "expiresAt",
-      "ttl": true,
-      "indexes": []
     }
   ]
 }

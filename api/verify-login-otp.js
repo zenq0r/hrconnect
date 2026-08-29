@@ -3,8 +3,6 @@
 // their Firebase ID token — a code can't be used to verify a different account.
 const { getAdminApp } = require('./_firebaseAdmin');
 const crypto = require('crypto');
-const { getClientIp, parseUserAgent } = require('./_auditMetadata');
-const { hashToken, trustedCookie, trustedDurationMs } = require('./_trustedDevice');
 const { hashOtp } = require('./_security');
 
 const MAX_ATTEMPTS = 5;
@@ -26,7 +24,7 @@ module.exports = async function handler(req, res) {
         const admin = getAdminApp();
         const decoded = await admin.auth().verifyIdToken(idToken);
 
-        const { code, trustDevice } = req.body || {};
+        const { code } = req.body || {};
         if (!code || typeof code !== 'string') { res.status(400).json({ valid: false, error: 'Enter the code from your email.' }); return; }
 
         const docRef = admin.firestore().collection('login_otp_codes').doc(decoded.uid);
@@ -49,32 +47,7 @@ module.exports = async function handler(req, res) {
         });
         if (!result.valid) { res.status(400).json({ valid: false, error: result.error }); return; }
 
-        let trustedUntil = null;
-        if (trustDevice === true) {
-            try {
-                const db = admin.firestore();
-                const userDoc = await db.collection('users').doc(decoded.uid).get();
-                const role = userDoc.exists ? userDoc.data().role : (decoded.email === 'admin@zenq0r.com' ? 'Superadmin' : null);
-                const durationMs = trustedDurationMs(role);
-                const rawToken = crypto.randomBytes(32).toString('base64url');
-                trustedUntil = new Date(Date.now() + durationMs);
-                const metadata = parseUserAgent(req.headers['user-agent']);
-                await db.collection('trusted_login_devices').doc(hashToken(rawToken)).set({
-                    uid: decoded.uid,
-                    role,
-                    createdAt: admin.firestore.Timestamp.now(),
-                    expiresAt: admin.firestore.Timestamp.fromDate(trustedUntil),
-                    ip: getClientIp(req.headers),
-                    browser: metadata.browser,
-                    os: metadata.os,
-                    device: metadata.device
-                });
-                res.setHeader('Set-Cookie', trustedCookie(rawToken, Math.floor(durationMs / 1000)));
-            } catch (trustedError) {
-                console.error('Unable to register trusted device:', trustedError);
-            }
-        }
-        res.status(200).json({ valid: true, trustedUntil: trustedUntil?.toISOString() || null });
+        res.status(200).json({ valid: true });
     } catch (error) {
         console.error('verify-login-otp error:', error);
         res.status(500).json({ valid: false, error: 'Unable to verify the code right now. Please try again.' });

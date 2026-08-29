@@ -6,7 +6,6 @@
 // path fails there). This is the standard, supported alternative for exactly this
 // kind of role/ownership check in Storage Rules.
 const { getAdminApp } = require('./_firebaseAdmin');
-const { revokeTrustedDevices } = require('./_trustedDevice');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -54,17 +53,8 @@ module.exports = async function handler(req, res) {
             if (!custSnap.empty) claims.clientDirectoryId = custSnap.docs[0].id;
         }
 
-        const targetAuthUser = await admin.auth().getUser(targetUid);
-        const previousClaims = targetAuthUser.customClaims || {};
-        // Initial claim provisioning is not a role change. This distinction matters
-        // because a trusted token may have just been created after the user's first
-        // successful OTP verification.
-        const roleChanged = typeof previousClaims.role === 'string' && previousClaims.role !== claims.role;
-        const clientScopeChanged = previousClaims.role === 'Client' && claims.role === 'Client' && previousClaims.clientDirectoryId !== claims.clientDirectoryId;
-        const accessChanged = roleChanged || clientScopeChanged;
         await admin.auth().setCustomUserClaims(targetUid, claims);
-        if (accessChanged) await revokeTrustedDevices(admin.firestore(), targetUid);
-        res.status(200).json({ success: true, claims, trustedDevicesRevoked: accessChanged });
+        res.status(200).json({ success: true, claims });
     } catch (error) {
         console.error('sync-user-claims error:', error);
         res.status(500).json({ error: 'Unable to sync access claims right now. Please try again shortly.' });
