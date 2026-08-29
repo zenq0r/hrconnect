@@ -194,13 +194,19 @@
 
                 <template v-else-if="passwordResetFlow.mode === 'resetPassword' || passwordResetFlow.mode === 'firstLogin'">
                     <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">{{ passwordResetFlow.mode === 'firstLogin' ? 'Complete your account setup' : 'Reset your password' }}</h2>
-                    <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{{ passwordResetFlow.mode === 'firstLogin' ? 'Set your permanent password to continue securely.' : 'Set a new password to regain secure access.' }}</p>
+                    <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{{ passwordResetFlow.mode === 'firstLogin' ? 'Set your permanent password to continue securely.' : (passwordResetFlow.otpVerified ? 'Your email is verified. Set a new password to regain secure access.' : 'Verify the code sent to your email before setting a new password.') }}</p>
                     <dl class="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-xs dark:border-slate-700 dark:bg-slate-900/40">
                         <div class="flex justify-between gap-4 py-1"><dt class="font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Company</dt><dd class="font-semibold text-brand-dark dark:text-white text-right">{{ passwordResetFlow.companyName || company?.name || 'Zenqor Technologies' }}</dd></div>
                         <div class="flex justify-between gap-4 py-1"><dt class="font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Name</dt><dd class="font-semibold text-brand-dark dark:text-white text-right">{{ passwordResetFlow.displayName || 'Zenqor Portal User' }}</dd></div>
                         <div class="flex justify-between gap-4 py-1"><dt class="font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Email</dt><dd class="font-semibold text-brand-dark dark:text-white text-right break-all">{{ passwordResetFlow.email }}</dd></div>
                     </dl>
-                    <form @submit.prevent="submitPasswordReset" class="mt-5 space-y-4 text-left">
+                    <div v-if="passwordResetFlow.mode === 'resetPassword' && !passwordResetFlow.otpVerified" class="mt-5 space-y-4 text-left">
+                        <div class="zq-alert-slot" aria-live="polite">
+                            <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
+                        </div>
+                        <button type="button" @click="startPasswordResetOtp" :disabled="loginOtp.sending" :class="{ 'is-loading': loginOtp.sending }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">Send Verification Code</button>
+                    </div>
+                    <form v-else @submit.prevent="submitPasswordReset" class="mt-5 space-y-4 text-left">
                         <div v-if="passwordResetFlow.mode === 'firstLogin'">
                             <label for="temporary-password" class="zq-label">Temporary Password</label>
                             <input id="temporary-password" name="temporaryPassword" type="password" v-model="passwordResetFlow.temporaryPassword" required autocomplete="current-password" placeholder="Your temporary password" class="zq-input font-medium">
@@ -216,9 +222,9 @@
                         <div class="zq-alert-slot" aria-live="polite">
                             <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
                         </div>
-                        <p class="text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">A 6-digit verification code will be sent to your email after your password is updated.</p>
+                        <p class="text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ passwordResetFlow.mode === 'firstLogin' ? 'Use your temporary password once, then choose a permanent password.' : 'Your reset code was verified. Choose a new secure password.' }}</p>
                         <button type="submit" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
-                            {{ passwordResetFlow.mode === 'firstLogin' ? 'Set Password & Continue' : 'Update Password & Continue' }}
+                            {{ passwordResetFlow.mode === 'firstLogin' ? 'Set Password & Continue' : 'Update Password' }}
                         </button>
                     </form>
                 </template>
@@ -396,14 +402,13 @@
                 </form>
             </div>
 
-            <!-- EMAIL OTP VERIFICATION FOR ALL RBAC ROLES -->
-            <div v-if="loginOtp.show" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" :aria-label="loginOtp.purpose === 'password-change' ? 'Confirm Your Password Update' : 'Verify Your Identity'">
+            <!-- EMAIL OTP FOR PASSWORD RESET ONLY -->
+            <div v-if="loginOtp.show" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Confirm Password Reset">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-7 space-y-4 text-center">
                     <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-2xl"><i class="fa-solid fa-shield-halved"></i></div>
                     <div>
-                        <h3 class="text-base font-extrabold text-brand-dark dark:text-white">{{ loginOtp.purpose === 'password-change' ? 'Confirm Your Password Update' : 'Verify Your Identity' }}</h3>
-                        <p v-if="loginOtp.purpose === 'password-change'" class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">To protect your account, {{ loginOtp.sending ? 'we are sending a code to' : 'we sent a 6-digit code to' }} <span class="font-bold">{{ loginOtp.email }}</span>. Enter it to finish updating your password.</p>
-                        <p v-else class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">All portal accounts require a second verification step. {{ loginOtp.sending ? 'Sending a code to' : 'We sent a 6-digit code to' }} <span class="font-bold">{{ loginOtp.email }}</span>.</p>
+                        <h3 class="text-base font-extrabold text-brand-dark dark:text-white">Confirm Password Reset</h3>
+                        <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{{ loginOtp.sending ? 'We are sending a code to' : 'We sent a 6-digit code to' }} <span class="font-bold">{{ loginOtp.email }}</span>. Enter it before choosing a new password.</p>
                     </div>
                     <form @submit.prevent="verifyLoginOtp" class="space-y-3">
                         <label for="login-otp-code" class="sr-only">6-digit verification code</label>
@@ -412,7 +417,7 @@
                             <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
                         </div>
                         <button type="submit" :disabled="loginOtp.sending || loginOtp.verifying" :class="{ 'is-loading': loginOtp.sending || loginOtp.verifying }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
-                            {{ loginOtp.purpose === 'password-change' ? 'Verify & Continue' : 'Verify & Sign In' }}
+                            Verify & Continue
                         </button>
                         <div class="flex items-center justify-between text-xs pt-1">
                             <button type="button" @click="cancelLoginOtp" class="zq-btn zq-btn-ghost zq-btn-sm">Cancel</button>

@@ -54,6 +54,7 @@ const createEmailActionFlow = (overrides = {}) => ({
     temporaryPassword: '',
     verifying: true,
     valid: false,
+    otpVerified: false,
     error: '',
     newPassword: '',
     confirmPassword: '',
@@ -395,8 +396,8 @@ createApp({
                 password: ''
             },
             loginError: '',
-            // Mandatory second-factor email OTP for every provisioned RBAC role.
-            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: 'sign-in' },
+            // OTP is used exclusively to verify a password-reset request.
+            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '' },
             pendingLoginContext: null,
             currentTab: 'dashboard',
             mobileMenuOpen: false,
@@ -3504,6 +3505,7 @@ createApp({
                         this.passwordResetFlow.displayName = this.accountDisplayName(this.passwordResetFlow.email);
                         this.passwordResetFlow.companyName = this.company?.name || 'Zenqor Technologies';
                         this.passwordResetFlow.valid = true;
+                        await this.startPasswordResetOtp();
                         return;
                     }
 
@@ -3530,6 +3532,7 @@ createApp({
                     this.passwordResetFlow.email = data.email;
                     this.passwordResetFlow.displayName = data.displayName || this.accountDisplayName(data.email);
                     this.passwordResetFlow.companyName = data.companyName || this.company?.name || 'Zenqor Technologies';
+                    await this.startPasswordResetOtp();
                 }
                 else this.passwordResetFlow.error = data.reason || 'This reset link is invalid. Please request a new one.';
             } catch (error) {
@@ -3543,6 +3546,7 @@ createApp({
         async submitPasswordReset() {
             const flow = this.passwordResetFlow;
             flow.error = '';
+            if (flow.mode === 'resetPassword' && !flow.otpVerified) { flow.error = 'Verify the 6-digit code sent to your email before setting a new password.'; return; }
             if (flow.mode === 'firstLogin' && !flow.temporaryPassword) { flow.error = 'Enter your temporary password to continue.'; return; }
             if (flow.newPassword.length < 8) { flow.error = 'New password must be at least 8 characters long.'; return; }
             if (flow.newPassword !== flow.confirmPassword) { flow.error = 'Passwords do not match.'; return; }
@@ -3563,10 +3567,18 @@ createApp({
                     flow.email = context.firebaseUser.email;
                     flow.displayName = context.name || flow.displayName;
                     flow.companyName = this.company?.name || flow.companyName || 'Zenqor Technologies';
-                    await this.beginPasswordChangeOtp(context.firebaseUser.email, flow.newPassword, context);
+                    flow.newPassword = '';
+                    flow.confirmPassword = '';
+                    flow.temporaryPassword = '';
+                    this.passwordResetFlow = createEmailActionFlow();
+                    this.pendingLoginContext = null;
+                    window.history.replaceState({}, '', '/');
+                    await this.completeLogin(context);
                 } else if (flow.source === 'firebase') {
                     await confirmPasswordReset(auth, this.passwordResetFlow.oobCode, flow.newPassword);
-                    await this.beginPasswordChangeOtp(flow.email, flow.newPassword);
+                    flow.success = true;
+                    flow.successTitle = 'Password updated';
+                    flow.successDescription = 'Your password has been updated. Please sign in with your new password.';
                 } else {
                     const response = await fetch('/api/confirm-password-reset', {
                         method: 'POST',
@@ -3575,7 +3587,9 @@ createApp({
                     });
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.error || 'Unable to reset your password.');
-                    await this.beginPasswordChangeOtp(flow.email, flow.newPassword);
+                    flow.success = true;
+                    flow.successTitle = 'Password updated';
+                    flow.successDescription = 'Your password has been updated. Please sign in with your new password.';
                 }
                 flow.newPassword = '';
                 flow.confirmPassword = '';
@@ -3615,7 +3629,7 @@ createApp({
             window.history.replaceState({}, '', '/');
             // A first-time user is already authenticated with a temporary
             // credential. Leaving this screen must not leave that session
-            // active without completing the required password and OTP steps.
+            // active without completing the required password step.
             if (firstTimeAccess) signOut(auth).catch(error => console.warn('Unable to close temporary session:', error));
         },
         accountDisplayName(email) {
@@ -3638,37 +3652,15 @@ createApp({
             this.desktopSidebarOpen = false;
             window.history.replaceState({}, '', '/auth/action');
         },
-        async beginPasswordChangeOtp(email, newPassword, existingContext = null) {
-            const priorInteractiveState = this.interactiveLoginInProgress;
-            this.interactiveLoginInProgress = true;
-            try {
-                let context = existingContext;
-                if (!context?.firebaseUser) {
-                    const userCredential = await signInWithEmailAndPassword(auth, email, newPassword);
-                    const firebaseUser = userCredential.user;
-                    const userData = await this.loadOrMigrateUserMetadata(firebaseUser);
-                    const isSeedAdmin = firebaseUser.email === 'admin@zenq0r.com';
-                    if (!userData && !isSeedAdmin) {
-                        await signOut(auth);
-                        throw new Error('This account is not provisioned for portal access.');
-                    }
-                    let role = userData?.role || 'Staff';
-                    if (isSeedAdmin) role = 'Superadmin';
-                    if (role !== 'Client' && !this.isOfficialEmail(firebaseUser.email)) {
-                        await signOut(auth);
-                        throw new Error(`Only Client Users System Terminal may use an external email. Other roles must use @${this.officialEmailDomain}.`);
-                    }
-                    const name = userData?.name || firebaseUser.displayName || firebaseUser.email;
-                    const photo = userData?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0B1E36&color=D4AF37`;
-                    context = { firebaseUser, userData: { ...(userData || {}), mustChangePassword: false }, role, name, photo, mustChangePassword: false };
-                }
-                this.pendingLoginContext = context;
-                this.passwordResetFlow = createEmailActionFlow();
-                window.history.replaceState({}, '', '/');
-                await this.startLoginOtp(context, 'password-change');
-            } finally {
-                this.interactiveLoginInProgress = priorInteractiveState;
+        async startPasswordResetOtp() {
+            const flow = this.passwordResetFlow;
+            if (!flow?.valid || flow.mode !== 'resetPassword' || !flow.email || !flow.oobCode) {
+                flow.error = 'This reset link is no longer valid. Please request a new one.';
+                return;
             }
+            flow.error = '';
+            this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: flow.email, purpose: 'password-reset' };
+            await this.requestLoginOtp();
         },
 
         async handleLogin() {
@@ -3725,17 +3717,6 @@ createApp({
                     return;
                 }
 
-                // Password alone is not trusted to finish any provisioned RBAC login.
-                // Every role must verify an emailed one-time code before the portal starts.
-                // The Firebase Auth session is already live at this point (signOut on
-                // cancel below un-does it); this gate only controls when the PORTAL
-                // itself trusts the sign-in as complete.
-                if (Object.prototype.hasOwnProperty.call(RBAC_ROLES, role)) {
-                    this.loginLoading = false;
-                    await this.startLoginOtp(loginContext);
-                    return;
-                }
-
                 await this.completeLogin(loginContext);
             } catch (error) {
                 this.loginError = 'Invalid email or password credentials / System Error.';
@@ -3744,19 +3725,16 @@ createApp({
                 this.interactiveLoginInProgress = false;
             }
         },
-        async startLoginOtp(loginContext, purpose = 'sign-in') {
-            this.pendingLoginContext = loginContext;
-            this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: loginContext.firebaseUser.email, purpose };
-            await this.requestLoginOtp();
-        },
         async requestLoginOtp() {
             try {
-                if (!this.pendingLoginContext?.firebaseUser) throw new Error('Your verification session has expired. Please sign in again.');
-                const idToken = await this.pendingLoginContext.firebaseUser.getIdToken();
+                const flow = this.passwordResetFlow;
+                if (this.loginOtp.purpose !== 'password-reset' || !flow?.valid || !flow.oobCode) {
+                    throw new Error('Your password reset session has expired. Please request a new reset link.');
+                }
                 const resp = await fetch('/api/request-login-otp', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                    body: JSON.stringify({ purpose: this.loginOtp.purpose || 'sign-in' })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode })
                 });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok) throw new Error(data.error || 'Failed to send verification code.');
@@ -3778,18 +3756,20 @@ createApp({
             this.loginOtp.verifying = true;
             this.loginOtp.error = '';
             try {
-                const idToken = await this.pendingLoginContext.firebaseUser.getIdToken();
+                const flow = this.passwordResetFlow;
+                if (this.loginOtp.purpose !== 'password-reset' || !flow?.valid || !flow.oobCode) {
+                    throw new Error('Your password reset session has expired. Please request a new reset link.');
+                }
                 const resp = await fetch('/api/verify-login-otp', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                    body: JSON.stringify({ code: this.loginOtp.code.trim(), purpose: this.loginOtp.purpose || 'sign-in' })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: this.loginOtp.code.trim(), purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode })
                 });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
-                const ctx = this.pendingLoginContext;
-                this.pendingLoginContext = null;
-                this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: 'sign-in' };
-                await this.completeLogin(ctx);
+                flow.otpVerified = true;
+                flow.error = '';
+                this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '' };
             } catch (error) {
                 console.error('Verify login OTP failed:', error);
                 this.loginOtp.error = error.message || 'Verification failed.';
@@ -3797,11 +3777,10 @@ createApp({
             }
         },
         async cancelLoginOtp() {
-            this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: 'sign-in' };
-            this.pendingLoginContext = null;
-            this.mobileMenuOpen = false;
-            this.desktopSidebarOpen = false;
-            try { await signOut(auth); } catch (error) { console.error('Sign-out during OTP cancel failed:', error); }
+            this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '' };
+            if (this.passwordResetFlow?.active && this.passwordResetFlow.mode === 'resetPassword') {
+                this.passwordResetFlow.error = 'Verification is required before you can set a new password.';
+            }
         },
         async completeLogin({ firebaseUser, userData, role, name, photo, mustChangePassword }) {
             if (mustChangePassword) {
@@ -3811,9 +3790,6 @@ createApp({
                 this.openFirstTimePasswordFlow({ firebaseUser, userData, role, name, photo, mustChangePassword });
                 this.loginLoading = false;
                 return;
-            }
-            if (Object.prototype.hasOwnProperty.call(RBAC_ROLES, role)) {
-                try { sessionStorage.setItem('zenqorOtpVerifiedUid', firebaseUser.uid); } catch (error) { console.error('Failed to persist OTP-verified marker:', error); }
             }
             this.userProfile = { name: name, email: firebaseUser.email, role: role, uid: firebaseUser.uid, photo: photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: userData?.customAccess || {} };
             this.applyDarkModePreference();
@@ -3850,7 +3826,6 @@ createApp({
                 this.destroyDashboardCharts();
                 this.isLoggedIn = false; this.loginLoading = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false; this.portalDataReady = false; this.portalDataReadyPromise = null; this.userProfile = { name: '', email: '', role: '', photo: '' };
                 this.resetAllForms(); this.currentTab = 'dashboard'; this.loginForm = { email: '', password: '' }; this.searchQuery = ''; this.authView = 'landing';
-                try { sessionStorage.removeItem('zenqorOtpVerifiedUid'); } catch (error) { console.error('Failed to clear OTP-verified marker:', error); }
                 this.postLogoutChoice = true;
             }
         },
@@ -6376,20 +6351,6 @@ createApp({
                         this.authLoading = false;
                         this.openFirstTimePasswordFlow(loginContext);
                         return;
-                    }
-                    if (Object.prototype.hasOwnProperty.call(RBAC_ROLES, role)) {
-                        let otpVerifiedUid = null;
-                        try { otpVerifiedUid = sessionStorage.getItem('zenqorOtpVerifiedUid'); } catch (error) { console.error('Failed to read OTP-verified marker:', error); }
-                        if (otpVerifiedUid !== firebaseUser.uid) {
-                            this.loginLoading = false;
-                            this.authLoading = false;
-                            // A restored Firebase session needs the same OTP verification as a fresh sign-in.
-                            // Do not duplicate the prompt while handleLogin() is already showing it.
-                            if (!this.loginOtp.show || this.loginOtp.email !== firebaseUser.email) {
-                                await this.startLoginOtp(loginContext);
-                            }
-                            return;
-                        }
                     }
                     this.userProfile = { name, email: firebaseUser.email, role, uid: firebaseUser.uid, photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: userData?.customAccess || {} };
                     this.applyDarkModePreference();

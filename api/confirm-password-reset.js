@@ -1,5 +1,5 @@
 const { getAdminApp } = require('./_firebaseAdmin');
-const { hashResetToken } = require('./_security');
+const { hashResetToken, normalizeEmail } = require('./_security');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -19,12 +19,17 @@ module.exports = async function handler(req, res) {
         const db = admin.firestore();
         let docRef = db.collection('password_reset_tokens').doc(hashResetToken(token));
         if (!(await docRef.get()).exists) docRef = db.collection('password_reset_tokens').doc(token);
+        const otpRef = db.collection('password_reset_otp_codes').doc(hashResetToken(`legacy:${token}`));
         const claim = await db.runTransaction(async transaction => {
-            const doc = await transaction.get(docRef);
+            const [doc, otpDoc] = await Promise.all([transaction.get(docRef), transaction.get(otpRef)]);
             if (!doc.exists) return { error: 'This reset link is invalid. Please request a new one.' };
             const data = doc.data();
             if (data.used || data.processing) return { error: 'This reset link has already been used. Please request a new one.' };
             if (new Date(data.expiresAt).getTime() < Date.now()) return { error: 'This reset link has expired. Please request a new one.' };
+            const otp = otpDoc.exists ? otpDoc.data() : null;
+            if (!otp || !otp.used || otp.resetSource !== 'legacy' || otp.email !== normalizeEmail(data.email)) {
+                return { error: 'Verify the code sent to your email before setting a new password.' };
+            }
             transaction.update(docRef, { processing: true, processingAt: new Date().toISOString() });
             return { uid: data.uid };
         });

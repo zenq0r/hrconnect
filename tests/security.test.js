@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
-const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, requiresOtpRole } = require('../api/_security');
+const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail } = require('../api/_security');
 const { getClientIp, parseUserAgent } = require('../api/_auditMetadata');
 const { normalizeRetention, retentionDurationMs } = require('../api/_auditRetention');
 const { rateLimitId } = require('../api/_rateLimit');
@@ -25,9 +25,20 @@ test('password reset tokens are not stored using the raw link secret', () => {
     assert.equal(hashResetToken(token).includes(token), false);
 });
 
-test('OTP is mandatory for every provisioned RBAC role', () => {
-    ['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff', 'Client'].forEach(role => assert.equal(requiresOtpRole(role), true));
-    assert.equal(requiresOtpRole('Unknown'), false);
+test('ordinary sign-in does not request OTP, while password reset does', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const requestOtpSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'request-login-otp.js'), 'utf8');
+    const verifyOtpSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'verify-login-otp.js'), 'utf8');
+
+    const loginStart = appSource.indexOf('async handleLogin()');
+  const loginEnd = appSource.indexOf('async requestLoginOtp()', loginStart);
+    const login = appSource.slice(loginStart, loginEnd);
+    assert.match(login, /await this\.completeLogin\(loginContext\)/);
+    assert.doesNotMatch(login, /startLoginOtp|requestLoginOtp|loginOtp\.show/);
+    assert.match(appSource, /async startPasswordResetOtp\(\)/);
+    assert.match(appSource, /purpose: 'password-reset'/);
+    assert.match(requestOtpSource, /purpose !== 'password-reset'/);
+    assert.match(verifyOtpSource, /purpose !== 'password-reset'/);
 });
 
 test('portal URL validation rejects lookalike and insecure domains', () => {
