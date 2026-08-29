@@ -208,7 +208,9 @@
                             <label for="reset-confirm-password" class="zq-label">Confirm New Password</label>
                             <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
                         </div>
-                        <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
+                        <div class="zq-alert-slot" aria-live="polite">
+                            <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
+                        </div>
                         <button type="submit" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
                             Update Password
                         </button>
@@ -219,7 +221,9 @@
                     <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-blue/10 text-brand-blue"><i class="fa-solid fa-envelope-circle-check text-xl"></i></div>
                     <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Verify your email address</h2>
                     <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Confirm <span class="font-bold lowercase">{{ passwordResetFlow.email }}</span> to complete your Zenqor Portal account setup.</p>
-                    <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error mt-5">{{ passwordResetFlow.error }}</div>
+                    <div class="zq-alert-slot mt-5" aria-live="polite">
+                        <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
+                    </div>
                     <button type="button" @click="completeFirebaseEmailAction" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Verify Email Address</button>
                 </template>
 
@@ -227,7 +231,9 @@
                     <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300"><i class="fa-solid fa-shield-heart text-xl"></i></div>
                     <h2 class="text-lg font-extrabold text-brand-dark dark:text-white">Restore your email address</h2>
                     <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">Restore <span class="font-bold lowercase">{{ passwordResetFlow.previousEmail || passwordResetFlow.email }}</span> for your Zenqor Portal account.</p>
-                    <div v-if="passwordResetFlow.error" class="zq-alert zq-alert-error mt-5">{{ passwordResetFlow.error }}</div>
+                    <div class="zq-alert-slot mt-5" aria-live="polite">
+                        <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
+                    </div>
                     <button type="button" @click="completeFirebaseEmailAction" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full mt-6 uppercase tracking-wider">Restore Email Address</button>
                 </template>
             </div>
@@ -265,7 +271,9 @@
                         <input id="forgot-email" name="email" type="email" v-model="forgotPasswordFlow.email" required autocomplete="username" placeholder="Your registered email" class="zq-input font-medium">
                     </div>
 
-                    <div v-if="forgotPasswordFlow.error" class="zq-alert zq-alert-error">{{ forgotPasswordFlow.error }}</div>
+                    <div class="zq-alert-slot" aria-live="polite">
+                        <div v-show="forgotPasswordFlow.error" role="alert" class="zq-alert zq-alert-error">{{ forgotPasswordFlow.error }}</div>
+                    </div>
 
                     <button type="submit" :disabled="forgotPasswordFlow.loading" :class="{ 'is-loading': forgotPasswordFlow.loading }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
                         Send Reset Link
@@ -313,7 +321,9 @@
                     <span class="inline-flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-full bg-brand-gold/10 border border-brand-gold/30 text-[10px] font-extrabold uppercase tracking-wider text-brand-gold"><i class="fa-solid fa-star text-[9px]"></i>Malaysia's First Unified HR &amp; Client Management System</span>
                 </div>
 
-                <div v-if="loginError" class="zq-alert zq-alert-error max-w-md mx-auto mb-6">{{ loginError }}</div>
+                <div class="zq-alert-slot max-w-md mx-auto mb-6" aria-live="polite">
+                    <div v-show="loginError" role="alert" class="zq-alert zq-alert-error">{{ loginError }}</div>
+                </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <button type="button" @click="selectAuthView('staff')" class="zq-auth-choice zq-auth-choice-staff group text-left bg-white dark:bg-slate-800 rounded-2xl p-7 shadow-2xl border border-slate-100 dark:border-slate-700 transition hover:-translate-y-1 hover:shadow-brand-gold/10">
@@ -370,7 +380,9 @@
                         </a>
                     </div>
 
-                    <div v-if="loginError" class="zq-alert zq-alert-error">{{ loginError }}</div>
+                    <div class="zq-alert-slot" aria-live="polite">
+                        <div v-show="loginError" role="alert" class="zq-alert zq-alert-error">{{ loginError }}</div>
+                    </div>
 
                     <button type="submit" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
                         {{ authView === 'client' ? 'Client Sign In' : 'Staff Sign In' }}
@@ -389,7 +401,9 @@
                     <form @submit.prevent="verifyLoginOtp" class="space-y-3">
                         <label for="login-otp-code" class="sr-only">6-digit verification code</label>
                         <input id="login-otp-code" name="otpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending" placeholder="000000" autocomplete="one-time-code" class="zq-input text-center text-2xl font-black tracking-[0.5em] py-3">
-                        <div v-if="loginOtp.error" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
+                        <div class="zq-alert-slot" aria-live="polite">
+                            <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
+                        </div>
                         <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-left dark:border-slate-600">
                             <input type="checkbox" v-model="loginOtp.trustDevice" class="zq-checkbox mt-0.5">
                             <span><span class="block text-xs font-bold text-slate-700 dark:text-slate-200">Trust this device</span><span class="mt-0.5 block text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">Skip OTP on this browser for {{ pendingLoginContext && ['Superadmin', 'Director', 'HR', 'Account', 'IT'].includes(pendingLoginContext.role) ? '7 days' : '30 days' }}. Do not use on a shared device.</span></span>

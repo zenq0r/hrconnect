@@ -812,12 +812,12 @@ input[type="url"] {
     --zq-text-on-primary: #ffffff;
 
     /* Status (never color-only — every badge below also carries a dot + label) */
-    --zq-success: #059669;
-    --zq-success-bg: #ecfdf5;
+    --zq-success: #065f46;
+    --zq-success-bg: #d1fae5;
     --zq-warning: #b45309;
     --zq-warning-bg: #fffbeb;
-    --zq-error: #dc2626;
-    --zq-error-bg: #fef2f2;
+    --zq-error: #991b1b;
+    --zq-error-bg: #fee2e2;
     --zq-info: #1d4ed8;
     --zq-info-bg: #eff6ff;
     --zq-neutral: #475569;
@@ -856,9 +856,9 @@ html.dark {
     --zq-text-muted: #94a3b8;
     --zq-text-on-primary: #ffffff;
 
-    --zq-success: #34d399;   --zq-success-bg: rgba(16, 185, 129, 0.12);
+    --zq-success: #a7f3d0;   --zq-success-bg: #064e3b;
     --zq-warning: #fbbf24;   --zq-warning-bg: rgba(217, 119, 6, 0.14);
-    --zq-error: #f87171;     --zq-error-bg: rgba(220, 38, 38, 0.14);
+    --zq-error: #fecaca;     --zq-error-bg: #450a0a;
     --zq-info: #60a5fa;      --zq-info-bg: rgba(37, 99, 235, 0.14);
     --zq-neutral: #cbd5e1;   --zq-neutral-bg: rgba(148, 163, 184, 0.14);
 
@@ -1025,10 +1025,17 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
    sites. .zq-error-text stays for per-field messages under a single
    input; this is for a standalone block above/below a form. ---- */
 .zq-alert {
-    text-align: center; font-size: 0.75rem; font-weight: 600; padding: 10px; border-radius: var(--zq-radius-md);
+    min-height: 42px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+    text-align: center; font-size: 0.75rem; line-height: 1.35; font-weight: 700; padding: 10px 12px;
+    border: 1px solid transparent; border-radius: var(--zq-radius-md);
 }
-.zq-alert-error { background: var(--zq-error-bg); color: var(--zq-error); }
-.zq-alert-success { background: var(--zq-success-bg); color: var(--zq-success); }
+.zq-alert-error { background: var(--zq-error-bg); border-color: currentColor; color: var(--zq-error); }
+.zq-alert-success { background: var(--zq-success-bg); border-color: currentColor; color: var(--zq-success); }
+
+/* Auth errors reserve their own line from the first paint. This prevents the
+   sign-in choices and form submit controls from jumping when a request fails. */
+.zq-alert-slot { min-height: 42px; }
+.zq-alert-slot > .zq-alert { margin: 0; }
 
 /* ---- Error state (Step 15) — same shell as .zq-loading-state /
    .zq-empty-state (that shared shape is defined once, further down, via a
