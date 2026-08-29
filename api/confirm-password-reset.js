@@ -32,6 +32,7 @@ module.exports = async function handler(req, res) {
 
         try {
             await admin.auth().updateUser(claim.uid, { password: newPassword });
+            await db.collection('users').doc(claim.uid).set({ mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true });
             await docRef.update({ used: true, processing: false, usedAt: new Date().toISOString() });
         } catch (updateError) {
             await docRef.update({ processing: false }).catch(() => {});

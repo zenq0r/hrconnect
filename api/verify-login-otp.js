@@ -25,6 +25,7 @@ module.exports = async function handler(req, res) {
         const decoded = await admin.auth().verifyIdToken(idToken);
 
         const { code } = req.body || {};
+        const purpose = req.body?.purpose === 'password-change' ? 'password-change' : 'sign-in';
         if (!code || typeof code !== 'string') { res.status(400).json({ valid: false, error: 'Enter the code from your email.' }); return; }
 
         const docRef = admin.firestore().collection('login_otp_codes').doc(decoded.uid);
@@ -34,6 +35,7 @@ module.exports = async function handler(req, res) {
             const data = doc.data();
             if (data.used) return { error: 'This code has already been used. Please sign in again.' };
             if (new Date(data.expiresAt).getTime() < Date.now()) return { error: 'This code has expired. Please sign in again.' };
+            if (data.purpose && data.purpose !== purpose) return { error: 'This verification code is for a different account action. Request a new code.' };
             const attempts = Number(data.attempts || 0);
             if (attempts >= MAX_ATTEMPTS) return { error: 'Too many incorrect attempts. Please sign in again.' };
             const submittedHash = hashOtp(code.trim());

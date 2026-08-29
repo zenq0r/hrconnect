@@ -32,7 +32,15 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        res.status(200).json({ valid: true, email: data.email });
+        const profileSnapshot = data.uid ? await db.collection('users').doc(data.uid).get() : null;
+        const profile = profileSnapshot?.exists ? profileSnapshot.data() : {};
+        const fallbackName = String(data.email || '').split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, char => char.toUpperCase()) || 'Zenqor Portal User';
+        res.status(200).json({
+            valid: true,
+            email: data.email,
+            displayName: profile.name || profile.displayName || fallbackName,
+            companyName: profile.companyName || profile.company || profile.clientCompany || 'Zenqor Technologies'
+        });
     } catch (error) {
         console.error('verify-reset-token error:', error);
         res.status(500).json({ valid: false, reason: 'Unable to verify this link right now. Please try again shortly.' });

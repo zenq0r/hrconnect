@@ -48,7 +48,10 @@ const createEmailActionFlow = (overrides = {}) => ({
     mode: '',
     oobCode: '',
     email: '',
+    displayName: '',
+    companyName: '',
     previousEmail: '',
+    temporaryPassword: '',
     verifying: true,
     valid: false,
     error: '',
@@ -393,7 +396,7 @@ createApp({
             },
             loginError: '',
             // Mandatory second-factor email OTP for every provisioned RBAC role.
-            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '' },
+            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: 'sign-in' },
             pendingLoginContext: null,
             currentTab: 'dashboard',
             mobileMenuOpen: false,
@@ -3498,6 +3501,8 @@ createApp({
                 if (isFirebaseAction) {
                     if (firebaseMode === 'resetPassword') {
                         this.passwordResetFlow.email = await verifyPasswordResetCode(auth, firebaseOobCode);
+                        this.passwordResetFlow.displayName = this.accountDisplayName(this.passwordResetFlow.email);
+                        this.passwordResetFlow.companyName = this.company?.name || 'Zenqor Technologies';
                         this.passwordResetFlow.valid = true;
                         return;
                     }
@@ -3521,7 +3526,11 @@ createApp({
                 });
                 const data = await response.json();
                 this.passwordResetFlow.valid = Boolean(data.valid);
-                if (data.valid) this.passwordResetFlow.email = data.email;
+                if (data.valid) {
+                    this.passwordResetFlow.email = data.email;
+                    this.passwordResetFlow.displayName = data.displayName || this.accountDisplayName(data.email);
+                    this.passwordResetFlow.companyName = data.companyName || this.company?.name || 'Zenqor Technologies';
+                }
                 else this.passwordResetFlow.error = data.reason || 'This reset link is invalid. Please request a new one.';
             } catch (error) {
                 console.error('Email action link verification failed:', error);
@@ -3532,32 +3541,52 @@ createApp({
             }
         },
         async submitPasswordReset() {
-            this.passwordResetFlow.error = '';
-            if (this.passwordResetFlow.newPassword.length < 8) { this.passwordResetFlow.error = 'New password must be at least 8 characters long.'; return; }
-            if (this.passwordResetFlow.newPassword !== this.passwordResetFlow.confirmPassword) { this.passwordResetFlow.error = 'Passwords do not match.'; return; }
-            this.passwordResetFlow.loading = true;
+            const flow = this.passwordResetFlow;
+            flow.error = '';
+            if (flow.mode === 'firstLogin' && !flow.temporaryPassword) { flow.error = 'Enter your temporary password to continue.'; return; }
+            if (flow.newPassword.length < 8) { flow.error = 'New password must be at least 8 characters long.'; return; }
+            if (flow.newPassword !== flow.confirmPassword) { flow.error = 'Passwords do not match.'; return; }
+            flow.loading = true;
             try {
-                if (this.passwordResetFlow.source === 'firebase') {
-                    await confirmPasswordReset(auth, this.passwordResetFlow.oobCode, this.passwordResetFlow.newPassword);
+                if (flow.mode === 'firstLogin') {
+                    const context = this.pendingLoginContext;
+                    if (!context?.firebaseUser?.email) throw new Error('Your temporary sign-in session has expired. Please sign in again.');
+                    const credential = EmailAuthProvider.credential(context.firebaseUser.email, flow.temporaryPassword);
+                    await reauthenticateWithCredential(context.firebaseUser, credential);
+                    await updatePassword(context.firebaseUser, flow.newPassword);
+                    await setDoc(doc(db, 'users', context.firebaseUser.uid), {
+                        mustChangePassword: false,
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                    context.userData = { ...(context.userData || {}), mustChangePassword: false };
+                    context.mustChangePassword = false;
+                    flow.email = context.firebaseUser.email;
+                    flow.displayName = context.name || flow.displayName;
+                    flow.companyName = this.company?.name || flow.companyName || 'Zenqor Technologies';
+                    await this.beginPasswordChangeOtp(context.firebaseUser.email, flow.newPassword, context);
+                } else if (flow.source === 'firebase') {
+                    await confirmPasswordReset(auth, this.passwordResetFlow.oobCode, flow.newPassword);
+                    await this.beginPasswordChangeOtp(flow.email, flow.newPassword);
                 } else {
                     const response = await fetch('/api/confirm-password-reset', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token: this.passwordResetFlow.oobCode, newPassword: this.passwordResetFlow.newPassword })
+                        body: JSON.stringify({ token: flow.oobCode, newPassword: flow.newPassword })
                     });
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.error || 'Unable to reset your password.');
+                    await this.beginPasswordChangeOtp(flow.email, flow.newPassword);
                 }
-                this.passwordResetFlow.success = true;
-                this.passwordResetFlow.successTitle = 'Password updated';
-                this.passwordResetFlow.successDescription = 'Your password has been reset successfully. You can now sign in with your new password.';
+                flow.newPassword = '';
+                flow.confirmPassword = '';
+                flow.temporaryPassword = '';
             } catch (error) {
                 console.error('Password reset confirmation failed:', error);
-                this.passwordResetFlow.error = error?.code === 'auth/weak-password'
+                flow.error = error?.code === 'auth/weak-password'
                     ? 'Please choose a stronger password with at least 8 characters.'
                     : (error.message || 'Unable to reset your password. Please try again.');
             } finally {
-                this.passwordResetFlow.loading = false;
+                flow.loading = false;
             }
         },
         async completeFirebaseEmailAction() {
@@ -3580,8 +3609,66 @@ createApp({
             }
         },
         exitPasswordResetFlow() {
+            const firstTimeAccess = this.passwordResetFlow.mode === 'firstLogin';
             this.passwordResetFlow = createEmailActionFlow();
+            this.pendingLoginContext = null;
             window.history.replaceState({}, '', '/');
+            // A first-time user is already authenticated with a temporary
+            // credential. Leaving this screen must not leave that session
+            // active without completing the required password and OTP steps.
+            if (firstTimeAccess) signOut(auth).catch(error => console.warn('Unable to close temporary session:', error));
+        },
+        accountDisplayName(email) {
+            const localPart = String(email || '').split('@')[0].replace(/[._-]+/g, ' ').trim();
+            return localPart ? localPart.replace(/\b\w/g, char => char.toUpperCase()) : 'Zenqor Portal User';
+        },
+        openFirstTimePasswordFlow(loginContext) {
+            this.pendingLoginContext = loginContext;
+            this.passwordResetFlow = createEmailActionFlow({
+                active: true,
+                source: 'first-login',
+                mode: 'firstLogin',
+                email: loginContext.firebaseUser.email,
+                displayName: loginContext.name || this.accountDisplayName(loginContext.firebaseUser.email),
+                companyName: this.company?.name || 'Zenqor Technologies',
+                verifying: false,
+                valid: true
+            });
+            this.mobileMenuOpen = false;
+            this.desktopSidebarOpen = false;
+            window.history.replaceState({}, '', '/auth/action');
+        },
+        async beginPasswordChangeOtp(email, newPassword, existingContext = null) {
+            const priorInteractiveState = this.interactiveLoginInProgress;
+            this.interactiveLoginInProgress = true;
+            try {
+                let context = existingContext;
+                if (!context?.firebaseUser) {
+                    const userCredential = await signInWithEmailAndPassword(auth, email, newPassword);
+                    const firebaseUser = userCredential.user;
+                    const userData = await this.loadOrMigrateUserMetadata(firebaseUser);
+                    const isSeedAdmin = firebaseUser.email === 'admin@zenq0r.com';
+                    if (!userData && !isSeedAdmin) {
+                        await signOut(auth);
+                        throw new Error('This account is not provisioned for portal access.');
+                    }
+                    let role = userData?.role || 'Staff';
+                    if (isSeedAdmin) role = 'Superadmin';
+                    if (role !== 'Client' && !this.isOfficialEmail(firebaseUser.email)) {
+                        await signOut(auth);
+                        throw new Error(`Only Client Users System Terminal may use an external email. Other roles must use @${this.officialEmailDomain}.`);
+                    }
+                    const name = userData?.name || firebaseUser.displayName || firebaseUser.email;
+                    const photo = userData?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0B1E36&color=D4AF37`;
+                    context = { firebaseUser, userData: { ...(userData || {}), mustChangePassword: false }, role, name, photo, mustChangePassword: false };
+                }
+                this.pendingLoginContext = context;
+                this.passwordResetFlow = createEmailActionFlow();
+                window.history.replaceState({}, '', '/');
+                await this.startLoginOtp(context, 'password-change');
+            } finally {
+                this.interactiveLoginInProgress = priorInteractiveState;
+            }
         },
 
         async handleLogin() {
@@ -3631,21 +3718,25 @@ createApp({
                     return;
                 }
 
+                const loginContext = { firebaseUser, userData, role, name, photo, mustChangePassword };
+                if (mustChangePassword) {
+                    this.loginLoading = false;
+                    this.openFirstTimePasswordFlow(loginContext);
+                    return;
+                }
+
                 // Password alone is not trusted to finish any provisioned RBAC login.
                 // Every role must verify an emailed one-time code before the portal starts.
                 // The Firebase Auth session is already live at this point (signOut on
                 // cancel below un-does it); this gate only controls when the PORTAL
                 // itself trusts the sign-in as complete.
                 if (Object.prototype.hasOwnProperty.call(RBAC_ROLES, role)) {
-                    const loginContext = { firebaseUser, userData, role, name, photo, mustChangePassword };
-                    this.pendingLoginContext = loginContext;
-                    this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: firebaseUser.email };
                     this.loginLoading = false;
-                    await this.requestLoginOtp();
+                    await this.startLoginOtp(loginContext);
                     return;
                 }
 
-                await this.completeLogin({ firebaseUser, userData, role, name, photo, mustChangePassword });
+                await this.completeLogin(loginContext);
             } catch (error) {
                 this.loginError = 'Invalid email or password credentials / System Error.';
                 this.loginLoading = false;
@@ -3653,10 +3744,20 @@ createApp({
                 this.interactiveLoginInProgress = false;
             }
         },
+        async startLoginOtp(loginContext, purpose = 'sign-in') {
+            this.pendingLoginContext = loginContext;
+            this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: loginContext.firebaseUser.email, purpose };
+            await this.requestLoginOtp();
+        },
         async requestLoginOtp() {
             try {
+                if (!this.pendingLoginContext?.firebaseUser) throw new Error('Your verification session has expired. Please sign in again.');
                 const idToken = await this.pendingLoginContext.firebaseUser.getIdToken();
-                const resp = await fetch('/api/request-login-otp', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` } });
+                const resp = await fetch('/api/request-login-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                    body: JSON.stringify({ purpose: this.loginOtp.purpose || 'sign-in' })
+                });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok) throw new Error(data.error || 'Failed to send verification code.');
                 this.loginOtp.sending = false;
@@ -3678,13 +3779,16 @@ createApp({
             this.loginOtp.error = '';
             try {
                 const idToken = await this.pendingLoginContext.firebaseUser.getIdToken();
-                const resp = await fetch('/api/verify-login-otp', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ code: this.loginOtp.code.trim() }) });
+                const resp = await fetch('/api/verify-login-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                    body: JSON.stringify({ code: this.loginOtp.code.trim(), purpose: this.loginOtp.purpose || 'sign-in' })
+                });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
-                this.loginOtp.show = false;
-                this.loginOtp.verifying = false;
                 const ctx = this.pendingLoginContext;
                 this.pendingLoginContext = null;
+                this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: 'sign-in' };
                 await this.completeLogin(ctx);
             } catch (error) {
                 console.error('Verify login OTP failed:', error);
@@ -3693,13 +3797,21 @@ createApp({
             }
         },
         async cancelLoginOtp() {
-            this.loginOtp.show = false;
+            this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: 'sign-in' };
             this.pendingLoginContext = null;
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
             try { await signOut(auth); } catch (error) { console.error('Sign-out during OTP cancel failed:', error); }
         },
         async completeLogin({ firebaseUser, userData, role, name, photo, mustChangePassword }) {
+            if (mustChangePassword) {
+                this.isLoggedIn = false;
+                this.mobileMenuOpen = false;
+                this.desktopSidebarOpen = false;
+                this.openFirstTimePasswordFlow({ firebaseUser, userData, role, name, photo, mustChangePassword });
+                this.loginLoading = false;
+                return;
+            }
             if (Object.prototype.hasOwnProperty.call(RBAC_ROLES, role)) {
                 try { sessionStorage.setItem('zenqorOtpVerifiedUid', firebaseUser.uid); } catch (error) { console.error('Failed to persist OTP-verified marker:', error); }
             }
@@ -3712,10 +3824,9 @@ createApp({
             this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = window.innerWidth >= 768; this.mobileMenuOpen = false;
             await this.logAudit('LOGIN', `User logged in with role ${this.getRoleDisplayName(role)}`);
             this.showNotify(`Welcome back (${this.getRoleDisplayName(role)}): ${name}`);
-            this.currentTab = mustChangePassword ? 'profile' : (role === 'Client' ? 'client-portal' : 'dashboard');
+            this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard';
             window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
-            if (mustChangePassword) { this.changePasswordModal.required = true; this.changePasswordModal.show = true; }
-            else this.maybeShowOnboarding();
+            this.maybeShowOnboarding();
             this.loginLoading = false;
             this.initFirebaseRealtime().catch(error => {
                 console.error('Realtime data initialization failed after login:', error);
@@ -6259,6 +6370,13 @@ createApp({
                         await signOut(auth);
                         return;
                     }
+                    const loginContext = { firebaseUser, userData, role, name, photo, mustChangePassword };
+                    if (mustChangePassword) {
+                        this.loginLoading = false;
+                        this.authLoading = false;
+                        this.openFirstTimePasswordFlow(loginContext);
+                        return;
+                    }
                     if (Object.prototype.hasOwnProperty.call(RBAC_ROLES, role)) {
                         let otpVerifiedUid = null;
                         try { otpVerifiedUid = sessionStorage.getItem('zenqorOtpVerifiedUid'); } catch (error) { console.error('Failed to read OTP-verified marker:', error); }
@@ -6268,9 +6386,7 @@ createApp({
                             // A restored Firebase session needs the same OTP verification as a fresh sign-in.
                             // Do not duplicate the prompt while handleLogin() is already showing it.
                             if (!this.loginOtp.show || this.loginOtp.email !== firebaseUser.email) {
-                                this.pendingLoginContext = { firebaseUser, userData, role, name, photo, mustChangePassword };
-                                this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: firebaseUser.email };
-                                await this.requestLoginOtp();
+                                await this.startLoginOtp(loginContext);
                             }
                             return;
                         }
@@ -6287,8 +6403,8 @@ createApp({
                     // desktop state only after the restored account is ready.
                     this.desktopSidebarOpen = window.innerWidth >= 768;
                     this.mobileMenuOpen = false;
-                    if (mustChangePassword) { this.currentTab = 'profile'; this.changePasswordModal.required = true; this.changePasswordModal.show = true; }
-                    else { this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard'; this.maybeShowOnboarding(); }
+                    this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard';
+                    this.maybeShowOnboarding();
                     window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
                     this.loginLoading = false;
                     this.initFirebaseRealtime().catch(error => {

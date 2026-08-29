@@ -9,16 +9,24 @@ const { generateOtp, hashOtp, requiresOtpRole } = require('./_security');
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
-function buildOtpEmailHtml(code) {
+function buildOtpEmailHtml(code, purpose = 'sign-in') {
+    const isPasswordChange = purpose === 'password-change';
+    const title = isPasswordChange ? 'Confirm Your Password Update' : 'Your Sign-In Verification Code';
+    const message = isPasswordChange
+        ? 'Enter this code to complete your password update and access your ZENQOR Portal account. It expires in 5 minutes.'
+        : 'Enter this code to finish signing in to your ZENQOR Portal account. It expires in 5 minutes.';
+    const safetyNote = isPasswordChange
+        ? 'If you did not change your password, contact Zenqor Support immediately.'
+        : 'If you did not attempt to sign in, someone may have your password — change it immediately and contact your administrator.';
     return `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 0; background-color: #ffffff; border-radius: 16px; border: 1px solid #E5E7EB; overflow: hidden;">
   <div style="background-color: #0B1E36; padding: 28px 32px; text-align: center;">
     <span style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">ZENQOR</span><span style="font-size: 20px; font-weight: 800; color: #14B8A6; letter-spacing: 0.5px;"> HRMS/CDTS</span>
   </div>
   <div style="padding: 36px 32px; text-align: center;">
-    <h2 style="color: #0B1E36; font-size: 19px; margin: 0 0 12px;">Your Sign-In Verification Code</h2>
-    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">Enter this code to finish signing in to your ZENQOR Portal account. It expires in 5 minutes.</p>
+    <h2 style="color: #0B1E36; font-size: 19px; margin: 0 0 12px;">${title}</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">${message}</p>
     <div style="display: inline-block; background-color: #F8FAFC; border: 2px dashed #14B8A6; border-radius: 12px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0B1E36;">${code}</div>
-    <p style="color: #94A3B8; font-size: 12px; line-height: 1.6; margin: 24px 0 0;">If you did not attempt to sign in, someone may have your password — change it immediately and contact your administrator.</p>
+    <p style="color: #94A3B8; font-size: 12px; line-height: 1.6; margin: 24px 0 0;">${safetyNote}</p>
   </div>
   <div style="background-color: #F8FAFC; padding: 20px 32px; text-align: center; border-top: 1px solid #E5E7EB;">
     <p style="color: #94A3B8; font-size: 11px; margin: 0;">© ZENQOR HRMS/CDTS · Zenqor Technologies</p>
@@ -45,6 +53,7 @@ module.exports = async function handler(req, res) {
             return;
         }
 
+        const purpose = req.body?.purpose === 'password-change' ? 'password-change' : 'sign-in';
         const code = generateOtp();
         const now = Date.now();
         const otpRef = admin.firestore().collection('login_otp_codes').doc(decoded.uid);
@@ -59,7 +68,8 @@ module.exports = async function handler(req, res) {
             createdAt: new Date(now).toISOString(),
             expiresAt: new Date(now + OTP_TTL_MS).toISOString(),
             used: false,
-            attempts: 0
+            attempts: 0,
+            purpose
         });
 
         const apiKey = process.env.RESEND_API_KEY;
@@ -71,8 +81,8 @@ module.exports = async function handler(req, res) {
             body: JSON.stringify({
                 from: 'Zenqor Support <support@zenqor.com.my>',
                 to: [decoded.email],
-                subject: 'Your ZENQOR Portal Verification Code',
-                html: buildOtpEmailHtml(code)
+                subject: purpose === 'password-change' ? 'Confirm Your ZENQOR Password Update' : 'Your ZENQOR Portal Verification Code',
+                html: buildOtpEmailHtml(code, purpose)
             })
         });
         if (!response.ok) throw new Error(`Resend send failed: ${response.status} ${await response.text()}`);
