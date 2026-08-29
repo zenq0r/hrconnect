@@ -9,6 +9,10 @@
       "destination": "/icon-192.png"
     },
     {
+      "source": "/auth/action",
+      "destination": "/index.html"
+    },
+    {
       "source": "/((?!api/|.*\\.).*)",
       "destination": "/index.html"
     }

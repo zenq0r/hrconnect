@@ -298,3 +298,12 @@ test('Firebase email action URLs are handled safely alongside legacy reset links
     assert.match(html, /passwordResetFlow\.mode === 'recoverEmail'/);
     assert.match(resetApi, /\/auth\/action\?resetToken=/);
 });
+
+test('Firebase email action route is served by the portal application', () => {
+    const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
+
+    assert.deepEqual(
+        config.rewrites.find((rule) => rule.source === '/auth/action'),
+        { source: '/auth/action', destination: '/index.html' }
+    );
+});
