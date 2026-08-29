@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Opening Zenqor Portal…</title>
+    <script>
+        (() => {
+            const portal = new URL('/', window.location.origin);
+            portal.search = window.location.search;
+            window.location.replace(portal.toString());
+        })();
+    </script>
+</head>
+<body>
+    <p>Opening the secure Zenqor Portal…</p>
+</body>
+</html>

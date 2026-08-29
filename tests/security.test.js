@@ -301,9 +301,12 @@ test('Firebase email action URLs are handled safely alongside legacy reset links
 
 test('Firebase email action route is served by the portal application', () => {
     const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
+    const actionPage = fs.readFileSync(path.join(__dirname, '..', 'auth', 'action.html'), 'utf8');
 
     assert.deepEqual(
         config.rewrites.find((rule) => rule.source === '/auth/action'),
         { source: '/auth/action', destination: '/index.html' }
     );
+    assert.match(actionPage, /portal\.search = window\.location\.search/);
+    assert.match(actionPage, /window\.location\.replace\(portal\.toString\(\)\)/);
 });
