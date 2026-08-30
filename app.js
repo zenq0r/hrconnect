@@ -3665,7 +3665,11 @@ createApp({
             // back and surface a confusing 429 on the second one.
             if (this.loginOtp.sending || this.loginOtp.cooldownSeconds > 0) return;
             flow.error = '';
-            this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: flow.email, purpose: 'password-reset', cooldownSeconds: 0 };
+            // `sending` must start false: requestLoginOtp() owns that flag and
+            // bails out early when it is already set. Priming it to true here
+            // would trip that in-flight guard and the request would never leave
+            // the browser, leaving the button stuck on "Sending…" forever.
+            this.loginOtp = { show: true, code: '', error: '', sending: false, verifying: false, email: flow.email, purpose: 'password-reset', cooldownSeconds: 0 };
             await this.$nextTick();
             await this.requestLoginOtp();
         },

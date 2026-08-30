@@ -42,6 +42,19 @@ test('ordinary sign-in does not request OTP, while password reset does', () => {
     assert.match(verifyOtpSource, /purpose !== 'password-reset'/);
 });
 
+test('starting the password reset OTP actually dispatches the request', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+    const start = appSource.indexOf('async startPasswordResetOtp()');
+    const body = appSource.slice(start, appSource.indexOf('startLoginOtpCooldown(seconds)', start));
+
+    // requestLoginOtp() bails out early while `sending` is already set, so the
+    // starter must leave that flag false or the request never leaves the browser.
+    assert.match(body, /sending: false/);
+    assert.doesNotMatch(body, /sending: true/);
+    assert.match(body, /await this\.requestLoginOtp\(\)/);
+});
+
 test('password reset renders its OTP field inline and not behind a separate popup', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
