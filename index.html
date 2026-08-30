@@ -3069,7 +3069,6 @@
                     </div>
 
                     <div class="flex gap-2 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
-                        <button type="button" @click="websiteContentTab = 'portfolio_web'" :class="websiteContentTab === 'portfolio_web' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Our Client <span class="ml-1 text-slate-400">({{ websiteContent.portfolio_web.length }})</span></button>
                         <button type="button" @click="websiteContentTab = 'portfolio_gaming'" :class="websiteContentTab === 'portfolio_gaming' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Licensing &amp; Permits <span class="ml-1 text-slate-400">({{ websiteContent.portfolio_gaming.length }})</span></button>
                         <button type="button" @click="websiteContentTab = 'services'" :class="websiteContentTab === 'services' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Services <span class="ml-1 text-slate-400">({{ websiteContent.services.length }})</span></button>
                         <button type="button" @click="websiteContentTab = 'site_text'" :class="websiteContentTab === 'site_text' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Page Text <span class="ml-1 text-slate-400">({{ Object.keys(siteTextOverrides).length }} overridden)</span></button>
@@ -3171,7 +3170,6 @@
                                     <label class="zq-label">Activity Title *<input v-model="websiteContentModal.form.title" required maxlength="120" placeholder="e.g. Ruang Legar Permit Approval" class="zq-input mt-1.5"></label>
                                     <label class="zq-label">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
                                     <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
-                                    <template v-if="websiteContentModal.collectionName === 'portfolio_web'">
                                         <div>
                                             <label class="zq-label">Photos &amp; Videos * <span class="font-normal text-slate-400">({{ websiteContentModal.mediaItems.length }}/6)</span></label>
                                             <p class="mt-1 text-[9px] font-medium text-slate-400 dark:text-slate-400">Up to 6 files. Images: PNG/JPG, max 8 MB each. Video: MP4, max 40 MB each. The first item is the card's cover photo — visitors can browse the rest in a gallery.</p>
@@ -3190,14 +3188,6 @@
                                                 </label>
                                             </div>
                                         </div>
-                                    </template>
-                                    <template v-else>
-                                        <label class="zq-label">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="zq-input mt-1.5 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
-                                        <div v-if="websiteContentModal.imagePreviewUrl" class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
-                                            <img :src="websiteContentModal.imagePreviewUrl" class="max-h-56 w-full object-contain">
-                                            <span v-if="websiteContentModal.imageOrientation" class="absolute right-2 top-2 rounded-full bg-slate-950/70 px-2.5 py-1 text-[9px] font-extrabold uppercase text-white">{{ websiteContentModal.imageOrientation }}</span>
-                                        </div>
-                                    </template>
                                 </template>
                             </div>
                             <div class="zq-modal-footer">

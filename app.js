@@ -232,8 +232,6 @@ const SITE_TEXT_KEYS = [
     { key: 'faq_3_a', label: 'Faq 3 - Answer', group: 'FAQ Page' },
     { key: 'pg_hero_title', label: 'Pg Hero Title', group: 'Licensing & Permits Page (Hero)' },
     { key: 'pg_hero_sub', label: 'Pg Hero - Subtitle', group: 'Licensing & Permits Page (Hero)' },
-    { key: 'pw_hero_title', label: 'Pw Hero Title', group: 'Our Client Page (Hero)' },
-    { key: 'pw_hero_sub', label: 'Pw Hero - Subtitle', group: 'Our Client Page (Hero)' },
     { key: 'tos_content', label: 'Tos Content', group: 'Legal Notices' },
     { key: 'rp_content', label: 'Rp Content', group: 'Return & Refund Policy' },
     { key: 'dp_title', label: 'Dp Title', group: 'Data Policy' },
@@ -560,7 +558,7 @@ createApp({
             // overrides (content/site_text, any data-i18n key on any page). Once any doc
             // exists in a portfolio_web/portfolio_gaming/services collection, the matching
             // public page shows ONLY Firestore items — fallback content stops showing.
-            websiteContentTab: 'portfolio_web',
+            websiteContentTab: 'portfolio_gaming',
             websiteContent: { portfolio_web: [], portfolio_gaming: [], services: [] },
             websiteContentModal: {
                 show: false,
@@ -4801,17 +4799,18 @@ createApp({
 
         // ── Website Content (zenqor-tech Portfolio, Services, Page Text) ────────
         websiteContentLabel(collectionName) {
-            if (collectionName === 'portfolio_gaming') return 'Licensing & Permits';
             if (collectionName === 'services') return 'Services';
-            return 'Our Client';
+            // portfolio_web is retired; its records are being folded into
+            // Licensing & Permits, so both portfolio collections read the same.
+            return 'Licensing & Permits';
         },
         openWebsiteContentModal(collectionName, item = null) {
             if (!this.hasModulePermission('website-content', 'edit')) { this.showNotify('You do not have permission to manage website content.'); return; }
             if (this.websiteContentModal.imagePreviewUrl && this.websiteContentModal.imageFile) URL.revokeObjectURL(this.websiteContentModal.imagePreviewUrl);
             (this.websiteContentModal.mediaItems || []).forEach(media => { if (media.file && media.previewUrl) URL.revokeObjectURL(media.previewUrl); });
-            const isPortfolioWeb = collectionName === 'portfolio_web';
+            const isGallery = (collectionName === 'portfolio_web' || collectionName === 'portfolio_gaming');
             let mediaItems = [];
-            if (isPortfolioWeb) {
+            if (isGallery) {
                 if (Array.isArray(item?.media) && item.media.length) {
                     mediaItems = item.media.map(m => ({ type: m.type === 'video' ? 'video' : 'image', url: m.url || '', storagePath: m.storagePath || '', file: null, previewUrl: m.url || '' }));
                 } else if (item?.imgUrl) {
@@ -4836,7 +4835,7 @@ createApp({
         closeWebsiteContentModal() {
             if (this.websiteContentModal.imagePreviewUrl && this.websiteContentModal.imageFile) URL.revokeObjectURL(this.websiteContentModal.imagePreviewUrl);
             (this.websiteContentModal.mediaItems || []).forEach(media => { if (media.file && media.previewUrl) URL.revokeObjectURL(media.previewUrl); });
-            this.websiteContentModal = { show: false, isEdit: false, collectionName: 'portfolio_web', id: '', form: { tag: '', title: '', desc: '', imgUrl: '', imgStoragePath: '', icon: '', name: '', companyName: '', eventDate: '' }, imageFile: null, imagePreviewUrl: '', imageOrientation: '', mediaItems: [], removedMediaStoragePaths: [], uploading: false };
+            this.websiteContentModal = { show: false, isEdit: false, collectionName: 'portfolio_gaming', id: '', form: { tag: '', title: '', desc: '', imgUrl: '', imgStoragePath: '', icon: '', name: '', companyName: '', eventDate: '' }, imageFile: null, imagePreviewUrl: '', imageOrientation: '', mediaItems: [], removedMediaStoragePaths: [], uploading: false };
         },
         // Only PNG/JPEG — these become public marketing images on zenqor-tech, so no PDFs
         // or other formats. Magic-byte check mirrors validateClientDocumentFile so a
@@ -4913,7 +4912,7 @@ createApp({
             return 'video/mp4';
         },
         // Dispatches to the image or video validator by extension — used by the
-        // Our Client gallery's multi-media uploader (images + MP4, up to 6 files).
+        // portfolio gallery multi-media uploader (images + MP4, up to 6 files).
         async validateWebsiteContentMediaFile(file) {
             const extension = String(file?.name || '').split('.').pop().toLowerCase();
             if (extension === 'mp4') return { type: 'video', contentType: await this.validateWebsiteContentVideo(file) };
@@ -4948,7 +4947,7 @@ createApp({
             if (!this.hasModulePermission('website-content', 'edit')) { this.showNotify('You do not have permission to manage website content.'); return; }
             const collectionName = this.websiteContentModal.collectionName;
             const isServices = collectionName === 'services';
-            const isPortfolioWeb = collectionName === 'portfolio_web';
+            const isGallery = (collectionName === 'portfolio_web' || collectionName === 'portfolio_gaming');
             const form = this.websiteContentModal.form;
             const desc = form.desc.trim();
             let payload;
@@ -4964,7 +4963,7 @@ createApp({
                 const companyName = form.companyName.trim();
                 const eventDate = form.eventDate.trim();
                 if (!tag || !companyName || !title || !desc) { this.showNotify('Fill in Tag / Category, Company Name, Activity Title and Description.'); return; }
-                if (isPortfolioWeb) {
+                if (isGallery) {
                     if (!this.websiteContentModal.mediaItems.length) { this.showNotify('Attach at least one photo or video.'); return; }
                 } else if (!this.websiteContentModal.imageFile && !form.imgUrl) {
                     this.showNotify('Upload an image (PNG, JPG or JPEG).'); return;
@@ -4977,12 +4976,12 @@ createApp({
             // left Our Client reading nothing like Licensing & Permits beside it.
             // Every field is already trimmed above; case stays as the editor typed it.
             const label = isServices ? payload.name : payload.title;
-            this.websiteContentModal.uploading = isPortfolioWeb
+            this.websiteContentModal.uploading = isGallery
                 ? this.websiteContentModal.mediaItems.some(media => media.file)
                 : (!isServices && Boolean(this.websiteContentModal.imageFile));
             try {
                 let oldStoragePath = '';
-                if (isPortfolioWeb) {
+                if (isGallery) {
                     // Upload every NEW file (media.file set) in order, keep already-uploaded
                     // entries (from editing) as-is. media[0] doubles as the legacy
                     // imgUrl/imgStoragePath so the admin list-view thumbnail and any older
@@ -5035,7 +5034,7 @@ createApp({
                 if (oldStoragePath && oldStoragePath !== payload.imgStoragePath) {
                     try { await deleteObject(storageRef(storage, oldStoragePath)); } catch (cleanupError) { console.warn('Old website content image cleanup failed:', cleanupError); }
                 }
-                if (isPortfolioWeb && this.websiteContentModal.removedMediaStoragePaths.length) {
+                if (isGallery && this.websiteContentModal.removedMediaStoragePaths.length) {
                     await Promise.all(this.websiteContentModal.removedMediaStoragePaths.map(async (path) => {
                         try { await deleteObject(storageRef(storage, path)); } catch (cleanupError) { console.warn('Removed media cleanup failed:', cleanupError); }
                     }));

@@ -56,10 +56,17 @@ service firebase.storage {
     // site visitors — but only content admins may upload/replace/remove them.
     match /website_content/{collectionName}/{fileName} {
       allow read: if true;
+      // Mirrors the portal's own validators (validateWebsiteContentImage /
+      // validateWebsiteContentVideo): images JPEG/PNG up to 8 MB, video MP4 up to
+      // 40 MB. Video was previously rejected here despite the gallery uploader
+      // offering it, so every MP4 an admin picked failed at the Storage boundary.
       allow write: if isContentAdmin() &&
-        collectionName in ['portfolio_web', 'portfolio_gaming'] &&
-        request.resource.size <= 8 * 1024 * 1024 &&
-        request.resource.contentType in ['image/jpeg', 'image/png'];
+        collectionName in ['portfolio_web', 'portfolio_gaming'] && (
+          (request.resource.contentType in ['image/jpeg', 'image/png'] &&
+            request.resource.size <= 8 * 1024 * 1024) ||
+          (request.resource.contentType == 'video/mp4' &&
+            request.resource.size <= 40 * 1024 * 1024)
+        );
       allow delete: if isContentAdmin();
     }
   }
