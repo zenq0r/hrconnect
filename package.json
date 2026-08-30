@@ -1,28 +1,33 @@
 {
-  "name": "zenqor-gateway",
-  "version": "1.0.0",
-  "private": true,
+  "name": "zenqor-operation-enterprise",
+  "version": "8.7.0",
+  "description": "ZENQOR Technologies Enterprise HRMS and Client Document Tracking Portal",
+  "main": "index.html",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "test": "node --import tsx --test tests/*.test.ts"
-  },
-  "engines": {
-    "node": ">=20.9.0"
+    "start": "npx serve .",
+    "build:css": "tailwindcss -i ./tailwind.input.css -o ./tailwind.css --minify",
+    "check": "node scripts/check.js",
+    "test": "node --test tests/*.test.js"
   },
   "dependencies": {
-    "next": "16.3.3",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "nodemailer": "^6.10.1"
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
+    "firebase-admin": "12.7.0"
   },
+  "keywords": [
+    "zenqor",
+    "enterprise",
+    "hris",
+    "payroll",
+    "quotation",
+    "invoice",
+    "firebase",
+    "vue3",
+    "tailwind"
+  ],
+  "author": "ZENQOR Technologies",
+  "license": "MIT",
   "devDependencies": {
-    "@types/node": "^22.15.0",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "tsx": "^4.20.0",
-    "typescript": "^5.8.0",
-    "@types/nodemailer": "^6.4.17"
+    "tailwindcss": "^3.4.17"
   }
 }
