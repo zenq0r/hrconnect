@@ -904,6 +904,22 @@ html:not(.dark) #main-content .text-slate-400 { color: #556274; }
 html:not(.dark) #app .text-red-500,
 html:not(.dark) #app .text-red-600 { color: #b91c1c; }
 
+/* `#app label` (0,1,1) outranks the .zq-btn-* colour rules (0,1,0), so the four
+   file pickers styled as buttons rendered the label grey on the button fill —
+   2.1:1 on the primary variant. Restate each variant at label specificity. */
+#app label.zq-btn-primary,
+#app label.zq-btn-secondary,
+#app label.zq-btn-success { color: #ffffff; }
+#app label.zq-btn-outline { color: var(--zq-text); }
+#app label.zq-btn-ghost { color: var(--zq-text-muted); }
+#app label.zq-btn-destructive { color: var(--zq-error); }
+#app label.zq-btn-info { color: var(--zq-info); }
+
+/* Remaining light-mode body text below AA: emerald-600 is 3.4:1 on the tinted
+   attachment panel, and slate-500 lands at 4.47:1 on the off-white workspace. */
+html:not(.dark) #main-content .text-emerald-600 { color: #047857; }
+html:not(.dark) #main-content .text-slate-500 { color: #556274; }
+
 /* ---- Typography scale (compact, enterprise — no oversized headings) ---- */
 .zq-text-page-title    { font-size: 1.25rem; line-height: 1.35; font-weight: 800; letter-spacing: -0.01em; color: var(--zq-text); }
 .zq-text-section-title { font-size: 1rem;    line-height: 1.4;  font-weight: 800; color: var(--zq-text); }
