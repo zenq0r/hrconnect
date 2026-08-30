@@ -762,7 +762,7 @@
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
                                 <div class="overflow-hidden">
                                     <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight truncate">ATTACHMENT / RECEIPT (MAX 2MB)</p>
-                                    <p class="text-[10px] text-slate-400 dark:text-slate-500 truncate">{{ docForm.paymentAttachment ? 'Receipt Attached' : 'No file selected' }}</p>
+                                    <p class="text-[10px] text-slate-400 dark:text-slate-400 truncate">{{ docForm.paymentAttachment ? 'Receipt Attached' : 'No file selected' }}</p>
                                 </div>
                                 <div class="flex items-center space-x-1 shrink-0">
                                     <label for="doc-attachment" :class="attachmentUploadState.payment ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer">
@@ -877,7 +877,7 @@
                                 <div class="min-w-0 lg:text-center">
                                     <p class="font-extrabold text-sm text-brand-dark dark:text-white truncate">{{ payForm.name || 'Untitled Employee' }}</p>
                                     <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{{ payForm.position || 'No position set' }}</p>
-                                    <p v-if="payForm.dept" class="text-[11px] text-slate-400 dark:text-slate-500 leading-snug">{{ payForm.dept }}</p>
+                                    <p v-if="payForm.dept" class="text-[11px] text-slate-400 dark:text-slate-400 leading-snug">{{ payForm.dept }}</p>
                                     <span class="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-[10px] font-bold" :class="selectedPayEmployeeId ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'">
                                         <i class="fa-solid" :class="selectedPayEmployeeId ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
                                         <span>{{ selectedPayEmployeeId ? 'From HR Directory' : 'Manual Entry' }}</span>
@@ -887,7 +887,7 @@
 
                             <div class="space-y-4">
                                 <div>
-                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-emerald-500"></i><span class="ml-1.5">Identity</span></p>
+                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-emerald-500"></i><span class="ml-1.5">Identity</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div><label for="pay-name" class="zq-label">Employee Name *</label><input id="pay-name" name="payName" type="text" v-model="payForm.name" required placeholder="" class="zq-input font-bold"></div>
                                         <div><label for="pay-ic" class="zq-label">National ID / Passport *</label><input id="pay-ic" name="payIc" type="text" :value="maskSensitive(payForm.ic)" readonly aria-label="Masked national ID or passport" class="zq-input"></div>
@@ -896,7 +896,7 @@
                                 </div>
 
                                 <div>
-                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-briefcase w-4 text-center text-emerald-500"></i><span class="ml-1.5">Employment</span></p>
+                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-briefcase w-4 text-center text-emerald-500"></i><span class="ml-1.5">Employment</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div><label for="pay-position" class="zq-label">Position</label><input id="pay-position" name="payPosition" type="text" v-model="payForm.position" placeholder="" class="zq-input"></div>
                                         <div><label for="pay-dept" class="zq-label">Department</label><input id="pay-dept" name="payDept" type="text" v-model="payForm.dept" placeholder="" class="zq-input"></div>
@@ -905,7 +905,7 @@
                                 </div>
 
                                 <div>
-                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-building-columns w-4 text-center text-emerald-500"></i><span class="ml-1.5">Banking &amp; Statutory</span></p>
+                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-building-columns w-4 text-center text-emerald-500"></i><span class="ml-1.5">Banking &amp; Statutory</span></p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div><label for="pay-bank-acc" class="zq-label">Bank / Account No.</label><input id="pay-bank-acc" name="payBankAcc" type="text" :value="maskBank(payForm.bankAcc)" readonly aria-label="Masked bank account number" class="zq-input"></div>
                                         <div><label for="pay-epf-socso" class="zq-label">EPF / SOCSO No.</label><input id="pay-epf-socso" name="payEpfSocso" type="text" :value="maskEpfSocso(payForm.epfSocso)" readonly aria-label="Masked EPF and SOCSO numbers" class="zq-input"></div>
@@ -1024,7 +1024,7 @@
                                 </div>
                             </div>
                             <div>
-                                <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Applicant Information</span></p>
+                                <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Applicant Information</span></p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div><label for="claim-name" class="zq-label">Applicant Name *</label><input id="claim-name" name="claimName" type="text" v-model="claimForm.name" required placeholder="Employee Name" class="zq-input font-bold"></div>
                                     <div><label for="claim-emp-no" class="zq-label">Employee ID *</label><input id="claim-emp-no" name="claimEmpNo" type="text" v-model="claimForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
@@ -1121,7 +1121,7 @@
                                 </div>
                             </div>
                             <div>
-                                <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Requester Information</span></p>
+                                <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Requester Information</span></p>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div><label for="voucher-name" class="zq-label">Requested By *</label><input id="voucher-name" name="voucherName" type="text" v-model="voucherForm.name" required placeholder="Staff preparing this voucher" class="zq-input font-bold"></div>
                                     <div><label for="voucher-emp-no" class="zq-label">Employee ID *</label><input id="voucher-emp-no" name="voucherEmpNo" type="text" v-model="voucherForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
@@ -1438,13 +1438,13 @@
                 <div v-if="currentTab === 'dashboard'" class="zq-dashboard p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
 
                     <section v-if="userProfile.role !== 'Client'" class="zq-card p-5">
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 class="zq-text-section-title">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live project workflow overview.</p></div><button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
-                        <div class="project-summary-grid"><button v-for="(stage, stageIndex) in projectStages" :key="`internal-dashboard-${stage}`" type="button" @click="switchTab('project-activities')" class="project-summary-card rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md"><div class="flex items-center justify-between gap-3"><span :class="['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][stageIndex]" class="h-2.5 w-2.5 rounded-full"></span><span class="text-2xl font-black leading-none text-brand-dark dark:text-white">{{ getProjectsByStage(stage).length }}</span></div><p class="mt-3 text-[10px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">{{ stage }}</p><p class="mt-2 text-[9px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-600">Step {{ stageIndex + 1 }} of 5</p></button></div>
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="zq-text-section-title">Project Progress</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live project workflow overview.</p></div><button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
+                        <div class="project-summary-grid"><button v-for="(stage, stageIndex) in projectStages" :key="`internal-dashboard-${stage}`" type="button" @click="switchTab('project-activities')" class="project-summary-card rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md"><div class="flex items-center justify-between gap-3"><span :class="['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][stageIndex]" class="h-2.5 w-2.5 rounded-full"></span><span class="text-2xl font-black leading-none text-brand-dark dark:text-white">{{ getProjectsByStage(stage).length }}</span></div><p class="mt-3 text-[10px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">{{ stage }}</p><p class="mt-2 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Step {{ stageIndex + 1 }} of 5</p></button></div>
                     </section>
 
                     <section v-if="myPendingProjectActivities.length" class="zq-card p-5">
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h3 class="zq-text-section-title"><i class="fa-solid fa-bell mr-2 text-amber-500"></i>My Assigned Project Activities</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Activities requiring your action, ordered by due date.</p></div><div class="flex flex-wrap items-center gap-2 text-[9px] font-bold"><span class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-1 text-red-700 dark:text-red-300">Overdue</span><span class="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-1 text-amber-700 dark:text-amber-300">Today</span><span class="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-emerald-700 dark:text-emerald-300">Next 3 Days</span><span class="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-1 text-blue-700 dark:text-blue-300">Scheduled</span><span class="rounded-full bg-slate-900 dark:bg-slate-700 px-2.5 py-1 text-white">{{ myPendingProjectActivities.length }} Open</span></div></div>
-                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2"><article v-for="activity in myPendingProjectActivities.slice(0, 6)" :key="`dashboard-activity-${activity.id}`" :class="projectActivityDueState(activity).borderClass" class="rounded-xl border-l-4 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ activity.projectRef }} · {{ activity.activityType }}</p><p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400"><span :class="projectActivityDueState(activity).dotClass" class="h-2 w-2 rounded-full"></span>Due {{ activity.dueDate }}</p></div><span :class="projectActivityDueState(activity).className" class="shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><div class="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3"><p class="truncate text-[9px] text-slate-400 dark:text-slate-500">{{ activity.projectTitle }}</p><button type="button" @click="markProjectActivityDone(activity)" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700"><i class="fa-solid fa-check mr-1"></i>Mark Done</button></div></article></div>
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 class="zq-text-section-title"><i class="fa-solid fa-bell mr-2 text-amber-500"></i>My Assigned Project Activities</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Activities requiring your action, ordered by due date.</p></div><div class="flex flex-wrap items-center gap-2 text-[9px] font-bold"><span class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-1 text-red-700 dark:text-red-300">Overdue</span><span class="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-1 text-amber-700 dark:text-amber-300">Today</span><span class="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-emerald-700 dark:text-emerald-300">Next 3 Days</span><span class="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-1 text-blue-700 dark:text-blue-300">Scheduled</span><span class="rounded-full bg-slate-900 dark:bg-slate-700 px-2.5 py-1 text-white">{{ myPendingProjectActivities.length }} Open</span></div></div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2"><article v-for="activity in myPendingProjectActivities.slice(0, 6)" :key="`dashboard-activity-${activity.id}`" :class="projectActivityDueState(activity).borderClass" class="rounded-xl border-l-4 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ activity.projectRef }} · {{ activity.activityType }}</p><p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400"><span :class="projectActivityDueState(activity).dotClass" class="h-2 w-2 rounded-full"></span>Due {{ activity.dueDate }}</p></div><span :class="projectActivityDueState(activity).className" class="shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><div class="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3"><p class="truncate text-[9px] text-slate-400 dark:text-slate-400">{{ activity.projectTitle }}</p><button type="button" @click="markProjectActivityDone(activity)" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700"><i class="fa-solid fa-check mr-1"></i>Mark Done</button></div></article></div>
                     </section>
                     
                     <!-- 1. VIEW PEKERJA (STAFF DASHBOARD) -->
@@ -1461,29 +1461,29 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myLatestNetSalary) }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myLatestNetSalary) }}</p>
                                 <p class="zq-kpi-card-label truncate">Latest Net Salary</p>
                                 <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Last Generated Payslip</p>
                             </div>
 
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-clock-rotate-left text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-xl text-amber-700 dark:text-amber-300 truncate">{{ myPendingClaimsCount }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-clock-rotate-left text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-xl text-amber-700 dark:text-amber-300 truncate">{{ myPendingClaimsCount }}</p>
                                 <p class="zq-kpi-card-label truncate">Pending Claims</p>
                                 <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">Status: Pending</p>
                             </div>
 
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(myApprovedClaimsAmount) }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(myApprovedClaimsAmount) }}</p>
                                 <p class="zq-kpi-card-label truncate">Approved Claims (YTD)</p>
                                 <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">Status: Approved</p>
                             </div>
                         </div>
 
                         <div class="zq-card p-6">
-                            <h3 class="zq-text-section-title mb-4">My Claims &amp; Payslip History</h3>
+                            <h2 class="zq-text-section-title mb-4">My Claims &amp; Payslip History</h2>
                             <div class="overflow-x-auto">
                                 <table class="zq-table">
                                     <thead>
@@ -1548,29 +1548,29 @@
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-file-invoice text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ myClientDocs.length }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-file-invoice text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ myClientDocs.length }}</p>
                                 <p class="zq-kpi-card-label truncate">Total Documents</p>
                                 <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Quotations &amp; Invoices</p>
                             </div>
 
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span><i class="fa-solid fa-circle-exclamation text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-red-700 dark:text-red-300 truncate">{{ formatCurrency(myUnpaidInvoicesAmount) }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span><i class="fa-solid fa-circle-exclamation text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-lg text-red-700 dark:text-red-300 truncate">{{ formatCurrency(myUnpaidInvoicesAmount) }}</p>
                                 <p class="zq-kpi-card-label truncate">Unpaid Invoices</p>
                                 <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ myUnpaidInvoicesCount }} Invois Unpaid</p>
                             </div>
 
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myPaidInvoicesAmount) }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myPaidInvoicesAmount) }}</p>
                                 <p class="zq-kpi-card-label truncate">Total Paid Amount</p>
                                 <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">Status: Paid</p>
                             </div>
 
                             <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span><i class="fa-solid fa-diagram-project text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                <h3 class="zq-kpi-card-value text-xl text-violet-700 dark:text-violet-300 truncate">{{ clientActiveProjectsCount }}</h3>
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span><i class="fa-solid fa-diagram-project text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-xl text-violet-700 dark:text-violet-300 truncate">{{ clientActiveProjectsCount }}</p>
                                 <p class="zq-kpi-card-label truncate">Active Projects</p>
                                 <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">{{ projects.length }} total project(s)</p>
                             </div>
@@ -1584,7 +1584,7 @@
 
                         <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                             <div class="lg:col-span-2 zq-card p-5">
-                                <div class="mb-4 flex items-center justify-between"><div><h3 class="zq-text-section-title">Project Updates &amp; Messages</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Updates and conversation messages from your project activities.</p></div><span class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-[9px] font-bold text-brand-blue dark:text-blue-300">{{ clientRecentUpdates.length }} recent</span></div>
+                                <div class="mb-4 flex items-center justify-between"><div><h2 class="zq-text-section-title">Project Updates &amp; Messages</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Updates and conversation messages from your project activities.</p></div><span class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-[9px] font-bold text-brand-blue dark:text-blue-300">{{ clientRecentUpdates.length }} recent</span></div>
                                 <div v-if="clientRecentUpdates.length" class="space-y-3"><button v-for="update in clientRecentUpdates" :key="`dashboard-update-${update.id}`" type="button" @click="switchTab('client-updates')" class="flex w-full items-start gap-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3 text-left transition hover:border-brand-blue hover:bg-blue-50/40 dark:hover:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="update.senderRole === 'Client' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' : 'bg-blue-100 text-brand-blue dark:bg-blue-950/50 dark:text-blue-300'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-reply' : 'fa-bullhorn'"></i></span><span class="min-w-0"><span class="flex flex-wrap items-center gap-1.5"><span class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ update.projectRef }}</span><span class="text-[9px] text-slate-400">· {{ update.updateType }}</span></span><span class="mt-1 block truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{{ update.message }}</span><span class="mt-1 block text-[9px] text-slate-400">{{ formatDateTime(update.createdAt || update.updateDate) }}</span></span></button></div>
                                 <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No updates yet</p><p class="zq-empty-state-text">Project updates will appear here once your project starts.</p></div>
                             </div>
@@ -1593,7 +1593,7 @@
 
                         <section class="zq-card p-5">
                             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div><h3 class="zq-text-section-title">Project Progress</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live workflow status for projects assigned to your Client Portal account.</p></div>
+                                <div><h2 class="zq-text-section-title">Project Progress</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live workflow status for projects assigned to your Client Portal account.</p></div>
                                 <button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button>
                             </div>
                             <div class="space-y-3">
@@ -1610,9 +1610,9 @@
                                             <span class="h-1.5 flex-1 rounded-full" :class="stageIndex <= projectStages.indexOf(project.status) ? ['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][projectStages.indexOf(project.status)] : 'bg-slate-100 dark:bg-slate-700'"></span>
                                         </template>
                                     </div>
-                                    <p class="mt-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-300 dark:text-slate-600">Step {{ projectStages.indexOf(project.status) + 1 }} of {{ projectStages.length }}</p>
+                                    <p class="mt-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Step {{ projectStages.indexOf(project.status) + 1 }} of {{ projectStages.length }}</p>
                                 </button>
-                                <p v-if="projects.length > 3" class="text-center text-[10px] font-bold text-slate-400 dark:text-slate-500">+{{ projects.length - 3 }} more project(s) — view all for full tracker</p>
+                                <p v-if="projects.length > 3" class="text-center text-[10px] font-bold text-slate-400 dark:text-slate-400">+{{ projects.length - 3 }} more project(s) — view all for full tracker</p>
                                 <div v-if="!projects.length" class="overflow-hidden rounded-xl border border-blue-100 dark:border-slate-700 bg-gradient-to-r from-blue-50 via-white to-emerald-50 dark:from-blue-950/30 dark:via-slate-800 dark:to-emerald-950/20 p-5">
                                     <div class="flex flex-col gap-5 lg:flex-row lg:items-center"><div class="flex items-start gap-3 lg:w-1/3"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-blue text-white shadow"><i class="fa-solid fa-rocket"></i></span><div><p class="text-xs font-extrabold text-brand-dark dark:text-white">Your workspace is ready</p><p class="mt-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Your project tracker will activate automatically when the Zenqor team assigns your first project.</p></div></div><div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3"><div class="rounded-xl bg-white/80 dark:bg-slate-900/40 p-3"><span class="text-[9px] font-extrabold text-emerald-600">01 · COMPLETE</span><p class="mt-1 text-[10px] font-bold text-slate-700 dark:text-slate-200">Portal account activated</p></div><div class="rounded-xl bg-white/80 dark:bg-slate-900/40 p-3"><span class="text-[9px] font-extrabold text-amber-600">02 · NEXT</span><p class="mt-1 text-[10px] font-bold text-slate-700 dark:text-slate-200">Project assignment</p></div><div class="rounded-xl bg-white/80 dark:bg-slate-900/40 p-3"><span class="text-[9px] font-extrabold text-slate-400">03 · UPCOMING</span><p class="mt-1 text-[10px] font-bold text-slate-700 dark:text-slate-200">Live milestones &amp; updates</p></div></div></div>
                                 </div>
@@ -1620,7 +1620,7 @@
                         </section>
 
                         <div class="zq-card p-6">
-                            <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h3 class="zq-text-section-title">Your Company Official Documents</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Your five most recent quotations and invoices.</p></div><button v-if="myClientDocs.length" type="button" @click="switchTab('client-portal')" class="zq-btn zq-btn-outline zq-btn-sm">View All Documents <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
+                            <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 class="zq-text-section-title">Your Company Official Documents</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Your five most recent quotations and invoices.</p></div><button v-if="myClientDocs.length" type="button" @click="switchTab('client-portal')" class="zq-btn zq-btn-outline zq-btn-sm">View All Documents <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
                             <div class="overflow-x-auto">
                                 <table class="zq-table">
                                     <thead>
@@ -1671,57 +1671,57 @@
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <!-- 1. Total Employees -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ employees.length }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ employees.length }}</p>
                                     <p class="zq-kpi-card-label truncate">Total Employees</p>
                                     <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ activeEmployeesCount }} Active</p>
                                 </div>
                                 <!-- 2. Total Clients -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ customers.length }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ customers.length }}</p>
                                     <p class="zq-kpi-card-label truncate">Total Clients</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ priorityClients.length }} Priority</p>
                                 </div>
                                 <!-- 3. Total Quotations -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalQuotations }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalQuotations }}</p>
                                     <p class="zq-kpi-card-label truncate">Total Quotations</p>
                                     <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
                                 </div>
                                 <!-- 4. Total Invoices -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalInvoices }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalInvoices }}</p>
                                     <p class="zq-kpi-card-label truncate">Total Invoices</p>
                                     <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
                                 </div>
                                 <!-- 5. Revenue (Paid) -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(totalRevenuePaid) }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(totalRevenuePaid) }}</p>
                                     <p class="zq-kpi-card-label truncate">Revenue (Paid)</p>
                                     <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
                                 </div>
                                 <!-- 6. Pending Receivables -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-lg text-orange-700 dark:text-orange-300 truncate">{{ formatCurrency(totalRevenuePending) }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-orange-700 dark:text-orange-300 truncate">{{ formatCurrency(totalRevenuePending) }}</p>
                                     <p class="zq-kpi-card-label truncate">Pending Receivables</p>
                                     <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ unpaidInvoicesCount }} Invoices Unpaid</p>
                                 </div>
                                 <!-- 7. Total Payroll (Net) -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(totalPayrollNet) }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(totalPayrollNet) }}</p>
                                     <p class="zq-kpi-card-label truncate">Total Payroll (Net)</p>
                                     <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
                                 </div>
                                 <!-- 8. Total Claims (Approved) -->
                                 <div class="zq-kpi-card">
-                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-500"></i></div>
-                                    <h3 class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(totalApprovedClaimsAmount) }}</h3>
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(totalApprovedClaimsAmount) }}</p>
                                     <p class="zq-kpi-card-label truncate">Claims &amp; Vouchers (Approved)</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending Approval</p>
                                 </div>
@@ -1731,7 +1731,7 @@
                         <!-- PRIORITY CLIENTS WIDGET -->
                         <div v-if="priorityClients.length" class="zq-card p-5">
                             <div class="mb-3 flex items-center justify-between gap-3">
-                                <h3 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">{{ priorityClients.length }}</span></h3>
+                                <h2 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">{{ priorityClients.length }}</span></h2>
                                 <button type="button" @click="switchTab('client-directory')" v-if="hasAccess('client-directory')" class="text-[10px] font-bold text-brand-blue hover:underline">View Client Directory</button>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1742,7 +1742,7 @@
                             </div>
                         </div>
                         <div v-else class="zq-card p-5">
-                            <h3 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients</h3>
+                            <h2 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients</h2>
                             <div class="zq-empty-state zq-empty-state-compact">
                                 <i class="fa-solid fa-star zq-empty-state-icon" aria-hidden="true"></i>
                                 <p class="zq-empty-state-title">No Priority-tier clients yet</p>
@@ -1754,10 +1754,10 @@
                         <!-- EMPLOYEE WORKLOAD WIDGET — cross-system insight: HR staff load measured against live Client project/activity assignments -->
                         <div v-if="employeeWorkload.length" class="zq-card p-5">
                             <div class="mb-3 flex items-center justify-between gap-3">
-                                <h3 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients<span v-if="overloadedEmployeeCount" class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{{ overloadedEmployeeCount }} Overloaded</span></h3>
+                                <h2 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients<span v-if="overloadedEmployeeCount" class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{{ overloadedEmployeeCount }} Overloaded</span></h2>
                                 <button type="button" @click="switchTab('hr-employees')" v-if="hasAccess('hr-employees')" class="text-[10px] font-bold text-brand-blue hover:underline">View Employee Management</button>
                             </div>
-                            <p class="text-[10px] text-slate-400 dark:text-slate-500 mb-3">Active project and activity assignments per staff member — a view only possible because HR and Client records share one system.</p>
+                            <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-3">Active project and activity assignments per staff member — a view only possible because HR and Client records share one system.</p>
                             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 <button type="button" v-for="w in employeeWorkload.slice(0, 6)" :key="`workload-${w.emp.empNo}`" @click="viewEmployeeProjectAssignments(w.emp)" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3 py-2.5 text-left transition hover:border-brand-blue hover:bg-blue-50 dark:hover:bg-blue-950/20">
                                     <div class="w-9 h-9 rounded-xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[11px] font-extrabold shrink-0 overflow-hidden">
@@ -1773,7 +1773,7 @@
                             </div>
                         </div>
                         <div v-else class="zq-card p-5">
-                            <h3 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients</h3>
+                            <h2 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients</h2>
                             <div class="zq-empty-state zq-empty-state-compact">
                                 <i class="fa-solid fa-gauge-high zq-empty-state-icon" aria-hidden="true"></i>
                                 <p class="zq-empty-state-title">No active workload right now</p>
@@ -1786,9 +1786,9 @@
                         <div v-if="portalDataReady && !['Staff', 'Client'].includes(userProfile.role)" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div class="zq-card p-6">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
-                                    <h3 class="zq-text-section-title">
+                                    <h2 class="zq-text-section-title">
                                         <i class="fa-solid fa-chart-line text-brand-blue mr-2"></i>Financial &amp; Revenue Trend
-                                    </h3>
+                                    </h2>
                                     <div class="zq-segmented-control shrink-0" role="group" aria-label="Chart time period">
                                         <button type="button" @click="setChartFilter('daily')" :class="{ 'is-active': chartTimeFilter === 'daily' }" :aria-pressed="chartTimeFilter === 'daily'">Daily</button>
                                         <button type="button" @click="setChartFilter('weekly')" :class="{ 'is-active': chartTimeFilter === 'weekly' }" :aria-pressed="chartTimeFilter === 'weekly'">Weekly</button>
@@ -1801,14 +1801,14 @@
                                 </div>
                             </div>
                             <div class="zq-card p-6">
-                                <h3 class="zq-text-section-title mb-4"><i class="fa-solid fa-chart-pie text-brand-gold mr-2"></i>Document &amp; Invoice Status Distribution</h3>
+                                <h2 class="zq-text-section-title mb-4"><i class="fa-solid fa-chart-pie text-brand-gold mr-2"></i>Document &amp; Invoice Status Distribution</h2>
                                 <div class="h-64 relative flex items-center justify-center">
                                     <canvas id="statusChart"></canvas>
                                 </div>
                             </div>
                             <div class="lg:col-span-2 zq-card p-6">
                                 <div class="flex items-center justify-between mb-3">
-                                    <h3 class="zq-text-section-title"><i class="fa-solid fa-bars-progress text-rose-500 mr-2"></i>Claims &amp; Payment Voucher Pipeline</h3>
+                                    <h2 class="zq-text-section-title"><i class="fa-solid fa-bars-progress text-rose-500 mr-2"></i>Claims &amp; Payment Voucher Pipeline</h2>
                                     <span class="text-[11px] font-bold text-slate-400">{{ claimsPipelineTotal }} total record{{ claimsPipelineTotal === 1 ? '' : 's' }}</span>
                                 </div>
                                 <div class="h-8 relative">
@@ -1838,7 +1838,7 @@
                         <div class="zq-card p-6">
                             <div v-if="userProfile.role === 'Account' && financePendingClaims.length" class="mb-4 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"><i class="fa-solid fa-bell text-base"></i><span><strong>Finance notification:</strong> {{ financePendingClaims.length }} claim(s) and/or payment voucher(s) are pending Finance approval.</span></div>
                             <div class="zq-toolbar">
-                                <h3 class="zq-text-section-title">Recent Activities &amp; Document List</h3>
+                                <h2 class="zq-text-section-title">Recent Activities &amp; Document List</h2>
 
                                 <div class="zq-toolbar-actions">
                                     <!-- DROPDOWN POKOK PILIHAN SORT -->
@@ -2061,7 +2061,7 @@
                                     <tr v-for="emp in employees" :key="emp.empNo" @contextmenu.prevent="openContextMenu($event, employeeRowMenuItems(emp))" v-longpress="(touch) => openContextMenu(touch, employeeRowMenuItems(emp))">
                                         <td>
                                             <span class="font-bold text-brand-dark dark:text-slate-200 block text-sm">{{ emp.empNo }}</span>
-                                            <span :class="isEmployeeOnline(emp) ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-1">
+                                            <span :class="isEmployeeOnline(emp) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-100'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-1">
                                                 <span :class="isEmployeeOnline(emp) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(emp) }}
                                             </span>
                                             <span class="text-slate-400 block text-[9px] mt-1">{{ employeeLastSeen(emp) }}</span>
@@ -2171,10 +2171,10 @@
                     <!-- CROSS-DOMAIN INSIGHTS — reports only possible because HR and Client data share one system -->
                     <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
                         <div class="mb-1 flex items-center gap-2"><i class="fa-solid fa-diagram-project text-brand-blue"></i><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Cross-Domain Insights</h3></div>
-                        <p class="text-[10px] text-slate-400 dark:text-slate-500 mb-4">Combined HR + Client analytics — unique to a unified HRMS/CDTS platform.</p>
+                        <p class="text-[10px] text-slate-400 dark:text-slate-400 mb-4">Combined HR + Client analytics — unique to a unified HRMS/CDTS platform.</p>
                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
                             <div>
-                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Top Clients by Revenue</p>
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Top Clients by Revenue</p>
                                 <div class="space-y-1.5">
                                     <div v-for="r in revenuePerClientTop" :key="`rev-${r.clientName}`" class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-2.5 py-1.5">
                                         <span class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">{{ r.clientName }}</span>
@@ -2184,7 +2184,7 @@
                                 </div>
                             </div>
                             <div>
-                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Staff Engaged per Client</p>
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Staff Engaged per Client</p>
                                 <div class="space-y-1.5">
                                     <div v-for="s in staffPerClientTop" :key="`staff-${s.clientName}`" class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-2.5 py-1.5">
                                         <span class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">{{ s.clientName }}</span>
@@ -2194,7 +2194,7 @@
                                 </div>
                             </div>
                             <div>
-                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">Delivery Velocity</p>
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Delivery Velocity</p>
                                 <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 p-4">
                                     <h4 class="text-2xl font-black text-brand-dark dark:text-white">{{ avgActiveProjectAgeDays }}<span class="text-xs font-bold text-slate-400 ml-1">days</span></h4>
                                     <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Average age of active projects still in progress.</p>
@@ -2234,14 +2234,14 @@
                             <div class="space-y-2 min-h-[120px]">
                                 <div v-for="cust in group.clients" :key="cust.id" :tabindex="canManageProjects ? 0 : -1" :role="canManageProjects ? 'button' : undefined" @click="viewClientBoard(cust)" @keydown.enter="viewClientBoard(cust)" @contextmenu.prevent.stop="openContextMenu($event, clientTaskMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientTaskMenuItems(cust))" :class="canManageProjects ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue' : 'cursor-default'" class="flex w-full flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition">
                                     <div class="flex items-start justify-between gap-2">
-                                        <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientName }}</span>
+                                        <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ cust.clientName }}</span>
                                         <span :class="clientTaskStatusMeta(clientTaskStatus(cust.id)).badgeClass" class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTaskStatusMeta(clientTaskStatus(cust.id)).label }}</span>
                                     </div>
                                     <p v-if="cust.clientId" class="truncate font-mono text-[9px] font-bold text-brand-blue dark:text-teal-300">{{ cust.clientId }}</p>
-                                    <p v-if="cust.clientSSM" class="truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ cust.clientSSM }}</p>
-                                    <p v-if="cust.clientContactPerson" class="truncate text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientContactPerson }}</p>
-                                    <p v-if="cust.clientEmail" class="truncate text-[10px] lowercase text-slate-500 dark:text-slate-400"><i class="fa-solid fa-envelope mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ cust.clientEmail }}</p>
-                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-regular fa-clock mr-1.5"></i>{{ clientTaskDateLabel(cust) }}</p>
+                                    <p v-if="cust.clientSSM" class="truncate text-[9px] font-semibold text-slate-400 dark:text-slate-400">SSM: {{ cust.clientSSM }}</p>
+                                    <p v-if="cust.clientContactPerson" class="truncate text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ cust.clientContactPerson }}</p>
+                                    <p v-if="cust.clientEmail" class="truncate text-[10px] lowercase text-slate-500 dark:text-slate-400"><i class="fa-solid fa-envelope mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ cust.clientEmail }}</p>
+                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-regular fa-clock mr-1.5"></i>{{ clientTaskDateLabel(cust) }}</p>
                                     <div class="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700 pt-1.5">
                                         <span class="min-w-0 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300">PIC: {{ clientLatestProjectPic(cust.id) || 'Not assigned yet' }}</span>
                                         <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300">{{ clientProjectCount(cust.id) }} proj</span>
@@ -2327,7 +2327,7 @@
                                     <h3 class="truncate text-sm font-extrabold text-brand-dark dark:text-white">{{ project.title }}</h3>
                                 </div>
                                 <div class="shrink-0 flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400">
-                                    <span><i class="fa-solid fa-calendar-check mr-1 text-slate-400 dark:text-slate-500"></i>{{ project.targetDate || 'Not scheduled' }}</span>
+                                    <span><i class="fa-solid fa-calendar-check mr-1 text-slate-400 dark:text-slate-400"></i>{{ project.targetDate || 'Not scheduled' }}</span>
                                 </div>
                             </div>
 
@@ -2335,11 +2335,11 @@
                                 <template v-for="(stage, stageIndex) in projectStages" :key="stage">
                                     <div class="flex flex-1 flex-col items-center text-center">
                                         <div class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black"
-                                             :class="stageIndex < projectStages.indexOf(project.status) ? 'bg-emerald-500 text-white' : stageIndex === projectStages.indexOf(project.status) ? 'bg-brand-blue text-white ring-2 ring-blue-100 dark:ring-blue-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'">
+                                             :class="stageIndex < projectStages.indexOf(project.status) ? 'bg-emerald-500 text-white' : stageIndex === projectStages.indexOf(project.status) ? 'bg-brand-blue text-white ring-2 ring-blue-100 dark:ring-blue-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-400'">
                                             <i v-if="stageIndex < projectStages.indexOf(project.status)" class="fa-solid fa-check text-[9px]"></i>
                                             <span v-else>{{ stageIndex + 1 }}</span>
                                         </div>
-                                        <p class="mt-1 hidden max-w-[80px] text-[8px] font-bold uppercase leading-tight sm:block" :class="stageIndex <= projectStages.indexOf(project.status) ? 'text-brand-dark dark:text-white' : 'text-slate-400 dark:text-slate-500'">{{ stage }}</p>
+                                        <p class="mt-1 hidden max-w-[80px] text-[8px] font-bold uppercase leading-tight sm:block" :class="stageIndex <= projectStages.indexOf(project.status) ? 'text-brand-dark dark:text-white' : 'text-slate-400 dark:text-slate-400'">{{ stage }}</p>
                                     </div>
                                     <div v-if="stageIndex < projectStages.length - 1" class="mb-3 sm:mb-4 h-0.5 flex-1 rounded" :class="stageIndex < projectStages.indexOf(project.status) ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'"></div>
                                 </template>
@@ -2375,15 +2375,15 @@
                                     <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" :draggable="canDragClientGroup(group)" @dragstart="startGroupDrag($event, group, stage)" @dragend="endDrag" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md" :class="canDragClientGroup(group) ? 'cursor-grab active:cursor-grabbing' : ''">
                                         <div class="flex w-full items-start gap-2 rounded-xl p-3">
                                             <button type="button" @click="toggleClientGroup(`${stage}::${group.key}`)" class="flex min-w-0 flex-1 items-start gap-2 text-left" :title="isClientGroupExpanded(`${stage}::${group.key}`) ? 'Collapse tasks' : 'Expand tasks'">
-                                                <i class="fa-solid text-[10px] text-slate-400 dark:text-slate-500 shrink-0 mt-0.5" :class="isClientGroupExpanded(`${stage}::${group.key}`) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                                                <i class="fa-solid text-[10px] text-slate-400 dark:text-slate-400 shrink-0 mt-0.5" :class="isClientGroupExpanded(`${stage}::${group.key}`) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
                                                 <div class="min-w-0 flex-1">
                                                     <div class="flex min-w-0 items-center gap-2">
-                                                        <span class="min-w-0 truncate text-[12px] font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ clientNameForId(group.clientDirectoryId, group.clientName) }}</span>
+                                                        <span class="min-w-0 truncate text-[12px] font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ clientNameForId(group.clientDirectoryId, group.clientName) }}</span>
                                                         <span :class="isClientOnline(group.clientDirectoryId) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 shrink-0 rounded-full" :title="clientPresenceDetail(group.clientDirectoryId)"></span>
                                                         <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-300">{{ group.projects.length }}</span>
                                                     </div>
-                                                    <p v-if="group.projects.length === 1" class="mt-0.5 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-diagram-project mr-1 text-slate-400 dark:text-slate-500"></i>{{ group.projects[0].title }}</p>
-                                                    <p class="mt-1 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-500">SSM: {{ clientSsmForId(group.clientDirectoryId) || '—' }}</p>
+                                                    <p v-if="group.projects.length === 1" class="mt-0.5 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-diagram-project mr-1 text-slate-400 dark:text-slate-400"></i>{{ group.projects[0].title }}</p>
+                                                    <p class="mt-1 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-400">SSM: {{ clientSsmForId(group.clientDirectoryId) || '—' }}</p>
                                                     <p v-if="isNewProjectGroup(group)" class="mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-sparkles mr-1"></i>New project · Added {{ formatDateTime(clientGroupNewestCreatedAt(group)) }}</p>
                                                 </div>
                                             </button>
@@ -2418,8 +2418,8 @@
                                                         <img v-if="projectOwnerPhoto(project)" :src="projectOwnerPhoto(project)" :alt="project.ownerName" class="h-7 w-7 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
                                                         <div v-else class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[9px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(project.ownerName) }}</div>
                                                         <div class="min-w-0 flex-1">
-                                                            <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-500"> · {{ project.ownerEmpNo }}</span></p>
-                                                            <p class="truncate text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
+                                                            <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-400"> · {{ project.ownerEmpNo }}</span></p>
+                                                            <p class="truncate text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
                                                         </div>
                                                         <span v-if="project.ownerEmpNo" :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(project)"></span>
                                                     </div>
@@ -2455,8 +2455,8 @@
                                                 <img v-if="projectOwnerPhoto(project)" :src="projectOwnerPhoto(project)" :alt="project.ownerName" class="h-7 w-7 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
                                                 <div v-else class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[9px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(project.ownerName) }}</div>
                                                 <div class="min-w-0 flex-1">
-                                                    <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-500"> · {{ project.ownerEmpNo }}</span></p>
-                                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
+                                                    <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-400"> · {{ project.ownerEmpNo }}</span></p>
+                                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
                                                 </div>
                                                 <span v-if="project.ownerEmpNo" :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(project)"></span>
                                             </div>
@@ -2534,7 +2534,7 @@
                                     <h4 class="mb-3 text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Information</h4>
                                     <button v-if="projectPreview.project.clientName" type="button" @click="openClientQuickViewForProject(projectPreview.project)" class="block w-full rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-left transition hover:border-brand-blue hover:bg-blue-50 dark:hover:bg-blue-950/30">
                                         <div class="flex items-start justify-between gap-2">
-                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Client <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px]"></i></p>
+                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Client <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px]"></i></p>
                                             <div class="flex shrink-0 gap-1">
                                                 <span v-if="isNewClient(projectPreview.project.clientDirectoryId)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New</span>
                                                 <span :class="clientTierMeta(clientTierForId(projectPreview.project.clientDirectoryId, projectPreview.project.clientTier)).badgeClass" class="rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTierMeta(clientTierForId(projectPreview.project.clientDirectoryId, projectPreview.project.clientTier)).label }}</span>
@@ -2546,16 +2546,16 @@
                                             <span class="lowercase"><i class="fa-solid fa-envelope mr-1"></i>{{ projectPreview.project.clientEmail || '—' }}</span>
                                         </div>
                                     </button>
-                                    <div v-else class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">—</p></div>
+                                    <div v-else class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">—</p></div>
                                     <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                                         <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Schedule</p>
-                                            <p class="mt-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"><i class="fa-solid fa-play mr-1.5 w-3 text-slate-400 dark:text-slate-500"></i>Start: {{ projectPreview.project.startDate ? formatDateWithDay(projectPreview.project.startDate) : '—' }}</p>
-                                            <p class="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200"><i class="fa-solid fa-flag-checkered mr-1.5 w-3 text-slate-400 dark:text-slate-500"></i>Target: {{ projectPreview.project.targetDate ? formatDateWithDay(projectPreview.project.targetDate) : '—' }}</p>
-                                            <p v-if="projectPreview.project.createdAt" class="mt-1 text-[9px] text-slate-400 dark:text-slate-500"><i class="fa-solid fa-clock mr-1.5 w-3"></i>Created {{ formatDateTimeWithDay(projectPreview.project.createdAt) }}</p>
+                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Schedule</p>
+                                            <p class="mt-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"><i class="fa-solid fa-play mr-1.5 w-3 text-slate-400 dark:text-slate-400"></i>Start: {{ projectPreview.project.startDate ? formatDateWithDay(projectPreview.project.startDate) : '—' }}</p>
+                                            <p class="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200"><i class="fa-solid fa-flag-checkered mr-1.5 w-3 text-slate-400 dark:text-slate-400"></i>Target: {{ projectPreview.project.targetDate ? formatDateWithDay(projectPreview.project.targetDate) : '—' }}</p>
+                                            <p v-if="projectPreview.project.createdAt" class="mt-1 text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-solid fa-clock mr-1.5 w-3"></i>Created {{ formatDateTimeWithDay(projectPreview.project.createdAt) }}</p>
                                         </div>
                                         <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Person In Charge</p>
+                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Person In Charge</p>
                                             <div class="mt-1.5 flex items-center gap-2">
                                                 <img v-if="projectOwnerPhoto(projectPreview.project)" :src="projectOwnerPhoto(projectPreview.project)" :alt="projectPreview.project.ownerName" class="h-8 w-8 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
                                                 <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[10px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(projectPreview.project.ownerName) }}</div>
@@ -2566,7 +2566,7 @@
                                                 <span :class="isProjectPicOnline(projectPreview.project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(projectPreview.project)"></span>
                                             </div>
                                             <p class="mt-2 truncate text-[9px] text-slate-500 dark:text-slate-400">{{ projectPreview.project.ownerEmpNo }} · <span class="lowercase">{{ projectPreview.project.ownerEmail }}</span></p>
-                                            <p class="mt-1 text-[9px] text-slate-400 dark:text-slate-500">Assigned {{ formatDateTime(projectPreview.project.ownerAssignedAt) }} · {{ projectPicPresenceDetail(projectPreview.project) }}</p>
+                                            <p class="mt-1 text-[9px] text-slate-400 dark:text-slate-400">Assigned {{ formatDateTime(projectPreview.project.ownerAssignedAt) }} · {{ projectPicPresenceDetail(projectPreview.project) }}</p>
                                         </div>
                                     </div>
                                 </section>
@@ -2601,7 +2601,7 @@
                                 </section>
                                 <section v-if="canViewProjectActivityDetails(projectPreview.project)">
                                     <div class="mb-3 flex items-center justify-between gap-3"><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Activity Issues</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Scheduled actions, assignees and due dates for this project.</p></div><button v-if="canManageProjectActivities(projectPreview.project)" type="button" @click="openActivityModal(projectPreview.project)" class="rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-calendar-plus mr-1.5"></i>Schedule Activity</button></div>
-                                    <div class="space-y-2"><article v-for="activity in projectActivitiesFor(projectPreview.project.id)" :key="activity.id" @contextmenu.prevent="openContextMenu($event, projectActivityMenuItems(activity))" v-longpress="(touch) => openContextMenu(touch, projectActivityMenuItems(activity))" class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ activity.activityType }}</span><span :class="projectActivityDueState(activity).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p v-if="activity.details" class="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{{ activity.details }}</p><p class="mt-2 text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user-check mr-1.5 text-slate-400 dark:text-slate-500"></i>{{ activity.assignedName }} · {{ activity.assignedPosition || 'NO POSITION' }}</p></div><div class="shrink-0 text-left sm:text-right"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Due Date</p><p class="mt-1 text-xs font-extrabold text-slate-700 dark:text-slate-200">{{ activity.dueDate }}</p><div class="mt-3 flex flex-wrap gap-1.5 sm:justify-end"><button v-if="activity.status !== 'Done' && canCompleteProjectActivity(activity)" type="button" @click="markProjectActivityDone(activity)" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700" title="Complete activity"><i class="fa-solid fa-check mr-1"></i>Mark Done</button><button v-if="canEditProjectActivity(activity)" type="button" @click="openActivityModal(projectPreview.project, activity)" class="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="Edit activity"><i class="fa-solid fa-pen text-[10px]"></i></button><button v-if="canDeleteProjectActivity(activity)" type="button" @click="deleteProjectActivity(activity)" class="h-7 w-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Delete activity"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div></div></article><div v-if="!projectActivitiesFor(projectPreview.project.id).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-calendar-xmark zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No activity issues scheduled</p><p class="zq-empty-state-text">Scheduled actions for this project will appear here.</p></div></div>
+                                    <div class="space-y-2"><article v-for="activity in projectActivitiesFor(projectPreview.project.id)" :key="activity.id" @contextmenu.prevent="openContextMenu($event, projectActivityMenuItems(activity))" v-longpress="(touch) => openContextMenu(touch, projectActivityMenuItems(activity))" class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ activity.activityType }}</span><span :class="projectActivityDueState(activity).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p v-if="activity.details" class="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{{ activity.details }}</p><p class="mt-2 text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user-check mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ activity.assignedName }} · {{ activity.assignedPosition || 'NO POSITION' }}</p></div><div class="shrink-0 text-left sm:text-right"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Due Date</p><p class="mt-1 text-xs font-extrabold text-slate-700 dark:text-slate-200">{{ activity.dueDate }}</p><div class="mt-3 flex flex-wrap gap-1.5 sm:justify-end"><button v-if="activity.status !== 'Done' && canCompleteProjectActivity(activity)" type="button" @click="markProjectActivityDone(activity)" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700" title="Complete activity"><i class="fa-solid fa-check mr-1"></i>Mark Done</button><button v-if="canEditProjectActivity(activity)" type="button" @click="openActivityModal(projectPreview.project, activity)" class="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="Edit activity"><i class="fa-solid fa-pen text-[10px]"></i></button><button v-if="canDeleteProjectActivity(activity)" type="button" @click="deleteProjectActivity(activity)" class="h-7 w-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Delete activity"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div></div></article><div v-if="!projectActivitiesFor(projectPreview.project.id).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-calendar-xmark zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No activity issues scheduled</p><p class="zq-empty-state-text">Scheduled actions for this project will appear here.</p></div></div>
                                 </section>
                                 <section v-else-if="userProfile.role !== 'Client'" class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/70 dark:bg-amber-950/20">
                                     <div class="flex gap-3"><i class="fa-solid fa-lock mt-0.5 text-amber-700 dark:text-amber-300"></i><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-amber-800 dark:text-amber-200">Activity Access Restricted</h4><p class="mt-1 text-[10px] leading-relaxed text-amber-800/80 dark:text-amber-200/80">Only this project's Person In Charge, Director or Superadmin can view or change Activity Type and Assigned To. You can view the Status History below.</p></div></div>
@@ -2622,7 +2622,7 @@
                                                     <p class="mt-1.5 whitespace-pre-wrap leading-relaxed">{{ update.message }}</p>
                                                 </template>
 
-                                                <div class="mt-1.5 flex items-center gap-1.5 text-[9px]" :class="update.senderRole === 'Client' ? 'text-teal-100' : 'text-slate-400 dark:text-slate-500'">
+                                                <div class="mt-1.5 flex items-center gap-1.5 text-[9px]" :class="update.senderRole === 'Client' ? 'text-teal-100' : 'text-slate-400 dark:text-slate-400'">
                                                     <span>{{ formatDateTime(update.createdAt) }}</span><span v-if="update.updatedAt">· edited</span>
                                                     <span v-if="canEditClientUpdate(update) || canDeleteClientUpdate(update)" class="ml-auto flex gap-0.5"><button v-if="canEditClientUpdate(update) && editingReplyId !== update.id" type="button" @click="update.senderRole === 'Client' ? startEditReply(update) : openClientUpdateModal(projectPreview.project, update)" title="Edit" class="rounded px-1.5 py-0.5 hover:bg-black/10"><i class="fa-solid fa-pen"></i></button><button v-if="canDeleteClientUpdate(update)" type="button" @click="deleteClientUpdate(update)" title="Delete" class="rounded px-1.5 py-0.5 hover:bg-black/10"><i class="fa-solid fa-trash"></i></button></span>
                                                 </div>
@@ -2684,7 +2684,7 @@
                             <section class="mt-5">
                                 <h4 class="zq-form-section-title">Project Identity</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <label class="zq-label">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="zq-input mt-1.5 uppercase"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-500">Locked after creation to keep linked activities and client updates consistent.</span></label>
+                                    <label class="zq-label">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="zq-input mt-1.5 uppercase"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-400">Locked after creation to keep linked activities and client updates consistent.</span></label>
                                     <label class="zq-label">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" class="zq-input mt-1.5 uppercase"></label>
                                 </div>
                             </section>
@@ -2706,11 +2706,11 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <label class="zq-label md:col-span-2">Person In Charge — HR Employee Management *<select v-model="projectModal.form.ownerEmpNo" @change="selectProjectOwner" required class="zq-input mt-1.5"><option value="">-- Select Staff PIC --</option><option v-for="employee in projectStaffOptions" :key="employee.empNo" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="projectModal.form.ownerEmpNo" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><span><b>{{ projectModal.form.ownerName }}</b> · {{ projectModal.form.ownerPosition || 'NO POSITION' }}</span><span class="lowercase">{{ projectModal.form.ownerEmail }}</span><span class="flex items-center gap-1.5"><i :class="projectModal.form.ownerPresenceStatus === 'Online' ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'" class="fa-solid fa-circle text-[7px]"></i>{{ projectModal.form.ownerPresenceStatus }}</span></div></label>
+                                        <label class="zq-label md:col-span-2">Person In Charge — HR Employee Management *<select v-model="projectModal.form.ownerEmpNo" @change="selectProjectOwner" required class="zq-input mt-1.5"><option value="">-- Select Staff PIC --</option><option v-for="employee in projectStaffOptions" :key="employee.empNo" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="projectModal.form.ownerEmpNo" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><span><b>{{ projectModal.form.ownerName }}</b> · {{ projectModal.form.ownerPosition || 'NO POSITION' }}</span><span class="lowercase">{{ projectModal.form.ownerEmail }}</span><span class="flex items-center gap-1.5"><i :class="projectModal.form.ownerPresenceStatus === 'Online' ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-400'" class="fa-solid fa-circle text-[7px]"></i>{{ projectModal.form.ownerPresenceStatus }}</span></div></label>
                                     </template>
                                     <template v-else>
-                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ clientNameForId(projectModal.form.clientDirectoryId, projectModal.form.clientName) || '—' }}</p><p class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ projectModal.form.clientEmail || '—' }}</p></div>
-                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-500">Person In Charge</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ projectModal.form.ownerName || '—' }}</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ projectModal.form.ownerPosition || 'NO POSITION' }} · <span class="lowercase">{{ projectModal.form.ownerEmail }}</span></p></div>
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ clientNameForId(projectModal.form.clientDirectoryId, projectModal.form.clientName) || '—' }}</p><p class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ projectModal.form.clientEmail || '—' }}</p></div>
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Person In Charge</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ projectModal.form.ownerName || '—' }}</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ projectModal.form.ownerPosition || 'NO POSITION' }} · <span class="lowercase">{{ projectModal.form.ownerEmail }}</span></p></div>
                                     </template>
                                 </div>
                             </section>
@@ -3075,21 +3075,21 @@
                             </header>
                             <div class="zq-modal-body grid grid-cols-1 gap-4">
                                 <template v-if="websiteContentModal.collectionName === 'services'">
-                                    <label class="zq-label">Icon (Font Awesome class) *<input v-model="websiteContentModal.form.icon" required placeholder="e.g. fas fa-building" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Browse icons at fontawesome.com — copy the class, e.g. "fas fa-stamp".</span></label>
+                                    <label class="zq-label">Icon (Font Awesome class) *<input v-model="websiteContentModal.form.icon" required placeholder="e.g. fas fa-building" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Browse icons at fontawesome.com — copy the class, e.g. "fas fa-stamp".</span></label>
                                     <div v-if="websiteContentModal.form.icon" class="flex h-16 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"><i :class="websiteContentModal.form.icon" class="text-2xl text-brand-blue dark:text-teal-300"></i></div>
                                     <label class="zq-label">Service Name *<input v-model="websiteContentModal.form.name" required maxlength="120" placeholder="e.g. Business Registration & Company Setup" class="zq-input mt-1.5"></label>
                                     <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
                                 </template>
                                 <template v-else>
                                     <label class="zq-label">Tag / Category *<input v-model="websiteContentModal.form.tag" required maxlength="60" placeholder="e.g. BUSINESS AUTOMATION" class="zq-input mt-1.5"></label>
-                                    <label class="zq-label">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. client company name" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Client / company this engagement was for — shown on the card.</span></label>
+                                    <label class="zq-label">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. client company name" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Client / company this engagement was for — shown on the card.</span></label>
                                     <label class="zq-label">Activity Title *<input v-model="websiteContentModal.form.title" required maxlength="120" placeholder="e.g. Ruang Legar Permit Approval" class="zq-input mt-1.5"></label>
-                                    <label class="zq-label">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
+                                    <label class="zq-label">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
                                     <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
                                     <template v-if="websiteContentModal.collectionName === 'portfolio_web'">
                                         <div>
                                             <label class="zq-label">Photos &amp; Videos * <span class="font-normal text-slate-400">({{ websiteContentModal.mediaItems.length }}/6)</span></label>
-                                            <p class="mt-1 text-[9px] font-medium text-slate-400 dark:text-slate-500">Up to 6 files. Images: PNG/JPG, max 8 MB each. Video: MP4, max 40 MB each. The first item is the card's cover photo — visitors can browse the rest in a gallery.</p>
+                                            <p class="mt-1 text-[9px] font-medium text-slate-400 dark:text-slate-400">Up to 6 files. Images: PNG/JPG, max 8 MB each. Video: MP4, max 40 MB each. The first item is the card's cover photo — visitors can browse the rest in a gallery.</p>
                                             <div class="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
                                                 <div v-for="(media, mediaIdx) in websiteContentModal.mediaItems" :key="mediaIdx" class="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
                                                     <img v-if="media.type === 'image'" :src="media.previewUrl" class="h-full w-full object-cover">
@@ -3107,7 +3107,7 @@
                                         </div>
                                     </template>
                                     <template v-else>
-                                        <label class="zq-label">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="zq-input mt-1.5 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-500">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
+                                        <label class="zq-label">Image (PNG, JPG or JPEG) {{ websiteContentModal.isEdit ? '' : '*' }}<input type="file" accept="image/png,image/jpeg" @change="handleWebsiteContentImageSelect" :required="!websiteContentModal.isEdit && !websiteContentModal.form.imgUrl" class="zq-input mt-1.5 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-blue file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Max 8 MB. The public site adapts its layout to the image's own portrait or landscape shape — no need to pre-crop.</span></label>
                                         <div v-if="websiteContentModal.imagePreviewUrl" class="relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
                                             <img :src="websiteContentModal.imagePreviewUrl" class="max-h-56 w-full object-contain">
                                             <span v-if="websiteContentModal.imageOrientation" class="absolute right-2 top-2 rounded-full bg-slate-950/70 px-2.5 py-1 text-[9px] font-extrabold uppercase text-white">{{ websiteContentModal.imageOrientation }}</span>
@@ -3360,7 +3360,7 @@
                                                 <td class="font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
                                                 <td class="font-medium text-slate-700 dark:text-slate-300">{{ usr.email }}</td>
                                                 <td>
-                                                    <span class="bg-brand-gold/20 text-brand-dark dark:text-brand-gold font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">{{ getRoleDisplayName(usr.role) }}</span>
+                                                    <span class="bg-brand-gold/20 text-brand-dark dark:text-amber-100 font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">{{ getRoleDisplayName(usr.role) }}</span>
                                                 </td>
                                                 <td class="text-center">
                                                     <div class="zq-table-actions">
@@ -3446,7 +3446,7 @@
                         </section>
     
                         <section class="zq-form-section">
-                            <h4 class="zq-form-section-title">Internal notes <span class="font-normal normal-case text-slate-400 dark:text-slate-500">(optional)</span></h4>
+                            <h4 class="zq-form-section-title">Internal notes <span class="font-normal normal-case text-slate-400 dark:text-slate-400">(optional)</span></h4>
                             <label for="client-info-notes" class="sr-only">Internal notes</label><textarea id="client-info-notes" v-model="clientInformationModal.form.clientNotes" rows="3" placeholder="Useful registration or account notes for staff" class="zq-input resize-y"></textarea>
                         </section>
                     </div>
@@ -3562,7 +3562,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p><p v-if="clientView.client.companyType || clientView.client.industry" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ [clientView.client.companyType, clientView.client.industry].filter(Boolean).join(' · ') }}</p></div>
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p><p v-if="clientView.client.companyType || clientView.client.industry" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ [clientView.client.companyType, clientView.client.industry].filter(Boolean).join(' · ') }}</p></div>
                             <div class="flex shrink-0 items-center gap-1.5">
                                 <span v-if="clientView.client.id && isNewClient(clientView.client.id)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 text-[9px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
                                 <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning · {{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }}</span>
@@ -3571,16 +3571,16 @@
                             </div>
                         </div>
                         <div v-if="canManageClients && clientView.client.id" class="mt-3 flex items-center gap-1.5 border-t border-slate-200 dark:border-slate-700 pt-3">
-                            <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500">Set Tier:</span>
+                            <span class="text-[10px] font-bold text-slate-400 dark:text-slate-400">Set Tier:</span>
                             <button type="button" v-for="tier in ['Standard','Premium','Priority']" :key="`tier-${tier}`" @click="updateClientTier(clientView.client, tier); clientView.client.clientTier = tier" :class="clientView.client.clientTier === tier ? clientTierMeta(tier).badgeClass + ' ring-2 ring-offset-1 ring-brand-blue' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" class="rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase transition">{{ tier }}</button>
                         </div>
                     </div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Contact Person</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Position</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
-                    <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-500">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
-                    <div v-if="clientView.client.clientNotes" class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-500">Internal Notes</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Contact Person</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Position</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
+                    <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
+                    <div v-if="clientView.client.clientNotes" class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Internal Notes</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p></div>
                     <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <div class="mb-3"><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Documents & Billing History</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Every quotation and invoice created for this client.</p></div>
                         <div v-if="!clientDocHistory(clientView.client).length" class="zq-empty-state zq-empty-state-compact">
@@ -3678,18 +3678,18 @@
                 </div>
                 <div class="zq-modal-body">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">Employee</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ employeeView.employee.name }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">{{ employeeView.employee.empNo }} · {{ employeeView.employee.position }}</p></div><div class="text-right"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(employeeViewLiveRecord) }}</span><p class="mt-1 text-[9px] text-slate-400 dark:text-slate-500">{{ employeeLastSeen(employeeViewLiveRecord) }}</p></div></div></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Department</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.dept }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Employment</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.employmentType }} · {{ employeeView.employee.status }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Work Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ employeeView.employee.email }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-500">Join Date</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.joinDate }}</p></div>
+                    <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Employee</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ employeeView.employee.name }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">{{ employeeView.employee.empNo }} · {{ employeeView.employee.position }}</p></div><div class="text-right"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(employeeViewLiveRecord) }}</span><p class="mt-1 text-[9px] text-slate-400 dark:text-slate-400">{{ employeeLastSeen(employeeViewLiveRecord) }}</p></div></div></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Department</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.dept }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Employment</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.employmentType }} · {{ employeeView.employee.status }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Work Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ employeeView.employee.email }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Join Date</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.joinDate }}</p></div>
                 </div>
                 <div class="zq-form-section"><h4 class="zq-form-section-title">Protected information</h4>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">ID / Passport</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.ic }}</span></p>
-                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">Bank Account</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.bankAcc }}</span></p>
-                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">EPF / SOCSO</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.epfNo }} · {{ employeeView.employee.socsoNo }}</span></p>
-                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-500 font-bold">EIS / Tax PCB</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.eisNo }} · {{ employeeView.employee.taxNo }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">ID / Passport</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.ic }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">Bank Account</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.bankAcc }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">EPF / SOCSO</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.epfNo }} · {{ employeeView.employee.socsoNo }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">EIS / Tax PCB</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.eisNo }} · {{ employeeView.employee.taxNo }}</span></p>
                     </div>
                 </div>
                 </div>

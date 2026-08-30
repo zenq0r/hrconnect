@@ -289,8 +289,10 @@ test('dark mode cannot override the light print palette', () => {
 
     assert.ok(printGuard > darkCompatibility, 'print palette must be declared after dark compatibility rules');
     assert.match(theme.slice(printGuard), /html\.dark #app \.print-container/);
-    assert.match(theme.slice(printGuard), /\.text-slate-500,\n    html\.dark #app \.print-container \.text-slate-600/);
-    assert.match(theme.slice(printGuard), /\.print-table th,\n    html\.dark #app \.print-container \.print-total-box/);
+    // \r?\n: the checked-out file may use either line ending on Windows, and the
+    // assertion is about these selectors being grouped, not about newline style.
+    assert.match(theme.slice(printGuard), /\.text-slate-500,\r?\n    html\.dark #app \.print-container \.text-slate-600/);
+    assert.match(theme.slice(printGuard), /\.print-table th,\r?\n    html\.dark #app \.print-container \.print-total-box/);
 });
 
 test('every portal button has a safe right-click and long-press quick-action menu', () => {

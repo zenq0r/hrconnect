@@ -808,7 +808,8 @@ input[type="url"] {
     --zq-surface-elevated: #ffffff;
     --zq-border: #e2e8f0;          /* slate-200 */
     --zq-text: #1e293b;            /* slate-800 */
-    --zq-text-muted: #64748b;      /* slate-500 */
+    --zq-text-muted: #556274;      /* slate-500, darkened: #64748b lands at 4.47:1
+                                      on the slate-50 page surface, just under AA */
     --zq-text-on-primary: #ffffff;
 
     /* Status (never color-only — every badge below also carries a dot + label) */
@@ -865,6 +866,43 @@ html.dark {
     --zq-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.28);
     --zq-shadow-md: 0 4px 14px rgba(0, 0, 0, 0.32);
 }
+
+/* ---- Dark-mode contrast corrections (WCAG 2 AA, 4.5:1 for body text) ----
+   These brand colours are tuned for light surfaces. Reused unchanged on the
+   dark palette they land between 2.5:1 and 4:1, so each gets a lightened
+   counterpart that keeps the same hue. Ratios are measured against the
+   surfaces the colour actually appears on (slate-800 cards through brand-bg). */
+html.dark #app .text-brand-gold { color: #f0a07f; }          /* was #c2412d — 3.2:1 -> 6.9:1 */
+/* The payslip total panel is bg-brand-dark in BOTH themes, so its gold text
+   needs the light variant even while the rest of the page is in light mode. */
+#app .bg-brand-dark .text-brand-gold { color: #f0a07f; }
+html.dark #app .text-red-600    { color: #fca5a5; }          /* was #dc2626 — 2.8:1 -> 7.0:1 */
+html.dark #app .text-red-500    { color: #fca5a5; }          /* was #ef4444 — 4.0:1 -> 7.0:1 */
+html.dark #app .text-slate-400  { color: #94a3b8; }          /* pin muted grey at slate-400 */
+
+/* White on teal-500 is only 2.5:1. brand-blue carries the same hue at 5.5:1. */
+html.dark .zq-btn-secondary { background: #0f766e; }
+html.dark .zq-btn-secondary:hover:not(:disabled) { background: #0c5b55; }
+
+/* White on emerald-600 is 3.8:1; emerald-700 reaches 5.5:1. Set here rather than
+   by swapping the utility class in the markup — the built tailwind.css ships
+   bg-emerald-600 only, so bg-emerald-700 would leave no background at all.
+   Every bg-emerald-600 in this app carries white text. */
+.zq-btn-success { background: #047857; }
+.zq-btn-success:hover:not(:disabled) { background: #065f46; }
+#app .bg-emerald-600 { background-color: #047857; }
+#app .bg-emerald-600:hover { background-color: #065f46; }
+
+/* Light mode: slate-300/400 are 1.5:1 and 2.6:1 greys on the white workspace
+   surfaces. Scoped to the content region because the sidebar keeps its own dark
+   palette in both themes, where those same greys are already legible. */
+html:not(.dark) #main-content .text-slate-300,
+html:not(.dark) #main-content .text-slate-400 { color: #556274; }
+
+/* Required-field asterisks and warning labels: red-500/600 sit at 3.4-3.8:1 on
+   the light surfaces they mark up. red-700 clears AA while reading the same. */
+html:not(.dark) #app .text-red-500,
+html:not(.dark) #app .text-red-600 { color: #b91c1c; }
 
 /* ---- Typography scale (compact, enterprise — no oversized headings) ---- */
 .zq-text-page-title    { font-size: 1.25rem; line-height: 1.35; font-weight: 800; letter-spacing: -0.01em; color: var(--zq-text); }
