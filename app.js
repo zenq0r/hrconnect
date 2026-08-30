@@ -628,7 +628,7 @@ createApp({
                 }
             },
             clientActionConfirm: { show: false, action: '', client: null },
-            appConfirm: { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null },
+            appConfirm: { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null, onResolve: null },
 
             officialEmailDomain: 'zenq0r.com',
 
@@ -1741,7 +1741,12 @@ createApp({
         },
         async deleteClientUpdate(update) {
             if (!this.canDeleteClientUpdate(update)) { this.showNotify('Only Director, Superadmin, or the original sender may delete this Client activity history entry.'); return; }
-            if (!confirm(`Delete Client update dated ${update.updateDate || '-'}? This action cannot be undone.`)) return;
+            if (!await this.askConfirm({
+                title: 'Delete client update?',
+                message: `Client update dated ${update.updateDate || '-'} will be removed. This action cannot be undone.`,
+                confirmLabel: 'Yes, Delete Update',
+                danger: true
+            })) return;
             try {
                 await deleteDoc(doc(db, 'project_client_updates', update.id));
                 this.logAudit('DELETE', `Deleted Client activity history ${update.id}`);
@@ -1898,7 +1903,12 @@ createApp({
         },
         async deleteProjectActivity(activity) {
             if (!this.canDeleteProjectActivity(activity)) { this.showNotify('Only Director and Superadmin may delete project activities.'); return; }
-            if (!confirm(`Delete activity "${activity.summary || activity.id}"? This action cannot be undone.`)) return;
+            if (!await this.askConfirm({
+                title: 'Delete activity?',
+                message: `"${activity.summary || activity.id}" will be removed. This action cannot be undone.`,
+                confirmLabel: 'Yes, Delete Activity',
+                danger: true
+            })) return;
             try {
                 await deleteDoc(doc(db, 'project_activities', activity.id));
                 this.logAudit('DELETE', `Deleted project activity ${activity.id}`);
@@ -2252,7 +2262,12 @@ createApp({
             const cascadeWarning = (linkedActivities.length || linkedUpdates.length)
                 ? ` This will also permanently delete ${linkedActivities.length} activity issue(s) and ${linkedUpdates.length} client update(s) linked to this project.`
                 : '';
-            if (!confirm(`Delete project ${project.projectRef}?${cascadeWarning} This action cannot be undone.`)) return false;
+            if (!await this.askConfirm({
+                title: `Delete project ${project.projectRef}?`,
+                message: `${cascadeWarning.trim() || 'This project will be permanently removed.'} This action cannot be undone.`,
+                confirmLabel: 'Yes, Delete Project',
+                danger: true
+            })) return false;
             try {
                 const batch = writeBatch(db);
                 linkedActivities.forEach(activity => batch.delete(doc(db, 'project_activities', activity.id)));
@@ -2855,13 +2870,24 @@ createApp({
                 this.showNotify('Unable to remove this document. Please try again.');
             }
         },
-        requestConfirm({ title, message, confirmLabel = 'Yes, Continue', danger = false, onConfirm }) {
-            this.appConfirm = { show: true, title, message, confirmLabel, danger, onConfirm };
+        requestConfirm({ title, message, confirmLabel = 'Yes, Continue', danger = false, onConfirm = null, onResolve = null }) {
+            this.appConfirm = { show: true, title, message, confirmLabel, danger, onConfirm, onResolve };
+        },
+        // Promise-returning form of requestConfirm, for `if (!await this.askConfirm(…)) return;`.
+        // The native confirm() this replaces blocks the main thread for as long as the
+        // dialog stays open, and Chrome bills that whole stretch to the originating
+        // click, so a destructive action measured over a second of INP.
+        askConfirm(options) {
+            return new Promise(resolve => this.requestConfirm({ ...options, onResolve: resolve }));
         },
         resolveAppConfirm(confirmed) {
-            const { onConfirm } = this.appConfirm;
-            this.appConfirm = { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null };
+            const { onConfirm, onResolve } = this.appConfirm;
+            this.appConfirm = { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null, onResolve: null };
             if (confirmed && typeof onConfirm === 'function') onConfirm();
+            // Always settle a pending askConfirm — cancelling, dismissing the overlay
+            // and the Escape handler all route here, and an unsettled promise would
+            // strand the caller mid-action.
+            if (typeof onResolve === 'function') onResolve(confirmed);
         },
         clearAllDocItems() {
             this.requestConfirm({
@@ -4144,7 +4170,12 @@ createApp({
         },
 
         async deletePortalUser(uid, email) {
-            if (!confirm(`Are you sure you want to delete portal access for: ${email}?`)) return;
+            if (!await this.askConfirm({
+                title: 'Delete portal access?',
+                message: `This permanently removes portal access and the Firebase Authentication account for ${email}.`,
+                confirmLabel: 'Yes, Delete Access',
+                danger: true
+            })) return;
             try {
                 // Delete the Firebase Authentication account FIRST (via Admin SDK — the
                 // client SDK can only ever delete the currently signed-in user's own
@@ -4816,7 +4847,12 @@ createApp({
         async deleteWebsiteContentItem(collectionName, item) {
             if (!this.hasModulePermission('website-content', 'delete')) { this.showNotify('You do not have permission to delete website content.'); return; }
             const label = collectionName === 'services' ? item.name : item.title;
-            if (!confirm(`Delete "${label}" from ${this.websiteContentLabel(collectionName)}? This removes it from the live site immediately.`)) return;
+            if (!await this.askConfirm({
+                title: 'Delete website content?',
+                message: `"${label}" will be removed from ${this.websiteContentLabel(collectionName)} and disappear from the live site immediately.`,
+                confirmLabel: 'Yes, Delete',
+                danger: true
+            })) return;
             try {
                 await deleteDoc(doc(db, collectionName, item.id));
                 // A gallery item (portfolio_web) can own several media files — delete
@@ -4873,7 +4909,12 @@ createApp({
         },
         async resetSiteTextOverride(key) {
             if (!this.hasModulePermission('website-content', 'delete')) { this.showNotify('You do not have permission to manage website content.'); return; }
-            if (!confirm(`Reset "${key}" to the site's built-in default text? This removes your override.`)) return;
+            if (!await this.askConfirm({
+                title: 'Reset to default text?',
+                message: `"${key}" returns to the site's built-in wording and your override is removed.`,
+                confirmLabel: 'Yes, Reset',
+                danger: true
+            })) return;
             try {
                 await setDoc(doc(db, 'content', 'site_text'), { [key]: deleteField() }, { merge: true });
                 this.logAudit('DELETE', `Reset page text override "${key}" to default`);
@@ -5477,7 +5518,11 @@ createApp({
             if (!['Superadmin', 'Director'].includes(this.userProfile.role)) { this.showNotify('Only Superadmin and Director can run this migration.'); return; }
             const legacyVouchers = this.claimsHistory.filter(c => (c.documentType || c.type) === 'Payment Voucher');
             if (!legacyVouchers.length) { this.showNotify('No legacy Payment Voucher records found inside the Claims collection.'); return; }
-            if (!confirm(`Move ${legacyVouchers.length} Payment Voucher record(s) out of the Claims collection into the new dedicated Payment Vouchers collection?\n\nThis requires the updated firestore.rules to already be deployed. Each record is copied first, then removed from Claims — if anything fails, no data is lost.`)) return;
+            if (!await this.askConfirm({
+                title: 'Migrate legacy payment vouchers?',
+                message: `${legacyVouchers.length} Payment Voucher record(s) move out of the Claims collection into the dedicated Payment Vouchers collection. This requires the updated firestore.rules to already be deployed. Each record is copied first, then removed from Claims — if anything fails, no data is lost.`,
+                confirmLabel: 'Yes, Migrate'
+            })) return;
             try {
                 for (let start = 0; start < legacyVouchers.length; start += 400) {
                     const batch = writeBatch(db);
@@ -5625,7 +5670,11 @@ createApp({
             if (this.userProfile.role === 'Director') { this.showNotify('Director approvals require an individual supporting document per claim — please approve one at a time.'); return; }
             const targets = this.claimsHistory.filter(c => this.selectedClaimIds.includes(c.id) && this.canApproveClaim(c));
             if (!targets.length) { this.showNotify('No eligible claims selected.'); return; }
-            if (!confirm(`Approve ${targets.length} selected claim(s) and forward to the next reviewer?`)) return;
+            if (!await this.askConfirm({
+                title: 'Approve selected claims?',
+                message: `${targets.length} selected claim(s) will be approved and forwarded to the next reviewer.`,
+                confirmLabel: 'Yes, Approve'
+            })) return;
             let succeeded = 0;
             for (const clm of targets) { if (await this.approveClaim(clm)) succeeded++; }
             this.selectedClaimIds = [];
@@ -5635,7 +5684,11 @@ createApp({
             if (this.userProfile.role === 'Director') { this.showNotify('Director approvals require an individual supporting document per voucher — please approve one at a time.'); return; }
             const targets = this.paymentVouchers.filter(v => this.selectedVoucherIds.includes(v.id) && this.canApprovePaymentVoucher(v));
             if (!targets.length) { this.showNotify('No eligible vouchers selected.'); return; }
-            if (!confirm(`Approve ${targets.length} selected voucher(s) and forward to the next reviewer?`)) return;
+            if (!await this.askConfirm({
+                title: 'Approve selected vouchers?',
+                message: `${targets.length} selected voucher(s) will be approved and forwarded to the next reviewer.`,
+                confirmLabel: 'Yes, Approve'
+            })) return;
             let succeeded = 0;
             for (const pv of targets) { if (await this.approvePaymentVoucher(pv)) succeeded++; }
             this.selectedVoucherIds = [];
@@ -5689,7 +5742,13 @@ createApp({
         },
         async rejectClaim(clm) {
             if (!this.canApproveClaim(clm)) { this.showNotify('You do not have permission to reject this record at its current workflow stage.'); return; }
-            if (confirm("REJECT this claim application?")) { try { await updateDoc(doc(db, "claims", clm.id), { status: 'Rejected', rejectedByUid: this.userProfile.uid, rejectedByName: this.userProfile.name, rejectedByRole: this.userProfile.role, rejectedAt: new Date().toISOString() }); this.showNotify("Claim rejected."); this.notifyByEmail({ to: clm.empEmail, subject: `Your Expense Claim Was Rejected — ${clm.receiptNo}`, heading: 'Expense Claim Rejected', message: `Your expense claim of ${this.formatCurrency(clm.amount)} (${clm.receiptNo}) was rejected by ${this.getRoleDisplayName(this.userProfile.role)}. Contact them for details.` }); } catch (error) { this.showNotify('Unable to reject claim.'); } }
+            if (!await this.askConfirm({
+                title: 'Reject this claim?',
+                message: `Claim ${clm.receiptNo} for ${this.formatCurrency(clm.amount)} will be rejected and the claimant notified by email.`,
+                confirmLabel: 'Yes, Reject Claim',
+                danger: true
+            })) return;
+            try { await updateDoc(doc(db, "claims", clm.id), { status: 'Rejected', rejectedByUid: this.userProfile.uid, rejectedByName: this.userProfile.name, rejectedByRole: this.userProfile.role, rejectedAt: new Date().toISOString() }); this.showNotify("Claim rejected."); this.notifyByEmail({ to: clm.empEmail, subject: `Your Expense Claim Was Rejected — ${clm.receiptNo}`, heading: 'Expense Claim Rejected', message: `Your expense claim of ${this.formatCurrency(clm.amount)} (${clm.receiptNo}) was rejected by ${this.getRoleDisplayName(this.userProfile.role)}. Contact them for details.` }); } catch (error) { this.showNotify('Unable to reject claim.'); }
         },
         async saveExpenseClaim() {
             if (!['Superadmin', 'Director', 'HR', 'Account', 'Staff'].includes(this.userProfile.role)) { this.showNotify('Your role cannot submit expense claims.'); return; }
@@ -5790,7 +5849,13 @@ createApp({
         },
         async rejectPaymentVoucher(pv) {
             if (!this.canApprovePaymentVoucher(pv)) { this.showNotify('You do not have permission to reject this record at its current workflow stage.'); return; }
-            if (confirm("REJECT this payment voucher?")) { try { await updateDoc(doc(db, "payment_vouchers", pv.id), { status: 'Rejected', rejectedByUid: this.userProfile.uid, rejectedByName: this.userProfile.name, rejectedByRole: this.userProfile.role, rejectedAt: new Date().toISOString() }); this.showNotify("Payment voucher rejected."); this.notifyByEmail({ to: pv.empEmail, subject: `Your Payment Voucher Was Rejected — ${pv.voucherNo}`, heading: 'Payment Voucher Rejected', message: `Your payment voucher of ${this.formatCurrency(pv.amount)} (${pv.voucherNo}) was rejected by ${this.getRoleDisplayName(this.userProfile.role)}. Contact them for details.` }); } catch (error) { this.showNotify('Unable to reject voucher.'); } }
+            if (!await this.askConfirm({
+                title: 'Reject this payment voucher?',
+                message: `Voucher ${pv.voucherNo} for ${this.formatCurrency(pv.amount)} will be rejected and the requester notified by email.`,
+                confirmLabel: 'Yes, Reject Voucher',
+                danger: true
+            })) return;
+            try { await updateDoc(doc(db, "payment_vouchers", pv.id), { status: 'Rejected', rejectedByUid: this.userProfile.uid, rejectedByName: this.userProfile.name, rejectedByRole: this.userProfile.role, rejectedAt: new Date().toISOString() }); this.showNotify("Payment voucher rejected."); this.notifyByEmail({ to: pv.empEmail, subject: `Your Payment Voucher Was Rejected — ${pv.voucherNo}`, heading: 'Payment Voucher Rejected', message: `Your payment voucher of ${this.formatCurrency(pv.amount)} (${pv.voucherNo}) was rejected by ${this.getRoleDisplayName(this.userProfile.role)}. Contact them for details.` }); } catch (error) { this.showNotify('Unable to reject voucher.'); }
         },
         async savePaymentVoucher() {
             if (!['Superadmin', 'Director', 'HR', 'Account', 'Staff'].includes(this.userProfile.role)) { this.showNotify('Your role cannot submit payment vouchers.'); return; }
@@ -5943,9 +6008,13 @@ createApp({
         },
         async confirmDeleteRecord(item) {
             if (!this.canDelete) { this.showNotify('Only Superadmin and Director can delete records.'); return; }
-            if (confirm(`WARNING: Delete record?`)) {
-                try { if (item.isDoc) await deleteDoc(doc(db, "docs", item.id)); else if (item.isPay) await deleteDoc(doc(db, "payslips", item.id)); else if (item.isVoucher) await deleteDoc(doc(db, "payment_vouchers", item.id)); else if (item.isClaim) await deleteDoc(doc(db, "claims", item.id)); this.showNotify('Record deleted.'); } catch (error) { console.error('Record deletion failed:', error); this.showNotify('Unable to delete record.'); }
-            }
+            if (!await this.askConfirm({
+                title: 'Delete record?',
+                message: `${item.docNo || item.fileName || 'This record'} will be permanently deleted. This action cannot be undone.`,
+                confirmLabel: 'Yes, Delete Record',
+                danger: true
+            })) return;
+            try { if (item.isDoc) await deleteDoc(doc(db, "docs", item.id)); else if (item.isPay) await deleteDoc(doc(db, "payslips", item.id)); else if (item.isVoucher) await deleteDoc(doc(db, "payment_vouchers", item.id)); else if (item.isClaim) await deleteDoc(doc(db, "claims", item.id)); this.showNotify('Record deleted.'); } catch (error) { console.error('Record deletion failed:', error); this.showNotify('Unable to delete record.'); }
         },
 
         renderCharts() {
