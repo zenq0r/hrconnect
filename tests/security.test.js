@@ -37,8 +37,17 @@ test('ordinary sign-in does not request OTP, while password reset does', () => {
     assert.doesNotMatch(login, /startLoginOtp|requestLoginOtp|loginOtp\.show/);
     assert.match(appSource, /async startPasswordResetOtp\(\)/);
     assert.match(appSource, /purpose: 'password-reset'/);
+    assert.match(appSource, /this\.timeoutPromise\(15000, 'Sending the verification code is taking too long/);
     assert.match(requestOtpSource, /purpose !== 'password-reset'/);
     assert.match(verifyOtpSource, /purpose !== 'password-reset'/);
+});
+
+test('password reset renders its OTP field inline and not behind a separate popup', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(html, /id="password-reset-otp-code" name="passwordResetOtpCode"/);
+    assert.match(html, /<template v-if="loginOtp\.show">/);
+    assert.doesNotMatch(html, /EMAIL OTP FOR PASSWORD RESET ONLY/);
 });
 
 test('portal URL validation rejects lookalike and insecure domains', () => {

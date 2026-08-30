@@ -397,7 +397,8 @@ createApp({
             },
             loginError: '',
             // OTP is used exclusively to verify a password-reset request.
-            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '' },
+            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 },
+            loginOtpCooldownTimer: null,
             pendingLoginContext: null,
             currentTab: 'dashboard',
             mobileMenuOpen: false,
@@ -1389,7 +1390,7 @@ createApp({
                 this.clientActionConfirm.show || this.employeeActionConfirm.show ||
                 this.contextMenu.show || this.clientTaskModal.show ||
                 this.idleWarningVisible || this.employeeModal.show || this.userModal.show ||
-                this.changePasswordModal.show || this.loginOtp.show ||
+                this.changePasswordModal.show ||
                 this.claimPreview.show || this.attachmentPreview.show || this.recordPreview.show ||
                 this.notificationsPanelOpen || this.staffDirectoryPanelOpen;
         }
@@ -3658,9 +3659,27 @@ createApp({
                 flow.error = 'This reset link is no longer valid. Please request a new one.';
                 return;
             }
+            // Guards against a duplicate auto-trigger — e.g. a corporate email
+            // scanner (Safe Links) opening the reset link once before the user's
+            // real click — which would otherwise fire two OTP requests back to
+            // back and surface a confusing 429 on the second one.
+            if (this.loginOtp.sending || this.loginOtp.cooldownSeconds > 0) return;
             flow.error = '';
-            this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: flow.email, purpose: 'password-reset' };
+            this.loginOtp = { show: true, code: '', error: '', sending: true, verifying: false, email: flow.email, purpose: 'password-reset', cooldownSeconds: 0 };
+            await this.$nextTick();
             await this.requestLoginOtp();
+        },
+        startLoginOtpCooldown(seconds) {
+            clearInterval(this.loginOtpCooldownTimer);
+            this.loginOtp.cooldownSeconds = seconds;
+            this.loginOtpCooldownTimer = setInterval(() => {
+                if (this.loginOtp.cooldownSeconds <= 1) {
+                    clearInterval(this.loginOtpCooldownTimer);
+                    this.loginOtp.cooldownSeconds = 0;
+                } else {
+                    this.loginOtp.cooldownSeconds -= 1;
+                }
+            }, 1000);
         },
 
         async handleLogin() {
@@ -3726,22 +3745,37 @@ createApp({
             }
         },
         async requestLoginOtp() {
+            // Re-entrancy guard: ignore a resend click (or a second automatic
+            // trigger) fired while a request is already in flight or while the
+            // server-side cooldown is still active — both would otherwise just
+            // bounce off the 429 below.
+            if (this.loginOtp.sending || this.loginOtp.cooldownSeconds > 0) return;
+            this.loginOtp.sending = true;
+            this.loginOtp.error = '';
             try {
                 const flow = this.passwordResetFlow;
                 if (this.loginOtp.purpose !== 'password-reset' || !flow?.valid || !flow.oobCode) {
                     throw new Error('Your password reset session has expired. Please request a new reset link.');
                 }
-                const resp = await fetch('/api/request-login-otp', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode })
-                });
+                const resp = await Promise.race([
+                    fetch('/api/request-login-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode })
+                    }),
+                    this.timeoutPromise(15000, 'Sending the verification code is taking too long. Please try again.')
+                ]);
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok) throw new Error(data.error || 'Failed to send verification code.');
-                this.loginOtp.sending = false;
+                this.startLoginOtpCooldown(60);
             } catch (error) {
                 console.error('Request login OTP failed:', error);
                 this.loginOtp.error = error.message || 'Unable to send verification code. Try again.';
+                // The server already rejected this as a duplicate — start the same
+                // cooldown locally so the button reflects the wait instead of
+                // looking clickable again and inviting another 429.
+                if (error.message && /wait before requesting/i.test(error.message)) this.startLoginOtpCooldown(60);
+            } finally {
                 this.loginOtp.sending = false;
             }
         },
@@ -3769,7 +3803,8 @@ createApp({
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
                 flow.otpVerified = true;
                 flow.error = '';
-                this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '' };
+                clearInterval(this.loginOtpCooldownTimer);
+                this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
             } catch (error) {
                 console.error('Verify login OTP failed:', error);
                 this.loginOtp.error = error.message || 'Verification failed.';
@@ -3777,7 +3812,8 @@ createApp({
             }
         },
         async cancelLoginOtp() {
-            this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '' };
+            clearInterval(this.loginOtpCooldownTimer);
+            this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
             if (this.passwordResetFlow?.active && this.passwordResetFlow.mode === 'resetPassword') {
                 this.passwordResetFlow.error = 'Verification is required before you can set a new password.';
             }

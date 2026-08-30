@@ -204,7 +204,22 @@
                         <div class="zq-alert-slot" aria-live="polite">
                             <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
                         </div>
-                        <button type="button" @click="startPasswordResetOtp" :disabled="loginOtp.sending" :class="{ 'is-loading': loginOtp.sending }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">Send Verification Code</button>
+                        <template v-if="loginOtp.show">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                                <label for="password-reset-otp-code" class="zq-label">Verification Code</label>
+                                <input id="password-reset-otp-code" name="passwordResetOtpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending || loginOtp.verifying" placeholder="000000" autocomplete="one-time-code" class="zq-input mt-1 text-center text-2xl font-black tracking-[0.5em] py-3">
+                                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ loginOtp.sending ? 'Sending a 6-digit code to' : 'Enter the 6-digit code sent to' }} <span class="font-bold break-all">{{ loginOtp.email }}</span>.</p>
+                            </div>
+                            <div class="zq-alert-slot" aria-live="polite">
+                                <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
+                            </div>
+                            <button type="button" @click="verifyLoginOtp" :disabled="loginOtp.sending || loginOtp.verifying" :class="{ 'is-loading': loginOtp.sending || loginOtp.verifying }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">Verify &amp; Continue</button>
+                            <div class="flex items-center justify-between gap-3">
+                                <button type="button" @click="cancelLoginOtp" :disabled="loginOtp.sending || loginOtp.verifying" class="zq-btn zq-btn-ghost zq-btn-sm">Cancel</button>
+                                <button type="button" @click="requestLoginOtp" :disabled="loginOtp.sending || loginOtp.verifying || loginOtp.cooldownSeconds > 0" class="zq-btn zq-btn-ghost zq-btn-sm">{{ loginOtp.sending ? 'Sending…' : (loginOtp.cooldownSeconds > 0 ? `Resend in ${loginOtp.cooldownSeconds}s` : 'Resend Code') }}</button>
+                            </div>
+                        </template>
+                        <button v-else type="button" @click="startPasswordResetOtp" :disabled="loginOtp.sending || loginOtp.cooldownSeconds > 0" :class="{ 'is-loading': loginOtp.sending }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">{{ loginOtp.sending ? 'Sending…' : (loginOtp.cooldownSeconds > 0 ? `Resend available in ${loginOtp.cooldownSeconds}s` : 'Send Verification Code') }}</button>
                     </div>
                     <form v-else @submit.prevent="submitPasswordReset" class="mt-5 space-y-4 text-left">
                         <div v-if="passwordResetFlow.mode === 'firstLogin'">
@@ -402,30 +417,6 @@
                 </form>
             </div>
 
-            <!-- EMAIL OTP FOR PASSWORD RESET ONLY -->
-            <div v-if="loginOtp.show" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Confirm Password Reset">
-                <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-7 space-y-4 text-center">
-                    <div class="mx-auto w-14 h-14 rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-2xl"><i class="fa-solid fa-shield-halved"></i></div>
-                    <div>
-                        <h3 class="text-base font-extrabold text-brand-dark dark:text-white">Confirm Password Reset</h3>
-                        <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">{{ loginOtp.sending ? 'We are sending a code to' : 'We sent a 6-digit code to' }} <span class="font-bold">{{ loginOtp.email }}</span>. Enter it before choosing a new password.</p>
-                    </div>
-                    <form @submit.prevent="verifyLoginOtp" class="space-y-3">
-                        <label for="login-otp-code" class="sr-only">6-digit verification code</label>
-                        <input id="login-otp-code" name="otpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending" placeholder="000000" autocomplete="one-time-code" class="zq-input text-center text-2xl font-black tracking-[0.5em] py-3">
-                        <div class="zq-alert-slot" aria-live="polite">
-                            <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
-                        </div>
-                        <button type="submit" :disabled="loginOtp.sending || loginOtp.verifying" :class="{ 'is-loading': loginOtp.sending || loginOtp.verifying }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
-                            Verify & Continue
-                        </button>
-                        <div class="flex items-center justify-between text-xs pt-1">
-                            <button type="button" @click="cancelLoginOtp" class="zq-btn zq-btn-ghost zq-btn-sm">Cancel</button>
-                            <button type="button" @click="requestLoginOtp" :disabled="loginOtp.sending" class="zq-btn zq-btn-ghost zq-btn-sm">Resend Code</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
             </template>
         </main>
 
