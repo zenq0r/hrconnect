@@ -63,6 +63,24 @@ test('password reset renders its OTP field inline and not behind a separate popu
     assert.doesNotMatch(html, /EMAIL OTP FOR PASSWORD RESET ONLY/);
 });
 
+test('every workspace module page renders inside the scrollable main region', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    const mainStart = html.indexOf('<main id="main-content"');
+    const mainEnd = html.indexOf('</main>', mainStart);
+    assert.ok(mainStart > -1 && mainEnd > mainStart);
+
+    // A module page placed outside <main> is stacked below the full-height
+    // workspace by the #app column, so the tab looks blank until the user
+    // scrolls past the viewport.
+    for (const tab of ['dashboard', 'client-directory', 'doc-generator', 'payslip-generator', 'claims']) {
+        const marker = `v-show="currentTab === '${tab}'"`;
+        const at = html.indexOf(marker);
+        if (at === -1) continue;
+        assert.ok(at > mainStart && at < mainEnd, `${tab} module page must live inside <main id="main-content">`);
+    }
+});
+
 test('portal URL validation rejects lookalike and insecure domains', () => {
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my/path'), true);
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my'), true);
