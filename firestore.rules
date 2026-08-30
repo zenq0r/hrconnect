@@ -272,10 +272,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Mandatory second-factor email OTP for every provisioned RBAC role — handled exclusively
-    // by api/request-login-otp.js and api/verify-login-otp.js via the Admin SDK,
-    // which bypasses these rules entirely. Same deny-all pattern as password reset.
-    match /login_otp_codes/{uid} {
+    // Email OTP confirming a password reset — handled exclusively by
+    // api/request-login-otp.js, api/verify-login-otp.js and
+    // api/confirm-password-reset.js via the Admin SDK, which bypasses these
+    // rules entirely. Same deny-all pattern as password reset.
+    match /password_reset_otp_codes/{fingerprint} {
       allow read, write: if false;
     }
 
