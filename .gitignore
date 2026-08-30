@@ -1,16 +1,8 @@
-# Firebase / Google Cloud service account keys — NEVER commit or deploy these.
-*-key.json
-*serviceAccount*.json
-*service-account*.json
-*firebase-adminsdk*.json
-
-# Local environment files
-.env
-.env.local
-
-# OS / editor junk
-.DS_Store
-Thumbs.db
-
-# Dependencies (Vercel installs these fresh at build time)
 node_modules/
+.next/
+out/
+.env*
+!.env.example
+.vercel/
+*.log
+.DS_Store
