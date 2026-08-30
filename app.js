@@ -4971,7 +4971,11 @@ createApp({
                 }
                 payload = { tag, companyName, title, eventDate, desc };
             }
-            payload = this.normalizeOfficialRecord(payload);
+            // Deliberately NOT normalizeOfficialRecord(): that uppercases every
+            // string, which suits an invoice's official party details but turns a
+            // public marketing paragraph into an unreadable wall of capitals, and
+            // left Our Client reading nothing like Licensing & Permits beside it.
+            // Every field is already trimmed above; case stays as the editor typed it.
             const label = isServices ? payload.name : payload.title;
             this.websiteContentModal.uploading = isPortfolioWeb
                 ? this.websiteContentModal.mediaItems.some(media => media.file)
