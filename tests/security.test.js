@@ -81,6 +81,35 @@ test('every workspace module page renders inside the scrollable main region', ()
     }
 });
 
+test('every colour utility the markup uses exists in the built stylesheet', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const css = fs.readFileSync(path.join(__dirname, '..', 'tailwind.css'), 'utf8');
+
+    // tailwind.css is a committed build, not generated per request, so a utility
+    // absent when it was built silently resolves to nothing: the element keeps its
+    // light-mode colour, or loses its background entirely. Both have shipped
+    // before, and neither surfaces as an error anywhere.
+    //
+    // Whole class tokens only, variant prefix included. Testing a bare
+    // `bg-blue-950` would wrongly flag `dark:bg-blue-950/40`, which is built and
+    // shipped under its own escaped selector.
+    const COLOURS = 'slate|emerald|red|amber|orange|rose|blue|teal|violet|brand';
+    const UTILITY = new RegExp('^(?:[a-z-]+:)*(?:text|bg)-(?:' + COLOURS + ')-[a-z0-9]+(?:$|\\/)');
+
+    const tokens = new Set();
+    for (const attr of html.match(/(?::)?class="[^"]*"/g) || []) {
+        for (const token of attr.split(/[\s'"`{}\[\],()?]+/)) {
+            if (UTILITY.test(token)) tokens.add(token);
+        }
+    }
+
+    // Tailwind escapes :, / and . in generated selectors.
+    const escapeClass = cls => cls.replace(/([:/.])/g, '\\$1');
+    const missing = [...tokens].filter(cls => !css.includes('.' + escapeClass(cls))).sort();
+
+    assert.deepEqual(missing, [], 'Not in tailwind.css: ' + missing.join(', ') + '. Rebuild with npm run build:css, or use a shade already present.');
+});
+
 test('portal URL validation rejects lookalike and insecure domains', () => {
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my/path'), true);
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my'), true);

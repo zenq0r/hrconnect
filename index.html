@@ -1686,43 +1686,43 @@
                                 <!-- 3. Total Quotations -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalQuotations }}</p>
-                                    <p class="zq-kpi-card-label truncate">Total Quotations</p>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodQuotationCount }}</p>
+                                    <p class="zq-kpi-card-label truncate">Quotations ({{ currentPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
                                 </div>
                                 <!-- 4. Total Invoices -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ totalInvoices }}</p>
-                                    <p class="zq-kpi-card-label truncate">Total Invoices</p>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodInvoiceCount }}</p>
+                                    <p class="zq-kpi-card-label truncate">Invoices ({{ currentPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
                                 </div>
                                 <!-- 5. Revenue (Paid) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                    <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(totalRevenuePaid) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Revenue (Paid)</p>
+                                    <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(periodRevenuePaid) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Revenue Collected ({{ currentPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
                                 </div>
                                 <!-- 6. Pending Receivables -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-orange-700 dark:text-orange-300 truncate">{{ formatCurrency(totalRevenuePending) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Pending Receivables</p>
+                                    <p class="zq-kpi-card-label truncate">Pending Receivables (all periods)</p>
                                     <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ unpaidInvoicesCount }} Invoices Unpaid</p>
                                 </div>
                                 <!-- 7. Total Payroll (Net) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                    <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(totalPayrollNet) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Total Payroll (Net)</p>
+                                    <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(periodPayrollNet) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Payroll Net ({{ currentPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
                                 </div>
                                 <!-- 8. Total Claims (Approved) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                    <p class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(totalApprovedClaimsAmount) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Claims &amp; Vouchers (Approved)</p>
+                                    <p class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(periodApprovedClaimsAmount) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Claims Approved ({{ currentPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending Approval</p>
                                 </div>
                             </div>
@@ -2061,7 +2061,7 @@
                                     <tr v-for="emp in employees" :key="emp.empNo" @contextmenu.prevent="openContextMenu($event, employeeRowMenuItems(emp))" v-longpress="(touch) => openContextMenu(touch, employeeRowMenuItems(emp))">
                                         <td>
                                             <span class="font-bold text-brand-dark dark:text-slate-200 block text-sm">{{ emp.empNo }}</span>
-                                            <span :class="isEmployeeOnline(emp) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-100'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-1">
+                                            <span :class="isEmployeeOnline(emp) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-100'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-1">
                                                 <span :class="isEmployeeOnline(emp) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(emp) }}
                                             </span>
                                             <span class="text-slate-400 block text-[9px] mt-1">{{ employeeLastSeen(emp) }}</span>
@@ -2137,6 +2137,23 @@
                         </div>
                     </div>
 
+                    <!-- EXPORT SCOPE — the four cards below follow this selection. -->
+                    <div class="zq-card p-4 md:p-5">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div class="min-w-0">
+                                <label for="report-period" class="zq-label">Reporting Period</label>
+                                <select id="report-period" v-model="reportPeriod" class="zq-input mt-1 max-w-xs">
+                                    <option value="">All periods (everything on record)</option>
+                                    <option v-for="key in availablePeriods" :key="`period-${key}`" :value="key">{{ periodLabel(key) }}{{ key === currentPeriod ? ' — current month' : '' }}</option>
+                                </select>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 sm:text-right">
+                                Exports below cover <span class="font-bold text-brand-dark dark:text-white">{{ reportPeriod ? periodLabel(reportPeriod) : 'all periods' }}</span>.<br>
+                                <span class="text-[11px]">Employee Directory always exports the full directory.</span>
+                            </p>
+                        </div>
+                    </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
                             <div class="w-12 h-12 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-file-excel"></i></div>
@@ -2165,6 +2182,74 @@
                             <button type="button" @click="exportCSV('claims')" class="zq-btn zq-btn-outline w-full">
                                 <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- MONTHLY PACKAGES — every completed month is frozen on the first
+                         sign-in of the new month, so each period keeps the figures it
+                         closed with even if an old record is edited later. -->
+                    <div class="zq-card p-6">
+                        <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <h3 class="zq-text-section-title"><i class="fa-solid fa-box-archive text-brand-blue mr-2"></i>Monthly Packages</h3>
+                                <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Each completed month is packaged automatically. Records are never deleted — only summarised.</p>
+                            </div>
+                            <span class="zq-text-small font-bold shrink-0">{{ monthlyArchivesSorted.length }} closed period(s)</span>
+                        </div>
+
+                        <!-- Running month: still open, so its figures can still move. -->
+                        <div class="mt-4 rounded-xl border border-dashed border-brand-blue/40 bg-brand-blue/5 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-extrabold uppercase tracking-wider text-brand-blue">Current period — still open</p>
+                                    <p class="mt-0.5 text-sm font-extrabold text-brand-dark dark:text-white">{{ currentPeriodLabel }}</p>
+                                </div>
+                                <button type="button" @click="exportPeriodSummary(currentPeriod)" class="zq-btn zq-btn-outline zq-btn-sm">
+                                    <i class="fa-solid fa-file-arrow-down"></i><span>Export Statement</span>
+                                </button>
+                            </div>
+                            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Collected</dt><dd class="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">{{ formatCurrency(periodRevenuePaid) }}</dd></div>
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Payroll (Net)</dt><dd class="text-sm font-extrabold text-brand-dark dark:text-white">{{ formatCurrency(periodPayrollNet) }}</dd></div>
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Claims Approved</dt><dd class="text-sm font-extrabold text-rose-600 dark:text-rose-400">{{ formatCurrency(periodApprovedClaimsAmount) }}</dd></div>
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoices Issued</dt><dd class="text-sm font-extrabold text-brand-dark dark:text-white">{{ periodInvoiceCount }}</dd></div>
+                            </dl>
+                        </div>
+
+                        <div v-if="monthlyArchivesSorted.length" class="mt-4 overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th class="text-right">Collected</th>
+                                        <th class="text-right">Payroll (Net)</th>
+                                        <th class="text-right">Claims &amp; Vouchers</th>
+                                        <th class="text-center w-20">Records</th>
+                                        <th class="text-center w-36">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="pkg in monthlyArchivesSorted" :key="`pkg-${pkg.period || pkg.id}`">
+                                        <td>
+                                            <span class="font-bold text-slate-900 dark:text-slate-100">{{ pkg.label || periodLabel(pkg.period || pkg.id) }}</span>
+                                            <span v-if="pkg.closedAt" class="mt-0.5 block text-[10px] text-slate-500 dark:text-slate-400">Closed {{ String(pkg.closedAt).slice(0, 10) }}</span>
+                                        </td>
+                                        <td class="text-right font-bold text-emerald-700 dark:text-emerald-300">{{ formatCurrency(pkg.revenueCollected || 0) }}</td>
+                                        <td class="text-right font-bold text-slate-700 dark:text-slate-200">{{ formatCurrency(pkg.payrollNet || 0) }}</td>
+                                        <td class="text-right font-bold text-rose-600 dark:text-rose-400">{{ formatCurrency((pkg.claimApprovedTotal || 0) + (pkg.voucherApprovedTotal || 0)) }}</td>
+                                        <td class="text-center font-bold text-slate-700 dark:text-slate-200">{{ pkg.recordCount || 0 }}</td>
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                                <button type="button" @click="exportPeriodSummary(pkg.period || pkg.id)" class="zq-btn zq-btn-info zq-btn-icon" title="Export monthly statement"><i class="fa-solid fa-file-arrow-down"></i></button>
+                                                <button v-if="canCloseAccountingPeriod" type="button" @click="rebuildMonthlyArchive(pkg.period || pkg.id)" class="zq-btn zq-btn-ghost zq-btn-icon" title="Rebuild from current records"><i class="fa-solid fa-rotate"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="zq-empty-state zq-empty-state-compact mt-4">
+                            <p class="zq-empty-state-text">No month has closed yet. The first completed month is packaged automatically once someone signs in during the following month.</p>
                         </div>
                     </div>
 

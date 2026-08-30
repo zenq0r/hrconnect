@@ -445,6 +445,11 @@ createApp({
             attachmentUploadState: { payment: false, receipt: false, director: false },
             unsubscribers: [],
             portalDataReady: false,
+            // Closed monthly packages (Firestore `monthly_archives`, doc id = YYYY-MM).
+            monthlyArchives: [],
+            monthlyArchiveRunning: false,
+            // '' = every record; otherwise a YYYY-MM key scoping the Reports exports.
+            reportPeriod: '',
             portalDataReadyPromise: null,
             revenueChartInstance: null,
             statusChartInstance: null,
@@ -873,6 +878,9 @@ createApp({
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         canBackupDatabase() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
+        // Closing a period writes a company-wide financial summary, so it sits with
+        // the other whole-company actions rather than with per-module edit rights.
+        canCloseAccountingPeriod() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         // Header staff-roster button: every employee regardless of online status,
         // online staff surfaced first (then alphabetical) so Director/Superadmin
         // gets an at-a-glance headcount-style view, not a presence filter.
@@ -1084,6 +1092,34 @@ createApp({
         docSubtotal() { return this.docForm.items.reduce((s, i) => s + (i.qty * i.price), 0); },
         docSST() { return this.docSubtotal * 0.08; },
         docGrandTotal() { return this.docSubtotal - this.docForm.discount + this.docSST; },
+
+        // ---- Monthly accounting period ----------------------------------
+        // Dashboard money figures are per-period so each month opens at zero.
+        // Only FLOW figures reset (issued, collected, paid out); BALANCE figures
+        // such as pending receivables stay cumulative — last month's unpaid
+        // invoice is still owed on the 1st, and zeroing it would hide real debt.
+        currentPeriod() { return this.periodKeyOf(new Date().toISOString()); },
+        currentPeriodLabel() { return this.periodLabel(this.currentPeriod); },
+        periodDocs() { return this.docHistory.filter(d => this.periodKeyOf(d.date) === this.currentPeriod); },
+        periodPayslips() { return this.payslipHistory.filter(p => this.periodKeyOf(p.date) === this.currentPeriod); },
+        periodClaims() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => this.periodKeyOf(this.claimDateOf(c)) === this.currentPeriod); },
+
+        periodQuotationCount() { return this.periodDocs.filter(d => d.type === 'Quotation').length; },
+        periodInvoiceCount() { return this.periodDocs.filter(d => d.type === 'Invoice').length; },
+        periodRevenuePaid() { return this.periodDocs.filter(d => d.type === 'Invoice' && d.status === 'Paid').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
+        periodPayrollNet() { return this.periodPayslips.reduce((s, p) => s + (Number(p.amount) || 0), 0); },
+        periodApprovedClaimsAmount() { return this.periodClaims.filter(c => c.status === 'Approved').reduce((s, c) => s + (Number(c.amount) || 0), 0); },
+
+        // Newest first, so the Reports list reads as a statement history.
+        monthlyArchivesSorted() { return [...this.monthlyArchives].sort((a, b) => String(b.period || '').localeCompare(String(a.period || ''))); },
+        // Every period that has at least one record, for the export scope picker.
+        availablePeriods() {
+            const keys = new Set();
+            this.docHistory.forEach(d => { const k = this.periodKeyOf(d.date); if (k) keys.add(k); });
+            this.payslipHistory.forEach(p => { const k = this.periodKeyOf(p.date); if (k) keys.add(k); });
+            [...this.claimsHistory, ...this.paymentVouchers].forEach(c => { const k = this.periodKeyOf(this.claimDateOf(c)); if (k) keys.add(k); });
+            return [...keys].sort().reverse();
+        },
 
         totalQuotations() { return this.docHistory.filter(d => d.type === 'Quotation').length; },
         totalQuotationValue() { return this.docHistory.filter(d => d.type === 'Quotation').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
@@ -2374,30 +2410,200 @@ createApp({
                 this.legacyClaimMigrationRunning = false;
             }
         },
+        // ---- Monthly period helpers -------------------------------------
+        // Records carry a plain YYYY-MM-DD string, so slicing beats Date parsing:
+        // it cannot drift across timezones the way new Date(...) can near midnight.
+        periodKeyOf(value) {
+            const raw = String(value || '').trim();
+            if (/^\d{4}-\d{2}/.test(raw)) return raw.slice(0, 7);
+            const parsed = new Date(raw);
+            if (isNaN(parsed.getTime())) return '';
+            return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+        },
+        // Claims and vouchers each carry their own date field name.
+        claimDateOf(record) { return record?.date || record?.expenseDate || record?.paymentDate || record?.createdAt || ''; },
+        periodLabel(key) {
+            const raw = String(key || '');
+            if (!/^\d{4}-\d{2}$/.test(raw)) return raw || 'All periods';
+            const [year, month] = raw.split('-');
+            const names = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            return `${names[Number(month) - 1] || month} ${year}`;
+        },
+        // Records belonging to one period, grouped the same way every caller needs them.
+        recordsForPeriod(period) {
+            const docs = this.docHistory.filter(d => !period || this.periodKeyOf(d.date) === period);
+            const payslips = this.payslipHistory.filter(p => !period || this.periodKeyOf(p.date) === period);
+            const claims = [...this.claimsHistory, ...this.paymentVouchers].filter(c => !period || this.periodKeyOf(this.claimDateOf(c)) === period);
+            return { docs, payslips, claims };
+        },
+        // Frozen totals for one closed month. Money is rounded to sen here so the
+        // stored package matches what was exported, rather than re-deriving later.
+        buildPeriodSummary(period) {
+            const { docs, payslips, claims } = this.recordsForPeriod(period);
+            const sum = (list, filter) => Number(list.filter(filter).reduce((s, r) => s + (Number(r.amount) || 0), 0).toFixed(2));
+            const quotations = docs.filter(d => d.type === 'Quotation');
+            const invoices = docs.filter(d => d.type === 'Invoice');
+            const vouchers = claims.filter(c => (c.documentType || c.type) === 'Payment Voucher');
+            const expenseClaims = claims.filter(c => (c.documentType || c.type) !== 'Payment Voucher');
+            return {
+                period,
+                label: this.periodLabel(period),
+                quotationCount: quotations.length,
+                quotationValue: sum(quotations, () => true),
+                invoiceCount: invoices.length,
+                invoicePaidCount: invoices.filter(d => d.status === 'Paid').length,
+                revenueCollected: sum(invoices, d => d.status === 'Paid'),
+                revenueOutstanding: sum(invoices, d => d.status !== 'Paid'),
+                payslipCount: payslips.length,
+                payrollNet: sum(payslips, () => true),
+                claimCount: expenseClaims.length,
+                claimApprovedTotal: sum(expenseClaims, c => c.status === 'Approved'),
+                voucherCount: vouchers.length,
+                voucherApprovedTotal: sum(vouchers, c => c.status === 'Approved'),
+                recordCount: docs.length + payslips.length + claims.length
+            };
+        },
+
+        // Freezes every completed month that has records but no package yet.
+        // Runs on load rather than on a schedule: the portal is a static site with
+        // no cron, so the first sign-in on or after the 1st performs the close.
+        async ensureMonthlyArchives() {
+            if (this.monthlyArchiveRunning) return;
+            // Closing writes company-wide financial summaries; a Client or Staff
+            // session must never author them.
+            if (!this.canCloseAccountingPeriod) return;
+            this.monthlyArchiveRunning = true;
+            try {
+                const current = this.currentPeriod;
+                const archived = new Set(this.monthlyArchives.map(a => a.period || a.id));
+                // Only months strictly before the current one are final.
+                const pending = this.availablePeriods.filter(p => p && p < current && !archived.has(p));
+                if (!pending.length) return;
+                let closed = 0;
+                for (const period of pending) {
+                    const summary = this.buildPeriodSummary(period);
+                    if (!summary.recordCount) continue;
+                    await setDoc(doc(db, 'monthly_archives', period), {
+                        ...summary,
+                        closedAt: new Date().toISOString(),
+                        closedByUid: this.userProfile.uid || '',
+                        closedByName: this.userProfile.name || ''
+                    }, { merge: true });
+                    this.logAudit('ARCHIVE', `Closed accounting period ${summary.label}`);
+                    closed += 1;
+                }
+                if (closed) this.showNotify(`${closed} completed month${closed > 1 ? 's' : ''} packaged into Reports & Data Export.`);
+            } catch (error) {
+                // A failed close is not worth blocking the workspace over — the next
+                // sign-in retries, and no records are altered either way.
+                console.error('Monthly archive failed:', error);
+            } finally {
+                this.monthlyArchiveRunning = false;
+            }
+        },
+        // Re-freeze one month on demand, for a period edited after it closed.
+        async rebuildMonthlyArchive(period) {
+            if (!this.canCloseAccountingPeriod) { this.showNotify('You do not have permission to close accounting periods.'); return; }
+            const summary = this.buildPeriodSummary(period);
+            if (!await this.askConfirm({
+                title: `Rebuild ${summary.label}?`,
+                message: `The stored package for ${summary.label} will be replaced with the ${summary.recordCount} record(s) currently in the system. No records are changed.`,
+                confirmLabel: 'Yes, Rebuild'
+            })) return;
+            try {
+                await setDoc(doc(db, 'monthly_archives', period), {
+                    ...summary,
+                    closedAt: new Date().toISOString(),
+                    closedByUid: this.userProfile.uid || '',
+                    closedByName: this.userProfile.name || ''
+                }, { merge: true });
+                this.logAudit('ARCHIVE', `Rebuilt accounting period ${summary.label}`);
+                this.showNotify(`${summary.label} package rebuilt.`);
+            } catch (error) {
+                console.error('Monthly archive rebuild failed:', error);
+                this.showNotify('Unable to rebuild this period package.');
+            }
+        },
+        // One CSV covering a whole month: the frozen summary, then every record
+        // behind it, so the file stands alone as that period's statement.
+        exportPeriodSummary(period) {
+            const summary = this.buildPeriodSummary(period);
+            const { docs, payslips, claims } = this.recordsForPeriod(period);
+            const money = value => Number(value || 0).toFixed(2);
+            const rows = [
+                ['ZENQOR HRMS/CDTS - MONTHLY STATEMENT'],
+                ['Period', summary.label],
+                ['Generated', new Date().toISOString().slice(0, 16).replace('T', ' ')],
+                [],
+                ['SUMMARY', 'Count', 'Amount (MYR)'],
+                ['Quotations issued', summary.quotationCount, money(summary.quotationValue)],
+                ['Invoices issued', summary.invoiceCount, ''],
+                ['Invoices paid', summary.invoicePaidCount, money(summary.revenueCollected)],
+                ['Invoices outstanding', summary.invoiceCount - summary.invoicePaidCount, money(summary.revenueOutstanding)],
+                ['Payslips paid', summary.payslipCount, money(summary.payrollNet)],
+                ['Claims approved', summary.claimCount, money(summary.claimApprovedTotal)],
+                ['Vouchers approved', summary.voucherCount, money(summary.voucherApprovedTotal)],
+                [],
+                ['INVOICES & QUOTATIONS', 'Type', 'Date', 'Client', 'Status', 'Amount (MYR)'],
+                ...docs.map(d => [d.docNo || '', d.type || '', d.date || '', d.name || '', d.status || '', money(d.amount)]),
+                [],
+                ['PAYROLL', 'Date', 'Employee', 'Net Pay (MYR)'],
+                ...payslips.map(p => [p.docNo || '', p.date || '', p.name || '', money(p.amount)]),
+                [],
+                ['CLAIMS & VOUCHERS', 'Type', 'Date', 'Claimant', 'Status', 'Amount (MYR)'],
+                ...claims.map(c => [c.receiptNo || c.voucherNo || '', c.documentType || c.type || '', this.claimDateOf(c), c.name || '', c.status || '', money(c.amount)])
+            ];
+            this.downloadCSV(rows, `Penyata_Bulanan_ZENQOR_${period}.csv`);
+            this.logAudit('EXPORT', `Exported monthly statement for ${summary.label}`);
+            this.showNotify(`${summary.label} statement downloaded.`);
+        },
+        // Shared by every CSV export so quoting, the BOM and the download path
+        // stay consistent. A Blob rather than a data: URI - encodeURI() throws on
+        // a lone % and silently mangles #, both of which appear in client names.
+        downloadCSV(rows, filename) {
+            const NEWLINE = String.fromCharCode(10);
+            const BOM = String.fromCharCode(0xFEFF);
+            const body = rows.map(row => (row || []).map(cell => this.csvSafeCell(cell)).join(',')).join(NEWLINE);
+            const blob = new Blob([BOM + body], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        },
         csvSafeCell(value) {
             let str = String(value);
             if (/^[=+\-@\t\r]/.test(str)) str = "'" + str;
             return `"${str.replace(/"/g, '""')}"`;
         },
-        exportCSV(type) {
+        // `period` is a YYYY-MM key, or '' for every record. Defaults to whatever
+        // scope the Reports tab is showing so the file matches the figures on screen.
+        exportCSV(type, period = this.reportPeriod) {
             let filename = '';
             let rows = [];
             const todayStr = new Date().toISOString().slice(0, 10);
-            
+            // Employees is a directory, not a ledger — it has no period to slice by.
+            const scope = type === 'employees' ? '' : period;
+            const { docs, payslips, claims } = this.recordsForPeriod(scope);
+            const suffix = scope ? scope : todayStr;
+
             if (type === 'payroll') {
-                filename = `Laporan_Payroll_ZENQOR_${todayStr}.csv`;
-                rows = [['Payslip No', 'Tarikh Bayaran', 'Nama Pekerja', 'Gaji Bersih (MYR)'], ...this.payslipHistory.map(p => [p.docNo || '', p.date || '', p.name || '', Number(p.amount || 0).toFixed(2)])];
+                filename = `Laporan_Payroll_ZENQOR_${suffix}.csv`;
+                rows = [['Payslip No', 'Tarikh Bayaran', 'Nama Pekerja', 'Gaji Bersih (MYR)'], ...payslips.map(p => [p.docNo || '', p.date || '', p.name || '', Number(p.amount || 0).toFixed(2)])];
             } else if (type === 'employees') {
-                filename = `Direktori_Pekerja_ZENQOR_${todayStr}.csv`;
+                filename = `Direktori_Pekerja_ZENQOR_${suffix}.csv`;
                 rows = [['ID Pekerja', 'Nama Lengkap', 'Jawatan', 'Jabatan', 'Status', 'Gaji Asas (MYR)'], ...this.employees.map(e => [e.empNo || '', e.name || '', e.position || '', e.dept || '', e.status || 'Aktif', Number(e.basicSalary || 0).toFixed(2)])];
             } else if (type === 'docs') {
-                filename = `Laporan_Invois_SebutHarga_ZENQOR_${todayStr}.csv`;
-                rows = [['No Dokumen', 'Jenis', 'Tarikh Issue', 'Nama Pelanggan', 'Status', 'Jumlah (MYR)'], ...this.docHistory.map(d => [d.docNo || '', d.type || '', d.date || '', d.name || '', d.status || '', Number(d.amount || 0).toFixed(2)])];
+                filename = `Laporan_Invois_SebutHarga_ZENQOR_${suffix}.csv`;
+                rows = [['No Dokumen', 'Jenis', 'Tarikh Issue', 'Nama Pelanggan', 'Status', 'Jumlah (MYR)'], ...docs.map(d => [d.docNo || '', d.type || '', d.date || '', d.name || '', d.status || '', Number(d.amount || 0).toFixed(2)])];
             } else if (type === 'claims') {
-                filename = `Laporan_Claims_Vouchers_ZENQOR_${todayStr}.csv`;
+                filename = `Laporan_Claims_Vouchers_ZENQOR_${suffix}.csv`;
                 rows = [
                     ['No Rujukan', 'Jenis', 'Tarikh', 'Nama Pemohon', 'No Pekerja', 'Jabatan', 'Kategori', 'Status', 'Jumlah (MYR)'],
-                    ...[...this.claimsHistory, ...this.paymentVouchers].map(c => [
+                    ...claims.map(c => [
                         c.receiptNo || c.voucherNo || '', c.documentType || c.type || '', c.date || c.expenseDate || c.paymentDate || '',
                         c.name || '', c.empNo || '', c.dept || '', c.category || '', c.status || '', Number(c.amount || 0).toFixed(2)
                     ])
@@ -2406,17 +2612,11 @@ createApp({
 
             if (rows.length === 0) { this.showNotify("Tiada rekod data untuk dieksport."); return; }
 
-            const csvContent = "data:text/csv;charset=utf-8,\uFEFF" + rows.map(e => e.map(cell => this.csvSafeCell(cell)).join(",")).join("\n");
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", filename);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            this.downloadCSV(rows, filename);
             
-            this.logAudit('EXPORT', `Mengeksport fail CSV bagi modul: ${type.toUpperCase()}`);
-            this.showNotify(`Laporan CSV (${type}) berjaya dimuat turun.`);
+            const scopeLabel = scope ? this.periodLabel(scope) : 'all periods';
+            this.logAudit('EXPORT', `Mengeksport fail CSV bagi modul: ${type.toUpperCase()} (${scopeLabel})`);
+            this.showNotify(`Laporan CSV (${type} — ${scopeLabel}) berjaya dimuat turun.`);
         },
         exportComplianceReport() {
             const todayStr = new Date().toISOString().slice(0, 10);
@@ -6149,6 +6349,9 @@ createApp({
             // record to a Client account is unnecessary and violates least privilege.
             const canReadUserDirectory = role !== 'Client';
             const canReadAuditLogs = ['Superadmin', 'Director', 'IT'].includes(role);
+            // Must mirror the monthly_archives read rule in firestore.rules, or the
+            // listener throws permission-denied for every other role on sign-in.
+            const canReadMonthlyArchives = ['Superadmin', 'Director', 'HR', 'Account'].includes(role);
             const documentsSource = canReadAllDocuments
                 ? collection(db, 'docs')
                 : role === 'Client'
@@ -6359,12 +6562,21 @@ createApp({
                 userSubscription,
                 canReadAuditLogs
                     ? subscribeWithReadySignal(collection(db, "audit_logs"), (snapshot) => { this.auditLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)); }, 'audit logs')
+                    : Promise.resolve(),
+                // Closed monthly packages listed in Enterprise Reports & Data Export.
+                canReadMonthlyArchives
+                    ? subscribeWithReadySignal(collection(db, 'monthly_archives'), (snapshot) => {
+                        this.monthlyArchives = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }, 'monthly archives')
                     : Promise.resolve()
             ];
 
             this.portalDataReadyPromise = Promise.all(initialLoads).then(() => {
                 this.portalDataReady = true;
                 this.refreshDashboardCharts();
+                // Only after every collection has arrived — closing a month from a
+                // half-loaded snapshot would freeze understated totals into the package.
+                this.ensureMonthlyArchives();
                 return true;
             });
             return this.portalDataReadyPromise;

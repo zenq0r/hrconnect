@@ -649,6 +649,20 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Closed monthly accounting packages, doc id = YYYY-MM. Written by the portal
+    // when the first sign-in of a new month closes the one before it.
+    match /monthly_archives/{period} {
+      // isStaff() is the 'Staff' role specifically, not staff-in-general. Read is
+      // the same set that has the Reports module in ROLE_ACCESS and that already
+      // reads docs/payslips: Superadmin, Director, HR, Account.
+      allow read: if isAdmin() || isHR() || isAccount();
+      // Only Superadmin/Director may close or re-close a period, mirroring
+      // canCloseAccountingPeriod in app.js.
+      allow create, update: if isAdmin();
+      // A closed period is a financial record: it may be rebuilt, never removed.
+      allow delete: if false;
+    }
+
     // ============================================================
     // ZENQOR-TECH (public corporate website) — shares this SAME Firebase
     // project (zenqor-portal-a3b2d) as of the Firebase connection work.
