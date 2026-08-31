@@ -196,6 +196,14 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(claimsSource, /restoredAt: new Date\(\)\.toISOString\(\)/);
 });
 
+test('Authentication deletion cascades to the matching Firestore portal profile', () => {
+    const functionsSource = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    const firebaseConfig = fs.readFileSync(path.join(__dirname, '..', 'firebase.json'), 'utf8');
+    assert.match(functionsSource, /functions\.auth\.user\(\)\.onDelete/);
+    assert.match(functionsSource, /collection\('users'\)\.doc\(user\.uid\)\.delete\(\)/);
+    assert.match(firebaseConfig, /"source": "functions"/);
+});
+
 test('deleting a Client Task cascades its projects but preserves its Client Directory record', () => {
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const taskMenuStart = appSource.indexOf('clientTaskMenuItems(cust)');
