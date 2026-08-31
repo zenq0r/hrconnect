@@ -434,6 +434,16 @@ service cloud.firestore {
           resource.data.clientEmail == request.auth.token.email &&
           resource.data.clientPortalUid == request.auth.uid
         ) || (
+          // A staff member assigned to at least one Project Activity in this
+          // project also needs the project card itself (client, stage, PIC,
+          // target date) to open its Project Activities view.
+          // activityAssigneeEmails is a denormalized, non-sensitive access index
+          // maintained by the PIC whenever an activity is created, reassigned or
+          // deleted — a rule cannot query another collection, so the index has to
+          // live on the project. It mirrors project_activities.projectOwnerEmail.
+          isApprovedStaffSession() &&
+          resource.data.get('activityAssigneeEmails', []).hasAny([request.auth.token.email])
+        ) || (
           // Multi-user Client Portal: a secondary authorized email (see
           // customers/{id}.additionalClientEmails) shares the primary
           // contact's clientDirectoryId claim, so this covers them too
@@ -493,6 +503,22 @@ service cloud.firestore {
         request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerPhoto'])
       ) || (
+        // Maintenance of the activity-assignee access index (see the read rule
+        // above). Only the project's own PIC or a Project Manager may touch it,
+        // and only that one key plus the audit timestamp may change — it can
+        // never alter the project's stage, client or owner. This grants no
+        // authority the PIC doesn't already hold by assigning the activity.
+        (
+          isProjectManager() || (
+            isApprovedStaffSession() && resource.data.ownerEmail == request.auth.token.email
+          )
+        ) &&
+        request.resource.data.activityAssigneeEmails is list &&
+        request.resource.data.activityAssigneeEmails.size() <= 200 &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'activityAssigneeEmails', 'updatedAt'
+        ])
+      ) || (
         // Project handover: the CURRENT owner hands the project to a new PIC.
         // Only owner-identity + the handover trail may change — status, dates,
         // description and client info are untouched, so a handover can never
@@ -516,12 +542,17 @@ service cloud.firestore {
 
     match /project_activities/{activityId} {
       // Activity Type, Assigned To and all other activity details are private to
-      // the project's current PIC (or a Project Manager). Other staff still have
-      // access to the project's Client Activity/Status History, but cannot read
-      // these documents directly through the browser or a crafted SDK request.
+      // the project's current PIC (or a Project Manager), plus the one staff
+      // member the activity is actually assigned to — an assignee has to be able
+      // to read the work scheduled for them. Every other staff account still sees
+      // only the project's Client Activity/Status History and cannot read these
+      // documents through the browser or a crafted SDK request.
       allow read: if isProjectManager() || (
         isApprovedStaffSession() &&
         resource.data.projectOwnerEmail == request.auth.token.email
+      ) || (
+        isApprovedStaffSession() &&
+        resource.data.assignedEmail == request.auth.token.email
       );
       allow create: if (
         isProjectManager() ||
@@ -558,6 +589,21 @@ service cloud.firestore {
         isApprovedStaffSession() &&
         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
         request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
+        request.resource.data.status == 'Done' &&
+        request.resource.data.completedByUid == request.auth.uid &&
+        request.resource.data.completedByEmail == request.auth.token.email &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'completedAt', 'completedByUid', 'completedByEmail'
+        ])
+      ) || (
+        // The assignee closes out their own scheduled work — the dashboard's
+        // "My Assigned Project Activities" card is built around exactly this.
+        // hasOnly() pins the change to the four completion fields, so Activity
+        // Type, Assigned To, the summary and both access indexes stay immutable:
+        // an assignee can neither retarget an activity nor widen their own access
+        // through it, and cannot reopen one either (status must become 'Done').
+        isApprovedStaffSession() &&
+        resource.data.assignedEmail == request.auth.token.email &&
         request.resource.data.status == 'Done' &&
         request.resource.data.completedByUid == request.auth.uid &&
         request.resource.data.completedByEmail == request.auth.token.email &&

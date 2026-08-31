@@ -318,7 +318,7 @@ test('only the current project PIC can load or manage project activity details',
     assert.match(app, /canViewProjectActivityDetails\(project\)/);
     assert.match(app, /projectOwnerEmail: String\(project\.ownerEmail \|\| ''\)\.trim\(\)\.toLowerCase\(\)/);
     assert.match(html, /v-if="canViewProjectActivityDetails\(projectPreview\.project\)"/);
-    assert.match(html, /Only this project's Person In Charge, Director or Superadmin can view or change Activity Type and Assigned To/);
+    assert.match(html, /Only this project's Person In Charge, Director or Superadmin — or a staff member with an activity assigned to them here — can view Activity Type and Assigned To\. An assignee can complete their own activity; only the Person In Charge, Director or Superadmin can schedule, edit or delete them/);
 });
 
 test('only Directors and Superadmins can view all Project Activities', () => {
@@ -333,7 +333,69 @@ test('only Directors and Superadmins can view all Project Activities', () => {
     assert.match(app, /this\.canManageProjects \? \{ label: 'View Board'/);
     assert.match(html, /v-if="canManageProjects && userProfile\.role !== 'Client'"/);
     assert.match(html, /My Assigned Project Activities/);
-    assert.match(html, /Project Activities are visible only to the assigned Person In Charge/);
+    // The non-manager scope is PIC assignments PLUS projects holding an activity
+    // assigned to this employee — never the whole board.
+    assert.match(app, /this\.assignedActivityProjectIds\.has\(project\.id\)/);
+    assert.match(html, /Project Activities are visible to the assigned Person In Charge and to the staff assigned to an activity within them/);
+});
+
+test('a staff activity assignee can open the project activities they are assigned to', () => {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    // The assignee reads their own activity, and the project card it opens from
+    // via the denormalized activityAssigneeEmails index on the project.
+    assert.match(rules, /resource\.data\.assignedEmail == request\.auth\.token\.email/);
+    assert.match(rules, /resource\.data\.get\('activityAssigneeEmails', \[\]\)\.hasAny\(\[request\.auth\.token\.email\]\)/);
+    // Only the PIC or a Project Manager may maintain that index, and only that
+    // one key plus the audit timestamp — never the stage, client or owner.
+    assert.match(rules, /request\.resource\.data\.diff\(resource\.data\)\.affectedKeys\(\)\.hasOnly\(\[\s*'activityAssigneeEmails', 'updatedAt'\s*\]\)/);
+
+    // Both grants are subscribed as separate queries and merged by doc id, since
+    // Firestore cannot OR across two different fields.
+    assert.match(app, /where\('activityAssigneeEmails', 'array-contains', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
+    assert.match(app, /where\('assignedEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
+    assert.match(app, /subscribeMergedWithReadySignal\(projectsSources/);
+    assert.match(app, /subscribeMergedWithReadySignal\(projectActivitiesSources/);
+
+    // An assignee closes out their own row — and nothing else. The rule pins the
+    // write to the four completion fields, so Assigned To and both access indexes
+    // cannot move on this path.
+    assert.match(rules, /resource\.data\.assignedEmail == request\.auth\.token\.email &&\s*request\.resource\.data\.status == 'Done'/);
+    assert.match(app, /canCompleteProjectActivity\(activity\) \{[\s\S]*?String\(activity\?\.assignedEmail \|\| ''\)\.trim\(\)\.toLowerCase\(\) === email/);
+    assert.match(html, /v-if="canCompleteProjectActivity\(activity\)"[^>]*markProjectActivityDone\(activity\)/);
+
+    // The index can only ever be recomputed by someone who can see every activity
+    // in the project, otherwise a partial view would evict the other assignees.
+    assert.match(app, /if \(!project \|\| !this\.canManageProjectActivities\(project\)\) return null;/);
+
+    // Scheduling, editing and deleting stay with the PIC and the Project Managers.
+    assert.match(app, /canViewProjectActivityDetails\(project\) \{\s*return this\.canManageProjectActivities\(project\) \|\| this\.isAssignedToProjectActivity\(project\);/);
+    assert.match(app, /canManageProjectActivities\(project\) \{\s*return this\.canManageProjects \|\| this\.isProjectOwner\(project\);/);
+    assert.match(app, /canDeleteProjectActivity\(\) \{ return this\.canManageProjects; \}/);
+
+    // An assignee sees only their own rows in a project they do not run.
+    assert.match(app, /visibleProjectActivitiesFor\(projectId\)/);
+    assert.match(html, /v-for="activity in visibleProjectActivitiesFor\(projectPreview\.project\.id\)"/);
+});
+
+test('Staff and IT keep their project board without read access to the Client Directory', () => {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+    // customers stays closed to Staff/IT, so this.customers is empty for them and
+    // the Client Task parent gate has to be skipped rather than hiding every
+    // project — including the ones where they are the PIC.
+    assert.match(rules, /match \/customers\/\{customerId\} \{\s*allow read: if isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\)/);
+    assert.match(app, /canReadClientDirectory\(\) \{ return this\.hasAccess\('client-directory'\) \|\| this\.hasAccess\('doc-generator'\); \}/);
+    assert.match(app, /if \(!this\.canReadClientDirectory\) return true;/);
+
+    // The client file repository stays closed to Staff, so the project preview must
+    // not subscribe to it and then paint a permission error over their own project.
+    assert.match(rules, /match \/client_documents\/\{documentId\} \{\s*allow read: if isAuthenticated\(\) &&\s*\(\s*isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\) \|\| isIT\(\)/);
+    assert.match(app, /canViewClientDocuments\(\) \{ return \['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Client'\]\.includes\(this\.userProfile\.role\); \}/);
+    assert.match(app, /if \(this\.canViewClientDocuments\) this\.loadClientDocuments\(/);
 });
 
 test('audit retention form fields have stable identifiers for browser autofill', () => {

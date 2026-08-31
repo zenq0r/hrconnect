@@ -469,6 +469,7 @@ createApp({
             portalUserOnlineStates: {},
             legacyClaimMigrationRunning: false,
             activityOwnerSyncRunning: false,
+            activityAssigneeSyncRunning: false,
 
             changePasswordModal: {
                 show: false,
@@ -870,6 +871,11 @@ createApp({
         // Firestore/Storage rules independently re-verify clientDirectoryId ownership,
         // this is just the UI-level show/hide for the upload button.
         canUploadClientDocuments() { return this.canManageDocuments || this.userProfile.role === 'Client'; },
+        // Must mirror the client_documents read rule. Staff sit outside it: they run
+        // projects but are not trusted with the client's file repository. Without
+        // this check the panel subscribes anyway and paints a red permission error
+        // on every project a Staff PIC or activity assignee opens.
+        canViewClientDocuments() { return ['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Client'].includes(this.userProfile.role); },
         canManagePayroll() { return this.hasModulePermission('payslip-generator', 'edit'); },
         canDeleteEmployees() { return this.hasModulePermission('hr-employees', 'delete'); },
         canDeleteClients() { return this.hasModulePermission('client-directory', 'delete'); },
@@ -879,6 +885,10 @@ createApp({
         canManageRBAC() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
+        // Must mirror the customers subscription condition in loadPortalData(), or
+        // any gate built on this.customers silently evaluates against an empty list
+        // for Staff/IT — who deliberately cannot read the Client Directory.
+        canReadClientDirectory() { return this.hasAccess('client-directory') || this.hasAccess('doc-generator'); },
         canBackupDatabase() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         // Closing a period writes a company-wide financial summary, so it sits with
         // the other whole-company actions rather than with per-module edit rights.
@@ -1306,6 +1316,18 @@ createApp({
                 .filter(customer => customer?.id && customer.clientTaskCreatedAt)
                 .map(customer => String(customer.id)));
         },
+        // Projects in which the signed-in staff member is the assignee of at least
+        // one Project Activity. They are not the PIC, so ownerEmail never matches —
+        // this is what lets them open the project and read their own scheduled work
+        // (see the activityAssigneeEmails branch in the projects rule).
+        assignedActivityProjectIds() {
+            const email = String(this.userProfile.email || '').trim().toLowerCase();
+            if (!email || this.userProfile.role === 'Client') return new Set();
+            return new Set(this.projectActivities
+                .filter(activity => String(activity.assignedEmail || '').trim().toLowerCase() === email)
+                .map(activity => String(activity.projectId || ''))
+                .filter(Boolean));
+        },
         filteredProjects() {
             const queryText = this.searchQuery.trim().toLowerCase();
             let records = this.projects
@@ -1319,7 +1341,12 @@ createApp({
             const mustUseAssignedScope = this.userProfile.role !== 'Client' && !this.canManageProjects;
             if ((mustUseAssignedScope || this.projectScopeFilter === 'mine') && this.userProfile.role !== 'Client') {
                 const email = String(this.userProfile.email || '').trim().toLowerCase();
-                records = records.filter(project => String(project.ownerEmail || '').trim().toLowerCase() === email);
+                // "Mine" is both PIC assignments and projects holding an activity
+                // assigned to this employee — the same two sets Firestore returns
+                // for a non-manager, so the visual scope can never widen access.
+                records = records.filter(project =>
+                    String(project.ownerEmail || '').trim().toLowerCase() === email ||
+                    this.assignedActivityProjectIds.has(project.id));
             }
             if (this.boardClientFilter) records = records.filter(project => project.clientDirectoryId === this.boardClientFilter.id);
             if (!queryText) return records;
@@ -1460,7 +1487,15 @@ createApp({
         // Task changes without causing a Vue render error.
         isProjectLinkedToRegisteredClientTask(project) {
             const clientDirectoryId = String(project?.clientDirectoryId || '').trim();
-            return Boolean(clientDirectoryId) && this.registeredClientTaskIds.has(clientDirectoryId);
+            if (!clientDirectoryId) return false;
+            // Staff and IT cannot read the Client Directory (see the customers rule),
+            // so this.customers is empty for them and the parent-task check below
+            // would hide every project — including the ones where they are the PIC.
+            // Their project list is already scoped by Firestore to exactly what they
+            // may see, so the client-side integrity gate only applies to the roles
+            // that can actually evaluate it.
+            if (!this.canReadClientDirectory) return true;
+            return this.registeredClientTaskIds.has(clientDirectoryId);
         },
         projectWithLiveClientData(project) {
             const customer = this.customers.find(item => item.id === project.clientDirectoryId);
@@ -1536,7 +1571,7 @@ createApp({
             defer(() => defer(() => {
                 if (!this.projectPreview.show || this.projectPreview.project?.id !== projectSnapshot.id) return;
                 this.projectPreview.detailsReady = true;
-                this.loadClientDocuments(projectSnapshot.clientDirectoryId, projectSnapshot.clientName, projectSnapshot.clientEmail);
+                if (this.canViewClientDocuments) this.loadClientDocuments(projectSnapshot.clientDirectoryId, projectSnapshot.clientName, projectSnapshot.clientEmail);
             }));
         },
         closeProjectDetails() {
@@ -1553,6 +1588,37 @@ createApp({
         },
         projectActivitiesFor(projectId) {
             return this.projectActivities.filter(activity => activity.projectId === projectId).sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')));
+        },
+        // What the CURRENT viewer may see in the Activity Issues list. A PIC or
+        // Project Manager sees the whole schedule; anyone else sees only the
+        // activities assigned to them, matching the project_activities read rule
+        // (their listener never receives the rest in the first place).
+        visibleProjectActivitiesFor(projectId) {
+            const project = this.projects.find(item => item.id === projectId);
+            if (this.canManageProjectActivities(project)) return this.projectActivitiesFor(projectId);
+            const email = String(this.userProfile.email || '').trim().toLowerCase();
+            return this.projectActivitiesFor(projectId)
+                .filter(activity => String(activity.assignedEmail || '').trim().toLowerCase() === email);
+        },
+        // Recomputes the project's activityAssigneeEmails access index from the
+        // activity list the caller is about to end up with. Only a PIC or Project
+        // Manager ever calls this, and both read every activity of that project, so
+        // the list is complete. Returns null when the stored index is already
+        // correct, so no redundant project write is queued.
+        nextActivityAssigneeIndex(projectId, activities) {
+            const project = this.projects.find(item => item.id === projectId);
+            // Only a PIC or Project Manager receives EVERY activity of a project.
+            // Anyone else holds just their own rows, so recomputing from their view
+            // would silently drop the other assignees out of the index — refuse
+            // rather than write a truncated one.
+            if (!project || !this.canManageProjectActivities(project)) return null;
+            const normalize = list => [...new Set(list
+                .map(value => String(value || '').trim().toLowerCase())
+                .filter(Boolean))].sort();
+            const next = normalize(activities.map(activity => activity?.assignedEmail));
+            const current = normalize(Array.isArray(project.activityAssigneeEmails) ? project.activityAssigneeEmails : []);
+            const unchanged = next.length === current.length && next.every((email, index) => email === current[index]);
+            return unchanged ? null : next;
         },
         async syncProjectActivityOwners() {
             // Existing activities predate projectOwnerEmail. A Director or
@@ -1580,6 +1646,39 @@ createApp({
                 console.error('Unable to synchronize project activity access:', error);
             } finally {
                 this.activityOwnerSyncRunning = false;
+            }
+        },
+        async syncProjectActivityAssignees() {
+            // Projects created before activityAssigneeEmails existed carry no index,
+            // so their activity assignees would still be locked out. Every PIC repairs
+            // their OWN projects (and a Project Manager repairs all of them), so the
+            // backfill does not sit waiting for a Director to sign in. Only that one
+            // access field is touched — no project stage, client, owner or audit
+            // field. It converges after one pass because nextActivityAssigneeIndex
+            // returns null once the stored index already matches, and returns null
+            // outright for projects this user does not manage.
+            if (this.userProfile.role === 'Client' || this.activityAssigneeSyncRunning || !this.projects.length || !this.projectActivitiesLoaded) return;
+            const pending = this.projects
+                .map(project => ({ project, index: this.nextActivityAssigneeIndex(project.id, this.projectActivitiesFor(project.id)) }))
+                .filter(entry => entry.index);
+            if (!pending.length) return;
+            this.activityAssigneeSyncRunning = true;
+            try {
+                const now = new Date().toISOString();
+                for (let start = 0; start < pending.length; start += 450) {
+                    const batch = writeBatch(db);
+                    pending.slice(start, start + 450).forEach(entry => {
+                        batch.update(doc(db, 'projects', entry.project.id), {
+                            activityAssigneeEmails: entry.index,
+                            updatedAt: now
+                        });
+                    });
+                    await batch.commit();
+                }
+            } catch (error) {
+                console.error('Unable to synchronize project activity assignee access:', error);
+            } finally {
+                this.activityAssigneeSyncRunning = false;
             }
         },
         clientUpdatesFor(projectId) {
@@ -1844,11 +1943,28 @@ createApp({
         canManageProjectActivities(project) {
             return this.canManageProjects || this.isProjectOwner(project);
         },
-        canViewProjectActivityDetails(project) {
-            return this.canManageProjectActivities(project);
+        // Assignment is what grants sight of the Activity Issues panel: the PIC and
+        // Project Managers see the whole schedule, and a staff member with at least
+        // one activity assigned to them in this project sees their own rows (see
+        // visibleProjectActivitiesFor). Scheduling, editing and completing remain
+        // with the PIC — this is a read grant only, exactly as the rules allow.
+        isAssignedToProjectActivity(project) {
+            return Boolean(project?.id) && this.assignedActivityProjectIds.has(project.id);
         },
+        canViewProjectActivityDetails(project) {
+            return this.canManageProjectActivities(project) || this.isAssignedToProjectActivity(project);
+        },
+        // Editing an activity (retargeting it, changing its type) stays with the
+        // PIC, but COMPLETING one belongs to whoever the work was scheduled for —
+        // which is what the dashboard's "My Assigned Project Activities" card has
+        // always offered. Mirrors the assignee branch of the update rule.
         canCompleteProjectActivity(activity) {
-            return this.canEditProjectActivity(activity);
+            const email = String(this.userProfile.email || '').trim().toLowerCase();
+            return this.canEditProjectActivity(activity) || (
+                this.userProfile.role !== 'Client' &&
+                Boolean(email) &&
+                String(activity?.assignedEmail || '').trim().toLowerCase() === email
+            );
         },
         canEditProjectActivity(activity) {
             const project = this.projects.find(p => p.id === activity?.projectId);
@@ -1876,7 +1992,19 @@ createApp({
             const project = this.activityModal.project;
             if (this.activityModal.isEdit) {
                 try {
-                    await setDoc(doc(db, 'project_activities', this.activityModal.activityId), this.normalizeOfficialRecord({ activityType: form.activityType, summary: form.summary, dueDate: form.dueDate, assignedEmpNo: form.assignedEmpNo, assignedName: form.assignedName, assignedEmail: form.assignedEmail, assignedPosition: form.assignedPosition, details: form.details, updatedAt: new Date().toISOString(), updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email }), { merge: true });
+                    const editedAt = new Date().toISOString();
+                    const editedAssignee = String(form.assignedEmail || '').trim().toLowerCase();
+                    // Reassigning an activity moves project access with it: the new
+                    // assignee is added to the index and the previous one drops out
+                    // of it in the same atomic write as the activity itself.
+                    const nextIndex = this.nextActivityAssigneeIndex(project.id, this.projectActivitiesFor(project.id)
+                        .map(activity => activity.id === this.activityModal.activityId
+                            ? { ...activity, assignedEmail: editedAssignee }
+                            : activity));
+                    const editBatch = writeBatch(db);
+                    editBatch.set(doc(db, 'project_activities', this.activityModal.activityId), this.normalizeOfficialRecord({ activityType: form.activityType, summary: form.summary, dueDate: form.dueDate, assignedEmpNo: form.assignedEmpNo, assignedName: form.assignedName, assignedEmail: form.assignedEmail, assignedPosition: form.assignedPosition, details: form.details, updatedAt: editedAt, updatedByUid: this.userProfile.uid, updatedByEmail: this.userProfile.email }), { merge: true });
+                    if (nextIndex) editBatch.update(doc(db, 'projects', project.id), { activityAssigneeEmails: nextIndex, updatedAt: editedAt });
+                    await editBatch.commit();
                     await this.publishClientProjectEvent(project, 'A scheduled project activity has been updated. Our project team will continue the required work.');
                     this.logAudit('UPDATE', `Updated project activity for ${project.projectRef}`);
                     this.closeActivityModal();
@@ -1912,7 +2040,13 @@ createApp({
                 createdByEmail: this.userProfile.email
             });
             try {
-                await setDoc(doc(db, 'project_activities', activityId), payload);
+                // The assignee needs the project card too, or the activity has
+                // nowhere to open from — index and activity are written together.
+                const nextIndex = this.nextActivityAssigneeIndex(project.id, [...this.projectActivitiesFor(project.id), payload]);
+                const createBatch = writeBatch(db);
+                createBatch.set(doc(db, 'project_activities', activityId), payload);
+                if (nextIndex) createBatch.update(doc(db, 'projects', project.id), { activityAssigneeEmails: nextIndex, updatedAt: payload.createdAt });
+                await createBatch.commit();
                 await this.publishClientProjectEvent(project, 'A new project activity has been scheduled. Our project team will continue the required work.');
                 this.logAudit('CREATE', `Scheduled ${payload.activityType} for ${payload.projectRef} and assigned to ${payload.assignedName}`);
                 this.closeActivityModal();
@@ -1923,11 +2057,14 @@ createApp({
             }
         },
         async markProjectActivityDone(activity) {
-            if (!this.canCompleteProjectActivity(activity)) { this.showNotify('Only this project\'s Person In Charge, Director or Superadmin may complete this activity.'); return; }
+            if (!this.canCompleteProjectActivity(activity)) { this.showNotify('Only the assigned employee, this project\'s Person In Charge, Director or Superadmin may complete this activity.'); return; }
             try {
                 await updateDoc(doc(db, 'project_activities', activity.id), { status: 'Done', completedAt: new Date().toISOString(), completedByUid: this.userProfile.uid, completedByEmail: this.userProfile.email });
                 const project = this.projects.find(item => item.id === activity.projectId);
-                if (project) await this.publishClientProjectEvent(project, 'A scheduled project activity has been completed. Our project team will continue with the next step.');
+                // The client-facing conversation feed stays the PIC's voice: an
+                // assignee completing their own row is an internal event, and
+                // attempting the write here would only be denied by the rules.
+                if (project && this.canSendClientUpdate(project)) await this.publishClientProjectEvent(project, 'A scheduled project activity has been completed. Our project team will continue with the next step.');
                 this.logAudit('UPDATE', `Completed project activity ${activity.summary}`);
                 this.showNotify('Project activity marked as done.');
             } catch (error) {
@@ -1944,7 +2081,15 @@ createApp({
                 danger: true
             })) return;
             try {
-                await deleteDoc(doc(db, 'project_activities', activity.id));
+                // Deleting someone's last activity in a project also withdraws their
+                // read access to it, in the same atomic write.
+                const deletedAt = new Date().toISOString();
+                const nextIndex = this.nextActivityAssigneeIndex(activity.projectId, this.projectActivitiesFor(activity.projectId)
+                    .filter(item => item.id !== activity.id));
+                const deleteBatch = writeBatch(db);
+                deleteBatch.delete(doc(db, 'project_activities', activity.id));
+                if (nextIndex) deleteBatch.update(doc(db, 'projects', activity.projectId), { activityAssigneeEmails: nextIndex, updatedAt: deletedAt });
+                await deleteBatch.commit();
                 this.logAudit('DELETE', `Deleted project activity ${activity.id}`);
                 this.showNotify('Project activity deleted.');
             } catch (error) {
@@ -6435,27 +6580,40 @@ createApp({
                 : ['Staff', 'IT'].includes(role)
                     ? query(collection(db, 'employees'), where('email', '==', this.userProfile.email))
                     : null;
-            const projectsSource = role === 'Client'
+            const projectsSources = role === 'Client'
                 // clientDirectoryId is a required field on every project (see
                 // hasValidProjectLinks in firestore.rules), so this covers both the primary
                 // contact and any authorized secondary contact under the same customer
                 // record. Falls back to the old uid-based match only if the claim hasn't
                 // been synced yet for this session.
                 ? (this.userProfile.clientDirectoryId
-                    ? query(collection(db, 'projects'), where('clientDirectoryId', '==', this.userProfile.clientDirectoryId))
-                    : query(collection(db, 'projects'), where('clientEmail', '==', this.userProfile.email), where('clientPortalUid', '==', this.userProfile.uid)))
+                    ? [query(collection(db, 'projects'), where('clientDirectoryId', '==', this.userProfile.clientDirectoryId))]
+                    : [query(collection(db, 'projects'), where('clientEmail', '==', this.userProfile.email), where('clientPortalUid', '==', this.userProfile.uid))])
                 // Directors and Superadmins oversee every Project Activity.
                 // Other internal staff load only their PIC assignments, matching
                 // the Firestore read rule and preventing an all-project payload
                 // from reaching their browser.
                 : this.canManageProjects
-                    ? collection(db, 'projects')
-                    : query(collection(db, 'projects'), where('ownerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()));
-            const projectActivitiesSource = role === 'Client'
+                    ? [collection(db, 'projects')]
+                    // Two disjoint grants, one query each (Firestore has no OR across
+                    // different fields): the projects this employee runs as PIC, and
+                    // the projects that hold an activity assigned to them. Merged by
+                    // doc id below; both mirror a branch of the projects read rule.
+                    : [
+                        query(collection(db, 'projects'), where('ownerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase())),
+                        query(collection(db, 'projects'), where('activityAssigneeEmails', 'array-contains', String(this.userProfile.email || '').trim().toLowerCase()))
+                    ];
+            const projectActivitiesSources = role === 'Client'
                 ? null
                 : this.canManageProjects
-                    ? collection(db, 'project_activities')
-                    : query(collection(db, 'project_activities'), where('projectOwnerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()));
+                    ? [collection(db, 'project_activities')]
+                    // Same split for the activities themselves: everything scheduled
+                    // under a project this employee runs, plus everything assigned to
+                    // them personally under someone else's project.
+                    : [
+                        query(collection(db, 'project_activities'), where('projectOwnerEmail', '==', String(this.userProfile.email || '').trim().toLowerCase())),
+                        query(collection(db, 'project_activities'), where('assignedEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()))
+                    ];
             // Client updates have existed through three linkage versions: primary portal
             // uid, shared Client Directory id, and the original primary email. Subscribe
             // to each available safe key and merge by doc id so legacy updates remain
@@ -6592,15 +6750,16 @@ createApp({
                         this.siteTextOverrides = snapshot.exists() ? snapshot.data() : {};
                     }, 'website content — Page Text')
                     : Promise.resolve(),
-                subscribeWithReadySignal(projectsSource, (snapshot) => {
-                    this.projects = snapshot.docs.map(d => this.projectWithLiveClientData({ id: d.id, ...d.data() }));
+                subscribeMergedWithReadySignal(projectsSources, (merged) => {
+                    this.projects = merged.map(project => this.projectWithLiveClientData(project));
                     this.ensureClientTasksForExistingProjects();
                     this.repairLegacyProjectClientLinks();
                     this.syncProjectActivityOwners();
+                    this.syncProjectActivityAssignees();
                 }, 'project activities'),
-                projectActivitiesSource ? subscribeWithReadySignal(projectActivitiesSource, (snapshot) => {
+                projectActivitiesSources ? subscribeMergedWithReadySignal(projectActivitiesSources, (merged) => {
                     const previousIds = new Set(this.projectActivities.map(activity => activity.id));
-                    this.projectActivities = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.projectActivities = merged;
                     const assignedOpen = this.projectActivities.filter(activity => activity.status !== 'Done' && String(activity.assignedEmail || '').trim().toLowerCase() === String(this.userProfile.email || '').trim().toLowerCase());
                     const today = this.getLocalDateKey();
                     if (!this.projectActivitiesLoaded) {
@@ -6612,6 +6771,7 @@ createApp({
                     }
                     this.projectActivitiesLoaded = true;
                     this.syncProjectActivityOwners();
+                    this.syncProjectActivityAssignees();
                 }, 'project activity issues') : Promise.resolve(),
                 subscribeMergedWithReadySignal(projectClientUpdatesSources, (merged) => {
                     const previousIds = new Set(this.projectClientUpdates.map(update => update.id));
