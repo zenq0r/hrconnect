@@ -6488,7 +6488,11 @@ createApp({
                         this.applyDarkModePreference();
                     }
                 }, 'portal users', (error) => {
-                    if (error?.code === 'permission-denied') this.revokeCurrentPortalAccess();
+                    // The protected bootstrap Superadmin is intentionally allowed
+                    // to repair/recreate its own profile. Do not turn a transient
+                    // directory-list listener denial into a sign-out for that one
+                    // non-deletable account; every other account remains revoked.
+                    if (error?.code === 'permission-denied' && !this.isSeedAdminEmail(this.userProfile.email)) this.revokeCurrentPortalAccess();
                 })
                 : subscribeWithReadySignal(doc(db, 'users', this.userProfile.uid), (snapshot) => {
                     if (!snapshot.exists()) {

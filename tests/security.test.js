@@ -181,6 +181,7 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(appSource, /return role === 'Client' \|\| this\.isStaffEmail\(email\)/);
     assert.match(appSource, /isSeedAdminEmail\(email\)/);
     assert.match(appSource, /if \(this\.isSeedAdminEmail\(normalizedEmail\)\)/);
+    assert.match(appSource, /error\?\.code === 'permission-denied' && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);
     assert.match(appSource, /async revokeCurrentPortalAccess\(/);
     assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*this\.revokeCurrentPortalAccess\(\);/);
     assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokeCurrentPortalAccess\(\)/);
