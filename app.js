@@ -6473,7 +6473,7 @@ createApp({
                         if (!this.isSeedAdminEmail(this.userProfile.email)) this.revokeCurrentPortalAccess();
                         return;
                     }
-                    if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role)) {
+                    if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role) && !this.isSeedAdminEmail(this.userProfile.email)) {
                         this.revokeCurrentPortalAccess();
                         return;
                     }
