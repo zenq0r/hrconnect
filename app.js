@@ -5074,6 +5074,40 @@ createApp({
         },
 
         // ── Website Content (zenqor-tech Portfolio, Services, Page Text) ────────
+        // Gallery cards show the WORK's own date (eventDate — when the permit was
+        // issued, the submission made), not when someone happened to type the record
+        // into the portal. Ordering by createdAt therefore put an older job in front
+        // of a newer one whenever they were entered out of order, which is exactly
+        // what the Licensing & Permits list was doing. Sort by what the card shows.
+        //
+        // createdAt is the fallback for records saved before eventDate existed, and
+        // the tiebreaker for two items on the same day. Both are ISO-prefixed
+        // (YYYY-MM-DD…), so a plain string compare orders them correctly and a
+        // date-only eventDate still compares cleanly against a full timestamp.
+        // createdAt is NOT uniformly typed in this collection: older records hold a
+        // Firestore Timestamp (written via serverTimestamp()), newer ones an ISO
+        // string. String(timestamp) yields "Timestamp(seconds=…)", which sorts
+        // nowhere near an ISO date — that is why the previous createdAt ordering
+        // came out looking arbitrary. Normalise both shapes to ISO before comparing.
+        toComparableIsoDate(value) {
+            if (!value) return '';
+            if (typeof value === 'string') return value;
+            if (typeof value.toDate === 'function') {
+                try { return value.toDate().toISOString(); } catch (error) { return ''; }
+            }
+            if (typeof value.seconds === 'number') return new Date(value.seconds * 1000).toISOString();
+            return '';
+        },
+        websiteContentDateKey(item) {
+            return String(item?.eventDate || this.toComparableIsoDate(item?.createdAt) || '');
+        },
+        sortGalleryItemsNewestFirst(items) {
+            return [...items].sort((a, b) => {
+                const byDate = this.websiteContentDateKey(b).localeCompare(this.websiteContentDateKey(a));
+                if (byDate !== 0) return byDate;
+                return this.toComparableIsoDate(b.createdAt).localeCompare(this.toComparableIsoDate(a.createdAt));
+            });
+        },
         websiteContentLabel(collectionName) {
             if (collectionName === 'services') return 'Services';
             // portfolio_web is retired; its records are being folded into
@@ -6817,16 +6851,19 @@ createApp({
                     : Promise.resolve(),
                 this.hasAccess('website-content')
                     ? subscribeWithReadySignal(collection(db, 'portfolio_web'), (snapshot) => {
-                        this.websiteContent.portfolio_web = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                        this.websiteContent.portfolio_web = this.sortGalleryItemsNewestFirst(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
                     }, 'website content — Digital Systems')
                     : Promise.resolve(),
                 this.hasAccess('website-content')
                     ? subscribeWithReadySignal(collection(db, 'portfolio_gaming'), (snapshot) => {
-                        this.websiteContent.portfolio_gaming = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+                        this.websiteContent.portfolio_gaming = this.sortGalleryItemsNewestFirst(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
                     }, 'website content — Licensing & Permits')
                     : Promise.resolve(),
                 this.hasAccess('website-content')
                     ? subscribeWithReadySignal(collection(db, 'services'), (snapshot) => {
+                        // Deliberately NOT date-sorted: a service card shows no date,
+                        // and this ascending createdAt order is the sequence the admin
+                        // added them in, which is how the public Services page reads.
                         this.websiteContent.services = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
                     }, 'website content — Services')
                     : Promise.resolve(),

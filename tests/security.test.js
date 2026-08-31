@@ -437,6 +437,75 @@ test('a valid portal session is never revoked on an unconfirmed signal', () => {
     assert.match(listeners, /this\.revokePortalAccessIfConfirmed\(/);
 });
 
+// Lifts a method body straight out of app.js so this exercises the code that
+// actually ships, rather than a copy that can drift from it.
+function liftAppMethod(appSource, name) {
+    const start = appSource.indexOf(`\n        ${name}(`);
+    assert.ok(start >= 0, `method ${name} not found in app.js`);
+    const end = appSource.indexOf('\n        },', start);
+    assert.ok(end > start, `could not delimit ${name} in app.js`);
+    const body = appSource.slice(start + 9, end + '\n        }'.length).trim();
+    return eval('(' + body.replace(new RegExp('^' + name), 'function') + ')');
+}
+
+test('website content shows the newest work first, whatever shape its dates are in', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+    const ctx = {};
+    ctx.toComparableIsoDate = liftAppMethod(app, 'toComparableIsoDate');
+    ctx.websiteContentDateKey = liftAppMethod(app, 'websiteContentDateKey').bind(ctx);
+    ctx.sortGalleryItemsNewestFirst = liftAppMethod(app, 'sortGalleryItemsNewestFirst').bind(ctx);
+
+    // createdAt is a Firestore Timestamp on the older records in this collection
+    // and an ISO string on the newer ones. Both must normalise, or the fallback
+    // sorts nowhere near a real date.
+    assert.equal(ctx.toComparableIsoDate('2026-08-26T18:20:12.101Z'), '2026-08-26T18:20:12.101Z');
+    assert.equal(ctx.toComparableIsoDate({ toDate: () => new Date('2026-08-19T10:02:00Z') }).slice(0, 10), '2026-08-19');
+    assert.equal(ctx.toComparableIsoDate({ seconds: Date.UTC(2026, 7, 19) / 1000 }).slice(0, 10), '2026-08-19');
+    assert.equal(ctx.toComparableIsoDate(null), '');
+
+    // The card shows eventDate, so eventDate is what orders the list — not the
+    // moment the record happened to be typed into the portal.
+    const ts = (iso) => ({ toDate: () => new Date(iso) });
+    const items = [
+        { title: 'huaRui', eventDate: '2026-07-10', createdAt: ts('2026-08-19T10:02:00Z') },
+        { title: 'fateFloor', eventDate: '2026-07-21', createdAt: ts('2026-08-19T10:01:00Z') },
+        { title: 'moguWash', eventDate: '2026-07-13', createdAt: '2026-08-26T18:20:12.101Z' },
+        { title: 'monsta', eventDate: '2026-08-08', createdAt: ts('2026-08-19T10:03:00Z') },
+        { title: 'legacy', createdAt: ts('2026-07-15T09:00:00Z') }
+    ];
+    const sorted = ctx.sortGalleryItemsNewestFirst(items);
+
+    assert.deepEqual(sorted.map(i => i.title), ['monsta', 'fateFloor', 'legacy', 'moguWash', 'huaRui']);
+    // A record saved before eventDate existed falls back to createdAt and keeps
+    // its place in the run rather than pinning to either end or disappearing.
+    assert.equal(sorted.length, items.length);
+    assert.equal(ctx.sortGalleryItemsNewestFirst(items) !== items, true, 'must not sort the source array in place');
+
+    const keys = sorted.map(i => ctx.websiteContentDateKey(i).slice(0, 10));
+    assert.deepEqual(keys, [...keys].sort().reverse());
+
+    // Both gallery collections go through the shared sorter.
+    assert.match(app, /this\.websiteContent\.portfolio_web = this\.sortGalleryItemsNewestFirst\(/);
+    assert.match(app, /this\.websiteContent\.portfolio_gaming = this\.sortGalleryItemsNewestFirst\(/);
+    // Services deliberately keeps its curated ascending order — its cards carry
+    // no date, so date-sorting them would just scramble the public page.
+    assert.match(app, /this\.websiteContent\.services = snapshot\.docs\.map\(d => \(\{ id: d\.id, \.\.\.d\.data\(\) \}\)\)\.sort\(\(a, b\) => String\(a\.createdAt \|\| ''\)/);
+});
+
+test('the public licensing page orders by event date without dropping older records', () => {
+    const page = fs.readFileSync(path.join(__dirname, '..', '..', 'zenqor-tech', 'licensing_permit.html'), 'utf8');
+
+    // A Firestore orderBy silently excludes documents missing the field, so
+    // ordering by eventDate server-side would erase every pre-eventDate record
+    // from the public page. Fetch by createdAt, order in the browser.
+    assert.match(page, /orderBy\("createdAt", "desc"\)/);
+    // Scoped to the query call: the prose above legitimately names the trap.
+    assert.doesNotMatch(page, /query\([^)]*orderBy\("eventDate"/);
+    assert.match(page, /const dateKey = \(item\) => String\(item\?\.eventDate \|\| isoOf\(item\?\.createdAt\) \|\| ''\)/);
+    assert.match(page, /items\.sort\(\(a, b\) => dateKey\(b\)\.localeCompare\(dateKey\(a\)\)/);
+});
+
 test('audit retention form fields have stable identifiers for browser autofill', () => {
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
