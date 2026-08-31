@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
-const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail } = require('../api/_security');
+const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail } = require('../api/_security');
 const { getClientIp, parseUserAgent } = require('../api/_auditMetadata');
 const { normalizeRetention, retentionDurationMs } = require('../api/_auditRetention');
 const { rateLimitId } = require('../api/_rateLimit');
@@ -172,28 +172,51 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
     assert.match(rulesSource, /allow read: if isApprovedStaffSession\(\) \|\| \(isClient\(\) && request\.auth\.uid == userId\)/);
 });
 
+test('staff identity requires an exact approved Authentication email domain', () => {
+    assert.equal(isApprovedStaffEmail('person@zenq0r.com'), true);
+    assert.equal(isApprovedStaffEmail('PERSON@ZENQOR.COM.MY'), true);
+    assert.equal(isApprovedStaffEmail('person@client.zenq0r.com'), false);
+    assert.equal(isApprovedStaffEmail('person@zenq0r.com.evil.test'), false);
+    assert.equal(isApprovedStaffEmail('person@fakezenqor.com.my'), false);
+    assert.equal(isApprovedStaffEmail('person@other.test'), false);
+});
+
 test('Staff domains are enforced while registered Client email access remains available', () => {
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.match(appSource, /allowedStaffDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
+    assert.match(appSource, /this\.allowedStaffDomains\.includes\(emailDomain\)/);
     assert.match(appSource, /this\.authView === 'staff' && !this\.isStaffEmail\(this\.loginForm\.email\)/);
     assert.match(appSource, /this\.userModal\.form\.role !== 'Client' && !this\.isStaffEmail\(this\.userModal\.form\.email\)/);
     assert.match(appSource, /return role === 'Client' \|\| this\.isStaffEmail\(email\)/);
     assert.match(appSource, /isSeedAdminEmail\(email\)/);
     assert.match(appSource, /if \(this\.isSeedAdminEmail\(normalizedEmail\)\)/);
-    assert.match(appSource, /!this\.isPortalEmailAllowed\(currentUser\.email, currentUser\.role\) && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);
+    assert.match(appSource, /!this\.isPortalEmailAllowed\(this\.userProfile\.email, currentUser\.role\) && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);
     assert.match(appSource, /error\?\.code === 'permission-denied' && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);
     assert.match(appSource, /async revokeCurrentPortalAccess\(/);
     assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*this\.revokeCurrentPortalAccess\(\);/);
     assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokeCurrentPortalAccess\(\)/);
     assert.match(rulesSource, /function hasApprovedCompanyEmail\(email\)/);
     assert.match(rulesSource, /function isApprovedStaffSession\(\)/);
-    assert.match(rulesSource, /return data\.role == 'Client' \|\| \(/);
-    assert.match(rulesSource, /email\.matches\('\.\*@zenq0r\[\.\]com\$'\)/);
-    assert.match(rulesSource, /email\.matches\('\.\*@zenqor\[\.\]com\[\.\]my\$'\)/);
+    assert.match(rulesSource, /data\.role == 'Client' && \(/);
+    assert.match(rulesSource, /data\.customAccess\.keys\(\)\.hasOnly\(\[\]\)/);
+    assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenq0r\[\.\]com\$'\)/);
+    assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenqor\[\.\]com\[\.\]my\$'\)/);
     const claimsSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'sync-user-claims.js'), 'utf8');
     assert.match(claimsSource, /const SEED_ADMIN_EMAIL = 'admin@zenq0r\.com'/);
+    assert.match(claimsSource, /role !== 'Client' && !isApprovedStaffEmail\(email\)/);
     assert.match(claimsSource, /restoredAt: new Date\(\)\.toISOString\(\)/);
+});
+
+test('Client role ignores custom access while staff keep role defaults without overrides', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.match(appSource, /this\.userProfile\.role === 'Client' \? \{\} : \(this\.userProfile\.customAccess \|\| \{\}\)/);
+    assert.match(appSource, /const customAccess = this\.userModal\.form\.role === 'Client' \? \{\} :/);
+    assert.doesNotMatch(appSource, /customAccess: userData\?\.customAccess \|\| \{\}/);
+    assert.match(html, /v-if="userModal\.form\.role !== 'Client' && isStaffEmail\(userModal\.form\.email\)" class="zq-form-section"/);
+    assert.match(rulesSource, /'mustChangePassword', 'updatedAt'/);
 });
 
 test('Authentication deletion cascades to the matching Firestore portal profile', () => {

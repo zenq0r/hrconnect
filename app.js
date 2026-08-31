@@ -2685,7 +2685,9 @@ createApp({
         isStaffEmail(email) {
             if (!email) return false;
             const normalizedEmail = email.toLowerCase().trim();
-            return this.allowedStaffDomains.some(domain => normalizedEmail.endsWith(`@${domain}`));
+            if (!/^[^\s@]+@[^\s@]+$/.test(normalizedEmail)) return false;
+            const emailDomain = normalizedEmail.split('@')[1];
+            return this.allowedStaffDomains.includes(emailDomain);
         },
         isSeedAdminEmail(email) {
             return String(email || '').trim().toLowerCase() === 'admin@zenq0r.com';
@@ -3166,10 +3168,13 @@ createApp({
                 'document-quotations': 'doc-generator',
                 'document-invoices': 'doc-generator'
             }[moduleName] || moduleName;
-            const override = this.userProfile.customAccess && this.userProfile.customAccess[permissionModule];
+            // Custom overrides are an internal staff feature. Client accounts always
+            // use the fixed Client role workspace regardless of legacy stored data.
+            const staffCustomAccess = this.userProfile.role === 'Client' ? {} : (this.userProfile.customAccess || {});
+            const override = staffCustomAccess[permissionModule];
             if (override && typeof override.view === 'boolean') return override.view;
             if (['client-documents', 'client-updates', 'client-support'].includes(permissionModule)) {
-                const portalOverride = this.userProfile.customAccess && this.userProfile.customAccess['client-portal'];
+                const portalOverride = staffCustomAccess['client-portal'];
                 if (portalOverride && typeof portalOverride.view === 'boolean') return portalOverride.view;
             }
             const allowedModules = RBAC_ROLES[this.userProfile.role] || ['dashboard'];
@@ -3181,7 +3186,8 @@ createApp({
         // 'edit' defaults to page visibility, 'delete' defaults to the global canDelete flag,
         // matching this app's pre-existing behavior for users with no override set.
         hasModulePermission(moduleName, action) {
-            const override = this.userProfile.customAccess && this.userProfile.customAccess[moduleName];
+            const staffCustomAccess = this.userProfile.role === 'Client' ? {} : (this.userProfile.customAccess || {});
+            const override = staffCustomAccess[moduleName];
             if (override && typeof override[action] === 'boolean') return override[action];
             // website-content grants IT full edit+delete (firestore.rules' isContentAdmin()
             // covers IT for these public-site collections too), unlike every other module
@@ -4083,7 +4089,7 @@ createApp({
                 this.loginLoading = false;
                 return;
             }
-            this.userProfile = { name: name, email: firebaseUser.email, role: role, uid: firebaseUser.uid, photo: photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: userData?.customAccess || {} };
+            this.userProfile = { name: name, email: firebaseUser.email, role: role, uid: firebaseUser.uid, photo: photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: role === 'Client' ? {} : (userData?.customAccess || {}) };
             this.applyDarkModePreference();
             this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
             this.startIdleTimeoutWatch();
@@ -4281,12 +4287,13 @@ createApp({
             if (!pendingSnapshot.exists()) return null;
 
             const pendingData = pendingSnapshot.data();
+            const pendingRole = pendingData.role || 'Client';
             const migratedData = {
                 email: normalizedEmail,
                 name: pendingData.name || firebaseUser.displayName || normalizedEmail,
                 photo: pendingData.photo || '',
-                role: pendingData.role || 'Client',
-                customAccess: pendingData.customAccess || {},
+                role: pendingRole,
+                customAccess: pendingRole === 'Client' ? {} : (pendingData.customAccess || {}),
                 mustChangePassword: pendingData.mustChangePassword === true,
                 migratedAt: new Date().toISOString()
             };
@@ -4316,6 +4323,8 @@ createApp({
                 const isNewUser = !this.userModal.isEdit;
                 const email = this.userModal.form.email.trim().toLowerCase(); const password = this.userModal.form.password.trim();
                 this.userModal.form.email = email;
+                const customAccess = this.userModal.form.role === 'Client' ? {} : (this.userModal.form.customAccess || {});
+                this.userModal.form.customAccess = customAccess;
                 const photoUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(this.userModal.form.name)}&background=0B1E36&color=D4AF37`;
                 const existingRecord = this.users.find(user => (user.email || '').toLowerCase() === email);
                 // "Add New" (isNewUser) means the admin intends to create a DISTINCT
@@ -4363,7 +4372,7 @@ createApp({
                         name: this.userModal.form.name,
                         photo: photoUrl,
                         role: this.userModal.form.role,
-                        customAccess: this.userModal.form.customAccess || {},
+                        customAccess,
                         mustChangePassword: false,
                         createdByUid: this.userProfile.uid,
                         createdAt: new Date().toISOString()
@@ -4388,12 +4397,12 @@ createApp({
                     }
                     return;
                 }
-                await setDoc(doc(db, "users", userId), { email: email, name: this.userModal.form.name, photo: photoUrl, role: this.userModal.form.role, customAccess: this.userModal.form.customAccess || {}, ...(isNewUser ? { mustChangePassword: true } : {}) }, { merge: true });
+                await setDoc(doc(db, "users", userId), { email: email, name: this.userModal.form.name, photo: photoUrl, role: this.userModal.form.role, customAccess, ...(isNewUser ? { mustChangePassword: true } : {}) }, { merge: true });
                 if (userId === this.userProfile.uid) {
                     this.userProfile.role = this.userModal.form.role;
                     this.userProfile.name = this.userModal.form.name;
                     this.userProfile.photo = photoUrl;
-                    this.userProfile.customAccess = this.userModal.form.customAccess || {};
+                    this.userProfile.customAccess = customAccess;
                 }
                 this.userModal.show = false;
                 this.logAudit(isNewUser ? 'CREATE' : 'UPDATE', `User role/metadata for ${email}`);
@@ -6473,13 +6482,14 @@ createApp({
                         if (!this.isSeedAdminEmail(this.userProfile.email)) this.revokeCurrentPortalAccess();
                         return;
                     }
-                    if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role) && !this.isSeedAdminEmail(this.userProfile.email)) {
+                    if (!this.isPortalEmailAllowed(this.userProfile.email, currentUser.role) && !this.isSeedAdminEmail(this.userProfile.email)) {
                         this.revokeCurrentPortalAccess();
                         return;
                     }
                     this.userProfile.role = currentUser.role || this.userProfile.role;
                     this.userProfile.name = currentUser.name || this.userProfile.name;
                     this.userProfile.photo = currentUser.photo || this.userProfile.photo;
+                    this.userProfile.customAccess = this.userProfile.role === 'Client' ? {} : (currentUser.customAccess || {});
                     if (Object.prototype.hasOwnProperty.call(currentUser, 'clientDirectoryId')) {
                         this.userProfile.clientDirectoryId = currentUser.clientDirectoryId || '';
                     }
@@ -6500,7 +6510,7 @@ createApp({
                         return;
                     }
                     const currentUser = { ...snapshot.data(), id: snapshot.id };
-                    if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role)) {
+                    if (!this.isPortalEmailAllowed(this.userProfile.email, currentUser.role)) {
                         this.revokeCurrentPortalAccess();
                         return;
                     }
@@ -6508,6 +6518,7 @@ createApp({
                     this.userProfile.role = currentUser.role || this.userProfile.role;
                     this.userProfile.name = currentUser.name || this.userProfile.name;
                     this.userProfile.photo = currentUser.photo || this.userProfile.photo;
+                    this.userProfile.customAccess = this.userProfile.role === 'Client' ? {} : (currentUser.customAccess || {});
                     if (Object.prototype.hasOwnProperty.call(currentUser, 'clientDirectoryId')) {
                         this.userProfile.clientDirectoryId = currentUser.clientDirectoryId || '';
                     }
@@ -6737,7 +6748,7 @@ createApp({
                         this.openFirstTimePasswordFlow(loginContext);
                         return;
                     }
-                    this.userProfile = { name, email: firebaseUser.email, role, uid: firebaseUser.uid, photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: userData?.customAccess || {} };
+                    this.userProfile = { name, email: firebaseUser.email, role, uid: firebaseUser.uid, photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: role === 'Client' ? {} : (userData?.customAccess || {}) };
                     this.applyDarkModePreference();
                     this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
                     this.startIdleTimeoutWatch();

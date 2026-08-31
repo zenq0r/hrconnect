@@ -6,6 +6,7 @@
 // path fails there). This is the standard, supported alternative for exactly this
 // kind of role/ownership check in Storage Rules.
 const { getAdminApp } = require('./_firebaseAdmin');
+const { isApprovedStaffEmail, normalizeEmail } = require('./_security');
 const SEED_ADMIN_EMAIL = 'admin@zenq0r.com';
 
 module.exports = async function handler(req, res) {
@@ -54,7 +55,16 @@ module.exports = async function handler(req, res) {
         }
         if (!targetDoc.exists) { res.status(404).json({ error: 'User record not found.' }); return; }
         const role = targetDoc.data().role || 'Staff';
-        const email = targetDoc.data().email || '';
+        const targetAuthUser = targetUid === decoded.uid ? decoded : await admin.auth().getUser(targetUid);
+        const email = normalizeEmail(targetAuthUser.email) || '';
+
+        // The Authentication record is the source of truth for sign-in identity.
+        // Staff/management claims are issued only when its domain is an exact
+        // approved match. Client claims intentionally remain email-domain neutral.
+        if (role !== 'Client' && !isApprovedStaffEmail(email)) {
+            res.status(403).json({ error: 'Staff and Management accounts require an approved company email domain.' });
+            return;
+        }
 
         const claims = { role };
         if (role === 'Client' && email) {

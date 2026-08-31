@@ -3851,7 +3851,7 @@
                                             <option value="Client">Client Users System Terminal</option>
                         </select>
                     </div>
-                    <div class="zq-form-section">
+                    <div v-if="userModal.form.role !== 'Client' && isStaffEmail(userModal.form.email)" class="zq-form-section">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="zq-label">Custom Page Access (Optional)</label>
                         </div>

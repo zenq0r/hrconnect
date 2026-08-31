@@ -18,8 +18,8 @@ service cloud.firestore {
 
     function hasApprovedCompanyEmail(email) {
       return email is string && (
-        email.matches('.*@zenq0r[.]com$') ||
-        email.matches('.*@zenqor[.]com[.]my$')
+        email.matches('^[^@]+@zenq0r[.]com$') ||
+        email.matches('^[^@]+@zenqor[.]com[.]my$')
       );
     }
 
@@ -121,7 +121,13 @@ service cloud.firestore {
     }
 
     function hasAllowedRoleEmail(data) {
-      return data.role == 'Client' || (
+      return (
+        data.role == 'Client' && (
+          !('customAccess' in data) ||
+          (data.customAccess is map && data.customAccess.keys().hasOnly([]))
+        )
+      ) || (
+        data.role != 'Client' &&
         data.email is string && hasApprovedCompanyEmail(data.email)
       );
     }
@@ -165,7 +171,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if (isAdmin() && hasAllowedRoleEmail(request.resource.data)) || (
         request.auth.uid == userId &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo', 'mustChangePassword', 'themePreference', 'lastSeenChangelogVersion', 'notificationsLog', 'presenceStatus', 'isOnline', 'presenceUpdatedAt', 'lastSeen'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo', 'mustChangePassword', 'updatedAt', 'themePreference', 'lastSeenChangelogVersion', 'notificationsLog', 'presenceStatus', 'isOnline', 'presenceUpdatedAt', 'lastSeen'])
       ) || (
         // HR can correct a name typo/legal-name change via the HR Employees form
         // (syncEmployeeIdentityReferences), which needs to keep this portal login
