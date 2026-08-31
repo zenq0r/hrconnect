@@ -633,11 +633,9 @@ createApp({
             clientActionConfirm: { show: false, action: '', client: null },
             appConfirm: { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null, onResolve: null },
 
-            // Portal accounts are limited to Zenqor's two approved company domains.
-            // Keep this list in sync with firestore.rules; the server-side rule is
-            // the security boundary, while this client-side list prevents needless
-            // authentication attempts and gives the user a clear explanation.
-            allowedPortalDomains: ['zenq0r.com', 'zenqor.com.my'],
+            // Staff and management accounts are limited to Zenqor's approved
+            // company domains. Client accounts use the email registered for them.
+            allowedStaffDomains: ['zenq0r.com', 'zenqor.com.my'],
             officialEmailDomain: 'zenq0r.com',
             portalAccessRevocationInProgress: false,
 
@@ -1354,7 +1352,7 @@ createApp({
         },
         // Among unlinkedProjectClientEmails, flag the ones that can NEVER become a
         // Client Portal account under that exact address because a non-Client
-        // (staff) account already owns it — portal users must use one of the
+        // (staff) account already owns it — staff accounts must use one of the
         // approved company domains. createUserWithEmailAndPassword always hits
         // auth/email-already-in-use for these, and the pending_access fallback
         // (savePortalUser) never activates because that uid's users/{uid} doc
@@ -1371,17 +1369,12 @@ createApp({
                 .map(email => ({ email, role: staffRoleByEmail.get(email) }));
         },
         // The rest of unlinkedProjectClientEmails: saved on the client's Bill To
-        // record, not colliding with any staff account, and is eligible for a
-        // Client Portal login. Only approved Zenqor company email domains may
-        // receive portal access, even when an external address is saved in
-        // Client Information.
+        // record, not colliding with any staff account, and genuinely doesn't
+        // have a Client Portal login yet. Client access uses the email registered
+        // by staff in Client Information, including an external domain.
         awaitingProjectClientEmails() {
             const blocked = new Set(this.blockedProjectClientEmails.map(b => b.email));
-            return this.unlinkedProjectClientEmails.filter(email => !blocked.has(email) && this.isOfficialEmail(email));
-        },
-        unapprovedProjectClientEmails() {
-            const blocked = new Set(this.blockedProjectClientEmails.map(b => b.email));
-            return this.unlinkedProjectClientEmails.filter(email => !blocked.has(email) && !this.isOfficialEmail(email));
+            return this.unlinkedProjectClientEmails.filter(email => !blocked.has(email));
         },
         projectStaffOptions() {
             // A Project PIC may schedule work for any provisioned colleague, but
@@ -2689,13 +2682,16 @@ createApp({
             this.generateDocNo();
         },
 
-        isOfficialEmail(email) {
+        isStaffEmail(email) {
             if (!email) return false;
             const normalizedEmail = email.toLowerCase().trim();
-            return this.allowedPortalDomains.some(domain => normalizedEmail.endsWith(`@${domain}`));
+            return this.allowedStaffDomains.some(domain => normalizedEmail.endsWith(`@${domain}`));
         },
-        approvedPortalDomainsLabel() {
-            return this.allowedPortalDomains.map(domain => `@${domain}`).join(' or ');
+        approvedStaffDomainsLabel() {
+            return this.allowedStaffDomains.map(domain => `@${domain}`).join(' or ');
+        },
+        isPortalEmailAllowed(email, role) {
+            return role === 'Client' || this.isStaffEmail(email);
         },
         async revokeCurrentPortalAccess(message = 'Your portal access has been removed. Please contact your administrator.') {
             if (this.portalAccessRevocationInProgress) return;
@@ -3942,8 +3938,8 @@ createApp({
             // is fully ready.
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
-            if (!this.isOfficialEmail(this.loginForm.email)) {
-                this.loginError = `Only company email addresses (${this.approvedPortalDomainsLabel()}) may sign in to this portal.`;
+            if (this.authView === 'staff' && !this.isStaffEmail(this.loginForm.email)) {
+                this.loginError = `Staff and Management sign-in requires ${this.approvedStaffDomainsLabel()}.`;
                 return;
             }
             this.loginLoading = true;
@@ -3967,9 +3963,9 @@ createApp({
 
                 const mustChangePassword = userData?.mustChangePassword === true;
                 if (isSeedAdmin) role = 'Superadmin';
-                if (!this.isOfficialEmail(firebaseUser.email)) {
+                if (!this.isPortalEmailAllowed(firebaseUser.email, role)) {
                     await signOut(auth);
-                    this.loginError = `Only company email addresses (${this.approvedPortalDomainsLabel()}) may sign in to this portal.`;
+                    this.loginError = `Staff and Management sign-in requires ${this.approvedStaffDomainsLabel()}.`;
                     this.loginLoading = false;
                     return;
                 }
@@ -4189,14 +4185,10 @@ createApp({
         // One-click provisioning for a Client Portal Access account, called from the
         // New/Update Project modal for one of awaitingProjectClientEmails — an email
         // already saved on the client's Bill To record (Client Information form) that
-        // has no login account yet. The address must be from an approved Zenqor
-        // company domain before the Add Portal Access form can be opened.
+        // has no login account yet. It opens the same Client access form using
+        // exactly the email registered by staff in Client Information.
         openClientPortalAccessForEmail(email) {
             if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
-            if (!this.isOfficialEmail(email)) {
-                this.showNotify(`Portal access may only be assigned to ${this.approvedPortalDomainsLabel()} email addresses.`);
-                return;
-            }
             const customer = this.customers.find(item => item.id === this.projectModal.form.clientDirectoryId);
             this.userModal.isEdit = false;
             this.userModal.form = {
@@ -4261,7 +4253,6 @@ createApp({
         },
         async loadOrMigrateUserMetadata(firebaseUser) {
             if (!firebaseUser?.uid || !firebaseUser?.email) return null;
-            if (!this.isOfficialEmail(firebaseUser.email)) return null;
             const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
             const userRef = doc(db, 'users', firebaseUser.uid);
             const userSnapshot = await getDoc(userRef);
@@ -4299,8 +4290,8 @@ createApp({
             try {
                 if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
                 if (!this.userModal.form.name || !this.userModal.form.email || (this.userModal.isEdit === false && !this.userModal.form.password)) { this.showNotify("Please fill out all required fields."); return; }
-                if (!this.isOfficialEmail(this.userModal.form.email)) {
-                    this.showNotify(`Portal access may only be assigned to ${this.approvedPortalDomainsLabel()} email addresses.`);
+                if (this.userModal.form.role !== 'Client' && !this.isStaffEmail(this.userModal.form.email)) {
+                    this.showNotify(`Staff and Management access requires ${this.approvedStaffDomainsLabel()}. Client access may use the email registered by staff.`);
                     return;
                 }
 
@@ -6461,7 +6452,11 @@ createApp({
                     this.users = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
                     this.processPortalPresenceNotifications(this.users);
                     const currentUser = this.users.find(user => user.id === this.userProfile.uid);
-                    if (!currentUser || !this.isOfficialEmail(currentUser.email)) {
+                    if (!currentUser) {
+                        if (String(this.userProfile.email || '').trim().toLowerCase() !== 'admin@zenq0r.com') this.revokeCurrentPortalAccess();
+                        return;
+                    }
+                    if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role)) {
                         this.revokeCurrentPortalAccess();
                         return;
                     }
@@ -6484,7 +6479,7 @@ createApp({
                         return;
                     }
                     const currentUser = { ...snapshot.data(), id: snapshot.id };
-                    if (!this.isOfficialEmail(currentUser.email)) {
+                    if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role)) {
                         this.revokeCurrentPortalAccess();
                         return;
                     }
@@ -6709,8 +6704,8 @@ createApp({
                     let photo = userData?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0B1E36&color=D4AF37`;
                     const mustChangePassword = userData?.mustChangePassword === true;
                     if (isSeedAdmin) role = 'Superadmin';
-                    if (!this.isOfficialEmail(firebaseUser.email)) {
-                        this.loginError = `Only company email addresses (${this.approvedPortalDomainsLabel()}) may sign in to this portal.`;
+                    if (!this.isPortalEmailAllowed(firebaseUser.email, role)) {
+                        this.loginError = `Staff and Management sign-in requires ${this.approvedStaffDomainsLabel()}.`;
                         await signOut(auth);
                         return;
                     }

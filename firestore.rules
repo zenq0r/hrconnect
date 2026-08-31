@@ -5,7 +5,8 @@
 //   - getUserRole() kini baca dokumen guna UID (request.auth.uid)
 //     yang konsisten dengan cara app.js menyimpan data pengguna.
 //   - Pengguna hanya boleh kemas kini status presence rekod pekerja sendiri.
-//   - Semua pengguna portal mesti menggunakan domain syarikat yang diluluskan.
+//   - Staff/Management mesti menggunakan domain syarikat yang diluluskan;
+//     Client menggunakan e-mel yang didaftarkan oleh staff.
 //   - Sokong migrasi UID automatik melalui pending_access semasa login.
 //   - Benarkan penyelarasan identiti claim berdasarkan Employee ID kekal.
 //   - Sokong Payment Voucher dengan pencipta yang boleh diaudit.
@@ -23,7 +24,11 @@ service cloud.firestore {
     }
 
     function isAuthenticated() {
-      return request.auth != null &&
+      return request.auth != null;
+    }
+
+    function isApprovedStaffSession() {
+      return isAuthenticated() &&
         request.auth.token.email is string &&
         hasApprovedCompanyEmail(request.auth.token.email);
     }
@@ -34,11 +39,11 @@ service cloud.firestore {
     }
 
     function isSuperadmin() {
-      return isAuthenticated() && getUserRole() == 'Superadmin';
+      return isApprovedStaffSession() && getUserRole() == 'Superadmin';
     }
 
     function isDirector() {
-      return isAuthenticated() && getUserRole() == 'Director';
+      return isApprovedStaffSession() && getUserRole() == 'Director';
     }
 
     function isAdmin() {
@@ -46,19 +51,19 @@ service cloud.firestore {
     }
 
     function isHR() {
-      return isAuthenticated() && getUserRole() == 'HR';
+      return isApprovedStaffSession() && getUserRole() == 'HR';
     }
 
     function isAccount() {
-      return isAuthenticated() && getUserRole() == 'Account';
+      return isApprovedStaffSession() && getUserRole() == 'Account';
     }
 
     function isIT() {
-      return isAuthenticated() && getUserRole() == 'IT';
+      return isApprovedStaffSession() && getUserRole() == 'IT';
     }
 
     function isStaff() {
-      return isAuthenticated() && getUserRole() == 'Staff';
+      return isApprovedStaffSession() && getUserRole() == 'Staff';
     }
 
     function isClient() {
@@ -116,7 +121,9 @@ service cloud.firestore {
     }
 
     function hasAllowedRoleEmail(data) {
-      return data.email is string && hasApprovedCompanyEmail(data.email);
+      return data.role == 'Client' || (
+        data.email is string && hasApprovedCompanyEmail(data.email)
+      );
     }
 
     // Multi-user Client Portal access: a customers/{clientDirectoryId} record's
@@ -148,7 +155,7 @@ service cloud.firestore {
       // Staff require the internal directory for assignments and workflow routing.
       // Clients may read only their own portal profile; project records already contain
       // the public PIC fields needed by the Client workspace.
-      allow read: if isAuthenticated() && (!isClient() || request.auth.uid == userId);
+      allow read: if isApprovedStaffSession() || (isClient() && request.auth.uid == userId);
       allow create: if (
         request.auth.uid == userId &&
         hasMatchingPendingAccess() &&
@@ -413,7 +420,7 @@ service cloud.firestore {
         // This is intentionally paired with the ownerEmail query in app.js so
         // a crafted client request cannot retrieve another staff member's work.
         isProjectManager() || (
-          !isClient() &&
+          isApprovedStaffSession() &&
           resource.data.ownerEmail is string &&
           resource.data.ownerEmail == request.auth.token.email
         ) || (
@@ -452,7 +459,7 @@ service cloud.firestore {
           hasValidProjectLinks(request.resource.data) &&
           hasValidProjectStage(request.resource.data)
       ) || (
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
           resource.data.ownerEmail == request.auth.token.email &&
           request.resource.data.updatedByUid == request.auth.uid &&
           request.resource.data.updatedByEmail == request.auth.token.email &&
@@ -468,14 +475,14 @@ service cloud.firestore {
             'ownerName', 'ownerEmail', 'ownerPosition', 'ownerDepartment'
           ])
       ) || (
-        isAuthenticated() &&
+        isApprovedStaffSession() &&
         resource.data.ownerEmail == request.auth.token.email &&
         request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'ownerPresenceStatus', 'ownerPresenceUpdatedAt', 'ownerLastSeen'
         ])
       ) || (
-        isAuthenticated() &&
+        isApprovedStaffSession() &&
         resource.data.ownerEmail == request.auth.token.email &&
         request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerPhoto'])
@@ -485,7 +492,7 @@ service cloud.firestore {
         // description and client info are untouched, so a handover can never
         // change the project's workflow stage. (Admin-triggered handover
         // already works via the unrestricted isProjectManager() branch above.)
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
           resource.data.ownerEmail == request.auth.token.email &&
           request.resource.data.ownerEmpNo is string &&
           request.resource.data.ownerEmpNo != resource.data.ownerEmpNo &&
@@ -507,12 +514,12 @@ service cloud.firestore {
       // access to the project's Client Activity/Status History, but cannot read
       // these documents directly through the browser or a crafted SDK request.
       allow read: if isProjectManager() || (
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
         resource.data.projectOwnerEmail == request.auth.token.email
       );
       allow create: if (
         isProjectManager() ||
-        (isAuthenticated() && !isClient() &&
+        (isApprovedStaffSession() &&
           get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail == request.auth.token.email)
       ) &&
         exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
@@ -533,7 +540,7 @@ service cloud.firestore {
       allow update: if (
         isProjectManager()
       ) || (
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
         request.resource.data.projectId == resource.data.projectId &&
         request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
@@ -542,7 +549,7 @@ service cloud.firestore {
           'activityType', 'summary', 'dueDate', 'assignedEmpNo', 'assignedName', 'assignedEmail', 'assignedPosition', 'details', 'updatedAt', 'updatedByUid', 'updatedByEmail'
         ])
       ) || (
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
         request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
         request.resource.data.status == 'Done' &&
@@ -555,7 +562,7 @@ service cloud.firestore {
         // The outgoing PIC can refresh the safe owner-email index only when a
         // project handover is committed in the same batch. getAfter() prevents
         // a standalone activity write from granting access to another user.
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
         request.resource.data.projectOwnerEmail == getAfter(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -567,7 +574,7 @@ service cloud.firestore {
 
     match /project_client_updates/{updateId} {
       allow read: if isAuthenticated() && (
-        !isClient() || resource.data.clientPortalUid == request.auth.uid || (
+        isApprovedStaffSession() || resource.data.clientPortalUid == request.auth.uid || (
           // Multi-user Client Portal: a secondary authorized email shares the
           // primary contact's clientDirectoryId claim (see projects rule above)
           // rather than the project's single clientPortalUid.
@@ -591,7 +598,7 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
         request.resource.data.clientDirectoryId == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientDirectoryId && (
           (
-            !isClient() &&
+            isApprovedStaffSession() &&
             request.resource.data.senderRole != 'Client' &&
             (
               isProjectManager() ||
@@ -609,7 +616,7 @@ service cloud.firestore {
           )
         );
       allow update: if isProjectManager() || (
-        isAuthenticated() && !isClient() &&
+        isApprovedStaffSession() &&
         resource.data.senderUid == request.auth.uid &&
         request.resource.data.senderUid == resource.data.senderUid &&
         request.resource.data.projectId == resource.data.projectId &&

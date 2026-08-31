@@ -169,17 +169,22 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.match(appSource, /const canReadUserDirectory = role !== 'Client'/);
-    assert.match(rulesSource, /allow read: if isAuthenticated\(\) && \(!isClient\(\) \|\| request\.auth\.uid == userId\)/);
+    assert.match(rulesSource, /allow read: if isApprovedStaffSession\(\) \|\| \(isClient\(\) && request\.auth\.uid == userId\)/);
 });
 
-test('Portal access only accepts approved company domains and revokes removed accounts live', () => {
+test('Staff domains are enforced while registered Client email access remains available', () => {
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    assert.match(appSource, /allowedPortalDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
+    assert.match(appSource, /allowedStaffDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
+    assert.match(appSource, /this\.authView === 'staff' && !this\.isStaffEmail\(this\.loginForm\.email\)/);
+    assert.match(appSource, /this\.userModal\.form\.role !== 'Client' && !this\.isStaffEmail\(this\.userModal\.form\.email\)/);
+    assert.match(appSource, /return role === 'Client' \|\| this\.isStaffEmail\(email\)/);
     assert.match(appSource, /async revokeCurrentPortalAccess\(/);
     assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*this\.revokeCurrentPortalAccess\(\);/);
     assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokeCurrentPortalAccess\(\)/);
     assert.match(rulesSource, /function hasApprovedCompanyEmail\(email\)/);
+    assert.match(rulesSource, /function isApprovedStaffSession\(\)/);
+    assert.match(rulesSource, /return data\.role == 'Client' \|\| \(/);
     assert.match(rulesSource, /email\.matches\('\.\*@zenq0r\[\.\]com\$'\)/);
     assert.match(rulesSource, /email\.matches\('\.\*@zenqor\[\.\]com\[\.\]my\$'\)/);
 });
@@ -281,7 +286,7 @@ test('only Directors and Superadmins can view all Project Activities', () => {
     const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
-    assert.match(rules, /isProjectManager\(\) \|\| \(\s*!isClient\(\) &&\s*resource\.data\.ownerEmail is string/);
+    assert.match(rules, /isProjectManager\(\) \|\| \(\s*isApprovedStaffSession\(\) &&\s*resource\.data\.ownerEmail is string/);
     assert.match(app, /const mustUseAssignedScope = this\.userProfile\.role !== 'Client' && !this\.canManageProjects/);
     assert.match(app, /where\('ownerEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
     assert.match(app, /Only Director or Superadmin can open Project Activities from Client Task/);
