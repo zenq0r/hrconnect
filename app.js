@@ -889,6 +889,13 @@ createApp({
         // any gate built on this.customers silently evaluates against an empty list
         // for Staff/IT — who deliberately cannot read the Client Directory.
         canReadClientDirectory() { return this.hasAccess('client-directory') || this.hasAccess('doc-generator'); },
+        // Clicking a Client Task only filters the Project Activities board to that
+        // client — it reveals nothing the board would not already show, because
+        // filteredProjects still scopes a non-manager to their own PIC and assigned
+        // projects. So the gate is "can you open Project Activities at all", not
+        // "are you a Director": a PIC who can see the Client Task page must be able
+        // to open it, which is the whole point of the page.
+        canOpenClientTaskBoard() { return this.hasAccess('project-activities'); },
         canBackupDatabase() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         // Closing a period writes a company-wide financial summary, so it sits with
         // the other whole-company actions rather than with per-module edit rights.
@@ -943,12 +950,37 @@ createApp({
         // own projects (clientTaskStatus) — not the manual clientTier tag, which
         // stays a separate, untouched feature (Dashboard's Priority Clients
         // widget, Client Directory badges, the drawer's Set Tier pills).
+        // Staff and IT cannot read the Client Directory (see the customers rule),
+        // so this.customers is empty for them and the board below would render as
+        // three empty columns. Their own project documents already carry the
+        // client fields the card shows, and a project only exists under a Client
+        // Task parent, so the parent can be reconstructed from the projects they
+        // are already authorized to hold — no extra client data is exposed.
+        clientTaskSource() {
+            if (this.canReadClientDirectory) return this.customers.filter(cust => cust.clientTaskCreatedAt);
+            const byId = new Map();
+            this.projects.forEach(project => {
+                const id = String(project.clientDirectoryId || '').trim();
+                if (!id || byId.has(id)) return;
+                byId.set(id, {
+                    id,
+                    clientName: project.clientName || '',
+                    clientEmail: project.clientEmail || '',
+                    clientSSM: project.clientSSM || '',
+                    clientTier: project.clientTier || 'Standard',
+                    // The project could not exist without its parent, so the card's
+                    // membership marker is implied. viewClientBoard checks it.
+                    clientTaskCreatedAt: project.createdAt || project.updatedAt || 'derived'
+                });
+            });
+            return [...byId.values()];
+        },
         clientTaskGroups() {
             const buckets = { Consult: [], 'In-Progress': [], Complete: [] };
             // Membership gate — a client appears once it has a Client Task
             // parent. A Client Directory registration alone stays separate;
             // creating the first project adds this parent automatically.
-            this.customers.filter(cust => cust.clientTaskCreatedAt).forEach(cust => {
+            this.clientTaskSource.forEach(cust => {
                 buckets[this.clientTaskStatus(cust.id)].push(cust);
             });
             return [
@@ -4825,7 +4857,9 @@ createApp({
                 clientPostcode: cust.clientPostcode || '', clientCountry: cust.clientCountry || 'Malaysia', clientTier: cust.clientTier || 'Standard', companyType: cust.companyType || '', industry: cust.industry || '', clientNotes: cust.clientNotes || ''
             };
             this.clientView.show = true;
-            if (cust.id) this.loadClientDocuments(cust.id, cust.clientName, cust.clientEmail);
+            // Same guard as the project preview: client_documents is closed to
+            // Staff, so subscribing here would only paint a permission error.
+            if (cust.id && this.canViewClientDocuments) this.loadClientDocuments(cust.id, cust.clientName, cust.clientEmail);
         },
         closeClientView() {
             this.clientView.show = false;
@@ -5645,8 +5679,8 @@ createApp({
             if (item && typeof item.action === 'function') item.action();
         },
         viewClientBoard(cust) {
-            if (!this.canManageProjects) {
-                this.showNotify('Only Director or Superadmin can open Project Activities from Client Task.');
+            if (!this.canOpenClientTaskBoard) {
+                this.showNotify('You do not have access to Project Activities.');
                 return;
             }
             if (!cust?.id || !cust.clientTaskCreatedAt) {
@@ -5661,7 +5695,7 @@ createApp({
         // reach the exact same actions/permissions, defined once.
         clientTaskMenuItems(cust) {
             return [
-                this.canManageProjects ? { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) } : null,
+                this.canOpenClientTaskBoard ? { label: 'View Board', icon: 'fa-table-columns', action: () => this.viewClientBoard(cust) } : null,
                 { label: 'View Client Information', icon: 'fa-circle-info', action: () => this.openClientView(cust) },
                 this.canDelete ? { label: 'Delete Client Task and Projects', icon: 'fa-trash', danger: true, action: () => this.requestDeleteClientTask(cust) } : null
             ];

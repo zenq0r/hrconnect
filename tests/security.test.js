@@ -329,14 +329,23 @@ test('only Directors and Superadmins can view all Project Activities', () => {
     assert.match(rules, /isProjectManager\(\) \|\| \(\s*isApprovedStaffSession\(\) &&\s*resource\.data\.ownerEmail is string/);
     assert.match(app, /const mustUseAssignedScope = this\.userProfile\.role !== 'Client' && !this\.canManageProjects/);
     assert.match(app, /where\('ownerEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
-    assert.match(app, /Only Director or Superadmin can open Project Activities from Client Task/);
-    assert.match(app, /this\.canManageProjects \? \{ label: 'View Board'/);
+    // Opening a Client Task only FILTERS the board, which is itself still scoped
+    // per role — so the click is gated on Project Activities access, not on being
+    // a manager. The old Director-only block is gone.
+    assert.doesNotMatch(app, /Only Director or Superadmin can open Project Activities from Client Task/);
+    assert.match(app, /canOpenClientTaskBoard\(\) \{ return this\.hasAccess\('project-activities'\); \}/);
+    assert.match(app, /if \(!this\.canOpenClientTaskBoard\) \{/);
+    assert.match(html, /:tabindex="canOpenClientTaskBoard \? 0 : -1"/);
+    // Staff cannot read the Client Directory, so their Client Task cards are
+    // rebuilt from the projects they already hold rather than from customers.
+    assert.match(app, /clientTaskSource\(\) \{\s*if \(this\.canReadClientDirectory\) return this\.customers\.filter/);
+    assert.match(app, /this\.clientTaskSource\.forEach\(cust => \{/);
     assert.match(html, /v-if="canManageProjects && userProfile\.role !== 'Client'"/);
     assert.match(html, /My Assigned Project Activities/);
     // The non-manager scope is PIC assignments PLUS projects holding an activity
     // assigned to this employee — never the whole board.
     assert.match(app, /this\.assignedActivityProjectIds\.has\(project\.id\)/);
-    assert.match(html, /Project Activities are visible to the assigned Person In Charge and to the staff assigned to an activity within them/);
+    assert.match(html, /Click a company to open its Project Activities\. You see the projects you run as Person In Charge and those with an activity assigned to you/);
 });
 
 test('a staff activity assignee can open the project activities they are assigned to', () => {
