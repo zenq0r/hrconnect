@@ -2875,6 +2875,47 @@ createApp({
         isPortalEmailAllowed(email, role) {
             return role === 'Client' || this.isStaffEmail(email);
         },
+        // A realtime listener is NOT proof that access was revoked. Firestore
+        // delivers a cached snapshot before the server round-trip, and a listener
+        // is denied whenever the ID token it was opened with has gone stale —
+        // which happens on every password change, because updatePassword() bumps
+        // the account's validSince and invalidates previously issued tokens. A
+        // rules deployment propagating does the same thing for a few seconds.
+        // Signing the user out and telling them their access "has been removed"
+        // on any of those signals locks out perfectly valid accounts, and it is
+        // exactly what a brand-new client hits: sign in with the temporary
+        // password, change it as required, and get thrown out claiming an admin
+        // removed them. So confirm against the server before revoking.
+        //
+        // Returns true only when the account genuinely has no portal access:
+        // either its users/{uid} record is gone, or its role no longer permits
+        // sign-in. A FRESH token that is still refused is itself conclusive —
+        // that is what a real revocation looks like once the doc is deleted,
+        // because the read rule can no longer resolve the account's role.
+        async isPortalAccessTrulyRevoked(reason) {
+            const user = auth.currentUser;
+            if (!user) return false;
+            try {
+                // Re-mint the token first: the listener that raised this may have
+                // been holding the pre-password-change one.
+                await user.getIdToken(true);
+                const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+                const snapshot = await getDoc(doc(db, 'users', user.uid));
+                if (!snapshot.exists()) return !this.isSeedAdminEmail(user.email);
+                return !this.isPortalEmailAllowed(user.email, snapshot.data()?.role || '');
+            } catch (error) {
+                // Denied again holding a token minted seconds ago — the rules
+                // really do refuse this account now.
+                if (error?.code === 'permission-denied') return !this.isSeedAdminEmail(user.email);
+                // Anything else (offline, timeout, backend hiccup) is transient and
+                // must never end a valid session.
+                console.warn(`Could not confirm portal access (${reason}); keeping the session:`, error);
+                return false;
+            }
+        },
+        async revokePortalAccessIfConfirmed(reason) {
+            if (await this.isPortalAccessTrulyRevoked(reason)) this.revokeCurrentPortalAccess();
+        },
         async revokeCurrentPortalAccess(message = 'Your portal access has been removed. Please contact your administrator.') {
             if (this.portalAccessRevocationInProgress) return;
             this.portalAccessRevocationInProgress = true;
@@ -3990,6 +4031,11 @@ createApp({
                     const credential = EmailAuthProvider.credential(context.firebaseUser.email, flow.temporaryPassword);
                     await reauthenticateWithCredential(context.firebaseUser, credential);
                     await updatePassword(context.firebaseUser, flow.newPassword);
+                    // updatePassword() bumps validSince, so every token issued
+                    // before this instant is now rejected. Mint a new one before
+                    // the write below and before completeLogin() opens listeners,
+                    // or this first sign-in ends in a false "access removed".
+                    await context.firebaseUser.getIdToken(true).catch(() => {});
                     await setDoc(doc(db, 'users', context.firebaseUser.uid), {
                         mustChangePassword: false,
                         updatedAt: new Date().toISOString()
@@ -4323,6 +4369,9 @@ createApp({
                 const credential = EmailAuthProvider.credential(user.email, currentPassword);
                 await reauthenticateWithCredential(user, credential);
                 await updatePassword(user, newPassword);
+                // Same validSince bump as the first-login flow: refresh before the
+                // write, so the open listeners keep a token the rules accept.
+                await user.getIdToken(true).catch(() => {});
                 await setDoc(doc(db, "users", user.uid), { mustChangePassword: false }, { merge: true });
                 this.userProfile.mustChangePassword = false;
                 this.changePasswordModal.show = false; this.changePasswordModal.required = false; this.changePasswordModal.currentPassword = ''; this.changePasswordModal.newPassword = ''; this.changePasswordModal.confirmPassword = '';
@@ -6671,11 +6720,11 @@ createApp({
                     this.processPortalPresenceNotifications(this.users);
                     const currentUser = this.users.find(user => user.id === this.userProfile.uid);
                     if (!currentUser) {
-                        if (!this.isSeedAdminEmail(this.userProfile.email)) this.revokeCurrentPortalAccess();
+                        if (!this.isSeedAdminEmail(this.userProfile.email)) this.revokePortalAccessIfConfirmed('missing from the portal directory');
                         return;
                     }
                     if (!this.isPortalEmailAllowed(this.userProfile.email, currentUser.role) && !this.isSeedAdminEmail(this.userProfile.email)) {
-                        this.revokeCurrentPortalAccess();
+                        this.revokePortalAccessIfConfirmed('role no longer permits this email');
                         return;
                     }
                     this.userProfile.role = currentUser.role || this.userProfile.role;
@@ -6694,16 +6743,18 @@ createApp({
                     // to repair/recreate its own profile. Do not turn a transient
                     // directory-list listener denial into a sign-out for that one
                     // non-deletable account; every other account remains revoked.
-                    if (error?.code === 'permission-denied' && !this.isSeedAdminEmail(this.userProfile.email)) this.revokeCurrentPortalAccess();
+                    if (error?.code === 'permission-denied' && !this.isSeedAdminEmail(this.userProfile.email)) this.revokePortalAccessIfConfirmed('portal directory listener denied');
                 })
                 : subscribeWithReadySignal(doc(db, 'users', this.userProfile.uid), (snapshot) => {
                     if (!snapshot.exists()) {
-                        this.revokeCurrentPortalAccess();
+                        // Very often a cached miss on a doc created moments ago by
+                        // the pending_access migration — confirm with the server.
+                        this.revokePortalAccessIfConfirmed('portal profile reported missing');
                         return;
                     }
                     const currentUser = { ...snapshot.data(), id: snapshot.id };
                     if (!this.isPortalEmailAllowed(this.userProfile.email, currentUser.role)) {
-                        this.revokeCurrentPortalAccess();
+                        this.revokePortalAccessIfConfirmed('role no longer permits this email');
                         return;
                     }
                     this.users = [currentUser];
@@ -6719,7 +6770,7 @@ createApp({
                         this.applyDarkModePreference();
                     }
                 }, 'current portal user', (error) => {
-                    if (error?.code === 'permission-denied') this.revokeCurrentPortalAccess();
+                    if (error?.code === 'permission-denied') this.revokePortalAccessIfConfirmed('portal profile listener denied');
                 });
 
             const initialLoads = [

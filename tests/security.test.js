@@ -194,8 +194,12 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(appSource, /!this\.isPortalEmailAllowed\(this\.userProfile\.email, currentUser\.role\) && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);
     assert.match(appSource, /error\?\.code === 'permission-denied' && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);
     assert.match(appSource, /async revokeCurrentPortalAccess\(/);
-    assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*this\.revokeCurrentPortalAccess\(\);/);
-    assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokeCurrentPortalAccess\(\)/);
+    // A missing profile or a denied listener still ends the session — but only
+    // after a server round-trip on a freshly minted token confirms it, so a
+    // cached snapshot or a token invalidated by a password change cannot lock
+    // out a valid account. See the dedicated test below.
+    assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*(\/\/[^\n]*\n\s*)*this\.revokePortalAccessIfConfirmed\(/);
+    assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokePortalAccessIfConfirmed\(/);
     assert.match(rulesSource, /function hasApprovedCompanyEmail\(email\)/);
     assert.match(rulesSource, /function isApprovedStaffSession\(\)/);
     assert.match(rulesSource, /data\.role == 'Client' && \(/);
@@ -405,6 +409,32 @@ test('Staff and IT keep their project board without read access to the Client Di
     assert.match(rules, /match \/client_documents\/\{documentId\} \{\s*allow read: if isAuthenticated\(\) &&\s*\(\s*isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\) \|\| isIT\(\)/);
     assert.match(app, /canViewClientDocuments\(\) \{ return \['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Client'\]\.includes\(this\.userProfile\.role\); \}/);
     assert.match(app, /if \(this\.canViewClientDocuments\) this\.loadClientDocuments\(/);
+});
+
+test('a valid portal session is never revoked on an unconfirmed signal', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+    // updatePassword() bumps the account's validSince, invalidating every token
+    // issued before it. Both password-change paths must re-mint before touching
+    // Firestore or opening listeners, or a brand-new client is thrown out of the
+    // sign-in it just completed.
+    const firstLogin = app.slice(app.indexOf("if (flow.mode === 'firstLogin')"), app.indexOf('} else if (flow.source ==='));
+    assert.match(firstLogin, /await updatePassword\(context\.firebaseUser, flow\.newPassword\);\s*(\/\/[^\n]*\n\s*)*await context\.firebaseUser\.getIdToken\(true\)/);
+    const changePassword = app.slice(app.indexOf('async handleChangePassword()'), app.indexOf('async saveMyProfile()'));
+    assert.match(changePassword, /await updatePassword\(user, newPassword\);\s*(\/\/[^\n]*\n\s*)*await user\.getIdToken\(true\)/);
+
+    // No listener path may announce a revocation directly; each must confirm
+    // against the server first.
+    assert.match(app, /async isPortalAccessTrulyRevoked\(reason\)/);
+    assert.match(app, /async revokePortalAccessIfConfirmed\(reason\)/);
+    assert.match(app, /await user\.getIdToken\(true\);\s*const \{ getDoc \}/);
+    // A transient failure keeps the session; only a freshly-minted token that is
+    // still refused counts as a real revocation.
+    assert.match(app, /if \(error\?\.code === 'permission-denied'\) return !this\.isSeedAdminEmail\(user\.email\);/);
+
+    const listeners = app.slice(app.indexOf('const userSubscription = canReadUserDirectory'), app.indexOf('const initialLoads = ['));
+    assert.doesNotMatch(listeners, /this\.revokeCurrentPortalAccess\(/);
+    assert.match(listeners, /this\.revokePortalAccessIfConfirmed\(/);
 });
 
 test('audit retention form fields have stable identifiers for browser autofill', () => {
