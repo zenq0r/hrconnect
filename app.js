@@ -3802,7 +3802,7 @@ createApp({
             const flow = this.passwordResetFlow;
             flow.error = '';
             if (flow.mode === 'resetPassword' && !flow.otpVerified) { flow.error = 'Verify the 6-digit code sent to your email before setting a new password.'; return; }
-            if (flow.mode === 'firstLogin' && !flow.temporaryPassword) { flow.error = 'Enter your temporary password to continue.'; return; }
+            if (flow.mode === 'firstLogin' && !flow.temporaryPassword) { flow.error = 'Enter the password used for this sign-in to continue.'; return; }
             if (flow.newPassword.length < 8) { flow.error = 'New password must be at least 8 characters long.'; return; }
             if (flow.newPassword !== flow.confirmPassword) { flow.error = 'Passwords do not match.'; return; }
             flow.loading = true;

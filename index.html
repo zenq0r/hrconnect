@@ -223,8 +223,8 @@
                     </div>
                     <form v-else @submit.prevent="submitPasswordReset" class="mt-5 space-y-4 text-left">
                         <div v-if="passwordResetFlow.mode === 'firstLogin'">
-                            <label for="temporary-password" class="zq-label">Temporary Password</label>
-                            <input id="temporary-password" name="temporaryPassword" type="password" v-model="passwordResetFlow.temporaryPassword" required autocomplete="current-password" placeholder="Your temporary password" class="zq-input font-medium">
+                            <label for="temporary-password" class="zq-label">Current Password</label>
+                            <input id="temporary-password" name="temporaryPassword" type="password" v-model="passwordResetFlow.temporaryPassword" required autocomplete="current-password" placeholder="Password used to sign in" class="zq-input font-medium">
                         </div>
                         <div>
                             <label for="reset-new-password" class="zq-label">New Password</label>
@@ -237,7 +237,7 @@
                         <div class="zq-alert-slot" aria-live="polite">
                             <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
                         </div>
-                        <p class="text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ passwordResetFlow.mode === 'firstLogin' ? 'Use your temporary password once, then choose a permanent password.' : 'Your reset code was verified. Choose a new secure password.' }}</p>
+                        <p class="text-center text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ passwordResetFlow.mode === 'firstLogin' ? 'Enter the password used for this sign-in, then choose a new permanent password.' : 'Your reset code was verified. Choose a new secure password.' }}</p>
                         <button type="submit" :disabled="passwordResetFlow.loading" :class="{ 'is-loading': passwordResetFlow.loading }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
                             {{ passwordResetFlow.mode === 'firstLogin' ? 'Set Password & Continue' : 'Update Password' }}
                         </button>

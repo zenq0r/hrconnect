@@ -217,6 +217,8 @@ test('Client role ignores custom access while staff keep role defaults without o
     assert.doesNotMatch(appSource, /customAccess: userData\?\.customAccess \|\| \{\}/);
     assert.match(html, /v-if="userModal\.form\.role !== 'Client' && isStaffEmail\(userModal\.form\.email\)" class="zq-form-section"/);
     assert.match(rulesSource, /'mustChangePassword', 'updatedAt'/);
+    assert.match(html, /<label for="temporary-password" class="zq-label">Current Password<\/label>/);
+    assert.match(html, /Enter the password used for this sign-in/);
 });
 
 test('Authentication deletion cascades to the matching Firestore portal profile', () => {
