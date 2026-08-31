@@ -172,6 +172,18 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
     assert.match(rulesSource, /allow read: if isAuthenticated\(\) && \(!isClient\(\) \|\| request\.auth\.uid == userId\)/);
 });
 
+test('Portal access only accepts approved company domains and revokes removed accounts live', () => {
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.match(appSource, /allowedPortalDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
+    assert.match(appSource, /async revokeCurrentPortalAccess\(/);
+    assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*this\.revokeCurrentPortalAccess\(\);/);
+    assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokeCurrentPortalAccess\(\)/);
+    assert.match(rulesSource, /function hasApprovedCompanyEmail\(email\)/);
+    assert.match(rulesSource, /email\.matches\('\.\*@zenq0r\[\.\]com\$'\)/);
+    assert.match(rulesSource, /email\.matches\('\.\*@zenqor\[\.\]com\[\.\]my\$'\)/);
+});
+
 test('deleting a Client Task cascades its projects but preserves its Client Directory record', () => {
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const taskMenuStart = appSource.indexOf('clientTaskMenuItems(cust)');

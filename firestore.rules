@@ -5,7 +5,7 @@
 //   - getUserRole() kini baca dokumen guna UID (request.auth.uid)
 //     yang konsisten dengan cara app.js menyimpan data pengguna.
 //   - Pengguna hanya boleh kemas kini status presence rekod pekerja sendiri.
-//   - Hanya role Client dibenarkan menggunakan domain email luar.
+//   - Semua pengguna portal mesti menggunakan domain syarikat yang diluluskan.
 //   - Sokong migrasi UID automatik melalui pending_access semasa login.
 //   - Benarkan penyelarasan identiti claim berdasarkan Employee ID kekal.
 //   - Sokong Payment Voucher dengan pencipta yang boleh diaudit.
@@ -15,8 +15,17 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function hasApprovedCompanyEmail(email) {
+      return email is string && (
+        email.matches('.*@zenq0r[.]com$') ||
+        email.matches('.*@zenqor[.]com[.]my$')
+      );
+    }
+
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null &&
+        request.auth.token.email is string &&
+        hasApprovedCompanyEmail(request.auth.token.email);
     }
 
     // Baca role dari dokumen users/{uid} — UID sebagai doc ID
@@ -107,9 +116,7 @@ service cloud.firestore {
     }
 
     function hasAllowedRoleEmail(data) {
-      return data.role == 'Client' || (
-        data.email is string && data.email.matches('.*@zenq0r[.]com$')
-      );
+      return data.email is string && hasApprovedCompanyEmail(data.email);
     }
 
     // Multi-user Client Portal access: a customers/{clientDirectoryId} record's
