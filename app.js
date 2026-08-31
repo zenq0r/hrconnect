@@ -2687,6 +2687,9 @@ createApp({
             const normalizedEmail = email.toLowerCase().trim();
             return this.allowedStaffDomains.some(domain => normalizedEmail.endsWith(`@${domain}`));
         },
+        isSeedAdminEmail(email) {
+            return String(email || '').trim().toLowerCase() === 'admin@zenq0r.com';
+        },
         approvedStaffDomainsLabel() {
             return this.allowedStaffDomains.map(domain => `@${domain}`).join(' or ');
         },
@@ -3948,7 +3951,7 @@ createApp({
                 const userCredential = await signInWithEmailAndPassword(auth, this.loginForm.email, this.loginForm.password);
                 const firebaseUser = userCredential.user;
                 const userData = await this.loadOrMigrateUserMetadata(firebaseUser);
-                const isSeedAdmin = firebaseUser.email === 'admin@zenq0r.com';
+                const isSeedAdmin = this.isSeedAdminEmail(firebaseUser.email);
 
                 if (!userData && !isSeedAdmin) {
                     await signOut(auth);
@@ -4253,12 +4256,26 @@ createApp({
         },
         async loadOrMigrateUserMetadata(firebaseUser) {
             if (!firebaseUser?.uid || !firebaseUser?.email) return null;
+            const normalizedEmail = firebaseUser.email.trim().toLowerCase();
+            // The protected bootstrap administrator is a valid Superadmin even
+            // before its Firestore profile has been restored. The server then
+            // recreates that profile during syncUserClaims(), avoiding a failed
+            // session restore caused by a missing users/{uid} document.
+            if (this.isSeedAdminEmail(normalizedEmail)) {
+                return {
+                    email: normalizedEmail,
+                    name: firebaseUser.displayName || 'System Administrator',
+                    photo: '',
+                    role: 'Superadmin',
+                    customAccess: {},
+                    mustChangePassword: false
+                };
+            }
             const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
             const userRef = doc(db, 'users', firebaseUser.uid);
             const userSnapshot = await getDoc(userRef);
             if (userSnapshot.exists()) return userSnapshot.data();
 
-            const normalizedEmail = firebaseUser.email.trim().toLowerCase();
             const pendingRef = doc(db, 'pending_access', normalizedEmail);
             const pendingSnapshot = await getDoc(pendingRef);
             if (!pendingSnapshot.exists()) return null;
@@ -6453,7 +6470,7 @@ createApp({
                     this.processPortalPresenceNotifications(this.users);
                     const currentUser = this.users.find(user => user.id === this.userProfile.uid);
                     if (!currentUser) {
-                        if (String(this.userProfile.email || '').trim().toLowerCase() !== 'admin@zenq0r.com') this.revokeCurrentPortalAccess();
+                        if (!this.isSeedAdminEmail(this.userProfile.email)) this.revokeCurrentPortalAccess();
                         return;
                     }
                     if (!this.isPortalEmailAllowed(currentUser.email, currentUser.role)) {
@@ -6691,7 +6708,7 @@ createApp({
                         this.loadOrMigrateUserMetadata(firebaseUser),
                         this.timeoutPromise(15000, 'Timed out while loading your account. Please check your connection and sign in again.')
                     ]);
-                    const isSeedAdmin = firebaseUser.email === 'admin@zenq0r.com';
+                    const isSeedAdmin = this.isSeedAdminEmail(firebaseUser.email);
 
                     if (!userData && !isSeedAdmin) {
                         this.loginError = 'This account is not provisioned or your access has been revoked. Contact your administrator.';

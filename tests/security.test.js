@@ -179,6 +179,8 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(appSource, /this\.authView === 'staff' && !this\.isStaffEmail\(this\.loginForm\.email\)/);
     assert.match(appSource, /this\.userModal\.form\.role !== 'Client' && !this\.isStaffEmail\(this\.userModal\.form\.email\)/);
     assert.match(appSource, /return role === 'Client' \|\| this\.isStaffEmail\(email\)/);
+    assert.match(appSource, /isSeedAdminEmail\(email\)/);
+    assert.match(appSource, /if \(this\.isSeedAdminEmail\(normalizedEmail\)\)/);
     assert.match(appSource, /async revokeCurrentPortalAccess\(/);
     assert.match(appSource, /if \(!snapshot\.exists\(\)\) \{\s*this\.revokeCurrentPortalAccess\(\);/);
     assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokeCurrentPortalAccess\(\)/);
@@ -187,6 +189,9 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(rulesSource, /return data\.role == 'Client' \|\| \(/);
     assert.match(rulesSource, /email\.matches\('\.\*@zenq0r\[\.\]com\$'\)/);
     assert.match(rulesSource, /email\.matches\('\.\*@zenqor\[\.\]com\[\.\]my\$'\)/);
+    const claimsSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'sync-user-claims.js'), 'utf8');
+    assert.match(claimsSource, /const SEED_ADMIN_EMAIL = 'admin@zenq0r\.com'/);
+    assert.match(claimsSource, /restoredAt: new Date\(\)\.toISOString\(\)/);
 });
 
 test('deleting a Client Task cascades its projects but preserves its Client Directory record', () => {
