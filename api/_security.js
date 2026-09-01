@@ -13,11 +13,23 @@ function hashResetToken(token) {
     return crypto.createHash('sha256').update(String(token)).digest('hex');
 }
 
+// Hostnames a password-reset / notification link may point at. An exact-match set,
+// never a suffix test: 'evilwww.hrct.zenq0r.com' and 'www.hrct.zenq0r.com.evil.test'
+// both have to fail, and endsWith() would let one of them through.
+//
+// Both the old and the new portal hostname are listed while the move off
+// zenqor.com.my is in progress, so a link already sitting in someone's inbox keeps
+// working. Drop the zenqor.com.my entry once that domain is gone for good.
+const APPROVED_PORTAL_HOSTS = new Set([
+    'www.hrct.zenq0r.com',
+    'www.hrct.portal.zenqor.com.my'
+]);
+
 function isAllowedPortalUrl(value) {
     if (typeof value !== 'string') return false;
     try {
         const url = new URL(value);
-        return url.protocol === 'https:' && url.hostname === 'www.hrct.portal.zenqor.com.my';
+        return url.protocol === 'https:' && APPROVED_PORTAL_HOSTS.has(url.hostname);
     } catch (_) {
         return false;
     }
