@@ -637,7 +637,6 @@ createApp({
             // Staff and management accounts are limited to Zenqor's approved
             // company domains. Client accounts use the email registered for them.
             allowedStaffDomains: ['zenq0r.com', 'zenqor.com.my'],
-            officialEmailDomain: 'zenq0r.com',
             portalAccessRevocationInProgress: false,
 
             userModal: {
@@ -1167,15 +1166,12 @@ createApp({
 
         totalQuotations() { return this.docHistory.filter(d => d.type === 'Quotation').length; },
         totalQuotationValue() { return this.docHistory.filter(d => d.type === 'Quotation').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
-        totalInvoices() { return this.docHistory.filter(d => d.type === 'Invoice').length; },
         paidInvoicesCount() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status === 'Paid').length; },
         unpaidInvoicesCount() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status !== 'Paid').length; },
 
-        totalRevenuePaid() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status === 'Paid').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
         totalRevenuePending() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status !== 'Paid').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
 
         activeEmployeesCount() { return this.employees.filter(e => e.status === 'Aktif').length; },
-        totalPayrollNet() { return this.payslipHistory.reduce((s, p) => s + (Number(p.amount) || 0), 0); },
 
         // CROSS-SYSTEM INSIGHT: staff workload measured across BOTH HR project assignments and client
         // activity assignments — only possible because HR and Client data live in the same system.
@@ -1219,7 +1215,6 @@ createApp({
         },
 
         pendingClaimsCount() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => c.status && c.status.includes('Pending')).length; },
-        totalApprovedClaimsAmount() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => c.status === 'Approved').reduce((s, c) => s + (Number(c.amount) || 0), 0); },
         financePendingClaims() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => c.status === 'Pending Account'); },
 
         clientPortalDocs() {
@@ -2930,14 +2925,6 @@ createApp({
                 this.portalAccessRevocationInProgress = false;
             }
         },
-        detectClientPostcode() {
-            const result = lookupMalaysiaPostcode(this.docForm.clientPostcode);
-            this.docForm.clientPostcode = result.postcode;
-            if (result.city) this.docForm.clientCity = result.city;
-            if (result.state) this.docForm.clientState = result.state;
-            if (result.postcode.length === 5) this.docForm.clientCountry = 'Malaysia';
-            this.clientSavedForDocument = false;
-        },
         detectClientInformationPostcode() {
             const form = this.clientInformationModal.form;
             const result = lookupMalaysiaPostcode(form.clientPostcode);
@@ -3670,10 +3657,6 @@ createApp({
             if (window.innerWidth < 768) this.mobileMenuOpen = !this.mobileMenuOpen;
             else this.desktopSidebarOpen = !this.desktopSidebarOpen;
         },
-        openSidebar() {
-            if (window.innerWidth < 768) this.mobileMenuOpen = true;
-            else this.desktopSidebarOpen = true;
-        },
         handleSidebarWheel(event) {
             // The portal shell intentionally locks the outer page. Route a
             // mouse-wheel gesture from any part of the sidebar to its menu so
@@ -3793,15 +3776,6 @@ createApp({
         stopClientStatusClock() {
             if (this.clientStatusClockTimer) clearInterval(this.clientStatusClockTimer);
             this.clientStatusClockTimer = null;
-        },
-        openDocumentPage(type) {
-            const tabName = 'document-quotations';
-            if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to documents.'); return; }
-            if (type && !this.editingDocId && this.docForm.type !== type) {
-                this.docForm.type = type;
-                this.generateDocNo();
-            }
-            this.switchTab(tabName);
         },
         openDocumentWorkspace() {
             if (!this.hasAccess('document-quotations')) { this.showNotify('Access Denied: Your role does not permit access to documents.'); return; }
@@ -4849,55 +4823,6 @@ createApp({
                 this.clientInformationModal.saving = false;
             }
         },
-        async saveCustomerToDatabase() {
-            if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
-            if (!this.docForm.clientName || !this.docForm.clientPhone || !(this.docForm.clientAddress1 || this.docForm.clientAddress)) return this.showNotify('Enter Client Name, Phone, and Address Line 1.');
-            if (!/^\d{5}$/.test(String(this.docForm.clientPostcode || '')) || !this.docForm.clientCity || !this.docForm.clientState) return this.showNotify('Enter a valid 5-digit postcode, City, and State.');
-            try {
-                // Existing records keep whatever ID they already have (legacy records are
-                // still name-derived — left untouched to avoid a data migration). New
-                // records get a generated unique ID instead of one derived from the client
-                // name, since two unrelated clients can share a common SME name (e.g. two
-                // different "ABC Enterprise" entities) and would otherwise silently merge
-                // into the same customers/{id} document.
-                const isNewRecord = !this.docForm.customerId;
-                const docId = this.docForm.customerId || doc(collection(db, "customers")).id;
-                const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
-                const additionalClientEmails = String(this.docForm.additionalClientEmailsText || '')
-                    .split(',').map(e => e.trim().toLowerCase()).filter(e => e && e.includes('@'));
-                const clientAddress1 = String(this.docForm.clientAddress1 || this.docForm.clientAddress || '').trim();
-                const newCust = this.normalizeOfficialRecord({ clientName: this.docForm.clientName, clientPhone: this.docForm.clientPhone, clientSSM: this.docForm.clientSSM, clientAddress: clientAddress1, clientAddress1, clientAddress2: this.docForm.clientAddress2, clientAddress3: this.docForm.clientAddress3, clientCity: this.docForm.clientCity, clientState: this.docForm.clientState, clientPostcode: this.docForm.clientPostcode, clientCountry: this.docForm.clientCountry, clientEmail: String(this.docForm.clientEmail || '').trim().toLowerCase(), clientContactPerson: this.docForm.clientContactPerson, clientPosition: this.docForm.clientPosition, additionalClientEmails });
-                if (isNewRecord) newCust.createdAt = new Date().toISOString();
-                // Backfills a missing clientId on the next edit too, in case a record
-                // somehow still lacks one (e.g. it predates this field).
-                if (isNewRecord || !existingCust?.clientId) newCust.clientId = this.generateClientId(this.docForm.clientSSM);
-                this.docForm.customerId = docId;
-                Object.assign(this.docForm, newCust);
-            await setDoc(doc(db, "customers", docId), newCust, { merge: true }); this.clientSavedForDocument = true; this.logAudit(isNewRecord ? 'CREATE' : 'UPDATE', `Saved customer ${this.docForm.clientName}`);
-                // Email Address / Additional Authorized Emails save fine as plain contact
-                // info regardless of domain — but if one already belongs to an existing
-                // non-Client (staff) portal account, it can NEVER also become this client's
-                // Client Portal login (one email = one Firebase Auth account), so the
-                // "Client Portal Access" link on any Project created for this client will
-                // stay empty no matter how many times Portal Access is (re)created for it.
-                // Warn immediately here instead of leaving the director to discover it only
-                // when Project creation silently produces no linked account.
-                const staffEmailConflicts = [newCust.clientEmail, ...additionalClientEmails]
-                    .filter(Boolean)
-                    .map(email => this.users.find(user => user.role && user.role !== 'Client' && String(user.email || '').trim().toLowerCase() === email))
-                    .filter(Boolean);
-                if (staffEmailConflicts.length) {
-                    const list = staffEmailConflicts.map(user => `${user.email} (${user.role} staff account)`).join(', ');
-                    this.showNotify(`Client saved. Note: ${list} cannot be used for this client's Client Portal login — already an active staff account. Use a different email for Client Portal access.`);
-                } else {
-                    this.showNotify('Client saved. You can now add document items.');
-                }
-                return true;
-            } catch (error) { console.error('Client save failed:', error); this.showNotify('Unable to save client information.'); return false; }
-        },
-        selectCustomerFromTable(cust) {
-            this.loadCustomerIntoDocument(cust);
-        },
         openClientView(cust) {
             this.clientView.client = {
                 id: cust.id || '', clientId: cust.clientId || '', clientName: cust.clientName || '-', clientSSM: cust.clientSSM || '-', clientContactPerson: cust.clientContactPerson || '-',
@@ -5013,8 +4938,8 @@ createApp({
         clientHealthScore(cust) {
             if (!cust) return { score: 0, label: 'No Data', className: 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400' };
             // Match by the linked customer record id, not the display name — two distinct
-            // clients can share the same clientName (see saveCustomerToDatabase's own guard
-            // against this), which would otherwise silently conflate their invoice totals.
+            // clients can share the same clientName, which would otherwise silently
+            // conflate their invoice totals.
             const clientInvoices = cust.id
                 ? this.docHistory.filter(d => d.type === 'Invoice' && d.raw && d.raw.customerId === cust.id)
                 : this.docHistory.filter(d => d.type === 'Invoice' && d.name === cust.clientName);
@@ -5174,31 +5099,6 @@ createApp({
                 throw new Error('The selected file is not a valid JPG or PNG — its content does not match its extension.');
             }
             return contentType;
-        },
-        async handleWebsiteContentImageSelect(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            try {
-                await this.validateWebsiteContentImage(file);
-            } catch (error) {
-                this.showNotify(error.message || 'Unable to use this image.');
-                e.target.value = '';
-                return;
-            }
-            if (this.websiteContentModal.imagePreviewUrl && this.websiteContentModal.imageFile) URL.revokeObjectURL(this.websiteContentModal.imagePreviewUrl);
-            this.websiteContentModal.imageFile = file;
-            this.websiteContentModal.imagePreviewUrl = URL.createObjectURL(file);
-            this.websiteContentModal.imageOrientation = '';
-            // Detected purely for the admin's own preview label (Portrait/Landscape/Square) —
-            // the public site (zenqor-tech) does its own detection from the uploaded image
-            // directly, so nothing here needs to be persisted to Firestore.
-            const probe = new Image();
-            probe.onload = () => {
-                if (this.websiteContentModal.imageFile !== file) return;
-                const ratio = probe.naturalWidth / probe.naturalHeight;
-                this.websiteContentModal.imageOrientation = ratio < 0.85 ? 'Portrait' : ratio > 1.15 ? 'Landscape' : 'Square';
-            };
-            probe.src = this.websiteContentModal.imagePreviewUrl;
         },
         // Video companion to validateWebsiteContentImage — MP4 only (what virtually
         // every phone/export tool produces), checked via the ISO-BMFF 'ftyp' box
