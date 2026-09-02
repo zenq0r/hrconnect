@@ -127,39 +127,13 @@
             </div>
         </div>
 
-        <!-- ONBOARDING / WHAT'S NEW (version-driven, tracked per user in Firestore) -->
-        <div v-if="isLoggedIn && showOnboarding" class="zq-modal-overlay z-[92] no-print" role="dialog" aria-modal="true" :aria-label="onboardingMode === 'whatsnew' ? (latestChangelog?.title || &quot;What's New&quot;) : 'Welcome'" @click.self="dismissOnboarding">
-            <div class="zq-modal">
-                <div class="zq-modal-header zq-modal-header-brand">
-                    <div>
-                        <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-gold">{{ onboardingMode === 'whatsnew' ? `Updated · v${latestChangelog?.version}` : 'Welcome' }}</p>
-                        <h3 class="zq-modal-title mt-1">{{ onboardingMode === 'whatsnew' ? (latestChangelog?.title || "What's New") : `Hi ${userProfile.name}, glad to have you here!` }}</h3>
-                    </div>
-                </div>
-                <div class="zq-modal-body">
-                    <template v-if="onboardingMode === 'whatsnew'">
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">This portal was just updated. Here's what's new since your last visit:</p>
-                        <ul class="space-y-3 text-xs text-slate-700 dark:text-slate-200">
-                            <li v-for="(note, idx) in (latestChangelog?.notes || [])" :key="idx" class="flex items-start gap-2.5"><i class="fa-solid fa-sparkles mt-0.5 w-4 text-brand-gold"></i><span>{{ note }}</span></li>
-                        </ul>
-                    </template>
-                    <template v-else>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ userProfile.role === 'Client' ? 'Here\'s a quick look at your Client Portal:' : 'Here\'s a quick look at what you can do:' }}</p>
-                        <ul class="space-y-3 text-xs text-slate-700 dark:text-slate-200">
-                            <template v-if="userProfile.role === 'Client'">
-                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-diagram-project mt-0.5 w-4 text-brand-blue"></i><span>Track your project progress and workflow stage in real time under <b>Project Activities</b>.</span></li>
-                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-comments mt-0.5 w-4 text-brand-blue"></i><span>Reply directly to your project team in <b>Client Activity History</b> — it's a two-way conversation now.</span></li>
-                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-file-invoice-dollar mt-0.5 w-4 text-brand-blue"></i><span>View and filter your quotations and invoices anytime in the <b>Client Portal</b>.</span></li>
-                            </template>
-                            <template v-else>
-                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-diagram-project mt-0.5 w-4 text-brand-blue"></i><span>Use <b>My Projects</b> in Project Activities to see only the projects you're responsible for.</span></li>
-                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-bell mt-0.5 w-4 text-brand-blue"></i><span>Check the bell icon up top for a running log of your recent activity notifications.</span></li>
-                                <li class="flex items-start gap-2.5"><i class="fa-solid fa-moon mt-0.5 w-4 text-brand-blue"></i><span>Prefer a darker screen? Toggle Dark Mode from the same top bar.</span></li>
-                            </template>
-                        </ul>
-                    </template>
-                    <button type="button" @click="dismissOnboarding" class="zq-btn zq-btn-primary w-full mt-6">Got it, let's start</button>
-                </div>
+        <!-- WELCOME GREETING — one line on every sign-in, fading in and back out.
+             Deliberately not a modal: nothing to read, nothing to dismiss, and it
+             stays click-through so it never delays the portal underneath it. -->
+        <div v-if="isLoggedIn && welcomeGreeting.show" class="zq-welcome-greeting no-print" :class="{ 'is-visible': welcomeGreeting.visible }" aria-hidden="true">
+            <div class="zq-welcome-greeting-copy">
+                <p class="zq-welcome-greeting-hello">Hello</p>
+                <p v-if="welcomeGreeting.name" class="zq-welcome-greeting-name">{{ welcomeGreeting.name }}</p>
             </div>
         </div>
 
@@ -442,7 +416,7 @@
                             <img src="./logo.png" onerror="this.style.display='none'" alt="" class="h-6 w-auto object-contain">
                         </div>
                         <div class="zq-sidebar-brand-copy truncate">
-                            <h1 class="font-extrabold text-xs tracking-wide text-white truncate">{{ userProfile.role === 'Client' ? 'ZENQOR Client Portal' : 'ZENQOR Enterprise' }}</h1>
+                            <h1 class="font-extrabold text-xs tracking-wide text-white truncate">{{ userProfile.role === 'Client' ? 'ZENQOR Client Portal' : 'ZENQOR Technologies' }}</h1>
                             <p class="text-[9px] text-brand-gold uppercase tracking-widest font-semibold truncate">{{ userProfile.role === 'Client' ? (userProfile.name || 'Client Access') : 'Staff Workspace' }}</p>
                         </div>
                     </div>
@@ -1663,10 +1637,27 @@
                         <section class="zq-card p-5">
                             <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <h2 class="zq-text-section-title">Enterprise Executive Dashboard</h2>
+                                    <h2 class="zq-text-section-title">Executive Command Center</h2>
                                     <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Real-time monitoring of financial KPIs, HR, corporate documents, and system activities.</p>
                                 </div>
-                                <span class="zq-badge zq-badge-success shrink-0">Live data</span>
+                                <!-- Accounting period stepper — one control moves every KPI card below.
+                                     Forward is capped at the live month; there is nothing later to report. -->
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <div class="flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 p-1">
+                                        <button type="button" @click="shiftDashboardPeriod(-1)" :disabled="!canViewOlderDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-icon zq-btn-sm" title="Previous month" aria-label="Previous month">
+                                            <i class="fa-solid fa-chevron-left"></i>
+                                        </button>
+                                        <div class="px-2 text-center leading-tight">
+                                            <p class="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">Accounting Period</p>
+                                            <p class="text-xs font-extrabold text-brand-dark dark:text-white whitespace-nowrap">{{ dashboardPeriodLabel }}</p>
+                                        </div>
+                                        <button type="button" @click="shiftDashboardPeriod(1)" :disabled="isCurrentDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-icon zq-btn-sm" title="Next month" aria-label="Next month">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                    <button type="button" v-if="!isCurrentDashboardPeriod" @click="resetDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-sm shrink-0">This month</button>
+                                    <span class="zq-badge shrink-0" :class="isCurrentDashboardPeriod ? 'zq-badge-success' : 'zq-badge-neutral'">{{ isCurrentDashboardPeriod ? 'Live data' : 'Closed period' }}</span>
+                                </div>
                             </div>
                             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <!-- 1. Total Employees -->
@@ -1687,21 +1678,21 @@
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodQuotationCount }}</p>
-                                    <p class="zq-kpi-card-label truncate">Quotations ({{ currentPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Quotations ({{ dashboardPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
                                 </div>
                                 <!-- 4. Total Invoices -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodInvoiceCount }}</p>
-                                    <p class="zq-kpi-card-label truncate">Invoices ({{ currentPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Invoices ({{ dashboardPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
                                 </div>
                                 <!-- 5. Revenue (Paid) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(periodRevenuePaid) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Revenue Collected ({{ currentPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Revenue Collected ({{ dashboardPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
                                 </div>
                                 <!-- 6. Pending Receivables -->
@@ -1715,14 +1706,14 @@
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(periodPayrollNet) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Payroll Net ({{ currentPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Payroll Net ({{ dashboardPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
                                 </div>
                                 <!-- 8. Total Claims (Approved) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(periodApprovedClaimsAmount) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Claims Approved ({{ currentPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Claims Approved ({{ dashboardPeriodLabel }})</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending Approval</p>
                                 </div>
                             </div>

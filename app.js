@@ -297,9 +297,14 @@ const RBAC_ROLES = {
     'Staff': ['dashboard', 'project-activities', 'claims', 'profile']
 };
 
+// Sign-in greeting timing. HOLD covers the fade in plus the pause that follows;
+// FADE must stay >= the CSS transition on .zq-welcome-greeting or the overlay
+// would unmount mid-fade and vanish instead of easing away.
+const WELCOME_GREETING_HOLD_MS = 2200;
+const WELCOME_GREETING_FADE_MS = 800;
+
 // Bump the top entry's `version` (and add a new entry above it) whenever a meaningful feature ships.
-// Every signed-in user whose stored `lastSeenChangelogVersion` (in Firestore, users/{uid}) doesn't
-// match APP_CHANGELOG[0].version will automatically see the "What's New" onboarding message once.
+// The list is the release history shown under Settings; nothing here interrupts a sign-in.
 const APP_CHANGELOG = [
     {
         version: '2026.08.18-client-pages',
@@ -412,10 +417,14 @@ createApp({
             pendingLoginContext: null,
             currentTab: 'dashboard',
             mobileMenuOpen: false,
-            // Keep the desktop frame stable between views. The user can still
-            // collapse it deliberately from the single menu control.
-            desktopSidebarOpen: true,
+            // The navigation stays hidden until the user opens it deliberately
+            // from the single menu control, on desktop as well as on mobile.
+            desktopSidebarOpen: false,
             chartTimeFilter: 'monthly',
+            // Which month the executive KPI strip reads. Empty always means
+            // the live month, so a session left open overnight rolls over
+            // with the calendar instead of freezing on a stale key.
+            dashboardPeriodKey: '',
             sortOption: 'latest',
             recentActivityFilter: 'all',
             recentActivityAttentionOnly: false,
@@ -443,8 +452,10 @@ createApp({
             darkMode: false,
             appUpdateAvailable: false,
             appVersionMarker: '',
-            showOnboarding: false,
-            onboardingMode: 'welcome',
+            // A sign-in greeting, not a dialog: 'show' keeps it mounted while
+            // 'visible' drives the fade, so both directions can be animated.
+            welcomeGreeting: { show: false, visible: false, name: '' },
+            welcomeGreetingTimers: [],
             showUpdateHistory: false,
 
             activePrintModule: null,
@@ -957,7 +968,6 @@ createApp({
                 .slice(0, 50);
         },
         unreadNotificationsCount() { return this.notificationsForDisplay.filter(n => !n.read).length; },
-        latestChangelog() { return APP_CHANGELOG[0] || null; },
         appChangelog() { return APP_CHANGELOG; },
         priorityClients() { return this.customers.filter(c => c.clientTier === 'Priority'); },
         // Client Task board: every client bucketed by the LIVE status of their
@@ -1158,9 +1168,24 @@ createApp({
         // invoice is still owed on the 1st, and zeroing it would hide real debt.
         currentPeriod() { return this.periodKeyOf(new Date().toISOString()); },
         currentPeriodLabel() { return this.periodLabel(this.currentPeriod); },
-        periodDocs() { return this.docHistory.filter(d => this.periodKeyOf(d.date) === this.currentPeriod); },
-        periodPayslips() { return this.payslipHistory.filter(p => this.periodKeyOf(p.date) === this.currentPeriod); },
-        periodClaims() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => this.periodKeyOf(this.claimDateOf(c)) === this.currentPeriod); },
+
+        // The KPI strip can be stepped back through closed months. Everything
+        // below reads dashboardPeriod, never currentPeriod, so one control
+        // moves the whole strip; the Reports tab keeps its own live period.
+        dashboardPeriod() { return this.dashboardPeriodKey || this.currentPeriod; },
+        dashboardPeriodLabel() { return this.periodLabel(this.dashboardPeriod); },
+        isCurrentDashboardPeriod() { return this.dashboardPeriod === this.currentPeriod; },
+        // Twelve months of history is as far back as the strip reaches.
+        dashboardPeriodFloor() {
+            const now = new Date();
+            const floor = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+            return `${floor.getFullYear()}-${String(floor.getMonth() + 1).padStart(2, '0')}`;
+        },
+        canViewOlderDashboardPeriod() { return this.dashboardPeriod > this.dashboardPeriodFloor; },
+
+        periodDocs() { return this.docHistory.filter(d => this.periodKeyOf(d.date) === this.dashboardPeriod); },
+        periodPayslips() { return this.payslipHistory.filter(p => this.periodKeyOf(p.date) === this.dashboardPeriod); },
+        periodClaims() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => this.periodKeyOf(this.claimDateOf(c)) === this.dashboardPeriod); },
 
         periodQuotationCount() { return this.periodDocs.filter(d => d.type === 'Quotation').length; },
         periodInvoiceCount() { return this.periodDocs.filter(d => d.type === 'Invoice').length; },
@@ -1488,7 +1513,6 @@ createApp({
                 (this.activityModal.show && this.activityModal.project) ||
                 (this.projectPreview.show && this.projectPreview.project) ||
                 this.projectModal.show ||
-                (this.isLoggedIn && this.showOnboarding) ||
                 this.logoutConfirm || this.postLogoutChoice ||
                 this.clientActionConfirm.show || this.employeeActionConfirm.show ||
                 this.contextMenu.show || this.clientTaskModal.show ||
@@ -2605,6 +2629,17 @@ createApp({
             if (isNaN(parsed.getTime())) return '';
             return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}`;
         },
+        // Step the executive KPI strip one month at a time. The live month is
+        // stored as an empty key so the strip follows the calendar forward.
+        shiftDashboardPeriod(delta) {
+            const [year, month] = this.dashboardPeriod.split('-').map(Number);
+            const moved = new Date(year, (month - 1) + delta, 1);
+            const key = `${moved.getFullYear()}-${String(moved.getMonth() + 1).padStart(2, '0')}`;
+            if (key > this.currentPeriod) return;
+            if (key < this.dashboardPeriodFloor) return;
+            this.dashboardPeriodKey = key === this.currentPeriod ? '' : key;
+        },
+        resetDashboardPeriod() { this.dashboardPeriodKey = ''; },
         // Claims and vouchers each carry their own date field name.
         claimDateOf(record) { return record?.date || record?.expenseDate || record?.paymentDate || record?.createdAt || ''; },
         periodLabel(key) {
@@ -3748,37 +3783,39 @@ createApp({
         staySignedIn() {
             if (this.idleActivityHandler) this.idleActivityHandler();
         },
-        async dismissOnboarding() {
-            this.showOnboarding = false;
-            const latestVersion = APP_CHANGELOG[0]?.version || '';
-            this.userProfile.lastSeenChangelogVersion = latestVersion;
-            if (!this.userProfile.uid) return;
-            try {
-                await setDoc(doc(db, 'users', this.userProfile.uid), { lastSeenChangelogVersion: latestVersion }, { merge: true });
-            } catch (error) {
-                console.error('Unable to save onboarding/changelog state:', error);
-            }
+        // A greeting on every sign-in, timed rather than dismissed. Mount it
+        // hidden and flip the class on a later frame: without a painted start
+        // value the browser jumps straight to the end and there is no fade in.
+        playWelcomeGreeting() {
+            this.clearWelcomeGreetingTimers();
+            this.welcomeGreeting = { show: true, visible: false, name: this.userProfile.name || '' };
+            // nextTick puts the node in the DOM, the paired frames let it paint
+            // once at opacity 0 before the class flips.
+            this.$nextTick(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => { if (this.welcomeGreeting.show) this.welcomeGreeting.visible = true; });
+                });
+            });
+            // Hold, fade back out, then unmount once the transition has run.
+            this.welcomeGreetingTimers.push(setTimeout(() => { this.welcomeGreeting.visible = false; }, WELCOME_GREETING_HOLD_MS));
+            this.welcomeGreetingTimers.push(setTimeout(() => { this.welcomeGreeting.show = false; }, WELCOME_GREETING_HOLD_MS + WELCOME_GREETING_FADE_MS));
         },
-        maybeShowOnboarding() {
-            const latestVersion = APP_CHANGELOG[0]?.version || '';
-            if (!latestVersion) return;
-            const seenVersion = this.userProfile.lastSeenChangelogVersion || '';
-            if (seenVersion === latestVersion) return;
-            this.onboardingMode = seenVersion ? 'whatsnew' : 'welcome';
-            this.showOnboarding = true;
+        clearWelcomeGreetingTimers() {
+            this.welcomeGreetingTimers.forEach(id => clearTimeout(id));
+            this.welcomeGreetingTimers = [];
         },
         switchTab(tabName) {
             if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to this module.'); return; }
             if (this.currentTab === tabName) {
                 this.mobileMenuOpen = false;
-                if (window.innerWidth < 768) this.desktopSidebarOpen = false;
+                this.desktopSidebarOpen = false;
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 return;
             }
             window.history.pushState({ zenqorPortal: true, tab: tabName }, '', window.location.href);
             this.currentTab = tabName;
             this.mobileMenuOpen = false;
-            if (window.innerWidth < 768) this.desktopSidebarOpen = false;
+            this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
         startClientStatusClock() {
@@ -3806,7 +3843,7 @@ createApp({
             const safeTab = typeof resolvedTab === 'string' && this.hasAccess(resolvedTab) ? resolvedTab : homeTab;
             this.currentTab = safeTab;
             this.mobileMenuOpen = false;
-            if (window.innerWidth < 768) this.desktopSidebarOpen = false;
+            this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'auto' });
         },
         refreshDashboardCharts(attempt = 0) {
@@ -4301,18 +4338,18 @@ createApp({
                 this.loginLoading = false;
                 return;
             }
-            this.userProfile = { name: name, email: firebaseUser.email, role: role, uid: firebaseUser.uid, photo: photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: role === 'Client' ? {} : (userData?.customAccess || {}) };
+            this.userProfile = { name: name, email: firebaseUser.email, role: role, uid: firebaseUser.uid, photo: photo, mustChangePassword, themePreference: userData?.themePreference || 'light', customAccess: role === 'Client' ? {} : (userData?.customAccess || {}) };
             this.applyDarkModePreference();
             this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
             this.startIdleTimeoutWatch();
             await this.syncUserClaims();
 
-            this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = window.innerWidth >= 768; this.mobileMenuOpen = false;
+            this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = false; this.mobileMenuOpen = false;
             await this.logAudit('LOGIN', `User logged in with role ${this.getRoleDisplayName(role)}`);
             this.showNotify(`Welcome back (${this.getRoleDisplayName(role)}): ${name}`);
             this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard';
             window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
-            this.maybeShowOnboarding();
+            this.playWelcomeGreeting();
             this.loginLoading = false;
             this.initFirebaseRealtime().catch(error => {
                 console.error('Realtime data initialization failed after login:', error);
@@ -6885,7 +6922,6 @@ createApp({
             if (this.activityModal.show && this.activityModal.project) { this.closeActivityModal(); return; }
             if (this.projectPreview.show && this.projectPreview.project) { this.closeProjectDetails(); return; }
             if (this.projectModal.show) { this.closeProjectModal(); return; }
-            if (this.isLoggedIn && this.showOnboarding) { this.dismissOnboarding(); return; }
             if (this.logoutConfirm) { this.logoutConfirm = false; return; }
             if (this.postLogoutChoice) { this.stayOnPortal(); return; }
             if (this.clientActionConfirm.show) { this.clientActionConfirm.show = false; return; }
@@ -6945,20 +6981,19 @@ createApp({
                         this.openFirstTimePasswordFlow(loginContext);
                         return;
                     }
-                    this.userProfile = { name, email: firebaseUser.email, role, uid: firebaseUser.uid, photo, mustChangePassword, themePreference: userData?.themePreference || 'light', lastSeenChangelogVersion: userData?.lastSeenChangelogVersion || '', customAccess: role === 'Client' ? {} : (userData?.customAccess || {}) };
+                    this.userProfile = { name, email: firebaseUser.email, role, uid: firebaseUser.uid, photo, mustChangePassword, themePreference: userData?.themePreference || 'light', customAccess: role === 'Client' ? {} : (userData?.customAccess || {}) };
                     this.applyDarkModePreference();
                     this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
                     this.startIdleTimeoutWatch();
                     await this.syncUserClaims();
                     this.resetAllForms();
                     this.isLoggedIn = true;
-                    // The sidebar remains hidden by the template until
-                    // loginLoading is cleared below; prepare its normal
-                    // desktop state only after the restored account is ready.
-                    this.desktopSidebarOpen = window.innerWidth >= 768;
+                    // The sidebar stays closed after a restored session too;
+                    // it only opens when the user presses the menu control.
+                    this.desktopSidebarOpen = false;
                     this.mobileMenuOpen = false;
                     this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard';
-                    this.maybeShowOnboarding();
+                    this.playWelcomeGreeting();
                     window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
                     this.loginLoading = false;
                     this.initFirebaseRealtime().catch(error => {
