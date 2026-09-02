@@ -887,10 +887,10 @@ createApp({
         canEditLockedIdentityFields() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
         canManageEmployees() { return this.hasModulePermission('hr-employees', 'edit'); },
         canManageClients() { return this.hasModulePermission('client-directory', 'edit'); },
-        // "New Client Task" is deliberately narrower than canManageClients (which
-        // also covers Superadmin/HR/Account elsewhere, e.g. the tier pills in the
-        // client-view drawer) — Director only, per explicit instruction.
-        canCreateClientTask() { return this.userProfile.role === 'Director'; },
+        // Was Director-only. Superadmin now holds it too: an account that can
+        // delete a Client Task could not create one, which is not a coherent
+        // boundary for a role meant to reach everything.
+        canCreateClientTask() { return this.isFullAccessRole; },
         canManageDocuments() { return this.hasModulePermission('doc-generator', 'edit'); },
         // Clients may upload to their OWN client_documents folder (but not the
         // doc-generator/billing tools canManageDocuments otherwise gates) — the
@@ -907,8 +907,12 @@ createApp({
         canDeleteClients() { return this.hasModulePermission('client-directory', 'delete'); },
         canDeleteDocuments() { return this.hasModulePermission('doc-generator', 'delete'); },
         canDeletePayroll() { return this.hasModulePermission('payslip-generator', 'delete'); },
-        canDelete() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
-        canManageRBAC() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
+        // Superadmin and Director hold every module their role lists, with edit
+        // and delete on each, and no per-user override may subtract from that.
+        // Anything narrower would let an admin lock another admin out of a page.
+        isFullAccessRole() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
+        canDelete() { return this.isFullAccessRole; },
+        canManageRBAC() { return this.isFullAccessRole; },
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         // Must mirror the customers subscription condition in loadPortalData(), or
@@ -3474,6 +3478,12 @@ createApp({
             // Custom overrides are an internal staff feature. Client accounts always
             // use the fixed Client role workspace regardless of legacy stored data.
             const staffCustomAccess = this.userProfile.role === 'Client' ? {} : (this.userProfile.customAccess || {});
+            // Full-access roles read their role list directly. Consulting the
+            // override first meant a stored view:false could hide a whole
+            // sidebar page from a Superadmin or Director; going through the
+            // list rather than returning true keeps them out of the
+            // Client-only workspaces, which expect a client identity.
+            if (this.isFullAccessRole) return (RBAC_ROLES[this.userProfile.role] || []).includes(permissionModule);
             const override = staffCustomAccess[permissionModule];
             if (override && typeof override.view === 'boolean') return override.view;
             if (['client-documents', 'client-updates', 'client-support'].includes(permissionModule)) {
@@ -3490,6 +3500,9 @@ createApp({
         // matching this app's pre-existing behavior for users with no override set.
         hasModulePermission(moduleName, action) {
             const staffCustomAccess = this.userProfile.role === 'Client' ? {} : (this.userProfile.customAccess || {});
+            // Same reason as hasAccess: an override could otherwise strip edit
+            // or delete from an admin. They get both on every page they hold.
+            if (this.isFullAccessRole) return this.hasAccess(moduleName);
             const override = staffCustomAccess[moduleName];
             if (override && typeof override[action] === 'boolean') return override[action];
             // website-content grants IT full edit+delete (firestore.rules' isContentAdmin()
@@ -6144,7 +6157,7 @@ createApp({
         // ================================================================
         canApproveClaim(clm) {
             const role = this.userProfile.role;
-            if (role === 'Director') return typeof clm.status === 'string' && clm.status.startsWith('Pending');
+            if (this.isFullAccessRole) return typeof clm.status === 'string' && clm.status.startsWith('Pending');
             const expectedStatus = { HR: 'Pending HR', Account: 'Pending Account', Director: 'Pending Director' }[role];
             return !!expectedStatus && clm.status === expectedStatus && (!clm.assignedToEmail || clm.assignedToEmail === this.userProfile.email);
         },
@@ -6197,7 +6210,7 @@ createApp({
             if (idx === -1) this.selectedVoucherIds.push(id); else this.selectedVoucherIds.splice(idx, 1);
         },
         async bulkApproveSelectedClaims() {
-            if (this.userProfile.role === 'Director') { this.showNotify('Director approvals require an individual supporting document per claim — please approve one at a time.'); return; }
+            if (this.isFullAccessRole) { this.showNotify('Final approvals require an individual supporting document per claim — please approve one at a time.'); return; }
             const targets = this.claimsHistory.filter(c => this.selectedClaimIds.includes(c.id) && this.canApproveClaim(c));
             if (!targets.length) { this.showNotify('No eligible claims selected.'); return; }
             if (!await this.askConfirm({
@@ -6211,7 +6224,7 @@ createApp({
             this.showNotify(`${succeeded} of ${targets.length} claim(s) approved and forwarded.`);
         },
         async bulkApproveSelectedVouchers() {
-            if (this.userProfile.role === 'Director') { this.showNotify('Director approvals require an individual supporting document per voucher — please approve one at a time.'); return; }
+            if (this.isFullAccessRole) { this.showNotify('Final approvals require an individual supporting document per voucher — please approve one at a time.'); return; }
             const targets = this.paymentVouchers.filter(v => this.selectedVoucherIds.includes(v.id) && this.canApprovePaymentVoucher(v));
             if (!targets.length) { this.showNotify('No eligible vouchers selected.'); return; }
             if (!await this.askConfirm({
@@ -6227,7 +6240,7 @@ createApp({
         async approveClaim(clm) {
             if (!this.canApproveClaim(clm)) { this.showNotify('You do not have permission to approve this record at its current workflow stage.'); return false; }
             if (this.attachmentUploadState.director) { this.showNotify('Wait for the Director approval document upload to finish.'); return false; }
-            const isDirectorDecision = this.userProfile.role === 'Director';
+            const isDirectorDecision = this.isFullAccessRole;
             const nextRole = isDirectorDecision ? null : { 'Pending HR': 'Account', 'Pending Account': 'Director' }[clm.status];
             const roleNames = { HR: 'Human Resource Management', Account: 'Finance Account Management', Director: 'Director' };
             if (isDirectorDecision && !this.claimPreview.directorApprovalAttachment) { this.showNotify('Director approval requires a supporting document attachment.'); return; }
@@ -6324,7 +6337,7 @@ createApp({
         // ================================================================
         canApprovePaymentVoucher(pv) {
             const role = this.userProfile.role;
-            if (role === 'Director') return typeof pv.status === 'string' && pv.status.startsWith('Pending');
+            if (this.isFullAccessRole) return typeof pv.status === 'string' && pv.status.startsWith('Pending');
             const expectedStatus = { HR: 'Pending HR', Account: 'Pending Account', Director: 'Pending Director' }[role];
             return !!expectedStatus && pv.status === expectedStatus && (!pv.assignedToEmail || pv.assignedToEmail === this.userProfile.email);
         },
@@ -6334,7 +6347,7 @@ createApp({
         async approvePaymentVoucher(pv) {
             if (!this.canApprovePaymentVoucher(pv)) { this.showNotify('You do not have permission to approve this record at its current workflow stage.'); return false; }
             if (this.attachmentUploadState.director) { this.showNotify('Wait for the Director approval document upload to finish.'); return false; }
-            const isDirectorDecision = this.userProfile.role === 'Director';
+            const isDirectorDecision = this.isFullAccessRole;
             const nextRole = isDirectorDecision ? null : { 'Pending HR': 'Account', 'Pending Account': 'Director' }[pv.status];
             const roleNames = { HR: 'Human Resource Management', Account: 'Finance Account Management', Director: 'Director' };
             if (isDirectorDecision && !this.claimPreview.directorApprovalAttachment) { this.showNotify('Director approval requires a supporting document attachment.'); return; }

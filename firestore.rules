@@ -364,7 +364,9 @@ service cloud.firestore {
         isAccount() && resource.data.status == 'Pending Account' &&
         request.resource.data.status in ['Pending Director', 'Rejected']
       ) || (
-        isDirector() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
+        // Superadmin approves alongside Director: the client gate lets them,
+        // and without this the write is refused after the UI has said yes.
+        isAdmin() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
         request.resource.data.status in ['Approved', 'Rejected']
       );
       allow delete: if isAdmin();
@@ -418,7 +420,9 @@ service cloud.firestore {
         isAccount() && resource.data.status == 'Pending Account' &&
         request.resource.data.status in ['Pending Director', 'Rejected']
       ) || (
-        isDirector() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
+        // Superadmin approves alongside Director: the client gate lets them,
+        // and without this the write is refused after the UI has said yes.
+        isAdmin() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
         request.resource.data.status in ['Approved', 'Rejected']
       );
       allow delete: if isAdmin();
