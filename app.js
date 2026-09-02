@@ -3095,8 +3095,11 @@ createApp({
         getFirestoreWriteError(error, action = 'save this record') {
             const code = String(error?.code || '').toLowerCase();
             if (code.includes('permission-denied')) return `Permission denied while trying to ${action}. Deploy the latest firestore.rules and sign in again.`;
-            if (code.includes('resource-exhausted') || code.includes('invalid-argument')) return `The record is too large to ${action}. Select smaller images.`;
-            if (code.includes('unavailable') || code.includes('deadline-exceeded')) return `Firestore is temporarily unavailable. Check the network and try again.`;
+            // Every branch here reports a write that did not happen, so each
+            // one says so outright. Two of them used to open with neutral
+            // prose and reached the operator wearing a success tick.
+            if (code.includes('resource-exhausted') || code.includes('invalid-argument')) return `Unable to ${action} — the record is too large. Select smaller images.`;
+            if (code.includes('unavailable') || code.includes('deadline-exceeded')) return `Unable to ${action} — Firestore is temporarily unavailable. Check the network and try again.`;
             return `Unable to ${action}. ${error?.message || 'Please try again.'}`;
         },
         getSerializedSize(value) {
@@ -4761,7 +4764,9 @@ createApp({
                 this.showNotify('User record and Firebase Authentication account deleted.');
             } catch (error) {
                 console.error('Portal user deletion failed:', error);
-                this.showNotify(error?.message || 'Unable to delete portal access.');
+                // Stated rather than inferred: the server's wording varies with
+                // the cause, and two of its messages read as neutral prose.
+                this.showNotify(error?.message || 'Unable to delete portal access.', 'error');
             }
         },
 
@@ -4775,7 +4780,7 @@ createApp({
 
         async saveSettings() {
             if (!this.canManageCompanySettings) { this.showNotify('You do not have permission to update company settings.'); return; }
-            try { this.company.address = this.formattedCompanyAddress(); this.company = this.normalizeOfficialRecord(this.company); this.company.email = String(this.company.email || '').trim().toLowerCase(); await setDoc(doc(db, "settings", "company_profile"), { ...this.company }, { merge: true }); this.logAudit('UPDATE', 'Updated settings'); this.showNotify('Settings updated!'); } catch (error) { this.showNotify('Unable to save company settings.'); }
+            try { this.company.address = this.formattedCompanyAddress(); this.company = this.normalizeOfficialRecord(this.company); this.company.email = String(this.company.email || '').trim().toLowerCase(); await setDoc(doc(db, "settings", "company_profile"), { ...this.company }, { merge: true }); this.logAudit('UPDATE', 'Updated settings'); this.showNotify('Settings updated!'); } catch (error) { this.showNotify('Unable to save company settings.', 'error'); }
         },
 
         loadCustomerIntoDocument(cust) {
