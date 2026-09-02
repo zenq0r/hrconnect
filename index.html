@@ -3855,24 +3855,6 @@
                                             <option value="Client">Client Users System Terminal</option>
                         </select>
                     </div>
-                    <div v-if="userModal.form.role !== 'Client' && isStaffEmail(userModal.form.email)" class="zq-form-section">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="zq-label">Custom Page Access (Optional)</label>
-                        </div>
-                        <p class="text-[9px] text-slate-400 mb-2">Leave a page unticked to keep this user's role's default access. Tick a page to override it — grants full access by default, then fine-tune Edit/Delete below.</p>
-                        <div class="max-h-52 overflow-y-auto space-y-1 rounded-xl border dark:border-slate-600 p-2">
-                            <div v-for="mod in accessModules" :key="mod.key" class="rounded-lg" :class="userModal.form.customAccess && userModal.form.customAccess[mod.key] ? 'bg-blue-50 dark:bg-blue-950/30' : ''">
-                                <label class="flex items-center gap-2 px-2 py-1.5 cursor-pointer">
-                                    <input type="checkbox" class="zq-checkbox" :checked="!!(userModal.form.customAccess && userModal.form.customAccess[mod.key])" @change="toggleAccessModule(mod.key)">
-                                    <span class="flex-1 font-bold text-slate-700 dark:text-slate-200">{{ mod.label }}</span>
-                                </label>
-                                <div v-if="userModal.form.customAccess && userModal.form.customAccess[mod.key]" class="flex gap-4 pl-8 pb-2 text-[10px] text-slate-600 dark:text-slate-300">
-                                    <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="zq-checkbox" v-model="userModal.form.customAccess[mod.key].edit"><span>Edit</span></label>
-                                    <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="zq-checkbox" v-model="userModal.form.customAccess[mod.key].delete"><span>Delete</span></label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 <div class="zq-modal-footer">
                     <button type="button" @click="userModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>

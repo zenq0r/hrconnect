@@ -217,8 +217,7 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(appSource, /error\?\.code === 'permission-denied'\) this\.revokePortalAccessIfConfirmed\(/);
     assert.match(rulesSource, /function hasApprovedCompanyEmail\(email\)/);
     assert.match(rulesSource, /function isApprovedStaffSession\(\)/);
-    assert.match(rulesSource, /data\.role == 'Client' && \(/);
-    assert.match(rulesSource, /data\.customAccess\.keys\(\)\.hasOnly\(\[\]\)/);
+    assert.match(rulesSource, /data\.role == 'Client'/);
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenq0r\[\.\]com\$'\)/);
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenqor\[\.\]com\[\.\]my\$'\)/);
     const claimsSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'sync-user-claims.js'), 'utf8');
@@ -242,14 +241,19 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(claimsSource, /restoredAt: new Date\(\)\.toISOString\(\)/);
 });
 
-test('Client role ignores custom access while staff keep role defaults without overrides', () => {
+test('every account runs on its role alone, with no per-user permission override', () => {
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
     const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    assert.match(appSource, /this\.userProfile\.role === 'Client' \? \{\} : \(this\.userProfile\.customAccess \|\| \{\}\)/);
-    assert.match(appSource, /const customAccess = this\.userModal\.form\.role === 'Client' \? \{\} :/);
-    assert.doesNotMatch(appSource, /customAccess: userData\?\.customAccess \|\| \{\}/);
-    assert.match(html, /v-if="userModal\.form\.role !== 'Client' && isStaffEmail\(userModal\.form\.email\)" class="zq-form-section"/);
+    // Custom page access was removed. It could hide a page but could not truly
+    // grant one: neither the data subscriptions nor firestore.rules ever read
+    // the override, so a granted page opened empty and the admin was told
+    // nothing. Permission now comes from the role in one place.
+    for (const source of [appSource, html, rulesSource]) {
+        assert.doesNotMatch(source, /customAccess/, 'no per-user override may return');
+    }
+    assert.doesNotMatch(appSource, /accessModules|toggleAccessModule/);
+    assert.match(appSource, /const allowedModules = RBAC_ROLES\[this\.userProfile\.role\]/);
     assert.match(rulesSource, /'mustChangePassword', 'updatedAt'/);
     assert.match(html, /<label for="temporary-password" class="zq-label">Current Password<\/label>/);
     assert.match(html, /Enter the password used for this sign-in/);

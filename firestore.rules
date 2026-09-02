@@ -122,10 +122,7 @@ service cloud.firestore {
 
     function hasAllowedRoleEmail(data) {
       return (
-        data.role == 'Client' && (
-          !('customAccess' in data) ||
-          (data.customAccess is map && data.customAccess.keys().hasOnly([]))
-        )
+        data.role == 'Client'
       ) || (
         data.role != 'Client' &&
         data.email is string && hasApprovedCompanyEmail(data.email)
@@ -181,8 +178,8 @@ service cloud.firestore {
         // HR can correct a name typo/legal-name change via the HR Employees form
         // (syncEmployeeIdentityReferences), which needs to keep this portal login
         // record's display name in step with the employees/{empNo} record HR
-        // actually edits. Scoped to exactly that one field — role, email and
-        // customAccess (this account's actual permissions) stay untouchable here.
+        // actually edits. Scoped to exactly that one field — role and email
+        // stay untouchable here.
         isHR() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
       );
     }
