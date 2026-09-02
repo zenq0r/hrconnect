@@ -40,6 +40,12 @@ import {
     getDownloadURL,
     deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+// Imported statically rather than lazily: App Check has to be initialized
+// before the first Firestore/Storage call, and a dynamic import would race it.
+import {
+    initializeAppCheck,
+    ReCaptchaEnterpriseProvider
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
 
 // These values are not secrets — the Firebase web config is shipped to every browser
 // by design, and access is enforced by Auth + Firestore/Storage Rules, not by hiding
@@ -56,6 +62,40 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// ---- App Check --------------------------------------------------------
+// The reCAPTCHA Enterprise site key is public, like the config above: it is
+// bound to the domains registered with it, and the attestation happens on
+// Google's side. Paste the key from Firebase Console > App Check > Apps here.
+//
+// Empty means App Check stays off. That is deliberate — a browser that sends
+// no token is fine while App Check is in Monitoring, but the moment anyone
+// turns on Enforcement, every unattested Firestore and Storage call is
+// refused. So: set the key, deploy, watch Verified climb off 0%, and only
+// then enforce. Never enforce first.
+//
+// Server-side API routes are unaffected either way; the Admin SDK bypasses
+// App Check entirely.
+const RECAPTCHA_ENTERPRISE_SITE_KEY = '';
+
+if (RECAPTCHA_ENTERPRISE_SITE_KEY) {
+    // localhost and CI are always scored as invalid, so a debug token is the
+    // only way to work locally once enforcement is on. This prints one to the
+    // console; register it under App Check > Apps > Manage debug tokens.
+    if (['localhost', '127.0.0.1'].includes(self.location.hostname)) {
+        self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
+    try {
+        initializeAppCheck(app, {
+            provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
+            isTokenAutoRefreshEnabled: true
+        });
+    } catch (error) {
+        // A bad key must not take the portal down while App Check is still in
+        // Monitoring — without enforcement the requests go through regardless.
+        console.error('App Check failed to initialize:', error?.message || error);
+    }
+}
 
 // Analytics is optional. Without a measurementId, getAnalytics() still fires an
 // internal dynamic-config fetch that rejects (403) and surfaces as an "Uncaught
