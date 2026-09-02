@@ -3735,17 +3735,21 @@ createApp({
         },
         async checkForAppUpdate() {
             try {
-                // Checks BOTH index.html and app.js — most deploys only change app.js
-                // (the actual application logic), so watching the page alone missed
-                // updates entirely and this banner never appeared for those releases.
-                const [pageResponse, scriptResponse] = await Promise.all([
+                // Watches every file a deploy can change on its own: the page,
+                // the application logic, and the stylesheet. Any one of them
+                // shipping alone is a real release, and a check that missed it
+                // left the banner silent for that release.
+                const [pageResponse, scriptResponse, styleResponse] = await Promise.all([
                     fetch(`${window.location.pathname}?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' }),
-                    fetch(`/app.js?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' })
+                    fetch(`/app.js?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' }),
+                    fetch(`/custom.css?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' })
                 ]);
-                const pageMarker = pageResponse.headers.get('etag') || pageResponse.headers.get('last-modified') || '';
-                const scriptMarker = scriptResponse.headers.get('etag') || scriptResponse.headers.get('last-modified') || '';
-                if (!pageMarker && !scriptMarker) return;
-                const marker = `${pageMarker}|${scriptMarker}`;
+                const markerOf = response => response.headers.get('etag') || response.headers.get('last-modified') || '';
+                const pageMarker = markerOf(pageResponse);
+                const scriptMarker = markerOf(scriptResponse);
+                const styleMarker = markerOf(styleResponse);
+                if (!pageMarker && !scriptMarker && !styleMarker) return;
+                const marker = `${pageMarker}|${scriptMarker}|${styleMarker}`;
                 if (!this.appVersionMarker) { this.appVersionMarker = marker; return; }
                 if (marker !== this.appVersionMarker) this.appUpdateAvailable = true;
             } catch (error) { /* offline or blocked request, ignore and retry next interval */ }
