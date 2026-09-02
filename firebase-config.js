@@ -76,7 +76,7 @@ const app = initializeApp(firebaseConfig);
 //
 // Server-side API routes are unaffected either way; the Admin SDK bypasses
 // App Check entirely.
-const RECAPTCHA_ENTERPRISE_SITE_KEY = '6LekwKUtAAAAAIQM2SL6eDNFzHl5GwgY80z1iKAm';
+const RECAPTCHA_ENTERPRISE_SITE_KEY = '6LdmuqUtAAAAABC7d64yMX3yATeCUMgst0HLh3cn';
 
 if (RECAPTCHA_ENTERPRISE_SITE_KEY) {
     // localhost and CI are always scored as invalid, so a debug token is the
