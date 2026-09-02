@@ -11,6 +11,11 @@ const APPROVED_STAFF_DOMAINS = new Set(['zenq0r.com', 'zenqor.com.my']);
 const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my', 'admin@zenq0r.com']);
 const SEED_ADMIN_PRIMARY = 'info@zenqor.com.my';
 
+// Every outbound Resend email sends from this address. It was written by hand
+// into three API files as support@zenqor.com.my, which is no longer a mailbox
+// the company reads — keep it here only, so the next move is one edit.
+const MAIL_FROM = 'ZENQOR Technologies <info@zenqor.com.my>';
+
 function isSeedAdminEmail(value) {
     return SEED_ADMIN_EMAILS.has(String(value || '').trim().toLowerCase());
 }
@@ -66,4 +71,4 @@ function isApprovedStaffEmail(value) {
     return parts.length === 2 && APPROVED_STAFF_DOMAINS.has(parts[1]);
 }
 
-module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, SEED_ADMIN_PRIMARY };
+module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, SEED_ADMIN_PRIMARY, MAIL_FROM };

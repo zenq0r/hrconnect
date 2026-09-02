@@ -1,3 +1,4 @@
+const { MAIL_FROM } = require('./_security');
 function buildResetEmailHtml(resetLink) {
     return `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 0; background-color: #ffffff; border-radius: 16px; border: 1px solid #E5E7EB; overflow: hidden;">
   <div style="background-color: #0B1E36; padding: 28px 32px; text-align: center;">
@@ -29,7 +30,7 @@ async function sendResetEmail(toEmail, resetLink) {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            from: 'Zenqor Support <support@zenqor.com.my>',
+            from: MAIL_FROM,
             to: [toEmail],
             subject: 'Password Reset Request – ZENQOR HRMS/CDTS',
             html: buildResetEmailHtml(resetLink)

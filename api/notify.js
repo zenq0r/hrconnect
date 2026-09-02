@@ -5,7 +5,7 @@
 // actually belong to a provisioned staff user or a known client record —
 // a signed-in caller cannot use this to relay mail to an arbitrary address.
 const { getAdminApp } = require('./_firebaseAdmin');
-const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail } = require('./_security');
+const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail, MAIL_FROM } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
 
 const PORTAL_ROLES = new Set(['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff', 'Client']);
@@ -151,7 +151,7 @@ module.exports = async function handler(req, res) {
                     method: 'POST',
                     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        from: 'Zenqor Support <support@zenqor.com.my>',
+                        from: MAIL_FROM,
                         to: recipients,
                         subject: String(subject).slice(0, 200),
                         html: buildEmailHtml({ heading, message, ctaLabel, ctaUrl })

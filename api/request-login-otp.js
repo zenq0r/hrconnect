@@ -1,7 +1,7 @@
 // Email OTP is used only to confirm a password-reset action. Normal portal
 // sign-in remains a password-only flow.
 const { getAdminApp } = require('./_firebaseAdmin');
-const { generateOtp, hashOtp } = require('./_security');
+const { generateOtp, hashOtp, MAIL_FROM } = require('./_security');
 const { resolvePasswordResetContext } = require('./_passwordResetOtp');
 
 const OTP_TTL_MS = 5 * 60 * 1000;
@@ -32,7 +32,7 @@ async function sendOtpEmail(email, code) {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            from: 'Zenqor Support <support@zenqor.com.my>',
+            from: MAIL_FROM,
             to: [email],
             subject: 'Confirm Your ZENQOR Password Reset',
             html: buildOtpEmailHtml(code)

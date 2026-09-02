@@ -649,3 +649,20 @@ test('Firebase email action route is served by the portal application', () => {
     assert.match(actionPage, /portal\.search = window\.location\.search/);
     assert.match(actionPage, /window\.location\.replace\(portal\.toString\(\)\)/);
 });
+
+test('every outbound email sends from one address, and it is not the retired mailbox', () => {
+    const { MAIL_FROM } = require('../api/_security');
+    // support@zenqor.com.my is no longer read by anyone, so a reply to a
+    // password-reset or notification email would have gone nowhere.
+    assert.match(MAIL_FROM, /<info@zenqor\.com\.my>$/);
+    assert.doesNotMatch(MAIL_FROM, /support@/);
+
+    const senders = ['notify.js', 'request-login-otp.js', '_resetEmail.js'];
+    for (const file of senders) {
+        const source = fs.readFileSync(path.join(__dirname, '..', 'api', file), 'utf8');
+        assert.match(source, /from: MAIL_FROM,/, `${file} must send from the shared constant`);
+        assert.match(source, /MAIL_FROM.*=\s*require\('\.\/_security'\)|MAIL_FROM \} = require\('\.\/_security'\)/, `${file} must import it`);
+        // A literal address here is how the old value survived in three places.
+        assert.doesNotMatch(source, /from: '[^']*@/, `${file} must not hardcode a sender`);
+    }
+});
