@@ -1,7 +1,7 @@
 const crypto = require('crypto');
 const { getAdminApp } = require('./_firebaseAdmin');
 const { sendResetEmail } = require('./_resetEmail');
-const { hashResetToken, normalizeEmail } = require('./_security');
+const { hashResetToken, normalizeEmail, PORTAL_URL } = require('./_security');
 
 const TOKEN_TTL_MS = 30 * 60 * 1000;
 const THROTTLE_MS = 2 * 60 * 1000;
@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
                 try {
                     // Old reset links at the root remain supported by the client. New
                     // messages use the dedicated action route for a clearer, durable URL.
-                    const resetLink = `https://www.hrct.portal.zenqor.com.my/auth/action?resetToken=${token}`;
+                    const resetLink = `${PORTAL_URL}auth/action?resetToken=${token}`;
                     await sendResetEmail(normalizedEmail, resetLink);
                 } catch (sendError) {
                     // The email never reached the user, so this token is useless — remove it

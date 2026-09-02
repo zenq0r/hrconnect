@@ -5,7 +5,7 @@
 // actually belong to a provisioned staff user or a known client record —
 // a signed-in caller cannot use this to relay mail to an arbitrary address.
 const { getAdminApp } = require('./_firebaseAdmin');
-const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail, MAIL_FROM } = require('./_security');
+const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail, MAIL_FROM, PORTAL_URL } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
 
 const PORTAL_ROLES = new Set(['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff', 'Client']);
@@ -75,7 +75,7 @@ async function createWebsiteNotifications(db, recipientEmails, notification) {
             title: notification.heading,
             message: notification.message,
             actionLabel: notification.ctaLabel || 'OPEN PORTAL',
-            actionUrl: isAllowedPortalUrl(notification.ctaUrl) ? notification.ctaUrl : 'https://www.hrct.portal.zenqor.com.my/',
+            actionUrl: isAllowedPortalUrl(notification.ctaUrl) ? notification.ctaUrl : PORTAL_URL,
             createdAt: timestamp,
             read: false
         });

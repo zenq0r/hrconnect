@@ -635,7 +635,8 @@ test('Firebase email action URLs are handled safely alongside legacy reset links
     assert.match(app, /window\.history\.replaceState\(\{\}, '', window\.location\.pathname\)/);
     assert.match(html, /passwordResetFlow\.mode === 'verifyEmail'/);
     assert.match(html, /passwordResetFlow\.mode === 'recoverEmail'/);
-    assert.match(resetApi, /\/auth\/action\?resetToken=/);
+    // The leading slash now comes from PORTAL_URL, which ends in one.
+    assert.match(resetApi, /\$\{PORTAL_URL\}auth\/action\?resetToken=/);
 });
 
 test('Firebase email action route is served by the portal application', () => {
@@ -665,4 +666,24 @@ test('every outbound email sends from one address, and it is not the retired mai
         // A literal address here is how the old value survived in three places.
         assert.doesNotMatch(source, /from: '[^']*@/, `${file} must not hardcode a sender`);
     }
+});
+
+test('every link the portal emails out points at the live host', () => {
+    const { PORTAL_URL, isAllowedPortalUrl } = require('../api/_security');
+    assert.equal(PORTAL_URL, 'https://www.hrconnect.zenqor.com.my/');
+    // A link must satisfy the same allowlist the server checks on the way back.
+    assert.equal(isAllowedPortalUrl(`${PORTAL_URL}auth/action?resetToken=x`), true);
+
+    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    assert.match(appSource, /const PORTAL_URL = 'https:\/\/www\.hrconnect\.zenqor\.com\.my\/';/);
+
+    // The retired hosts stay in the allowlist so links already sent keep
+    // working, but nothing may build a new link with them — that gap is how
+    // the reset email kept pointing at a dead address after the portal moved.
+    for (const file of ['request-password-reset.js', 'notify.js', '_resetEmail.js']) {
+        const source = fs.readFileSync(path.join(__dirname, '..', 'api', file), 'utf8');
+        assert.doesNotMatch(source, /hrct\.portal\.zenqor|hrct\.zenq0r/, `${file} must not build a retired-host link`);
+    }
+    assert.match(fs.readFileSync(path.join(__dirname, '..', 'api', 'request-password-reset.js'), 'utf8'),
+        /const resetLink = `\$\{PORTAL_URL\}auth\/action\?resetToken=\$\{token\}`;/);
 });

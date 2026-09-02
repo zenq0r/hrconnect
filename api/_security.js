@@ -39,6 +39,12 @@ function hashResetToken(token) {
 // Both the old and the new portal hostname are listed while the move off
 // zenqor.com.my is in progress, so a link already sitting in someone's inbox keeps
 // working. Drop the zenqor.com.my entry once that domain is gone for good.
+// Where new links point. The set below still accepts the retired hosts so a
+// link already sitting in an inbox keeps working, but nothing new may be built
+// with them — that split is why the reset email went on pointing at a dead
+// address long after the portal had moved.
+const PORTAL_URL = 'https://www.hrconnect.zenqor.com.my/';
+
 const APPROVED_PORTAL_HOSTS = new Set([
     'www.hrconnect.zenqor.com.my',
     // Hosts the portal answered on earlier today and before. Kept only so a
@@ -71,4 +77,4 @@ function isApprovedStaffEmail(value) {
     return parts.length === 2 && APPROVED_STAFF_DOMAINS.has(parts[1]);
 }
 
-module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, SEED_ADMIN_PRIMARY, MAIL_FROM };
+module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, SEED_ADMIN_PRIMARY, MAIL_FROM, PORTAL_URL };
