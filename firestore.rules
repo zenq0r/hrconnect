@@ -153,8 +153,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/pending_access/$(request.auth.token.email)).data.email == request.auth.token.email;
     }
 
+    // The company profile is the letterhead: clients read it on the support
+    // page, staff print it onto quotations and invoices. Every signed-in
+    // session may read that one document; the rest of this collection, such
+    // as audit_retention, stays with Admin and IT, who alone may write here.
     match /settings/{docId} {
-      allow read, write: if isAdmin() || isIT();
+      allow read: if (isAuthenticated() && docId == 'company_profile') || isAdmin() || isIT();
+      allow write: if isAdmin() || isIT();
     }
 
     match /users/{userId} {

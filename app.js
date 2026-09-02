@@ -6809,9 +6809,14 @@ createApp({
                 });
 
             const initialLoads = [
-                this.canManageCompanySettings
-                    ? subscribeWithReadySignal(doc(db, "settings", "company_profile"), (snapshot) => { if (snapshot.exists()) this.company = this.hydrateCompanyAddress(snapshot.data()); }, 'company settings')
-                    : Promise.resolve(),
+                // Every session reads the company profile, not only the roles that
+                // may edit it. Clients see these details on the support page and
+                // staff print them onto quotations and invoices; gating the read
+                // on the edit permission left everyone else rendering the
+                // build-time defaults, so a change saved in Global Company
+                // Settings never reached them. A denied read is logged and
+                // ignored, leaving those same defaults in place.
+                subscribeWithReadySignal(doc(db, "settings", "company_profile"), (snapshot) => { if (snapshot.exists()) this.company = this.hydrateCompanyAddress(snapshot.data()); }, 'company settings'),
                 employeesSource
                     ? subscribeWithReadySignal(employeesSource, (snapshot) => { this.employees = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'employees')
                     : Promise.resolve(),
