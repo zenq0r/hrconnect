@@ -3044,8 +3044,15 @@
                                                     <button type="button" @click="decideQuotation(d, 'Accepted')" class="zq-btn zq-btn-sm bg-emerald-600 text-white hover:bg-emerald-700"><i class="fa-solid fa-check"></i><span>Accept</span></button>
                                                     <button type="button" @click="decideQuotation(d, 'Rejected')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-xmark"></i><span>Decline</span></button>
                                                 </template>
+                                                <label v-if="canAttachPaymentProof(d)" class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer" :class="{ 'opacity-60 pointer-events-none': paymentProofUploadingFor === d.id }">
+                                                    <i class="fa-solid" :class="paymentProofUploadingFor === d.id ? 'fa-spinner fa-spin' : 'fa-receipt'"></i>
+                                                    <span>{{ paymentProofUploadingFor === d.id ? 'Uploading' : (d.paymentProofUrl ? 'Replace Proof' : 'Payment Proof') }}</span>
+                                                    <input type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" @change="handlePaymentProofUpload($event, d)">
+                                                </label>
+                                                <button v-if="d.paymentProofUrl" type="button" @click="openAttachment(d.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View submitted payment proof" aria-label="View submitted payment proof"><i class="fa-solid fa-eye"></i></button>
                                             </div>
                                             <p v-if="d.clientDecisionAt" class="mt-1 text-[10px] text-slate-400">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
+                                            <p v-if="d.paymentProofAt" class="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">Proof submitted &mdash; awaiting verification</p>
                                         </td>
                                     </tr>
                                 </tbody>

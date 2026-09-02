@@ -551,6 +551,8 @@ createApp({
             clientUpdateTypes: ['Progress Update', 'Document Update', 'Government Update', 'Client Action Required', 'Milestone Completed', 'General Notice'],
             clientUpdateModal: { show: false, isEdit: false, updateId: '', original: null, project: null, form: { updateType: 'Progress Update', updateDate: '', message: '' } },
             clientReplyMessage: '',
+            // Which invoice row is mid-upload, so only that row shows a spinner.
+            paymentProofUploadingFor: '',
             editingReplyId: '',
             editingReplyMessage: '',
             projectViewMode: 'board',
@@ -1950,6 +1952,71 @@ Note: "${note}"` : ''}`
             } catch (error) {
                 console.error('Quotation decision failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'record your decision'), 'error');
+            }
+        },
+        // Proof may be attached to an unpaid invoice of the client's own. It
+        // records evidence; it never settles the invoice — staff mark Paid.
+        canAttachPaymentProof(d) {
+            if (this.userProfile.role !== 'Client') return false;
+            if (!d || d.type !== 'Invoice' || d.status === 'Paid') return false;
+            return this.clientPortalDocs.some(own => own.id === d.id);
+        },
+        async handlePaymentProofUpload(event, d) {
+            const file = event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            if (!this.canAttachPaymentProof(d)) { this.showNotify('Proof cannot be attached to this invoice.', 'error'); return; }
+            const clientDirectoryId = this.userProfile.clientDirectoryId || d.raw?.customerId || '';
+            if (!clientDirectoryId) { this.showNotify('Your account is not linked to a client record yet.', 'error'); return; }
+            this.paymentProofUploadingFor = d.id;
+            try {
+                const contentType = await this.validateClientDocumentFile(file);
+                const safeName = String(file.name || 'payment-proof').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+                const storageFileName = `${Date.now()}_${safeName}`;
+                const storagePath = `client_documents/${clientDirectoryId}/${storageFileName}`;
+                const fileRef = storageRef(storage, storagePath);
+                await uploadBytes(fileRef, file, { contentType });
+                const downloadURL = await getDownloadURL(fileRef);
+                // Also filed in the client's document repository, so the proof is
+                // findable later on its own rather than only through the invoice.
+                await setDoc(doc(db, 'client_documents', `${clientDirectoryId}_${Date.now()}`), {
+                    clientDirectoryId,
+                    clientName: this.clientPortalIdentity.clientName || '',
+                    clientEmail: this.userProfile.email,
+                    fileName: file.name,
+                    fileType: contentType,
+                    fileSize: file.size,
+                    storagePath,
+                    storageFileName,
+                    downloadURL,
+                    purpose: 'Payment Proof',
+                    linkedDocId: d.id,
+                    linkedDocNo: d.docNo || '',
+                    uploadedByUid: this.userProfile.uid,
+                    uploadedByName: this.userProfile.name,
+                    uploadedByEmail: this.userProfile.email,
+                    uploadedAt: new Date().toISOString()
+                });
+                await updateDoc(doc(db, 'docs', d.id), {
+                    paymentProofUrl: downloadURL,
+                    paymentProofName: file.name,
+                    paymentProofAt: new Date().toISOString(),
+                    paymentProofByUid: this.userProfile.uid,
+                    paymentProofByName: this.userProfile.name || this.userProfile.email
+                });
+                this.logAudit('UPDATE', `Client attached payment proof to ${d.docNo}`);
+                this.showNotify('Payment proof submitted. Our team will verify it and update the invoice.');
+                this.notifyByEmail({
+                    to: this.company.email || this.supportEmail,
+                    subject: `Payment Proof Submitted — ${d.docNo}`,
+                    heading: 'Payment Proof Submitted',
+                    message: `${this.userProfile.name || this.userProfile.email} attached proof of payment for invoice ${d.docNo} (${this.formatCurrency(d.amount)}). Verify it and mark the invoice Paid if it checks out.`
+                });
+            } catch (error) {
+                console.error('Payment proof upload failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'submit your payment proof'), 'error');
+            } finally {
+                this.paymentProofUploadingFor = '';
             }
         },
         async sendClientReply() {

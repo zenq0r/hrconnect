@@ -273,6 +273,24 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'clientDecisionAt', 'clientDecisionByUid', 'clientDecisionByName', 'clientDecisionNote'
         ])
+      ) || (
+        // A client attaches proof of payment to their own unpaid invoice.
+        // status is absent from hasOnly, so submitting proof can never mark an
+        // invoice Paid — only staff decide that, after looking at the proof.
+        isClient() &&
+        resource.data.type == 'Invoice' &&
+        resource.data.status != 'Paid' &&
+        (
+          resource.data.raw.clientEmail == request.auth.token.email || (
+            resource.data.raw.customerId is string &&
+            resource.data.raw.customerId.size() > 0 &&
+            customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
+          )
+        ) &&
+        request.resource.data.paymentProofByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName'
+        ])
       );
       allow delete: if isAdmin();
     }

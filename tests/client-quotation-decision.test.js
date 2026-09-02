@@ -69,3 +69,37 @@ test('an accepted quotation does not read as a failure', () => {
     // The badge only knew Paid from everything else, so Accepted painted red.
     assert.match(read('index.html'), /\['Paid', 'Accepted'\]\.includes\(d\.status\)/);
 });
+
+test('payment proof cannot settle an invoice', () => {
+    const rule = docsRule();
+    assert.match(rule, /resource\.data\.type == 'Invoice'/);
+    assert.match(rule, /resource\.data\.status != 'Paid'/);
+    // status is deliberately absent here: attaching proof records evidence,
+    // it does not mark the invoice Paid. Only staff decide that.
+    const branch = rule.slice(rule.indexOf("resource.data.type == 'Invoice'"));
+    const allowed = branch.match(/affectedKeys\(\)\.hasOnly\(\[([\s\S]*?)\]\)/);
+    assert.ok(allowed, 'the proof branch must constrain affectedKeys');
+    const fields = allowed[1].match(/'[^']+'/g).map(f => f.replace(/'/g, ''));
+    assert.deepEqual(fields.sort(), [
+        'paymentProofAt', 'paymentProofByName', 'paymentProofByUid', 'paymentProofName', 'paymentProofUrl'
+    ]);
+    assert.ok(!fields.includes('status'), 'a client must never be able to mark an invoice Paid');
+    assert.ok(!fields.includes('amount'), 'the amount owed must stay as issued');
+    // The uploader is stamped as themselves, not as whoever they claim.
+    assert.match(rule, /request\.resource\.data\.paymentProofByUid == request\.auth\.uid/);
+});
+
+test('the proof upload reuses the audited client document path', () => {
+    const app = read('app.js');
+    const start = app.indexOf('async handlePaymentProofUpload(');
+    const fn = app.slice(start, app.indexOf('async sendClientReply()', start));
+    // Same Storage layout the storage rules already bound to the owning client.
+    assert.match(fn, /client_documents\/\$\{clientDirectoryId\}\/\$\{storageFileName\}/);
+    assert.match(fn, /validateClientDocumentFile\(file\)/);
+    // Filed in the repository as well, so it is findable without the invoice.
+    assert.match(fn, /purpose: 'Payment Proof'/);
+    assert.match(fn, /linkedDocId: d\.id/);
+    // And it never touches status.
+    const update = fn.slice(fn.indexOf("updateDoc(doc(db, 'docs'"));
+    assert.doesNotMatch(update.slice(0, 400), /status:/);
+});
