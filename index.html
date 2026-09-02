@@ -48,8 +48,8 @@
 
         <!-- NOTIFICATION BAR -->
         <transition name="fade">
-            <div v-if="notification.show" class="fixed top-5 right-5 z-50 bg-brand-dark text-white px-5 py-3.5 rounded-xl shadow-2xl border-l-4 border-brand-gold flex items-center space-x-3 no-print">
-                <i class="fa-solid fa-circle-check text-brand-gold text-base"></i>
+            <div v-if="notification.show" :class="notification.tone === 'error' ? 'border-red-500' : 'border-brand-gold'" class="fixed top-5 right-5 z-50 bg-brand-dark text-white px-5 py-3.5 rounded-xl shadow-2xl border-l-4 flex items-center space-x-3 no-print" :role="notification.tone === 'error' ? 'alert' : 'status'" aria-live="polite">
+                <i class="fa-solid text-base" :class="notification.tone === 'error' ? 'fa-triangle-exclamation text-red-400' : 'fa-circle-check text-brand-gold'"></i>
                 <span class="text-xs font-semibold">{{ notification.message }}</span>
             </div>
         </transition>

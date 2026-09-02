@@ -442,7 +442,7 @@ createApp({
             vouchersCurrentPage: 1,
             vouchersItemsPerPage: 10,
 
-            notification: { show: false, message: '' },
+            notification: { show: false, message: '', tone: 'success' },
             notificationsLog: [],
             portalNotifications: [],
             portalNotificationsLoaded: false,
@@ -3692,8 +3692,19 @@ createApp({
             this.presenceNotificationsReady = false;
             this.portalUserOnlineStates = {};
         },
-        showNotify(msg) {
-            this.notification = { show: true, message: msg };
+        // Every toast used to render a success tick, so "Unable to delete this
+        // account" arrived wearing the same green check as a completed save.
+        // Callers may state the tone; when they don't, clear failure wording is
+        // read as a failure rather than assumed to be good news.
+        notificationTone(msg) {
+            // "Only X may …" is how this codebase words a refusal — all 21 of
+            // them are denials, and no success message opens that way.
+            return /^(unable|access denied|failed|only|error)\b|\b(cannot|could not|couldn't|failed|error|denied|not permitted|no permission|do not have (permission|access)|does not permit|refused|rejected)\b/i.test(String(msg || ''))
+                ? 'error'
+                : 'success';
+        },
+        showNotify(msg, tone = '') {
+            this.notification = { show: true, message: msg, tone: tone || this.notificationTone(msg) };
             setTimeout(() => { this.notification.show = false; }, 3500);
             this.notificationsLog.unshift({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, message: msg, read: false, timestamp: new Date().toISOString() });
             if (this.notificationsLog.length > 30) this.notificationsLog.length = 30;

@@ -54,6 +54,22 @@ module.exports = async function handler(req, res) {
         res.status(200).json({ success: true });
     } catch (error) {
         console.error('delete-portal-user error:', error);
-        res.status(500).json({ error: 'Unable to delete this account from Firebase Authentication right now.' });
+        // One 500 for every cause left the operator with nothing to act on:
+        // a missing service-account key and a transient Firebase outage read
+        // identically, though only one of them is fixable from here.
+        const code = error?.code || '';
+        if (/FIREBASE_SERVICE_ACCOUNT_KEY/.test(error?.message || '')) {
+            res.status(503).json({ error: 'Server is not configured to manage Firebase Authentication accounts. Set FIREBASE_SERVICE_ACCOUNT_KEY on the deployment and retry.' });
+            return;
+        }
+        if (code.startsWith('auth/id-token') || code === 'auth/argument-error') {
+            res.status(401).json({ error: 'Your session token was rejected. Sign out, sign in again, then retry.' });
+            return;
+        }
+        if (code === 'auth/insufficient-permission') {
+            res.status(500).json({ error: 'The service account lacks permission to delete Authentication accounts.' });
+            return;
+        }
+        res.status(500).json({ error: `Firebase Authentication refused the delete${code ? ` (${code})` : ''}. The account was not removed.` });
     }
 };
