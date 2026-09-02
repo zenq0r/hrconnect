@@ -268,6 +268,10 @@ service cloud.firestore {
             customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
           )
         ) &&
+        // The decision is stamped as whoever is signed in, never as whoever the
+        // payload claims. Without this a client could accept their own quotation
+        // and attribute it to someone else, which is the whole point of the stamp.
+        request.resource.data.clientDecisionByUid == request.auth.uid &&
         // Every figure stays exactly as issued — only the decision and its
         // stamp may move.
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([

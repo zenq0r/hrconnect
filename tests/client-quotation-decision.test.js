@@ -134,3 +134,12 @@ test('the statement export goes through the shared CSV path', () => {
     assert.match(fn, /this\.downloadCSV\(rows,/);
     assert.doesNotMatch(fn, /data:text\/csv/, 'must not hand-roll a data URI');
 });
+
+test('the decision is stamped as the signed-in client, not as whoever is claimed', () => {
+    // Found by driving the live rule with a real client token: without this the
+    // client could accept their own quotation and attribute it to another uid,
+    // which is precisely what recording the decider is for.
+    const rule = docsRule();
+    const branch = rule.slice(rule.indexOf("resource.data.type == 'Quotation'"));
+    assert.match(branch, /request\.resource\.data\.clientDecisionByUid == request\.auth\.uid/);
+});
