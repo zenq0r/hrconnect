@@ -111,16 +111,21 @@ test('every colour utility the markup uses exists in the built stylesheet', () =
 });
 
 test('portal URL validation rejects lookalike and insecure domains', () => {
-    // The portal is moving from zenqor.com.my to zenq0r.com; both hostnames are
-    // accepted during the move so links already sent stay valid.
+    // The portal now lives at www.hrconnect.zenqor.com.my. The two addresses it
+    // answered on before are still accepted so links already sent stay valid.
+    assert.equal(isAllowedPortalUrl('https://www.hrconnect.zenqor.com.my/path'), true);
+    assert.equal(isAllowedPortalUrl('https://www.hrconnect.zenqor.com.my'), true);
     assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com/path'), true);
-    assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com'), true);
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my/path'), true);
-    assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my'), true);
     // Everything else still fails, on either hostname: no bare host, no suffix
     // trickery, no prefix trickery, no plaintext.
     assert.equal(isAllowedPortalUrl('https://hrct.portal.zenqor.com.my'), false);
     assert.equal(isAllowedPortalUrl('https://hrct.zenq0r.com'), false);
+    // No bare host, no suffix or prefix trickery on the new address either.
+    assert.equal(isAllowedPortalUrl('https://hrconnect.zenqor.com.my'), false);
+    assert.equal(isAllowedPortalUrl('https://www.hrconnect.zenqor.com.my.evil.test'), false);
+    assert.equal(isAllowedPortalUrl('https://evilwww.hrconnect.zenqor.com.my'), false);
+    assert.equal(isAllowedPortalUrl('http://www.hrconnect.zenqor.com.my'), false);
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my.evil.test'), false);
     assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com.evil.test'), false);
     assert.equal(isAllowedPortalUrl('https://evilwww.hrct.portal.zenqor.com.my'), false);

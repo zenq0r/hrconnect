@@ -21,6 +21,10 @@ function hashResetToken(token) {
 // zenqor.com.my is in progress, so a link already sitting in someone's inbox keeps
 // working. Drop the zenqor.com.my entry once that domain is gone for good.
 const APPROVED_PORTAL_HOSTS = new Set([
+    'www.hrconnect.zenqor.com.my',
+    // Hosts the portal answered on earlier today and before. Kept only so a
+    // reset link already sitting in someone's inbox still validates; both are
+    // dead addresses now, so prune them once outstanding links have expired.
     'www.hrct.zenq0r.com',
     'www.hrct.portal.zenqor.com.my'
 ]);

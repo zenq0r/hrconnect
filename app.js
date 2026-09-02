@@ -43,7 +43,7 @@ const { createApp } = Vue;
 // Where this portal lives. Written once so a domain move is one edit, not a hunt
 // through email bodies — it was hardcoded in two separate places before, and the
 // server-side allowlist in api/_security.js is a third that has to agree with it.
-const PORTAL_URL = 'https://www.hrct.zenq0r.com/';
+const PORTAL_URL = 'https://www.hrconnect.zenqor.com.my/';
 
 // A fresh state object is required whenever a Firebase (or legacy) action link
 // is opened so no password, code, or success state leaks between attempts.
