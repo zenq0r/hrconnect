@@ -103,3 +103,34 @@ test('the proof upload reuses the audited client document path', () => {
     const update = fn.slice(fn.indexOf("updateDoc(doc(db, 'docs'"));
     assert.doesNotMatch(update.slice(0, 400), /status:/);
 });
+
+test('bulk actions operate on what the filter is showing, not the whole history', () => {
+    const app = read('app.js');
+    for (const fn of ['printAllClientDocuments', 'exportClientStatement']) {
+        const start = app.indexOf(`${fn}(`);
+        const body = app.slice(start, start + 400);
+        assert.match(body, /this\.filteredClientPortalDocs/, `${fn} must respect the active filter`);
+        assert.match(body, /if \(!items\.length\)/, `${fn} must handle an empty set`);
+    }
+});
+
+test('every printed document but the last carries a page break', () => {
+    const app = read('app.js');
+    const start = app.indexOf('async printAllClientDocuments(');
+    const fn = app.slice(start, app.indexOf('exportClientStatement(', start));
+    // Without the i < length - 1 guard the final page prints blank.
+    assert.match(fn, /i < pages\.length - 1/);
+    assert.match(fn, /page-break-after: always/);
+    // The form and print module are restored even if a document fails to render.
+    assert.match(fn, /finally \{/);
+    assert.match(fn, /this\.docForm = originalDoc;/);
+});
+
+test('the statement export goes through the shared CSV path', () => {
+    const app = read('app.js');
+    const start = app.indexOf('exportClientStatement()');
+    const fn = app.slice(start, app.indexOf('viewClaimRecord(', start));
+    // downloadCSV carries the BOM and csvSafeCell's formula-injection guard.
+    assert.match(fn, /this\.downloadCSV\(rows,/);
+    assert.doesNotMatch(fn, /data:text\/csv/, 'must not hand-roll a data URI');
+});

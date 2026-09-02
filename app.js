@@ -553,6 +553,7 @@ createApp({
             clientReplyMessage: '',
             // Which invoice row is mid-upload, so only that row shows a spinner.
             paymentProofUploadingFor: '',
+            bulkPrintPreparing: false,
             editingReplyId: '',
             editingReplyMessage: '',
             projectViewMode: 'board',
@@ -6597,6 +6598,69 @@ Note: "${note}"` : ''}`
             this.activePrintModule = originalModule;
             this.autoCalculatePayroll();
             this.recordPreview = { show: true, html };
+        },
+        // Both bulk actions work on exactly what the filter chips are showing,
+        // so "download what I am looking at" needs no second set of controls.
+        async printAllClientDocuments() {
+            const items = this.filteredClientPortalDocs;
+            if (!items.length) { this.showNotify('There are no documents to print.', 'error'); return; }
+            if (!await this.askConfirm({
+                title: `Print ${items.length} document${items.length === 1 ? '' : 's'}?`,
+                message: 'Every document below is laid out on its own page, so one print produces a single PDF containing all of them.',
+                confirmLabel: 'Yes, Prepare Print'
+            })) return;
+            this.bulkPrintPreparing = true;
+            const originalDoc = JSON.parse(JSON.stringify(this.docForm));
+            const originalModule = this.activePrintModule;
+            try {
+                const pages = [];
+                for (const item of items) {
+                    if (!item.raw) continue;
+                    this.docForm = JSON.parse(JSON.stringify(item.raw));
+                    this.activePrintModule = item.type === 'Quotation' ? 'QUOTATION' : 'INVOICE';
+                    await this.$nextTick();
+                    const templateId = item.type === 'Quotation' ? 'print-template-quotation' : 'print-template-invoice';
+                    const template = document.getElementById(templateId);
+                    if (!template) continue;
+                    pages.push(template.outerHTML.replace(/print-only/g, ''));
+                }
+                if (!pages.length) { this.showNotify('None of these documents could be rendered.', 'error'); return; }
+                // A break after each but the last, or the final page prints blank.
+                this.recordPreview = {
+                    show: true,
+                    html: pages.map((page, i) => i < pages.length - 1
+                        ? `<div style="page-break-after: always; break-after: page;">${page}</div>`
+                        : page).join('')
+                };
+            } finally {
+                this.docForm = originalDoc;
+                this.activePrintModule = originalModule;
+                this.bulkPrintPreparing = false;
+            }
+        },
+        exportClientStatement() {
+            const items = this.filteredClientPortalDocs;
+            if (!items.length) { this.showNotify('There are no documents to export.', 'error'); return; }
+            const rows = [
+                ['ZENQOR HRMS/CDTS - CLIENT DOCUMENT STATEMENT'],
+                ['Client', this.clientPortalIdentity.clientName || ''],
+                ['Generated', this.formatDateTime(new Date().toISOString())],
+                ['Documents', items.length],
+                [],
+                ['Type', 'Document No.', 'Date', 'Amount (RM)', 'Status', 'Decision / Proof']
+            ];
+            for (const d of items) {
+                const stamp = d.clientDecisionAt
+                    ? `${d.status} by ${d.clientDecisionByName || ''} on ${this.formatDateTime(d.clientDecisionAt)}`
+                    : d.paymentProofAt
+                        ? `Payment proof submitted ${this.formatDateTime(d.paymentProofAt)}`
+                        : '';
+                rows.push([d.type, d.docNo, d.date, Number(d.amount || 0).toFixed(2), d.status || '', stamp]);
+            }
+            const total = items.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
+            rows.push([], ['Total', '', '', total.toFixed(2), '', '']);
+            this.downloadCSV(rows, `zenqor_statement_${this.getLocalDateKey()}.csv`);
+            this.showNotify('Statement downloaded.');
         },
         viewClaimRecord(claim) {
             this.claimPreview = { show: true, claim: JSON.parse(JSON.stringify(claim)), directorApprovalAttachment: '', directorApprovalAttachmentName: '', directorApprovalOriginalBytes: 0 };

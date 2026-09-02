@@ -2990,7 +2990,18 @@
                     <div v-if="currentTab === 'client-documents'" class="zq-card p-5 md:p-6">
                         <div class="mb-5"><h3 class="zq-text-section-title"><i class="fa-solid fa-folder-open mr-2 text-teal-600"></i>Documents &amp; Billing</h3><p class="mt-1 text-[10px] text-slate-500">Review and print your official quotations and invoices.</p></div>
                         <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <span class="text-xs font-bold text-slate-400">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s)</span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-bold text-slate-400">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s)</span>
+                                <template v-if="filteredClientPortalDocs.length">
+                                    <button type="button" @click="printAllClientDocuments" :disabled="bulkPrintPreparing" class="zq-btn zq-btn-outline zq-btn-sm">
+                                        <i class="fa-solid" :class="bulkPrintPreparing ? 'fa-spinner fa-spin' : 'fa-print'"></i>
+                                        <span>{{ bulkPrintPreparing ? 'Preparing' : 'Print All' }}</span>
+                                    </button>
+                                    <button type="button" @click="exportClientStatement" class="zq-btn zq-btn-outline zq-btn-sm">
+                                        <i class="fa-solid fa-file-csv"></i><span>Statement (CSV)</span>
+                                    </button>
+                                </template>
+                            </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <div class="zq-filter-chip-group" role="group" aria-label="Filter by document type">
                                     <button type="button" @click="clientPortalFilter.type = 'all'" :class="{ 'is-active': clientPortalFilter.type === 'all' }" :aria-pressed="clientPortalFilter.type === 'all'" class="zq-filter-chip">All</button>
