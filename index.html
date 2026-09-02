@@ -3319,6 +3319,16 @@
                             <div class="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:p-6">
                                 <div><label for="setting-comp-name" class="zq-label">Company Name</label><input id="setting-comp-name" name="companyName" type="text" v-model="company.name" class="zq-input font-bold" placeholder="Registered company name"></div>
                                 <div><label for="setting-comp-ssm" class="zq-label">Business Registration No.</label><input id="setting-comp-ssm" name="companySSM" type="text" v-model="company.ssm" class="zq-input" placeholder="SSM / business registration no."></div>
+                                <div class="sm:col-span-2">
+                                    <label for="setting-comp-tin" class="zq-label">Tax Identification No. (TIN) — LHDN</label>
+                                    <input id="setting-comp-tin" name="companyTin" type="text" v-model="company.tin" @blur="company.tin = normalizeTin(company.tin)" maxlength="12" spellcheck="false" autocomplete="off" class="zq-input font-bold uppercase" placeholder="C20880050010" aria-describedby="setting-comp-tin-hint">
+                                    <p id="setting-comp-tin-hint" class="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed" :class="companyTinState === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'">
+                                        <i class="fa-solid mt-0.5 shrink-0" :class="companyTinState === 'invalid' ? 'fa-triangle-exclamation' : (companyTinState === 'valid' ? 'fa-circle-check text-emerald-600 dark:text-emerald-400' : 'fa-circle-info')"></i>
+                                        <span v-if="companyTinState === 'invalid'">This does not match an LHDN TIN. Expected an entity prefix then digits, 11&ndash;12 characters in total &mdash; for example C20880050010. Saving is still allowed if you are certain the number is right.</span>
+                                        <span v-else-if="companyTinState === 'valid'">Format matches an LHDN TIN. This is a format check only &mdash; it does not confirm the number is registered.</span>
+                                        <span v-else>From your LHDN record. Prefix by entity type &mdash; C company, CS co&#8209;operative, D partnership, PT LLP, IG individual or sole proprietor &mdash; followed by digits, 11&ndash;12 characters in total.</span>
+                                    </p>
+                                </div>
                             </div>
                         </section>
 
@@ -3919,7 +3929,7 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-extrabold text-brand-dark tracking-tight leading-none">ZENQOR TECHNOLOGIES</h1>
-                        <p class="font-bold text-slate-700 text-xs mt-1">Business Registration No.: {{ company.ssm }}</p>
+                        <p class="font-bold text-slate-700 text-xs mt-1">Business Registration No.: {{ company.ssm }}</p><p v-if="company.tin" class="font-bold text-slate-700 text-xs">TIN: {{ company.tin }}</p>
                         <p class="text-slate-600 mt-0.5 whitespace-pre-line text-xs leading-normal">{{ formattedCompanyAddress() }}</p>
                         <p class="text-slate-600 text-xs mt-0.5">Tel: {{ company.phone }} | Email: {{ company.email }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
                     </div>
@@ -4022,7 +4032,7 @@
                     </div>
                     <div>
                         <h1 class="text-2xl font-extrabold text-brand-dark tracking-tight leading-none">ZENQOR TECHNOLOGIES</h1>
-                        <p class="font-bold text-slate-700 text-xs mt-1">Business Registration No.: {{ company.ssm }}</p>
+                        <p class="font-bold text-slate-700 text-xs mt-1">Business Registration No.: {{ company.ssm }}</p><p v-if="company.tin" class="font-bold text-slate-700 text-xs">TIN: {{ company.tin }}</p>
                         <p class="text-slate-600 mt-0.5 whitespace-pre-line text-xs leading-normal">{{ formattedCompanyAddress() }}</p>
                         <p class="text-slate-600 text-xs mt-0.5">Tel: {{ company.phone }} | Email: {{ company.email }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
                     </div>
@@ -4125,7 +4135,7 @@
                         <img src="./logo.png" onerror="this.style.display='none'" alt="Logo Syarikat">
                         <div class="company-brand-text">
                             <h1>{{ company.name }}</h1>
-                            <p>Business Registration No.: {{ company.ssm }}</p>
+                            <p>Business Registration No.: {{ company.ssm }}</p><p v-if="company.tin">TIN: {{ company.tin }}</p>
                             <p class="whitespace-pre-line">{{ formattedCompanyAddress() }}<br>Tel: {{ company.phone }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
                         </div>
                     </div>

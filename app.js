@@ -507,6 +507,10 @@ createApp({
             company: {
                 name: "ZENQOR TECHNOLOGIES",
                 ssm: "202603157897 (JM1045730-D)",
+                // LHDN Tax Identification Number. Left blank deliberately —
+                // it is a real government identifier and must be entered from
+                // the company's own LHDN record, never guessed from the BRN.
+                tin: "",
                 address: "SURIA RESIDENCE (BLOK A), JALAN RESIDENCE SEK 3\nBANDAR MAHKOTA CHERAS, 43200 CHERAS, SELANGOR",
                 address1: 'SURIA RESIDENCE (BLOK A)',
                 address2: 'JALAN RESIDENCE SEK 3',
@@ -928,6 +932,7 @@ createApp({
         // Header staff-roster button: every employee regardless of online status,
         // online staff surfaced first (then alphabetical) so Director/Superadmin
         // gets an at-a-glance headcount-style view, not a presence filter.
+        companyTinState() { return this.tinFormatState(this.company.tin); },
         canViewStaffDirectory() { return this.canManageRBAC; },
         // HR employee records plus every non-Client portal login that has no
         // employee record of its own — the seed administrator above all, who
@@ -1609,6 +1614,23 @@ createApp({
             const protectedKey = /(id$|email|password|photo|attachment|status|role|type|category|date|method|url|website)/i.test(key);
             const protectedValue = /^(data:|https?:\/\/)/i.test(value.trim());
             return protectedKey || protectedValue ? value.trim() : this.toOfficialUppercase(value);
+        },
+        // LHDN issues a TIN as an entity-type prefix followed by digits. The
+        // prefix set below is the published list; longer prefixes are matched
+        // first so "CS" is never read as "C" with a stray letter after it.
+        // Non-individual numbers run 11-12 characters, individuals (IG) the
+        // same, after the trailing zero LHDN appended to existing numbers in
+        // January 2023.
+        normalizeTin(value) {
+            return String(value || '').toUpperCase().replace(/[\s-]/g, '');
+        },
+        tinFormatState(value) {
+            const tin = this.normalizeTin(value);
+            if (!tin) return 'empty';
+            const shape = /^(CS|FA|PT|TA|TC|TN|TR|TP|LE|IG|C|D|E|F|J)\d{8,11}$/;
+            if (!shape.test(tin)) return 'invalid';
+            if (tin.length < 11 || tin.length > 12) return 'invalid';
+            return 'valid';
         },
         getRoleDisplayName(code) {
             const roles = {
