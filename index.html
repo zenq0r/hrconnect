@@ -1659,7 +1659,9 @@
                                     <span class="zq-badge shrink-0" :class="isCurrentDashboardPeriod ? 'zq-badge-success' : 'zq-badge-neutral'">{{ isCurrentDashboardPeriod ? 'Live data' : 'Closed period' }}</span>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                            <!-- One column below sm: two columns on a phone leave ~88px of
+                                 text, too narrow for a two-word label to survive uncut. -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                 <!-- 1. Total Employees -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-400"></i></div>
