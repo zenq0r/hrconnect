@@ -659,7 +659,7 @@ createApp({
                 }
             },
             clientActionConfirm: { show: false, action: '', client: null },
-            appConfirm: { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null, onResolve: null },
+            appConfirm: { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, noteLabel: '', notePlaceholder: '', note: '', onConfirm: null, onResolve: null },
 
             // Staff and management accounts are limited to Zenqor's approved
             // company domains. Client accounts use the email registered for them.
@@ -1905,6 +1905,51 @@ createApp({
             } catch (error) {
                 console.error('Client project update failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'send the Client project update'));
+            }
+        },
+        // A client may answer their own quotation while it is still Open. The
+        // Firestore rule enforces the same three conditions independently — this
+        // only decides whether the buttons are worth showing.
+        canDecideQuotation(d) {
+            if (this.userProfile.role !== 'Client') return false;
+            if (!d || d.type !== 'Quotation' || (d.status || 'Open') !== 'Open') return false;
+            return this.clientPortalDocs.some(own => own.id === d.id);
+        },
+        async decideQuotation(d, decision) {
+            if (!this.canDecideQuotation(d)) { this.showNotify('This quotation can no longer be answered.', 'error'); return; }
+            const accepting = decision === 'Accepted';
+            const { confirmed, note } = await this.askConfirmWithNote({
+                title: accepting ? 'Accept this quotation?' : 'Decline this quotation?',
+                message: accepting
+                    ? `Accepting ${d.docNo} confirms the scope and pricing shown. Our team will be notified and will proceed to invoicing.`
+                    : `Declining ${d.docNo} tells our team you do not wish to proceed. You can ask for a revised quotation at any time.`,
+                confirmLabel: accepting ? 'Yes, Accept' : 'Yes, Decline',
+                danger: !accepting,
+                noteLabel: accepting ? 'Note for our team (optional)' : 'Reason for declining (optional)',
+                notePlaceholder: accepting ? 'Anything we should know before invoicing' : 'What would need to change'
+            });
+            if (!confirmed) return;
+            try {
+                await updateDoc(doc(db, 'docs', d.id), {
+                    status: decision,
+                    clientDecisionAt: new Date().toISOString(),
+                    clientDecisionByUid: this.userProfile.uid,
+                    clientDecisionByName: this.userProfile.name || this.userProfile.email,
+                    clientDecisionNote: note
+                });
+                this.logAudit('UPDATE', `Client ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo}`);
+                this.showNotify(accepting ? 'Quotation accepted. Our team has been notified.' : 'Quotation declined. Our team has been notified.');
+                this.notifyByEmail({
+                    to: this.company.email || this.supportEmail,
+                    subject: `Quotation ${accepting ? 'Accepted' : 'Declined'} — ${d.docNo}`,
+                    heading: `Quotation ${accepting ? 'Accepted' : 'Declined'}`,
+                    message: `${this.userProfile.name || this.userProfile.email} ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `
+
+Note: "${note}"` : ''}`
+                });
+            } catch (error) {
+                console.error('Quotation decision failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'record your decision'), 'error');
             }
         },
         async sendClientReply() {
@@ -3381,8 +3426,10 @@ createApp({
                 this.showNotify('Unable to remove this document. Please try again.');
             }
         },
-        requestConfirm({ title, message, confirmLabel = 'Yes, Continue', danger = false, onConfirm = null, onResolve = null }) {
-            this.appConfirm = { show: true, title, message, confirmLabel, danger, onConfirm, onResolve };
+        // noteLabel turns on a free-text field inside the dialog — used where a
+        // decision is worth recording a reason for, not just a yes or no.
+        requestConfirm({ title, message, confirmLabel = 'Yes, Continue', danger = false, noteLabel = '', notePlaceholder = '', onConfirm = null, onResolve = null }) {
+            this.appConfirm = { show: true, title, message, confirmLabel, danger, noteLabel, notePlaceholder, note: '', onConfirm, onResolve };
         },
         // Promise-returning form of requestConfirm, for `if (!await this.askConfirm(…)) return;`.
         // The native confirm() this replaces blocks the main thread for as long as the
@@ -3391,14 +3438,21 @@ createApp({
         askConfirm(options) {
             return new Promise(resolve => this.requestConfirm({ ...options, onResolve: resolve }));
         },
+        // Same dialog, but hands back what was typed alongside the answer.
+        askConfirmWithNote(options) {
+            return new Promise(resolve => this.requestConfirm({
+                ...options,
+                onResolve: (confirmed, note) => resolve({ confirmed, note })
+            }));
+        },
         resolveAppConfirm(confirmed) {
-            const { onConfirm, onResolve } = this.appConfirm;
-            this.appConfirm = { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, onConfirm: null, onResolve: null };
+            const { onConfirm, onResolve, note } = this.appConfirm;
+            this.appConfirm = { show: false, title: '', message: '', confirmLabel: 'Yes, Continue', danger: false, noteLabel: '', notePlaceholder: '', note: '', onConfirm: null, onResolve: null };
             if (confirmed && typeof onConfirm === 'function') onConfirm();
             // Always settle a pending askConfirm — cancelling, dismissing the overlay
             // and the Escape handler all route here, and an unsettled promise would
             // strand the caller mid-action.
-            if (typeof onResolve === 'function') onResolve(confirmed);
+            if (typeof onResolve === 'function') onResolve(confirmed, String(note || '').trim());
         },
         clearAllDocItems() {
             this.requestConfirm({

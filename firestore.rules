@@ -251,7 +251,29 @@ service cloud.firestore {
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
         )
       );
-      allow create, update: if isSuperadmin() || isDirector() || isHR() || isAccount();
+      allow create: if isSuperadmin() || isDirector() || isHR() || isAccount();
+      allow update: if (isSuperadmin() || isDirector() || isHR() || isAccount()) || (
+        // A client records their own decision on their own open quotation, and
+        // nothing else. Ownership is established the same two ways the read
+        // rule above allows: the primary contact, or an authorized secondary
+        // email on the linked customer record.
+        isClient() &&
+        resource.data.type == 'Quotation' &&
+        resource.data.status == 'Open' &&
+        request.resource.data.status in ['Accepted', 'Rejected'] &&
+        (
+          resource.data.raw.clientEmail == request.auth.token.email || (
+            resource.data.raw.customerId is string &&
+            resource.data.raw.customerId.size() > 0 &&
+            customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
+          )
+        ) &&
+        // Every figure stays exactly as issued — only the decision and its
+        // stamp may move.
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'clientDecisionAt', 'clientDecisionByUid', 'clientDecisionByName', 'clientDecisionNote'
+        ])
+      );
       allow delete: if isAdmin();
     }
 

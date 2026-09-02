@@ -3035,10 +3035,17 @@
                                         <td class="text-slate-600 dark:text-slate-300">{{ d.date }}</td>
                                         <td class="text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
                                         <td class="text-center">
-                                            <span :class="d.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'" class="px-2.5 py-1 rounded-full text-xs font-bold">{{ d.status || 'Unpaid' }}</span>
+                                            <span :class="['Paid', 'Accepted'].includes(d.status) ? 'bg-emerald-100 text-emerald-800' : d.status === 'Open' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'" class="px-2.5 py-1 rounded-full text-xs font-bold">{{ d.status || 'Unpaid' }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm mx-auto"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
+                                            <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                                <button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
+                                                <template v-if="canDecideQuotation(d)">
+                                                    <button type="button" @click="decideQuotation(d, 'Accepted')" class="zq-btn zq-btn-sm bg-emerald-600 text-white hover:bg-emerald-700"><i class="fa-solid fa-check"></i><span>Accept</span></button>
+                                                    <button type="button" @click="decideQuotation(d, 'Rejected')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-xmark"></i><span>Decline</span></button>
+                                                </template>
+                                            </div>
+                                            <p v-if="d.clientDecisionAt" class="mt-1 text-[10px] text-slate-400">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -3736,6 +3743,10 @@
                         <h3 class="zq-modal-title">{{ appConfirm.title }}</h3>
                     </div>
                     <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ appConfirm.message }}</p>
+                    <label v-if="appConfirm.noteLabel" class="mt-4 block">
+                        <span class="zq-label">{{ appConfirm.noteLabel }}</span>
+                        <textarea v-model="appConfirm.note" :placeholder="appConfirm.notePlaceholder" rows="3" class="zq-input mt-1.5 normal-case"></textarea>
+                    </label>
                 </div>
                 <div class="zq-modal-footer">
                     <button type="button" @click="resolveAppConfirm(false)" class="zq-btn zq-btn-outline">Cancel</button>
