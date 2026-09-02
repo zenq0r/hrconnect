@@ -58,8 +58,21 @@ module.exports = async function handler(req, res) {
         // a missing service-account key and a transient Firebase outage read
         // identically, though only one of them is fixable from here.
         const code = error?.code || '';
-        if (/FIREBASE_SERVICE_ACCOUNT_KEY/.test(error?.message || '')) {
-            res.status(503).json({ error: 'Server is not configured to manage Firebase Authentication accounts. Set FIREBASE_SERVICE_ACCOUNT_KEY on the deployment and retry.' });
+        const message = error?.message || '';
+        // getAdminApp throws two different things and this used to collapse
+        // both into "set the variable", so a value that IS set but malformed
+        // read exactly like a missing one — the ambiguity this block exists
+        // to remove. They are separate states with separate fixes.
+        if (/FIREBASE_SERVICE_ACCOUNT_KEY.*not set/.test(message)) {
+            res.status(503).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY is not present on this deployment. Add it, then redeploy so the build picks it up.' });
+            return;
+        }
+        if (/FIREBASE_SERVICE_ACCOUNT_KEY.*valid JSON/.test(message)) {
+            res.status(503).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY is set but is not valid JSON. Re-paste the whole service account file, including its outer braces.' });
+            return;
+        }
+        if (/PEM|DECODER|private key/i.test(message)) {
+            res.status(503).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY parsed but its private key was rejected — the newline escapes were probably altered. Re-add the file unmodified.' });
             return;
         }
         if (code.startsWith('auth/id-token') || code === 'auth/argument-error') {
