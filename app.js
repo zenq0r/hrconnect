@@ -45,6 +45,13 @@ const { createApp } = Vue;
 // server-side allowlist in api/_security.js is a third that has to agree with it.
 const PORTAL_URL = 'https://www.hrconnect.zenqor.com.my/';
 
+// Mirrors SEED_ADMIN_EMAILS in api/_security.js — see the note there. Both
+// addresses count while the seed administrator moves to zenqor.com.my.
+const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my', 'admin@zenq0r.com']);
+// Where account and support correspondence comes from, and the fallback shown
+// when no company email is configured.
+const SUPPORT_EMAIL = 'info@zenqor.com.my';
+
 // A fresh state object is required whenever a Firebase (or legacy) action link
 // is opened so no password, code, or success state leaks between attempts.
 const createEmailActionFlow = (overrides = {}) => ({
@@ -498,7 +505,7 @@ createApp({
                 state: 'Selangor',
                 country: 'Malaysia',
                 phone: "+60 11-6501 2569",
-                email: "admin@zenq0r.com",
+                email: SUPPORT_EMAIL,
                 website: "www.zenqor.com.my",
                 bankName: "MAYBANK ISLAMIC BERHAD",
                 bankAccount: "5629 8205 7309"
@@ -893,6 +900,9 @@ createApp({
         // any gate built on this.customers silently evaluates against an empty list
         // for Staff/IT — who deliberately cannot read the Client Directory.
         canReadClientDirectory() { return this.hasAccess('client-directory') || this.hasAccess('doc-generator'); },
+        // Exposed to the template so the support-email fallback is not a second
+        // hardcoded copy of the address in the markup.
+        supportEmail() { return SUPPORT_EMAIL; },
         // Clicking a Client Task only filters the Project Activities board to that
         // client — it reveals nothing the board would not already show, because
         // filteredProjects still scopes a non-manager to their own PIC and assigned
@@ -2867,7 +2877,7 @@ createApp({
             return this.allowedStaffDomains.includes(emailDomain);
         },
         isSeedAdminEmail(email) {
-            return String(email || '').trim().toLowerCase() === 'admin@zenq0r.com';
+            return SEED_ADMIN_EMAILS.has(String(email || '').trim().toLowerCase());
         },
         approvedStaffDomainsLabel() {
             return this.allowedStaffDomains.map(domain => `@${domain}`).join(' or ');
@@ -4508,7 +4518,7 @@ createApp({
         },
 
         sendWelcomeEmail(userForm) {
-            const originEmail = "admin@zenq0r.com";
+            const originEmail = SUPPORT_EMAIL;
             const subject = encodeURIComponent(`[ZENQOR ENTERPRISE] Official Account & Portal Access Information (${this.getRoleDisplayName(userForm.role)})`);
                 const emailBody = encodeURIComponent(`Greetings ${userForm.name},\n\nYour user account for the ZENQOR TECHNOLOGIES Enterprise Portal v2.0 has been created.\n\nSign-In Email: ${userForm.email}\nTemporary Password: ${userForm.password}\nAssigned Role: ${this.getRoleDisplayName(userForm.role)}\nPortal Link: ${PORTAL_URL}\n\nYou will be required to change this temporary password immediately after your first sign-in.\n\nBest regards,\nSystem Administrator`);
             window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(userForm.email)}&su=${subject}&body=${emailBody}`, '_blank');
@@ -5765,7 +5775,7 @@ createApp({
             ];
         },
         portalUserRowMenuItems(usr) {
-            if (usr.email === 'admin@zenq0r.com') return [];
+            if (this.isSeedAdminEmail(usr.email)) return [];
             return [
                 { label: 'Edit Access', icon: 'fa-pen', action: () => this.openUserAccessModal(usr) },
                 { label: 'Delete Access', icon: 'fa-trash', danger: true, action: () => this.deletePortalUser(usr.id, usr.email) }

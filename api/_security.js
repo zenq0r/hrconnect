@@ -1,6 +1,20 @@
 const crypto = require('crypto');
 const APPROVED_STAFF_DOMAINS = new Set(['zenq0r.com', 'zenqor.com.my']);
 
+// The protected seed administrator — the account that cannot be deleted, can
+// restore its own profile, and is trusted as Superadmin even before its
+// Firestore record exists. It is the last line of defence against a total
+// lockout, so BOTH addresses count while it moves to zenqor.com.my: the new one
+// so it holds those powers the moment it is created, the old one so the account
+// signed in today does not lose them mid-move. Drop the legacy entry once it is
+// retired. This was copied by hand into five files before; keep it here only.
+const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my', 'admin@zenq0r.com']);
+const SEED_ADMIN_PRIMARY = 'info@zenqor.com.my';
+
+function isSeedAdminEmail(value) {
+    return SEED_ADMIN_EMAILS.has(String(value || '').trim().toLowerCase());
+}
+
 function generateOtp() {
     return String(crypto.randomInt(100000, 1000000));
 }
@@ -52,4 +66,4 @@ function isApprovedStaffEmail(value) {
     return parts.length === 2 && APPROVED_STAFF_DOMAINS.has(parts[1]);
 }
 
-module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail };
+module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, SEED_ADMIN_PRIMARY };

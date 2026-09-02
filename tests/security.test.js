@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 const fs = require('node:fs');
-const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail } = require('../api/_security');
+const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail } = require('../api/_security');
 const { getClientIp, parseUserAgent } = require('../api/_auditMetadata');
 const { normalizeRetention, retentionDurationMs } = require('../api/_auditRetention');
 const { rateLimitId } = require('../api/_rateLimit');
@@ -222,7 +222,22 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenq0r\[\.\]com\$'\)/);
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenqor\[\.\]com\[\.\]my\$'\)/);
     const claimsSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'sync-user-claims.js'), 'utf8');
-    assert.match(claimsSource, /const SEED_ADMIN_EMAIL = 'admin@zenq0r\.com'/);
+    // The seed administrator is no longer a string copied into five files; it is
+    // one set in api/_security.js that every caller shares. Assert the behaviour
+    // rather than the spelling: both the new address and the legacy one count
+    // while the account moves, and nothing else does.
+    assert.match(claimsSource, /isSeedAdminEmail\(decoded\.email\)/);
+    assert.equal(isSeedAdminEmail('info@zenqor.com.my'), true);
+    assert.equal(isSeedAdminEmail('admin@zenq0r.com'), true);
+    assert.equal(isSeedAdminEmail('  INFO@Zenqor.Com.My  '), true, 'must normalise case and spacing');
+    assert.equal(isSeedAdminEmail('annas@zenqor.com.my'), false);
+    assert.equal(isSeedAdminEmail('info@zenqor.com.my.evil.test'), false);
+    assert.equal(isSeedAdminEmail(''), false);
+    assert.equal(isSeedAdminEmail(null), false);
+    // A profile restored for the seed admin must carry the address that actually
+    // signed in, not the constant — or a legacy seed admin is handed a record
+    // bearing the other account's email.
+    assert.match(claimsSource, /email: String\(decoded\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)/);
     assert.match(claimsSource, /role !== 'Client' && !isApprovedStaffEmail\(email\)/);
     assert.match(claimsSource, /restoredAt: new Date\(\)\.toISOString\(\)/);
 });

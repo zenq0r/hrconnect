@@ -6,8 +6,8 @@
 // path fails there). This is the standard, supported alternative for exactly this
 // kind of role/ownership check in Storage Rules.
 const { getAdminApp } = require('./_firebaseAdmin');
-const { isApprovedStaffEmail, normalizeEmail } = require('./_security');
-const SEED_ADMIN_EMAIL = 'admin@zenq0r.com';
+const { isApprovedStaffEmail, normalizeEmail, isSeedAdminEmail } = require('./_security');
+
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -41,9 +41,12 @@ module.exports = async function handler(req, res) {
         // The protected bootstrap administrator is created in Firebase Auth first.
         // Restore its missing portal profile on its own authenticated login so this
         // account cannot be locked out by a deleted/missing users/{uid} document.
-        if (!targetDoc.exists && targetUid === decoded.uid && String(decoded.email || '').trim().toLowerCase() === SEED_ADMIN_EMAIL) {
+        if (!targetDoc.exists && targetUid === decoded.uid && isSeedAdminEmail(decoded.email)) {
             await users.doc(targetUid).set({
-                email: SEED_ADMIN_EMAIL,
+                // Restore under the address this account actually signs in with,
+                // not the constant — otherwise a legacy seed admin gets a profile
+                // carrying someone else's email.
+                email: String(decoded.email || '').trim().toLowerCase(),
                 name: decoded.name || 'System Administrator',
                 photo: '',
                 role: 'Superadmin',

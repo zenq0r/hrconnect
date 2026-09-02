@@ -5,8 +5,7 @@
 // revoked portal user's Auth account (Identifier/Providers/Created/Signed
 // In/User UID in the Firebase Console) would otherwise linger indefinitely.
 const { getAdminApp } = require('./_firebaseAdmin');
-
-const SEED_ADMIN_EMAIL = 'admin@zenq0r.com';
+const { isSeedAdminEmail } = require('./_security');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -21,7 +20,7 @@ module.exports = async function handler(req, res) {
 
         const db = admin.firestore();
         const callerDoc = await db.collection('users').doc(decoded.uid).get();
-        const callerRole = callerDoc.exists ? callerDoc.data().role : (decoded.email === SEED_ADMIN_EMAIL ? 'Superadmin' : null);
+        const callerRole = callerDoc.exists ? callerDoc.data().role : (isSeedAdminEmail(decoded.email) ? 'Superadmin' : null);
         if (!['Superadmin', 'Director'].includes(callerRole)) {
             res.status(403).json({ error: 'Only Superadmin or Director may delete a portal account.' });
             return;
@@ -46,7 +45,7 @@ module.exports = async function handler(req, res) {
             }
             throw lookupError;
         }
-        if ((targetAuthUser.email || '').toLowerCase() === SEED_ADMIN_EMAIL) {
+        if (isSeedAdminEmail(targetAuthUser.email)) {
             res.status(403).json({ error: 'The protected seed admin account cannot be deleted.' });
             return;
         }

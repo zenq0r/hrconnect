@@ -5,7 +5,7 @@
 // actually belong to a provisioned staff user or a known client record —
 // a signed-in caller cannot use this to relay mail to an arbitrary address.
 const { getAdminApp } = require('./_firebaseAdmin');
-const { isAllowedPortalUrl, normalizeEmail } = require('./_security');
+const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
 
 const PORTAL_ROLES = new Set(['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff', 'Client']);
@@ -113,7 +113,7 @@ module.exports = async function handler(req, res) {
         const decoded = await admin.auth().verifyIdToken(idToken);
         const db = admin.firestore();
         const callerDoc = await db.collection('users').doc(decoded.uid).get();
-        const callerRole = callerDoc.exists ? callerDoc.data().role : (decoded.email === 'admin@zenq0r.com' ? 'Superadmin' : null);
+        const callerRole = callerDoc.exists ? callerDoc.data().role : (isSeedAdminEmail(decoded.email) ? 'Superadmin' : null);
         if (!PORTAL_ROLES.has(callerRole)) { res.status(403).json({ error: 'This account is not provisioned for notifications.' }); return; }
 
         const rate = await enforceRateLimit(db, { scope: 'notify', key: decoded.uid, limit: 15, windowMs: 5 * 60 * 1000 });
