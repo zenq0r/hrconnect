@@ -1642,7 +1642,7 @@
                                 </div>
                                 <!-- Accounting period stepper — one control moves every KPI card below.
                                      Forward is capped at the live month; there is nothing later to report. -->
-                                <div class="flex items-center gap-2 shrink-0">
+                                <div class="flex flex-wrap items-center gap-2 sm:shrink-0">
                                     <div class="flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 p-1">
                                         <button type="button" @click="shiftDashboardPeriod(-1)" :disabled="!canViewOlderDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-icon zq-btn-sm" title="Previous month" aria-label="Previous month">
                                             <i class="fa-solid fa-chevron-left"></i>

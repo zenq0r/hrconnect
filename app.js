@@ -7066,6 +7066,7 @@ createApp({
         if (this.appUpdateCheckInterval) clearInterval(this.appUpdateCheckInterval);
         if (this.appVisibilityHandler) document.removeEventListener('visibilitychange', this.appVisibilityHandler);
         if (this.notificationsSyncTimer) clearTimeout(this.notificationsSyncTimer);
+        this.clearWelcomeGreetingTimers();
         this.removeUniversalButtonContextMenu();
         this.stopIdleTimeoutWatch();
     }
