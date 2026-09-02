@@ -929,8 +929,31 @@ createApp({
         // online staff surfaced first (then alphabetical) so Director/Superadmin
         // gets an at-a-glance headcount-style view, not a presence filter.
         canViewStaffDirectory() { return this.canManageRBAC; },
+        // HR employee records plus every non-Client portal login that has no
+        // employee record of its own — the seed administrator above all, who
+        // was signed in and running the system while absent from its directory.
+        // Keyed by email so anyone holding both records appears once, as their
+        // employee entry, which carries the real position and department.
+        // Portal docs store the same presence fields, so the presence helpers
+        // read a synthesized row exactly as they read an employee.
         staffDirectoryList() {
-            return [...this.employees].sort((a, b) => {
+            const employeeEmails = new Set(
+                this.employees.map(emp => String(emp.email || '').trim().toLowerCase()).filter(Boolean)
+            );
+            const portalOnly = this.users
+                .filter(user => user.role && user.role !== 'Client')
+                .filter(user => {
+                    const email = String(user.email || '').trim().toLowerCase();
+                    return email && !employeeEmails.has(email);
+                })
+                .map(user => ({
+                    ...user,
+                    // Namespaced so it can never collide with a real empNo.
+                    empNo: `portal:${String(user.email).trim().toLowerCase()}`,
+                    position: this.getRoleDisplayName(user.role),
+                    dept: ''
+                }));
+            return [...this.employees, ...portalOnly].sort((a, b) => {
                 const onlineDiff = (this.isEmployeeOnline(b) ? 1 : 0) - (this.isEmployeeOnline(a) ? 1 : 0);
                 if (onlineDiff !== 0) return onlineDiff;
                 return String(a.name || '').localeCompare(String(b.name || ''));
