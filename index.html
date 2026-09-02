@@ -1678,21 +1678,21 @@
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodQuotationCount }}</p>
-                                    <p class="zq-kpi-card-label truncate">Quotations ({{ dashboardPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Quotations</p>
                                     <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
                                 </div>
                                 <!-- 4. Total Invoices -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodInvoiceCount }}</p>
-                                    <p class="zq-kpi-card-label truncate">Invoices ({{ dashboardPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Invoices</p>
                                     <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
                                 </div>
                                 <!-- 5. Revenue (Paid) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(periodRevenuePaid) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Revenue Collected ({{ dashboardPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Revenue Collected</p>
                                     <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
                                 </div>
                                 <!-- 6. Pending Receivables -->
@@ -1706,14 +1706,14 @@
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(periodPayrollNet) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Payroll Net ({{ dashboardPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Payroll Net</p>
                                     <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
                                 </div>
                                 <!-- 8. Total Claims (Approved) -->
                                 <div class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(periodApprovedClaimsAmount) }}</p>
-                                    <p class="zq-kpi-card-label truncate">Claims Approved ({{ dashboardPeriodLabel }})</p>
+                                    <p class="zq-kpi-card-label truncate">Claims Approved</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending Approval</p>
                                 </div>
                             </div>
