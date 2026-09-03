@@ -239,6 +239,10 @@ service cloud.firestore {
     match /docs/{docId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() || isIT() ||
+        // Every approved staff account may read a sent invoice to open its
+        // payment proof from Client Billing Workflow. Drafts and quotations
+        // remain unavailable to ordinary Staff accounts.
+        (isApprovedStaffSession() && resource.data.type in ['Invoice'] && resource.data.status != 'Draft') ||
         // An invoice draft belongs to the Finance workspace until it is formally
         // issued. Clients never see a partial/unsent bill in their document list.
         (isClient() && (resource.data.type != 'Invoice' || resource.data.status != 'Draft') && resource.data.raw.clientEmail == request.auth.token.email) ||

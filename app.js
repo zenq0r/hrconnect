@@ -1306,32 +1306,22 @@ createApp({
                 .filter(project => project.clientDirectoryId === customerId)
                 .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
         },
-        // Every internal role can see that the Client Billing Workflow exists, but
-        // Client financial information is deliberately not a company-wide feed.
-        // Finance/Director retain the full queue; a PIC sees only the handovers
-        // assigned to that PIC's own projects (built from project_activities).
+        // Every internal role can see a sent invoice and its submitted proof. The
+        // three privileges below deliberately do not overlap: only HR/Account may
+        // settle a payment, while only the two full-access roles manage invoices.
         canViewBillingWorkflow() { return this.userProfile.role !== 'Client'; },
-        canProcessBilling() { return ['Account', 'Director', 'Superadmin'].includes(this.userProfile.role); },
+        canManageBillingWorkflow() { return this.isFullAccessRole; },
+        canVerifyPaymentProof() { return ['HR', 'Account'].includes(this.userProfile.role); },
         billingWorkflowQueue() {
             if (!this.canViewBillingWorkflow) return [];
-            if (!this.canProcessBilling) {
-                const email = String(this.userProfile.email || '').trim().toLowerCase();
-                return this.projectActivities
-                    .filter(activity => String(activity.assignedEmail || '').trim().toLowerCase() === email)
-                    .filter(activity => ['quotation-accepted', 'payment-proof-submitted'].includes(String(activity.workflowSource || '')))
-                    .filter(activity => activity.status !== 'Done')
-                    .map(activity => ({
-                        id: activity.id,
-                        docNo: activity.quotationNo || activity.invoiceNo || 'Client billing item',
-                        name: activity.projectTitle || 'Assigned client project',
-                        amount: null,
-                        raw: { projectRef: activity.projectRef || '', projectTitle: activity.projectTitle || '', projectId: activity.projectId || '' },
-                        projectId: activity.projectId || '',
-                        workflowAction: 'pic-handover',
-                        workflowLabel: activity.workflowSource === 'payment-proof-submitted' ? 'Payment proof submitted' : 'PIC billing handover'
-                    }))
-                    .sort((a, b) => String(b.workflowLabel || '').localeCompare(String(a.workflowLabel || '')));
-            }
+            const submittedProofs = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.status !== 'Draft' && item.paymentProofUrl)
+                .map(item => ({ ...item, workflowAction: this.canVerifyPaymentProof ? 'review-proof' : 'view-proof', workflowLabel: this.canVerifyPaymentProof ? (item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof') : 'View payment proof' }));
+            // HR Management and Finance/Account see every proof awaiting their
+            // verification. All other staff receive the same invoice-proof list,
+            // but never a settlement action.
+            if (!this.canManageBillingWorkflow) return submittedProofs
+                .sort((a, b) => String(b.paymentProofAt || b.date || '').localeCompare(String(a.paymentProofAt || a.date || '')));
             const linkedInvoiceQuoteIds = new Set(this.docHistory
                 .filter(item => item.type === 'Invoice' && item.raw?.sourceQuotationId)
                 .map(item => item.raw.sourceQuotationId));
@@ -1341,9 +1331,6 @@ createApp({
             const invoiceDrafts = this.docHistory
                 .filter(item => item.type === 'Invoice' && item.status === 'Draft')
                 .map(item => ({ ...item, workflowAction: 'edit-draft', workflowLabel: 'Finance draft' }));
-            const submittedProofs = this.docHistory
-                .filter(item => item.type === 'Invoice' && item.paymentProofUrl && item.paymentProofReviewStatus !== 'Verified')
-                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
             return [...acceptedQuotes, ...invoiceDrafts, ...submittedProofs]
                 .sort((a, b) => String(b.billingWorkflowUpdatedAt || b.paymentProofAt || b.clientDecisionAt || b.date || '').localeCompare(String(a.billingWorkflowUpdatedAt || a.paymentProofAt || a.clientDecisionAt || a.date || '')));
         },
@@ -6658,8 +6645,8 @@ createApp({
         async printDocumentModule() { if (!this.clientSavedForDocument) return this.showNotify('Select a registered client before previewing or printing this document.'); this.activePrintModule = this.docForm.type === 'Quotation' ? 'QUOTATION' : 'INVOICE'; this.setPrintOrientation('portrait', '15mm'); setTimeout(() => { window.print(); }, 250); },
         async printPayslipModule() { if (!this.payForm.name || !this.payForm.empNo) return this.showNotify('Enter Name and Emp ID.'); this.autoCalculatePayroll(); this.activePrintModule = 'PAYSLIP'; this.setPrintOrientation('landscape', '0mm'); setTimeout(() => { window.print(); }, 250); },
         createInvoiceFromQuotation(quotation) {
-            if (!this.canProcessBilling || quotation?.type !== 'Quotation' || quotation.status !== 'Accepted') {
-                this.showNotify('Only Finance or Director can prepare an invoice from an accepted quotation.', 'error'); return;
+            if (!this.canManageBillingWorkflow || quotation?.type !== 'Quotation' || quotation.status !== 'Accepted') {
+                this.showNotify('Only a Director or Superadmin can prepare an invoice from an accepted quotation.', 'error'); return;
             }
             const source = JSON.parse(JSON.stringify(quotation.raw || {}));
             this.editingDocId = null;
@@ -6681,7 +6668,7 @@ createApp({
             this.showNotify(`Invoice draft prepared from ${quotation.docNo}. Review it, then Save as Draft or Send to Client.`);
         },
         async reviewPaymentProof(invoice, approved) {
-            if (!this.canProcessBilling || !invoice?.paymentProofUrl) { this.showNotify('You do not have a payment proof to review.', 'error'); return; }
+            if (!this.canVerifyPaymentProof || !invoice?.paymentProofUrl) { this.showNotify('Only HR Management or Finance can verify a payment proof.', 'error'); return; }
             const { confirmed, note } = await this.askConfirmWithNote({
                 title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
                 message: approved
@@ -7062,7 +7049,12 @@ createApp({
                     ? (this.userProfile.clientDirectoryId
                         ? query(collection(db, 'docs'), where('raw.customerId', '==', this.userProfile.clientDirectoryId))
                         : query(collection(db, 'docs'), where('raw.clientEmail', '==', this.userProfile.email)))
-                    : null;
+                    // Staff may read sent invoices solely so the Billing Workflow
+                    // can open a submitted payment proof. Draft invoices and every
+                    // quotation stay outside this listener and the Firestore rule.
+                    : role === 'Staff'
+                        ? query(collection(db, 'docs'), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                        : null;
             const payslipsSource = canReadAllPayslips
                 ? collection(db, 'payslips')
                 : role === 'Staff'

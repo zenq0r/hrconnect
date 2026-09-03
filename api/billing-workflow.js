@@ -5,7 +5,8 @@ const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { normalizeEmail, isSeedAdminEmail, PORTAL_URL } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
 
-const FINANCE_ROLES = new Set(['Account', 'Director', 'Superadmin']);
+const INVOICE_MANAGEMENT_ROLES = new Set(['Director', 'Superadmin']);
+const PAYMENT_REVIEW_ROLES = new Set(['HR', 'Account']);
 
 function clientOwnsCustomer(customer, email) {
     const normalized = normalizeEmail(email);
@@ -176,11 +177,14 @@ module.exports = async function handler(req, res) {
             res.status(200).json({ success: true, recipients: count }); return;
         }
 
-        if (!FINANCE_ROLES.has(callerRole) || document.type !== 'Invoice') {
-            res.status(403).json({ error: 'Only Finance or Director may perform this billing action.' }); return;
+        if (document.type !== 'Invoice') {
+            res.status(403).json({ error: 'This billing action requires an invoice.' }); return;
         }
 
         if (action === 'invoice-sent') {
+            if (!INVOICE_MANAGEMENT_ROLES.has(callerRole)) {
+                res.status(403).json({ error: 'Only Director or Superadmin may issue an invoice.' }); return;
+            }
             if (document.status !== 'Unpaid') { res.status(409).json({ error: 'Only an unpaid invoice can be sent to the client.' }); return; }
             const eventRef = db.collection('billing_events').doc(`${documentId}_invoice_sent`);
             const created = await db.runTransaction(async (transaction) => {
@@ -200,6 +204,9 @@ module.exports = async function handler(req, res) {
         }
 
         if (action === 'payment-proof-reviewed') {
+            if (!PAYMENT_REVIEW_ROLES.has(callerRole)) {
+                res.status(403).json({ error: 'Only HR Management or Finance may verify a payment proof.' }); return;
+            }
             if (!document.paymentProofUrl || !['Submitted', 'Rejected'].includes(document.paymentProofReviewStatus || 'Submitted')) {
                 res.status(409).json({ error: 'No submitted payment proof is awaiting review.' }); return;
             }

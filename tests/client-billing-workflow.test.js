@@ -38,16 +38,20 @@ test('invoice draft, issue, proof and verification form one controlled flow', ()
     assert.match(page, /Upload Corrected Proof/);
 });
 
-test('all staff see the workflow, while only Finance, Director and an assigned PIC see a work item', () => {
+test('all staff can view submitted invoice proofs, HR and Finance verify them, and only full access manages invoices', () => {
     const app = read('app.js');
     const page = read('index.html');
     const handler = read('api/billing-workflow.js');
+    const rules = read('firestore.rules');
 
     assert.match(app, /canViewBillingWorkflow\(\) \{ return this\.userProfile\.role !== 'Client'; \}/);
-    assert.match(app, /\['quotation-accepted', 'payment-proof-submitted'\]\.includes/);
+    assert.match(app, /canManageBillingWorkflow\(\) \{ return this\.isFullAccessRole; \}/);
+    assert.match(app, /canVerifyPaymentProof\(\) \{ return \['HR', 'Account'\]\.includes/);
     assert.match(page, /v-if="canViewBillingWorkflow"/);
-    assert.match(page, /Workflow availability is visible to all staff/);
-    assert.match(page, /Assigned PIC handover/);
-    assert.match(page, /Only the assigned PIC, Finance and Director can access Client billing records and actions/);
-    assert.match(handler, /'payment-proof-submitted'\);/);
+    assert.match(page, /View sent invoices and their submitted payment proofs only/);
+    assert.match(page, /v-if="canVerifyPaymentProof"/);
+    assert.match(app, /where\('type', '==', 'Invoice'\), where\('status', 'not-in', \['Draft'\]\)/);
+    assert.match(rules, /isApprovedStaffSession\(\) && resource\.data\.type in \['Invoice'\] && resource\.data\.status != 'Draft'/);
+    assert.match(handler, /INVOICE_MANAGEMENT_ROLES = new Set\(\['Director', 'Superadmin'\]\)/);
+    assert.match(handler, /PAYMENT_REVIEW_ROLES = new Set\(\['HR', 'Account'\]\)/);
 });
