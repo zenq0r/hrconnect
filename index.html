@@ -138,11 +138,11 @@
         </div>
 
         <!-- EMAIL ACTION HANDLER: Firebase sends mode + oobCode here. Legacy ?resetToken links remain supported. -->
-        <main v-if="passwordResetFlow.active" id="auth-main" aria-label="Account email action" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
+        <main v-if="passwordResetFlow.active" id="auth-main" aria-label="Account email action" class="zq-auth-shell relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
                 <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
-            <div class="relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700 text-center">
+            <div class="zq-auth-card relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700 text-center">
                 <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
                     <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
                 </div>
@@ -241,11 +241,11 @@
         </main>
 
         <!-- FORGOT PASSWORD REQUEST (step 1: enter email, before the reset link is sent) -->
-        <main v-else-if="forgotPasswordFlow.active" id="auth-main" aria-label="Password assistance" class="relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
+        <main v-else-if="forgotPasswordFlow.active" id="auth-main" aria-label="Password assistance" class="zq-auth-shell relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
                 <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
-            <div class="relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
+            <div class="zq-auth-card relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
                 <button type="button" @click="exitForgotPasswordFlow" class="zq-btn zq-btn-ghost zq-btn-sm mb-5">
                     <i class="fa-solid fa-arrow-left"></i><span>Back to Sign In</span>
                 </button>
@@ -343,7 +343,7 @@
             </div>
 
             <!-- LOGIN FORM: contextual to Staff or Client -->
-            <div v-else class="relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
+            <div v-else class="zq-auth-card relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
 
                 <button type="button" @click="selectAuthView('landing')" class="zq-btn zq-btn-ghost zq-btn-sm mb-5">
                     <i class="fa-solid fa-arrow-left"></i><span>Back</span>

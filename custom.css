@@ -1866,32 +1866,101 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 
 /* Keep the portal entry experience aligned with the dark ZENQOR product
-   identity. The light workspace treatment begins after the user signs in. */
-.zq-auth-shell { background: #101827 !important; }
-.zq-auth-landing {
+   identity. The light workspace treatment begins after the user signs in.
+
+   Every rule below is deliberately paired with its `.dark` form. The light
+   treatment further up this file (.zq-auth-shell / .zq-auth-landing /
+   .zq-auth-choice, and their `.dark` counterparts) still supplies this
+   screen's GEOMETRY — max-width, padding, radius, the hidden watermark — so
+   it is left in place; only its colours are superseded here. Without the
+   `.dark` half of each pair those counterparts win on specificity, and the
+   entry screen ends up with two different dark palettes. */
+.zq-auth-shell,
+.dark .zq-auth-shell { background: #101827 !important; }
+
+/* The controls inside the card are driven by the theme variables, so pointing
+   those at the dark palette here dresses labels, inputs, buttons and alerts in
+   one pass — no per-control overrides, and nothing to keep in sync later. */
+.zq-auth-shell {
+    --zq-primary: #0f766e;   /* brand-dark reads as a hole on a dark card */
+    --zq-primary-hover: #0c5b55;
+    --zq-accent: #14b8a6;
+    --zq-accent-hover: #0d9488;
+    --zq-surface: #1e293b;
+    --zq-surface-alt: #0f172a;
+    --zq-surface-elevated: #253247;
+    --zq-border: #334155;
+    --zq-text: #f1f5f9;
+    --zq-text-muted: #94a3b8;
+    --zq-text-on-primary: #ffffff;
+    --zq-error: #fecaca;
+    --zq-error-bg: #450a0a;
+}
+.zq-auth-landing,
+.dark .zq-auth-landing {
     border-color: rgba(71, 85, 105, 0.82);
     background: #172235;
     box-shadow: 0 22px 52px rgba(0, 0, 0, 0.26);
 }
-.zq-auth-landing > .text-center h1 { color: #f8fafc !important; }
-.zq-auth-landing > .text-center p { color: #a8b6c8 !important; }
+.zq-auth-landing > .text-center h1,
+.dark .zq-auth-landing > .text-center h1 { color: #f8fafc !important; }
+.zq-auth-landing > .text-center p,
+.dark .zq-auth-landing > .text-center p { color: #a8b6c8 !important; }
 .zq-auth-landing > .text-center span {
     border-color: rgba(45, 212, 191, 0.28) !important;
     background: rgba(20, 184, 166, 0.12) !important;
     color: #5eead4 !important;
 }
-.zq-auth-choice {
+.zq-auth-choice,
+.dark .zq-auth-choice {
     border-color: #334155 !important;
     background: #1e293b !important;
 }
-.zq-auth-choice h2 { color: #f8fafc !important; }
-.zq-auth-choice p { color: #a8b6c8 !important; }
+.zq-auth-choice h2,
+.dark .zq-auth-choice h2 { color: #f8fafc !important; }
+.zq-auth-choice p,
+.dark .zq-auth-choice p { color: #a8b6c8 !important; }
 .zq-auth-choice > span { color: #5eead4 !important; }
-.zq-auth-choice:hover {
+.zq-auth-choice:hover,
+.dark .zq-auth-choice:hover {
     border-color: #2dd4bf !important;
     background: #223047 !important;
     box-shadow: 0 10px 24px rgba(0, 0, 0, 0.20) !important;
 }
+
+/* The sign-in card. It previously carried no zq- class at all, so while the
+   shell around it was forced dark the card kept its own `bg-white
+   dark:bg-slate-800` — white in light mode, dark in dark mode. That is the
+   split the user reported: one screen with two identities. */
+.zq-auth-card {
+    border-color: rgba(71, 85, 105, 0.82) !important;
+    background: #172235 !important;
+    box-shadow: 0 22px 52px rgba(0, 0, 0, 0.26) !important;
+}
+.zq-auth-card p { color: #a8b6c8 !important; }
+.zq-auth-card a { color: #5eead4 !important; }
+
+/* Two app-wide rules (`#app input…` and `#app label`) hard-code the light
+   palette, and their ID specificity beats .zq-input/.zq-label — so on this
+   dark card the fields stayed white while .zq-input's own `color: var(--zq-text)`
+   went near-white with them: white text on a white field. Both are re-pointed
+   at the variables set above, at a specificity that actually wins here.
+   The `.dark #app …` counterparts are (1,1,1) too, so this must stay below
+   them in the file. */
+#app .zq-auth-shell input,
+#app .zq-auth-shell select,
+#app .zq-auth-shell textarea {
+    border-color: var(--zq-border);
+    background-color: var(--zq-surface);
+    color: var(--zq-text);
+}
+#app .zq-auth-shell label { color: var(--zq-text-muted); }
+/* The logo keeps a white chip in both themes (in dark mode the generic
+   `.bg-white` compatibility rule would otherwise tint it). Matched on
+   .shadow-lg, which is unique to the two logo chips — the card and the two
+   landing choices are also `.bg-white` but carry .shadow-2xl, and a broader
+   selector here turns them white with white text on top. */
+.zq-auth-shell .bg-white.shadow-lg { background-color: #ffffff !important; }
 
 /* Print is always a light document, regardless of the active portal theme.
    This rule intentionally sits after all dark-mode compatibility rules. */
