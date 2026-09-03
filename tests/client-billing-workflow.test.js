@@ -81,3 +81,14 @@ test('billing workflows are bound to the exact Client ID and assigned project', 
     assert.doesNotMatch(handler, /where\('clientDirectoryId', '==', customerId\)/);
     assert.match(handler, /action === 'quotation-issued'/);
 });
+
+test('project details show only billing documents bound to that Client ID and project', () => {
+    const app = read('app.js');
+    const page = read('index.html');
+
+    assert.match(app, /projectBillingDocuments\(project\)/);
+    assert.match(app, /String\(item\?\.raw\?\.projectId \|\| ''\)\.trim\(\) === projectId/);
+    assert.match(app, /String\(item\?\.raw\?\.customerId \|\| ''\)\.trim\(\) === customerId/);
+    assert.match(page, /Quotation &amp; Invoice/);
+    assert.match(page, /projectBillingDocuments\(projectPreview\.project\)/);
+});

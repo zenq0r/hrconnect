@@ -4009,7 +4009,16 @@ createApp({
                 if (marker !== this.appVersionMarker) this.appUpdateAvailable = true;
             } catch (error) { /* offline or blocked request, ignore and retry next interval */ }
         },
-        refreshApp() {
+        async refreshApp() {
+            // The Client Workspace uses the same app shell as Staff. Ask the
+            // browser to check the service worker first, then reload so a
+            // manual Client refresh cannot keep an older app shell open.
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    await registration?.update();
+                } catch (error) { /* reload still gives the network-first shell a chance to update */ }
+            }
             window.location.reload();
         },
         startIdleTimeoutWatch() {
@@ -5317,6 +5326,27 @@ createApp({
             return items
                 .map(d => ({ ...d, tagClass: d.type === 'Invoice' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200', isDoc: true }))
                 .sort((a, b) => new Date(b.date) - new Date(a.date));
+        },
+        // Billing records must be shown against the project they were issued
+        // for, not every project handled by the same PIC or every project for
+        // the same Client. This deliberately has no legacy name/client fallback:
+        // an unlinked record is safer to leave in the Client Billing history
+        // than to display it under the wrong Client task.
+        projectBillingDocuments(project) {
+            const projectId = String(project?.id || '').trim();
+            const customerId = String(project?.clientDirectoryId || '').trim();
+            if (!projectId || !customerId) return [];
+            return this.docHistory
+                .filter(item => ['Invoice', 'Quotation'].includes(item?.type))
+                .filter(item => String(item?.raw?.projectId || '').trim() === projectId && String(item?.raw?.customerId || '').trim() === customerId)
+                .map(item => ({
+                    ...item,
+                    isDoc: true,
+                    tagClass: item.type === 'Invoice'
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                }))
+                .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
         },
         isNewClient(clientDirectoryId) {
             if (!clientDirectoryId) return false;
