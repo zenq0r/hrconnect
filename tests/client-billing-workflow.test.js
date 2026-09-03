@@ -38,6 +38,17 @@ test('invoice draft, issue, proof and verification form one controlled flow', ()
     assert.match(page, /Upload Corrected Proof/);
 });
 
+test('a newly issued quotation or invoice notifies the linked Client contacts', () => {
+    const app = read('app.js');
+
+    assert.match(app, /const isQuotationBeingIssued = payload\.type === 'Quotation'/);
+    assert.match(app, /subject: `Quotation Ready — \$\{payload\.docNo\}`/);
+    assert.match(app, /subject: `Invoice Ready — \$\{payload\.docNo\}`/);
+    assert.match(app, /to: payload\.raw\.clientEmail/);
+    assert.match(app, /ctaLabel: 'VIEW QUOTATION'/);
+    assert.match(app, /ctaLabel: 'VIEW INVOICE'/);
+});
+
 test('only the PIC, HR, Finance and full access roles receive Client Billing Workflow actions', () => {
     const app = read('app.js');
     const page = read('index.html');

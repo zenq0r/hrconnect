@@ -6747,7 +6747,12 @@ createApp({
                 if (!payload.raw.customerId) { this.showNotify('This document is missing its linked client ID — reselect a client from Client Information before saving this document.'); return false; }
                 if (payload.type === 'Quotation' && !payload.raw.projectId) { this.showNotify('Select the assigned project/PIC before saving a quotation.'); return false; }
                 const previous = this.docHistory.find(item => item.id === docId);
+                const isQuotationBeingIssued = payload.type === 'Quotation' && payload.status === 'Open' && (!previous || !previous.quotationIssuedAt);
                 const isInvoiceBeingSent = payload.type === 'Invoice' && payload.status === 'Unpaid' && (!previous || previous.status === 'Draft' || !previous.invoiceSentAt);
+                if (isQuotationBeingIssued) {
+                    payload.quotationIssuedAt = new Date().toISOString();
+                    payload.quotationIssuedByUid = this.userProfile.uid;
+                }
                 if (isInvoiceBeingSent) {
                     payload.invoiceWorkflowStatus = 'Sending to Client';
                     payload.raw.invoiceWorkflowStatus = 'Sending to Client';
@@ -6757,13 +6762,29 @@ createApp({
                 }
                 await setDoc(doc(db, "docs", docId), payload, { merge: true });
                 this.editingDocId = docId;
+                if (isQuotationBeingIssued) {
+                    this.notifyByEmail({
+                        to: payload.raw.clientEmail,
+                        subject: `Quotation Ready — ${payload.docNo}`,
+                        heading: 'Your Quotation Is Ready',
+                        message: `Quotation ${payload.docNo} for ${payload.name || 'your account'} is ready to review in the Client Portal. You can accept or decline it there.`,
+                        ctaLabel: 'VIEW QUOTATION'
+                    });
+                }
                 if (isInvoiceBeingSent) {
                     if (payload.raw.sourceQuotationId) await updateDoc(doc(db, 'docs', payload.raw.sourceQuotationId), { status: 'Invoiced', invoiceDocId: docId, invoiceCreatedAt: new Date().toISOString() });
                     try { await this.runBillingWorkflow('invoice-sent', docId); }
                     catch (workflowError) { console.error('Invoice notification workflow failed:', workflowError); this.showNotify('Invoice was saved, but its notification will be retried from the billing queue.', 'error'); return false; }
+                    this.notifyByEmail({
+                        to: payload.raw.clientEmail,
+                        subject: `Invoice Ready — ${payload.docNo}`,
+                        heading: 'Your Invoice Is Ready',
+                        message: `Invoice ${payload.docNo} for ${payload.name || 'your account'} is ready in the Client Portal. Please review it and upload payment proof once payment is made.`,
+                        ctaLabel: 'VIEW INVOICE'
+                    });
                     this.showNotify(`Invoice sent to Client and recorded in the billing workflow.`);
                 } else {
-                    this.showNotify(payload.status === 'Draft' ? 'Invoice draft saved. It is not visible to the Client.' : 'Document saved.');
+                    this.showNotify(isQuotationBeingIssued ? 'Quotation sent to Client.' : payload.status === 'Draft' ? 'Invoice draft saved. It is not visible to the Client.' : 'Document saved.');
                 }
                 return true;
             } catch (error) { console.error('Document save failed:', error); this.showNotify('Unable to save document. Check the attachment size and try again.'); return false; }
