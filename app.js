@@ -6,6 +6,9 @@ import {
     db,
     auth,
     storage,
+    initializeApp,
+    deleteApp,
+    getAuth,
     collection,
     doc,
     getDoc,
@@ -20,6 +23,7 @@ import {
     query,
     where,
     signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
     updatePassword,
@@ -4811,8 +4815,6 @@ Note: "${note}"` : ''}`
                 let existingAuthenticationAccount = false;
 
                 if (isNewUser) {
-                    const { initializeApp, deleteApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
-                    const { getAuth, createUserWithEmailAndPassword, signOut: signOutSecondary } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js");
                     const secondaryApp = initializeApp(auth.app.options, "SecondaryAuthApp-" + Date.now());
                     const secondaryAuth = getAuth(secondaryApp);
                     try {
@@ -4822,7 +4824,7 @@ Note: "${note}"` : ''}`
                         if (authErr.code === 'auth/email-already-in-use') existingAuthenticationAccount = true;
                         else { this.showNotify("Gagal mendaftar ke Firebase: " + authErr.message); return; }
                     } finally {
-                        await signOutSecondary(secondaryAuth).catch(() => {});
+                        await signOut(secondaryAuth).catch(() => {});
                         await deleteApp(secondaryApp).catch(() => {});
                     }
                 }
@@ -5119,7 +5121,6 @@ Note: "${note}"` : ''}`
             // fields (name/email/SSM) instead of the client's full contact record.
             if (project.clientDirectoryId) {
                 try {
-                    const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
                     const snap = await getDoc(doc(db, 'customers', project.clientDirectoryId));
                     if (snap.exists()) { this.openClientView({ id: snap.id, ...snap.data() }); return; }
                 } catch (error) {

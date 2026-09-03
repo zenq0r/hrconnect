@@ -535,11 +535,13 @@ test('an unreachable Firestore is never reported as removed portal access', () =
     assert.match(app, /const isCredentialFailure = String\(error\?\.code \|\| ''\)\.startsWith\('auth\/'\);/);
     assert.match(app, /isCredentialFailure\s*\?\s*'Invalid email or password credentials[^']*'\s*:\s*'We could not reach the portal/);
 
-    // One Firestore module instance for the whole portal: a second copy pulled from
-    // a hardcoded CDN URL would be handed a DocumentReference it does not recognise,
-    // and it would fail on exactly the reads that decide whether to end a session.
+    // One copy of the SDK for the whole portal. Every symbol comes through
+    // firebase-config.js, which pins the version in a single place; a second copy
+    // pulled straight from the CDN would be handed a DocumentReference it does not
+    // recognise, and it would fail on exactly the reads that decide whether a
+    // session ends.
     assert.match(app, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "\.\/firebase-config\.js";/);
-    assert.doesNotMatch(app, /getDocFromServer[^\n]*await import\(/);
+    assert.doesNotMatch(app, /await import\("https:\/\/www\.gstatic\.com\/firebasejs\//);
     assert.match(config, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "https:\/\/www\.gstatic\.com\/firebasejs\/[\d.]+\/firebase-firestore\.js";/);
     assert.equal((config.match(/^\s+getDocFromServer,\s*$/gm) || []).length, 2);
 });

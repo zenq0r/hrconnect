@@ -2,7 +2,7 @@
 // ZENQOR TECHNOLOGIES - firebase-config.js (SAFE AUTH & DB v2.9 - FIRESTORE ATTACHMENTS)
 // ============================================================
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 // Analytics is loaded lazily (see below) so its bundle is not downloaded on every
 // page load while Analytics is disabled.
 import {
@@ -24,6 +24,7 @@ import {
 import {
     getAuth,
     signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
     updatePassword,
@@ -132,6 +133,9 @@ export {
     db,
     auth,
     storage,
+    initializeApp,
+    deleteApp,
+    getAuth,
     collection,
     doc,
     getDoc,
@@ -146,6 +150,7 @@ export {
     query,
     where,
     signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
     updatePassword,
