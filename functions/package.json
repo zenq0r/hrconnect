@@ -3,10 +3,14 @@
   "private": true,
   "main": "index.js",
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
-    "firebase-admin": "^12.7.0",
-    "firebase-functions": "^6.3.0"
+    "firebase-admin": "14.3.0",
+    "firebase-functions": "7.3.2"
+  },
+  "overrides": {
+    "@google-cloud/storage": "8.0.1",
+    "gaxios": "7.3.1"
   }
 }

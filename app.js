@@ -668,6 +668,11 @@ createApp({
             // company domains. Client accounts use the email registered for them.
             allowedStaffDomains: ['zenq0r.com', 'zenqor.com.my'],
             portalAccessRevocationInProgress: false,
+            // A normal sign-out (including the idle-session timeout) is never a
+            // revocation. Keep that intent until Firebase notifies us that the
+            // session has ended, so the signed-out screen cannot retain an old
+            // "access removed" message and confuse the next sign-in attempt.
+            intentionalLogoutInProgress: false,
 
             userModal: {
                 show: false,
@@ -3140,6 +3145,7 @@ Note: "${note}"` : ''}`
         async revokeCurrentPortalAccess(message = 'Your portal access has been removed. Please contact your administrator.') {
             if (this.portalAccessRevocationInProgress) return;
             this.portalAccessRevocationInProgress = true;
+            this.intentionalLogoutInProgress = false;
             this.loginError = message;
             this.stopPresenceTracking();
             this.stopClientStatusClock();
@@ -4368,6 +4374,9 @@ Note: "${note}"` : ''}`
 
         async handleLogin() {
             this.loginError = '';
+            // A new sign-in is a new session. Do not let a previous successful
+            // logout mask a real access error during this attempt.
+            this.intentionalLogoutInProgress = false;
             // Never reveal a previous workspace frame while a new sign-in is
             // being validated. The navigation reopens only after the session
             // is fully ready.
@@ -4538,12 +4547,19 @@ Note: "${note}"` : ''}`
 
         async handleLogout() {
             this.logoutConfirm = false;
+            // Mark this before signOut() so onAuthStateChanged's signed-out
+            // branch knows this is user/idle initiated, not an access revocation.
+            this.intentionalLogoutInProgress = true;
+            this.loginError = '';
             try { await this.logAudit('LOGOUT', 'User logged out'); } catch (error) { console.error('Audit log failed during logout:', error); }
             try { await this.setCurrentPresence(false); } catch (error) { console.error('Presence update failed during logout:', error); }
             this.stopPresenceTracking();
             try {
                 await signOut(auth);
             } catch (error) {
+                // Firebase did not confirm the logout, so a later auth event
+                // must not be mistaken for this user-initiated attempt.
+                this.intentionalLogoutInProgress = false;
                 console.error('Firebase sign-out failed:', error);
                 this.showNotify('Sign-out ran into an issue, but your local session has been cleared. Close this tab if you are on a shared device.');
             } finally {
@@ -7263,6 +7279,10 @@ Note: "${note}"` : ''}`
                     try { await signOut(auth); } catch (signOutError) { console.error('Sign-out after failed session restore also failed:', signOutError); }
                 }
             } else {
+                // Preserve a revocation/restore error, but never carry one onto
+                // the landing screen after the user chose to sign out normally.
+                if (this.intentionalLogoutInProgress) this.loginError = '';
+                this.intentionalLogoutInProgress = false;
                 this.stopPresenceTracking();
                 this.stopClientStatusClock();
                 this.isLoggedIn = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false;

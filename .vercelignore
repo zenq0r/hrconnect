@@ -4,5 +4,23 @@
 *service-account*.json
 .env
 .env.local
+
+# Repository-only development, test, Firebase-deployment, and operational
+# material. Vercel serves this project from the repository root, so leaving
+# these unignored makes their source URLs public even though the portal never
+# imports them. Firebase Functions are deployed through firebase.json, not
+# through this Vercel application; /api remains intentionally included.
+tests/
+scripts/
+functions/
+.claude/
+.firebaserc
+MIGRATION_GUIDE.md
+firebase.json
+firestore.rules
+firestore.indexes.json
+storage.rules
+tailwind.input.css
+tailwind.config.js
 .gitignore
 .vercelignore

@@ -471,6 +471,21 @@ test('a valid portal session is never revoked on an unconfirmed signal', () => {
     assert.match(listeners, /this\.revokePortalAccessIfConfirmed\(/);
 });
 
+test('a normal logout cannot be labelled as removed portal access', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const normalLogout = app.slice(app.indexOf('async handleLogout()'), app.indexOf('stayOnPortal()'));
+    const authObserver = app.indexOf('onAuthStateChanged(auth');
+    const signedOutStart = app.indexOf('            } else {', authObserver);
+    const signedOutObserver = app.slice(signedOutStart, app.indexOf('            this.authLoading = false;', signedOutStart));
+
+    // The intent is set before Firebase signs the user out, and the stale error
+    // is cleared before the login screen is displayed. A genuine revocation
+    // explicitly clears that intent before it sets its own error.
+    assert.match(normalLogout, /this\.intentionalLogoutInProgress = true;\s*this\.loginError = '';/);
+    assert.match(signedOutObserver, /if \(this\.intentionalLogoutInProgress\) this\.loginError = '';/);
+    assert.match(app, /async revokeCurrentPortalAccess\([\s\S]{0,240}?this\.intentionalLogoutInProgress = false;\s*this\.loginError = message;/);
+});
+
 // Lifts a method body straight out of app.js so this exercises the code that
 // actually ships, rather than a copy that can drift from it.
 function liftAppMethod(appSource, name) {

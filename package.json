@@ -3,6 +3,9 @@
   "version": "8.7.0",
   "description": "ZENQOR Technologies Enterprise HRMS and Client Document Tracking Portal",
   "main": "index.html",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "start": "npx serve .",
     "build:css": "tailwindcss -i ./tailwind.input.css -o ./tailwind.css --minify",
@@ -12,7 +15,11 @@
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "firebase-admin": "12.7.0"
+    "firebase-admin": "14.3.0"
+  },
+  "overrides": {
+    "@google-cloud/storage": "8.0.1",
+    "gaxios": "7.3.1"
   },
   "keywords": [
     "zenqor",
