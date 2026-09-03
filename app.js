@@ -915,6 +915,11 @@ createApp({
                 clientContactPerson: '',
                 clientPosition: '',
                 customerId: '',
+                projectId: '',
+                projectRef: '',
+                projectTitle: '',
+                sourceQuotationId: '',
+                sourceQuotationNo: '',
                 additionalClientEmailsText: '',
                 items: [{ desc: '', qty: 1, price: 0 }],
                 discount: 0
@@ -979,7 +984,10 @@ createApp({
         canManagePayroll() { return this.hasModulePermission('payslip-generator', 'edit'); },
         canDeleteEmployees() { return this.hasModulePermission('hr-employees', 'delete'); },
         canDeleteClients() { return this.hasModulePermission('client-directory', 'delete'); },
-        canDeleteDocuments() { return this.hasModulePermission('doc-generator', 'delete'); },
+        // Finance is stored as the Account role. It may delete only official
+        // billing documents; all other delete capabilities remain unchanged.
+        canDeleteBillingDocuments() { return ['Superadmin', 'Director', 'Account'].includes(this.userProfile.role); },
+        canDeleteDocuments() { return this.canDeleteBillingDocuments; },
         canDeletePayroll() { return this.hasModulePermission('payslip-generator', 'delete'); },
         // Superadmin and Director hold every module their role lists, with edit
         // and delete on each, and no per-user override may subtract from that.
@@ -1204,10 +1212,16 @@ createApp({
         // (always the primary contact's), so prefer matching by the shared
         // clientDirectoryId claim — same linkage the docs query itself now uses.
         myClientDocs() {
+            const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+            const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
+            // Keep the original email path as a narrow compatibility path for
+            // billing records created before Client ID linking was mandatory.
+            // It is an OR, rather than a fallback: a linked client can therefore
+            // still retrieve its own historic records while all new records are
+            // isolated by the immutable Client Directory ID.
             return this.docHistory.filter(d => d.raw && (
-                this.userProfile.clientDirectoryId
-                    ? d.raw.customerId === this.userProfile.clientDirectoryId
-                    : d.raw.clientEmail === this.userProfile.email
+                (clientDirectoryId && String(d.raw.customerId || '').trim() === clientDirectoryId) ||
+                (clientEmail && String(d.raw.clientEmail || '').trim().toLowerCase() === clientEmail)
             ));
         },
         myClientRecord() {
@@ -1406,10 +1420,11 @@ createApp({
 
         clientPortalDocs() {
             if (this.userProfile.role === 'Client' || this.userProfile.role === 'Staff') {
+                const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+                const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
                 return this.docHistory.filter(d => d.raw && (
-                    this.userProfile.clientDirectoryId
-                        ? d.raw.customerId === this.userProfile.clientDirectoryId
-                        : d.raw.clientEmail === this.userProfile.email
+                    (clientDirectoryId && String(d.raw.customerId || '').trim() === clientDirectoryId) ||
+                    (clientEmail && String(d.raw.clientEmail || '').trim().toLowerCase() === clientEmail)
                 ));
             }
             return this.docHistory;
@@ -1420,6 +1435,48 @@ createApp({
                 const statusOk = this.clientPortalFilter.status === 'all' || (d.status || 'Unpaid') === this.clientPortalFilter.status;
                 return typeOk && statusOk;
             });
+        },
+        documentProjectsForSelectedClient() {
+            const customerId = String(this.docForm.customerId || '');
+            if (!customerId) return [];
+            return this.projects
+                .filter(project => project.clientDirectoryId === customerId)
+                .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+        },
+        // Client Billing Workflow is not a general staff module. A current PIC,
+        // HR/Account, Director or Superadmin is admitted; everyone else receives
+        // no billing queue at all.
+        billingPicProjectIds() {
+            const email = String(this.userProfile.email || '').trim().toLowerCase();
+            return new Set(this.projects
+                .filter(project => String(project.ownerEmail || '').trim().toLowerCase() === email)
+                .map(project => String(project.id || ''))
+                .filter(Boolean));
+        },
+        isBillingProjectPic() { return this.billingPicProjectIds.size > 0; },
+        canViewBillingWorkflow() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
+        canManageBillingWorkflow() { return this.isFullAccessRole; },
+        canVerifyPaymentProof() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
+        billingWorkflowQueue() {
+            if (!this.canViewBillingWorkflow) return [];
+            const isCentralReviewer = this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role);
+            const submittedProofs = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.status !== 'Draft' && item.paymentProofUrl)
+                .filter(item => isCentralReviewer || this.billingPicProjectIds.has(String(item.raw?.projectId || '')))
+                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Verified' ? 'Payment verified' : item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
+            if (!this.canManageBillingWorkflow) return submittedProofs
+                .sort((a, b) => String(b.paymentProofAt || b.date || '').localeCompare(String(a.paymentProofAt || a.date || '')));
+            const linkedInvoiceQuoteIds = new Set(this.docHistory
+                .filter(item => item.type === 'Invoice' && item.raw?.sourceQuotationId)
+                .map(item => item.raw.sourceQuotationId));
+            const acceptedQuotes = this.docHistory
+                .filter(item => item.type === 'Quotation' && item.status === 'Accepted' && !linkedInvoiceQuoteIds.has(item.id))
+                .map(item => ({ ...item, workflowAction: 'issue-invoice', workflowLabel: 'Prepare invoice' }));
+            const invoiceDrafts = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.status === 'Draft')
+                .map(item => ({ ...item, workflowAction: 'edit-draft', workflowLabel: 'Finance draft' }));
+            return [...acceptedQuotes, ...invoiceDrafts, ...submittedProofs]
+                .sort((a, b) => String(b.billingWorkflowUpdatedAt || b.paymentProofAt || b.clientDecisionAt || b.date || '').localeCompare(String(a.billingWorkflowUpdatedAt || a.paymentProofAt || a.clientDecisionAt || a.date || '')));
         },
 
         // PAGINATION & SORTING UNTUK CLAIMS MODULE
@@ -2085,6 +2142,18 @@ createApp({
             if (!d || d.type !== 'Quotation' || (d.status || 'Open') !== 'Open') return false;
             return this.clientPortalDocs.some(own => own.id === d.id);
         },
+        async runBillingWorkflow(action, documentId, extra = {}) {
+            if (!auth.currentUser?.uid) throw new Error('Your session has ended. Please sign in again.');
+            const idToken = await auth.currentUser.getIdToken();
+            const response = await fetch('/api/billing-workflow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                body: JSON.stringify({ action, documentId, ...extra })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'The billing workflow could not be updated.');
+            return data;
+        },
         async decideQuotation(d, decision) {
             if (!this.canDecideQuotation(d)) { this.showNotify('This quotation can no longer be answered.', 'error'); return; }
             const accepting = decision === 'Accepted';
@@ -2108,14 +2177,19 @@ createApp({
                     clientDecisionNote: note
                 });
                 this.logAudit('UPDATE', `Client ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo}`);
-                this.showNotify(accepting ? 'Quotation accepted. Our team has been notified.' : 'Quotation declined. Our team has been notified.');
-                this.notifyByEmail({
+                if (accepting) {
+                    // The server derives the PIC, Finance and Director recipients
+                    // from protected records. Client-side code never chooses them.
+                    await this.runBillingWorkflow('quotation-accepted', d.id);
+                }
+                this.showNotify(accepting
+                    ? 'Quotation accepted. PIC, Finance and Director have been notified.'
+                    : 'Quotation declined. Our team has been notified.');
+                if (!accepting) this.notifyByEmail({
                     to: this.company.email || this.supportEmail,
-                    subject: `Quotation ${accepting ? 'Accepted' : 'Declined'} — ${d.docNo}`,
-                    heading: `Quotation ${accepting ? 'Accepted' : 'Declined'}`,
-                    message: `${this.userProfile.name || this.userProfile.email} ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `
-
-Note: "${note}"` : ''}`
+                    subject: `Quotation Declined — ${d.docNo}`,
+                    heading: 'Quotation Declined',
+                    message: `${this.userProfile.name || this.userProfile.email} declined quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `\n\nNote: "${note}"` : ''}`
                 });
             } catch (error) {
                 console.error('Quotation decision failed:', error);
@@ -2128,6 +2202,13 @@ Note: "${note}"` : ''}`
             if (this.userProfile.role !== 'Client') return false;
             if (!d || d.type !== 'Invoice' || d.status === 'Paid') return false;
             return this.clientPortalDocs.some(own => own.id === d.id);
+        },
+        clientBillingStatus(d) {
+            if (d?.type !== 'Invoice') return d?.status || 'Open';
+            if (d.paymentProofReviewStatus === 'Verified' || d.status === 'Paid') return 'Paid';
+            if (d.paymentProofReviewStatus === 'Submitted') return 'Payment Under Review';
+            if (d.paymentProofReviewStatus === 'Rejected') return 'Proof Needs Attention';
+            return d.status || 'Unpaid';
         },
         async handlePaymentProofUpload(event, d) {
             const file = event.target.files[0];
@@ -2173,13 +2254,8 @@ Note: "${note}"` : ''}`
                     paymentProofByName: this.userProfile.name || this.userProfile.email
                 });
                 this.logAudit('UPDATE', `Client attached payment proof to ${d.docNo}`);
-                this.showNotify('Payment proof submitted. Our team will verify it and update the invoice.');
-                this.notifyByEmail({
-                    to: this.company.email || this.supportEmail,
-                    subject: `Payment Proof Submitted — ${d.docNo}`,
-                    heading: 'Payment Proof Submitted',
-                    message: `${this.userProfile.name || this.userProfile.email} attached proof of payment for invoice ${d.docNo} (${this.formatCurrency(d.amount)}). Verify it and mark the invoice Paid if it checks out.`
-                });
+                await this.runBillingWorkflow('payment-proof-submitted', d.id);
+                this.showNotify('Payment proof submitted. Finance, Director and your PIC will review it.');
             } catch (error) {
                 console.error('Payment proof upload failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'submit your payment proof'), 'error');
@@ -3187,7 +3263,7 @@ Note: "${note}"` : ''}`
             this.docForm = {
                 type: 'Invoice', docNo: '', status: 'Unpaid', paymentMethod: 'Bank Transfer (EFT)', paymentBank: '', paymentReceiver: '', paymentRefNo: '', paymentAttachment: '',
                 date: new Date().toISOString().substr(0, 10), dueDate: new Date(Date.now() + 5*24*60*60*1000).toISOString().substr(0, 10),
-                customerId: '', clientName: '', clientPhone: '', clientSSM: '', clientAddress: '', clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '', clientCountry: 'Malaysia', clientEmail: '', clientContactPerson: '', clientPosition: '', additionalClientEmailsText: '',
+                customerId: '', projectId: '', projectRef: '', projectTitle: '', sourceQuotationId: '', sourceQuotationNo: '', clientName: '', clientPhone: '', clientSSM: '', clientAddress: '', clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '', clientCountry: 'Malaysia', clientEmail: '', clientContactPerson: '', clientPosition: '', additionalClientEmailsText: '',
                 items: [{ desc: '', qty: 1, price: 0 }], discount: 0
             };
             this.payForm = {
@@ -3802,13 +3878,14 @@ Note: "${note}"` : ''}`
             return allowedModules.includes(permissionModule);
         },
         // Per-module permission derived from the role alone. 'edit' follows page
-        // visibility; 'delete' is Superadmin/Director only, except website-content
-        // where IT is a content admin in firestore.rules too.
+        // visibility; 'delete' is Superadmin/Director only, except Finance may
+        // delete billing documents and IT may delete website content.
         hasModulePermission(moduleName, action) {
             // website-content grants IT full edit+delete (firestore.rules' isContentAdmin()
             // covers IT for these public-site collections too), unlike every other module
             // where 'delete' defaults to Superadmin/Director only.
             if (action === 'delete' && moduleName === 'website-content') return this.hasAccess(moduleName);
+            if (action === 'delete' && moduleName === 'doc-generator') return ['Superadmin', 'Director', 'Account'].includes(this.userProfile.role);
             if (action === 'delete') return ['Superadmin', 'Director'].includes(this.userProfile.role);
             return this.hasAccess(moduleName);
         },
@@ -4114,7 +4191,16 @@ Note: "${note}"` : ''}`
                 if (marker !== this.appVersionMarker) this.appUpdateAvailable = true;
             } catch (error) { /* offline or blocked request, ignore and retry next interval */ }
         },
-        refreshApp() {
+        async refreshApp() {
+            // The Client Workspace uses the same app shell as Staff. Ask the
+            // browser to check the service worker first, then reload so a
+            // manual Client refresh cannot keep an older app shell open.
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registration = await navigator.serviceWorker.getRegistration();
+                    await registration?.update();
+                } catch (error) { /* reload still gives the network-first shell a chance to update */ }
+            }
             window.location.reload();
         },
         startIdleTimeoutWatch() {
@@ -5404,6 +5490,13 @@ Note: "${note}"` : ''}`
             this.docForm.clientCountry = cust.clientCountry || 'Malaysia';
             this.docForm.customerId = cust.id;
             this.docForm.additionalClientEmailsText = Array.isArray(cust.additionalClientEmails) ? cust.additionalClientEmails.join(', ') : '';
+            // A quotation is tied to the delivery project so its acceptance can
+            // create a deterministic handover to that project's assigned PIC.
+            if (switchedCompany) {
+                this.docForm.projectId = '';
+                this.docForm.projectRef = '';
+                this.docForm.projectTitle = '';
+            }
             this.clientSavedForDocument = true;
 
             // A saved document must never be overwritten just because the user
@@ -5423,9 +5516,18 @@ Note: "${note}"` : ''}`
                 this.loadCustomerIntoDocument(cust);
             } else {
                 this.docForm.customerId = '';
+                this.docForm.projectId = '';
+                this.docForm.projectRef = '';
+                this.docForm.projectTitle = '';
                 this.docForm.additionalClientEmailsText = '';
                 this.clientSavedForDocument = false;
             }
+        },
+        selectProjectForDoc(e) {
+            const project = this.documentProjectsForSelectedClient.find(item => item.id === e.target.value);
+            this.docForm.projectId = project?.id || '';
+            this.docForm.projectRef = project?.projectRef || '';
+            this.docForm.projectTitle = project?.title || '';
         },
         // Human-readable, non-random client reference — same convention as
         // projectRef/docNo/empNo elsewhere in this app, but derived from the
@@ -5707,6 +5809,27 @@ Note: "${note}"` : ''}`
             return items
                 .map(d => ({ ...d, tagClass: d.type === 'Invoice' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200', isDoc: true }))
                 .sort((a, b) => new Date(b.date) - new Date(a.date));
+        },
+        // Billing records must be shown against the project they were issued
+        // for, not every project handled by the same PIC or every project for
+        // the same Client. This deliberately has no legacy name/client fallback:
+        // an unlinked record is safer to leave in the Client Billing history
+        // than to display it under the wrong Client task.
+        projectBillingDocuments(project) {
+            const projectId = String(project?.id || '').trim();
+            const customerId = String(project?.clientDirectoryId || '').trim();
+            if (!projectId || !customerId) return [];
+            return this.docHistory
+                .filter(item => ['Invoice', 'Quotation'].includes(item?.type))
+                .filter(item => String(item?.raw?.projectId || '').trim() === projectId && String(item?.raw?.customerId || '').trim() === customerId)
+                .map(item => ({
+                    ...item,
+                    isDoc: true,
+                    tagClass: item.type === 'Invoice'
+                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200'
+                }))
+                .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
         },
         isNewClient(clientDirectoryId) {
             if (!clientDirectoryId) return false;
@@ -7058,6 +7181,79 @@ Note: "${note}"` : ''}`
         setPrintOrientation(orientation, margin) { const styleEl = document.getElementById('dynamic-print-orientation'); if (styleEl) styleEl.innerHTML = `@media print { @page { size: A4 ${orientation}; margin: ${margin} !important; } }`; },
         async printDocumentModule() { if (!this.clientSavedForDocument) return this.showNotify('Select a registered client before previewing or printing this document.'); this.activePrintModule = this.docForm.type === 'Quotation' ? 'QUOTATION' : 'INVOICE'; this.setPrintOrientation('portrait', '15mm'); setTimeout(() => { window.print(); }, 250); },
         async printPayslipModule() { if (!this.payForm.name || !this.payForm.empNo) return this.showNotify('Enter Name and Emp ID.'); this.autoCalculatePayroll(); this.activePrintModule = 'PAYSLIP'; this.setPrintOrientation('landscape', '0mm'); setTimeout(() => { window.print(); }, 250); },
+        createInvoiceFromQuotation(quotation) {
+            if (!this.canManageBillingWorkflow || quotation?.type !== 'Quotation' || quotation.status !== 'Accepted') {
+                this.showNotify('Only a Director or Superadmin can prepare an invoice from an accepted quotation.', 'error'); return;
+            }
+            const source = JSON.parse(JSON.stringify(quotation.raw || {}));
+            this.editingDocId = null;
+            this.docForm = {
+                ...source,
+                type: 'Invoice',
+                docNo: '',
+                status: 'Draft',
+                paymentRefNo: '',
+                paymentAttachment: '',
+                sourceQuotationId: quotation.id,
+                sourceQuotationNo: quotation.docNo || '',
+                date: new Date().toISOString().substr(0, 10),
+                dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().substr(0, 10)
+            };
+            this.clientSavedForDocument = Boolean(this.docForm.customerId);
+            this.generateDocNo();
+            this.switchTab('document-quotations');
+            this.showNotify(`Invoice draft prepared from ${quotation.docNo}. Review it, then Save as Draft or Send to Client.`);
+        },
+        async reviewPaymentProof(invoice, approved) {
+            if (!this.canVerifyPaymentProof || !invoice?.paymentProofUrl) { this.showNotify('Only HR Management or Finance can verify a payment proof.', 'error'); return; }
+            const { confirmed, note } = await this.askConfirmWithNote({
+                title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
+                message: approved
+                    ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.`
+                    : `${invoice.docNo} stays Unpaid. The client will be asked to upload a corrected proof.`,
+                confirmLabel: approved ? 'Verify and Mark Paid' : 'Reject Proof',
+                danger: !approved,
+                noteLabel: approved ? 'Verification note (optional)' : 'Reason for rejection',
+                notePlaceholder: approved ? 'Reference checked by Finance' : 'Explain what the client needs to correct'
+            });
+            if (!confirmed) return;
+            try {
+                await this.runBillingWorkflow('payment-proof-reviewed', invoice.id, { decision: approved ? 'approved' : 'rejected', note });
+                this.logAudit('UPDATE', `${approved ? 'Verified' : 'Rejected'} payment proof for ${invoice.docNo}`);
+                this.showNotify(approved ? `${invoice.docNo} is marked Paid.` : `Payment proof for ${invoice.docNo} was rejected; client has been notified.`);
+            } catch (error) {
+                console.error('Payment proof review failed:', error);
+                this.showNotify(error.message || 'Unable to review the payment proof.', 'error');
+            }
+        },
+        async discardInvoiceDraft(invoice) {
+            if (!this.canDeleteBillingDocument(invoice) || invoice?.type !== 'Invoice' || invoice.status !== 'Draft') {
+                this.showNotify('Only Director, Finance or Superadmin can discard an unsent invoice draft.', 'error'); return;
+            }
+            if (!await this.askConfirm({ title: 'Discard invoice draft?', message: `${invoice.docNo} has not been sent to the client and will be permanently removed.`, confirmLabel: 'Discard Draft', danger: true })) return;
+            try {
+                await deleteDoc(doc(db, 'docs', invoice.id));
+                this.logAudit('DELETE', `Discarded unsent invoice draft ${invoice.docNo}`);
+                this.showNotify('Invoice draft discarded.');
+            } catch (error) {
+                console.error('Invoice draft discard failed:', error);
+                this.showNotify('Unable to discard this invoice draft.', 'error');
+            }
+        },
+        async deleteInvoiceFromWorkflow(invoice) {
+            if (!this.canDeleteBillingDocument(invoice) || invoice?.type !== 'Invoice') {
+                this.showNotify('Only Director, Finance or Superadmin can delete an invoice.', 'error'); return;
+            }
+            if (!await this.askConfirm({ title: 'Delete invoice?', message: `${invoice.docNo} will be permanently removed. This can affect the Client document history.`, confirmLabel: 'Delete Invoice', danger: true })) return;
+            try {
+                await deleteDoc(doc(db, 'docs', invoice.id));
+                this.logAudit('DELETE', `Deleted invoice ${invoice.docNo} from Client Billing Workflow`);
+                this.showNotify('Invoice deleted.');
+            } catch (error) {
+                console.error('Invoice delete failed:', error);
+                this.showNotify('Unable to delete this invoice.', 'error');
+            }
+        },
         
         async saveDocRecord() {
             try {
@@ -7068,7 +7264,8 @@ Note: "${note}"` : ''}`
                 normalizedDocForm.clientEmail = String(this.docForm.clientEmail || '').trim().toLowerCase();
                 Object.assign(this.docForm, normalizedDocForm);
                 const docId = String(this.editingDocId || Date.now());
-                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, raw: JSON.parse(JSON.stringify(this.docForm)) };
+                const linkedProject = this.projects.find(project => String(project.id || '') === String(this.docForm.projectId || ''));
+                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
                 if (!this.clientSavedForDocument) { this.showNotify('Select a registered client before saving this document.'); return false; }
                 // Hard guarantee, not just an implied one: every document must carry
                 // its client's real customers/{id}, never just a name snapshot — two
@@ -7078,7 +7275,51 @@ Note: "${note}"` : ''}`
                 // always sets docForm.customerId first), so this is a defensive
                 // backstop, not the primary mechanism.
                 if (!payload.raw.customerId) { this.showNotify('This document is missing its linked client ID — reselect a client from Client Information before saving this document.'); return false; }
-                await setDoc(doc(db, "docs", docId), payload, { merge: true }); this.editingDocId = docId; this.showNotify(`Document saved.`); return true;
+                if (['Quotation', 'Invoice'].includes(payload.type) && !payload.raw.projectId) { this.showNotify('Select the exact assigned project/PIC before saving this billing document.'); return false; }
+                if (['Quotation', 'Invoice'].includes(payload.type) && String(linkedProject?.clientDirectoryId || '') !== String(payload.raw.customerId || '')) { this.showNotify('The selected project belongs to a different Client ID. Select a project under the current Client before saving.'); return false; }
+                const previous = this.docHistory.find(item => item.id === docId);
+                const isQuotationBeingIssued = payload.type === 'Quotation' && payload.status === 'Open' && (!previous || !previous.quotationIssuedAt);
+                const isInvoiceBeingSent = payload.type === 'Invoice' && payload.status === 'Unpaid' && (!previous || previous.status === 'Draft' || !previous.invoiceSentAt);
+                if (isQuotationBeingIssued) {
+                    payload.quotationIssuedAt = new Date().toISOString();
+                    payload.quotationIssuedByUid = this.userProfile.uid;
+                }
+                if (isInvoiceBeingSent) {
+                    payload.invoiceWorkflowStatus = 'Sending to Client';
+                    payload.raw.invoiceWorkflowStatus = 'Sending to Client';
+                } else if (payload.type === 'Invoice' && payload.status === 'Draft') {
+                    payload.invoiceWorkflowStatus = 'Draft — Finance Review';
+                    payload.raw.invoiceWorkflowStatus = 'Draft — Finance Review';
+                }
+                await setDoc(doc(db, "docs", docId), payload, { merge: true });
+                this.editingDocId = docId;
+                if (isQuotationBeingIssued) {
+                    try { await this.runBillingWorkflow('quotation-issued', docId); }
+                    catch (workflowError) { console.error('Quotation notification workflow failed:', workflowError); this.showNotify('Quotation was saved, but its Client ID notification could not be sent. Correct the Client/project link and try again.', 'error'); return false; }
+                    this.notifyByEmail({
+                        to: payload.raw.clientEmail,
+                        subject: `Quotation Ready — ${payload.docNo}`,
+                        heading: 'Your Quotation Is Ready',
+                        message: `Quotation ${payload.docNo} for ${payload.name || 'your account'} is ready to review in the Client Portal. You can accept or decline it there.`,
+                        ctaLabel: 'VIEW QUOTATION'
+                    });
+                }
+                if (isInvoiceBeingSent) {
+                    if (payload.raw.sourceQuotationId) await updateDoc(doc(db, 'docs', payload.raw.sourceQuotationId), { status: 'Invoiced', invoiceDocId: docId, invoiceCreatedAt: new Date().toISOString() });
+                    try { await this.runBillingWorkflow('invoice-sent', docId); }
+                    catch (workflowError) { console.error('Invoice notification workflow failed:', workflowError); this.showNotify('Invoice was saved, but its notification will be retried from the billing queue.', 'error'); return false; }
+                    this.notifyByEmail({
+                        to: payload.raw.clientEmail,
+                        subject: `Invoice Ready — ${payload.docNo}`,
+                        heading: 'Your Invoice Is Ready',
+                        message: `Invoice ${payload.docNo} for ${payload.name || 'your account'} is ready in the Client Portal. Please review it and upload payment proof once payment is made.`,
+                        ctaLabel: 'VIEW INVOICE'
+                    });
+                    this.showNotify(`Invoice sent to Client and recorded in the billing workflow.`);
+                } else {
+                    this.showNotify(isQuotationBeingIssued ? 'Quotation sent to Client.' : payload.status === 'Draft' ? 'Invoice draft saved. It is not visible to the Client.' : 'Document saved.');
+                }
+                return true;
             } catch (error) { console.error('Document save failed:', error); this.showNotify('Unable to save document. Check the attachment size and try again.'); return false; }
         },
         async savePayslipRecord() {
@@ -7222,13 +7463,17 @@ Note: "${note}"` : ''}`
         },
         editRecord(item) {
             this.mobileMenuOpen = false;
-            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.raw.status || item.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); } this.switchTab('document-quotations'); }
+            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.status || item.raw.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); this.clientSavedForDocument = Boolean(this.docForm.customerId); } this.switchTab('document-quotations'); }
             else if (item.isPay) { this.editingPayId = item.id; if (item.raw) { this.payForm = JSON.parse(JSON.stringify(item.raw)); this.selectedPayEmployeeId = this.payForm.empNo || ''; } this.autoCalculatePayroll(); this.switchTab('payslip-generator'); }
             else if (item.isVoucher) this.editPaymentVoucher(item);
             else if (item.isClaim) this.editClaimRecord(item);
         },
+        canDeleteBillingDocument(item) {
+            return this.canDeleteBillingDocuments && ['Invoice', 'Quotation'].includes(item?.type);
+        },
         async confirmDeleteRecord(item) {
-            if (!this.canDelete) { this.showNotify('Only Superadmin and Director can delete records.'); return; }
+            const canDeleteThisRecord = item?.isDoc ? this.canDeleteBillingDocument(item) : this.canDelete;
+            if (!canDeleteThisRecord) { this.showNotify(item?.isDoc ? 'Only Director, Finance or Superadmin can delete invoices and quotations.' : 'Only Superadmin and Director can delete records.'); return; }
             if (!await this.askConfirm({
                 title: 'Delete record?',
                 message: `${item.docNo || item.fileName || 'This record'} will be permanently deleted. This action cannot be undone.`,
@@ -7374,16 +7619,34 @@ Note: "${note}"` : ''}`
             // Must mirror the monthly_archives read rule in firestore.rules, or the
             // listener throws permission-denied for every other role on sign-in.
             const canReadMonthlyArchives = ['Superadmin', 'Director', 'HR', 'Account'].includes(role);
+            const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+            const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
+            // Firestore rules intentionally deny Client access to invoice drafts.
+            // A broad `raw.customerId == ...` query can still *potentially* return
+            // a draft, so Firestore rejects the whole listener before it returns any
+            // permitted records. Split Client billing reads into rule-compatible
+            // quotation and non-draft invoice queries, then merge by document ID.
+            // Retain the exact-email sources for pre-Client-ID records only; both
+            // source families are scoped to the signed-in Client, never by name.
+            const clientDocumentSources = role === 'Client'
+                ? [
+                    ...(clientDirectoryId ? [
+                        query(collection(db, 'docs'), where('raw.customerId', '==', clientDirectoryId), where('type', '==', 'Quotation')),
+                        query(collection(db, 'docs'), where('raw.customerId', '==', clientDirectoryId), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                    ] : []),
+                    ...(clientEmail ? [
+                        query(collection(db, 'docs'), where('raw.clientEmail', '==', clientEmail), where('type', '==', 'Quotation')),
+                        query(collection(db, 'docs'), where('raw.clientEmail', '==', clientEmail), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                    ] : [])
+                ]
+                : [];
             const documentsSource = canReadAllDocuments
                 ? collection(db, 'docs')
-                : role === 'Client'
-                    // raw.customerId links to the same customers/{clientDirectoryId} record
-                    // as the "Multi-user Client Portal" claim, so this covers both the primary
-                    // contact and any authorized secondary contact. Falls back to matching by
-                    // the account's own email if the claim hasn't been synced yet.
-                    ? (this.userProfile.clientDirectoryId
-                        ? query(collection(db, 'docs'), where('raw.customerId', '==', this.userProfile.clientDirectoryId))
-                        : query(collection(db, 'docs'), where('raw.clientEmail', '==', this.userProfile.email)))
+                // Staff may read sent invoices solely so the Billing Workflow
+                    // can open a submitted payment proof. Draft invoices and every
+                    // quotation stay outside this listener and the Firestore rule.
+                : role === 'Staff'
+                    ? query(collection(db, 'docs'), where('billingPicEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
                     : null;
             const payslipsSource = canReadAllPayslips
                 ? collection(db, 'payslips')
@@ -7564,7 +7827,13 @@ Note: "${note}"` : ''}`
                             this.projects = this.projects.map(project => this.projectWithLiveClientData(project));
                         }, 'client profile')
                     : Promise.resolve(),
-                documentsSource
+                clientDocumentSources.length
+                    ? subscribeMergedWithReadySignal(clientDocumentSources, (merged) => {
+                        this.docHistory = merged;
+                        this.generateDocNo();
+                        this.refreshDashboardCharts();
+                    }, 'client billing documents')
+                    : documentsSource
                     ? subscribeWithReadySignal(documentsSource, (snapshot) => { this.docHistory = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); this.generateDocNo(); this.refreshDashboardCharts(); }, 'documents')
                     : Promise.resolve(),
                 payslipsSource

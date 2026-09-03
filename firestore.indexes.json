@@ -1,5 +1,33 @@
 {
-  "indexes": [],
+  "indexes": [
+    {
+      "collectionGroup": "docs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "billingPicEmail", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "docs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "raw.customerId", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "docs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "raw.clientEmail", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    }
+  ],
   "fieldOverrides": [
     {
       "collectionGroup": "audit_logs",

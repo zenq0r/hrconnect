@@ -94,6 +94,14 @@ service cloud.firestore {
       return isAdmin();
     }
 
+    function isDocumentProjectPic(data) {
+      return isApprovedStaffSession() &&
+        data.billingPicEmail is string &&
+        data.billingPicEmail == request.auth.token.email &&
+        data.type == 'Invoice' &&
+        data.status != 'Draft';
+    }
+
     // IT is trusted with the public zenqor-tech website's content collections
     // (Portfolio galleries, Services, page-text overrides) alongside Superadmin/
     // Director, but NOT with the rest of what isAdmin() unlocks (payroll, HR,
@@ -297,13 +305,19 @@ service cloud.firestore {
     match /docs/{docId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() || isIT() ||
-        (isClient() && resource.data.raw.clientEmail == request.auth.token.email) ||
+        // A PIC may read only sent invoices indexed to that PIC. Drafts,
+        // quotations and another project's billing data stay unavailable.
+        isDocumentProjectPic(resource.data) ||
+        // An invoice draft belongs to the Finance workspace until it is formally
+        // issued. Clients never see a partial/unsent bill in their document list.
+        (isClient() && (resource.data.type != 'Invoice' || resource.data.status != 'Draft') && resource.data.raw.clientEmail == request.auth.token.email) ||
         (
           // Multi-user Client Portal: a secondary authorized email (see
           // customers/{id}.additionalClientEmails) doesn't match raw.clientEmail
           // (always the primary contact's), so fall back to the linked customer
           // record the same way client_documents does.
           isClient() &&
+          (resource.data.type != 'Invoice' || resource.data.status != 'Draft') &&
           resource.data.raw.customerId is string &&
           resource.data.raw.customerId.size() > 0 &&
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
@@ -354,7 +368,16 @@ service cloud.firestore {
           'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName'
         ])
       );
-      allow delete: if isAdmin();
+      // Finance is the Account role. It may remove only official billing
+      // documents; every other document delete remains Director/Superadmin.
+      allow delete: if isAdmin() || (isAccount() && resource.data.type in ['Invoice', 'Quotation']);
+    }
+
+    // Idempotency/audit markers for the trusted /api/billing-workflow endpoint.
+    // The Admin SDK alone writes these; browser sessions cannot forge a workflow
+    // handover or suppress a notification by creating its marker first.
+    match /billing_events/{eventId} {
+      allow read, write: if false;
     }
 
     // Client Document Repository — centralized JPEG/JPG/PNG/PDF storage metadata per client.

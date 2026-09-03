@@ -711,6 +711,16 @@ test('workspace navigation stays hidden throughout sign-in and session restorati
     assert.match(app, /async handleLogout\(\) \{[\s\S]{0,1400}?this\.desktopSidebarOpen = false;/);
 });
 
+test('Client Workspace always has a manual portal refresh control', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    assert.match(page, /Refresh Portal/);
+    assert.match(page, /@click="refreshApp"/);
+    assert.match(app, /async refreshApp\(\)/);
+    assert.match(app, /navigator\.serviceWorker\.getRegistration\(\)/);
+});
+
 test('Firebase email action URLs are handled safely alongside legacy reset links', () => {
     const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const config = fs.readFileSync(path.join(__dirname, '..', 'firebase-config.js'), 'utf8');
