@@ -1,10 +1,12 @@
-const admin = require('firebase-admin');
-const { getApps } = require('firebase-admin/app');
+const { cert, getApp, getApps, initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
+const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 
 function getAdminApp() {
-    // firebase-admin v14 removed the legacy `admin.apps` namespace export.
-    // getApps() is the supported registry API and works on the v12-v14 upgrade
-    // path, keeping every serverless route on one initialized Admin app.
+    // firebase-admin v14 exports app, Auth and Firestore APIs from their
+    // dedicated modules. The previous namespace-style service access was
+    // removed, so keep the initialized app as the single shared
+    // foundation and expose its services through the helpers below.
     if (!getApps().length) {
         const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         if (!raw) throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
@@ -14,9 +16,17 @@ function getAdminApp() {
         } catch (_) {
             throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY must contain valid JSON.');
         }
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+        initializeApp({ credential: cert(serviceAccount) });
     }
-    return admin;
+    return getApp();
 }
 
-module.exports = { getAdminApp };
+function getAdminAuth() {
+    return getAuth(getAdminApp());
+}
+
+function getAdminFirestore() {
+    return getFirestore(getAdminApp());
+}
+
+module.exports = { getAdminApp, getAdminAuth, getAdminFirestore, Timestamp };

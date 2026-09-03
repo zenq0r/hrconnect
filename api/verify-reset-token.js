@@ -1,4 +1,4 @@
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminFirestore } = require('./_firebaseAdmin');
 const { hashResetToken } = require('./_security');
 
 module.exports = async function handler(req, res) {
@@ -11,8 +11,7 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        const admin = getAdminApp();
-        const db = admin.firestore();
+        const db = getAdminFirestore();
         let doc = await db.collection('password_reset_tokens').doc(hashResetToken(token)).get();
         // Transitional fallback for reset links issued before token hashing shipped.
         if (!doc.exists) doc = await db.collection('password_reset_tokens').doc(token).get();

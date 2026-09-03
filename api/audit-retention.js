@@ -1,4 +1,4 @@
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore, Timestamp } = require('./_firebaseAdmin');
 const { DEFAULT_RETENTION, normalizeRetention } = require('./_auditRetention');
 
 const ALLOWED_ROLES = new Set(['Superadmin', 'Director', 'IT']);
@@ -19,13 +19,13 @@ module.exports = async function handler(req, res) {
         const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!idToken) { res.status(401).json({ error: 'Missing authorization token.' }); return; }
 
-        const admin = getAdminApp();
-        const decoded = await admin.auth().verifyIdToken(idToken);
-        const userDoc = await admin.firestore().collection('users').doc(decoded.uid).get();
+        const auth = getAdminAuth();
+        const db = getAdminFirestore();
+        const decoded = await auth.verifyIdToken(idToken);
+        const userDoc = await db.collection('users').doc(decoded.uid).get();
         const role = userDoc.exists ? userDoc.data().role : null;
         if (!ALLOWED_ROLES.has(role)) { res.status(403).json({ error: 'Only Director, Superadmin, or IT may manage audit retention.' }); return; }
 
-        const db = admin.firestore();
         const settingRef = db.collection('settings').doc('audit_retention');
         if (req.method === 'GET') {
             const settingDoc = await settingRef.get();
@@ -52,7 +52,7 @@ module.exports = async function handler(req, res) {
             const batch = db.batch();
             const chunk = snapshot.docs.slice(offset, offset + 400);
             chunk.forEach(doc => {
-                const expireAt = admin.firestore.Timestamp.fromMillis(eventTimestampMs(doc) + retention.durationMs);
+                const expireAt = Timestamp.fromMillis(eventTimestampMs(doc) + retention.durationMs);
                 batch.set(doc.ref, { expireAt }, { merge: true });
             });
             await batch.commit();

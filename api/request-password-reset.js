@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { sendResetEmail } = require('./_resetEmail');
 const { hashResetToken, normalizeEmail, PORTAL_URL } = require('./_security');
 
@@ -18,12 +18,12 @@ module.exports = async function handler(req, res) {
         const normalizedEmail = normalizeEmail(email);
         if (!normalizedEmail) { res.status(400).json({ error: 'A valid email address is required.' }); return; }
 
-        const admin = getAdminApp();
-        const db = admin.firestore();
+        const auth = getAdminAuth();
+        const db = getAdminFirestore();
 
         let userRecord = null;
         try {
-            userRecord = await admin.auth().getUserByEmail(normalizedEmail);
+            userRecord = await auth.getUserByEmail(normalizedEmail);
         } catch (lookupError) {
             // Account not found — fall through without revealing this to the caller.
         }

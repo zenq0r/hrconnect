@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore, Timestamp } = require('./_firebaseAdmin');
 const { getClientIp, parseUserAgent } = require('./_auditMetadata');
 const { DEFAULT_RETENTION, retentionDurationMs } = require('./_auditRetention');
 const { enforceRateLimit } = require('./_rateLimit');
@@ -17,11 +17,12 @@ module.exports = async function handler(req, res) {
         const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!idToken) { res.status(401).json({ error: 'Missing authorization token.' }); return; }
 
-        const admin = getAdminApp();
-        const decoded = await admin.auth().verifyIdToken(idToken);
-        const userDoc = await admin.firestore().collection('users').doc(decoded.uid).get();
+        const auth = getAdminAuth();
+        const db = getAdminFirestore();
+        const decoded = await auth.verifyIdToken(idToken);
+        const userDoc = await db.collection('users').doc(decoded.uid).get();
         const userData = userDoc.exists ? userDoc.data() : {};
-        const rate = await enforceRateLimit(admin.firestore(), { scope: 'audit-log', key: decoded.uid, limit: 120, windowMs: 60 * 1000 });
+        const rate = await enforceRateLimit(db, { scope: 'audit-log', key: decoded.uid, limit: 120, windowMs: 60 * 1000 });
         if (!rate.allowed) {
             res.setHeader('Retry-After', String(rate.retryAfterSeconds));
             res.status(429).json({ error: 'Audit event rate limit exceeded.' });
@@ -33,9 +34,9 @@ module.exports = async function handler(req, res) {
         if (typeof details !== 'string' || !details.trim()) { res.status(400).json({ error: 'Audit details are required.' }); return; }
 
         const now = new Date();
-        const retentionDoc = await admin.firestore().collection('settings').doc('audit_retention').get();
+        const retentionDoc = await db.collection('settings').doc('audit_retention').get();
         const retention = retentionDoc.exists ? retentionDoc.data() : DEFAULT_RETENTION;
-        const expireAt = admin.firestore.Timestamp.fromMillis(now.getTime() + retentionDurationMs(retention));
+        const expireAt = Timestamp.fromMillis(now.getTime() + retentionDurationMs(retention));
         const metadata = parseUserAgent(req.headers['user-agent']);
         const id = `${now.getTime()}-${crypto.randomUUID()}`;
         const auditRecord = {
@@ -56,7 +57,7 @@ module.exports = async function handler(req, res) {
             expireAt
         };
 
-        await admin.firestore().collection('audit_logs').doc(id).set(auditRecord);
+        await db.collection('audit_logs').doc(id).set(auditRecord);
         res.status(201).json({ success: true, id });
     } catch (error) {
         console.error('audit-log error:', error);

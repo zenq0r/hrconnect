@@ -1,6 +1,6 @@
 // Email OTP is used only to confirm a password-reset action. Normal portal
 // sign-in remains a password-only flow.
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminFirestore } = require('./_firebaseAdmin');
 const { generateOtp, hashOtp, MAIL_FROM } = require('./_security');
 const { resolvePasswordResetContext } = require('./_passwordResetOtp');
 
@@ -50,10 +50,10 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        const admin = getAdminApp();
-        const reset = await resolvePasswordResetContext(admin, req.body);
+        const db = getAdminFirestore();
+        const reset = await resolvePasswordResetContext(db, req.body);
         const now = Date.now();
-        const otpRef = admin.firestore().collection('password_reset_otp_codes').doc(reset.fingerprint);
+        const otpRef = db.collection('password_reset_otp_codes').doc(reset.fingerprint);
         const existing = await otpRef.get();
         if (existing.exists && now - new Date(existing.data().createdAt).getTime() < OTP_RESEND_COOLDOWN_MS) {
             res.status(429).json({ error: 'Please wait before requesting another verification code.' });

@@ -149,6 +149,38 @@ test('Firebase Admin initialization fails clearly when credentials are absent', 
     assert.doesNotMatch(result.stderr, /reading 'length'/);
 });
 
+test('Firebase Admin v14 uses modular app, Auth, and Firestore services', () => {
+    const modulePath = path.join(__dirname, '..', 'api', '_firebaseAdmin.js');
+    const script = `
+        const Module = require('node:module');
+        const originalLoad = Module._load;
+        let initialized = false;
+        const app = { name: 'portal-admin' };
+        const timestamp = { fromMillis: value => ({ value }) };
+        Module._load = (request, parent, isMain) => {
+            if (request === 'firebase-admin/app') return {
+                cert: serviceAccount => ({ serviceAccount }),
+                getApps: () => initialized ? [app] : [],
+                getApp: () => app,
+                initializeApp: () => { initialized = true; return app; }
+            };
+            if (request === 'firebase-admin/auth') return { getAuth: receivedApp => ({ app: receivedApp }) };
+            if (request === 'firebase-admin/firestore') return { getFirestore: receivedApp => ({ app: receivedApp }), Timestamp: timestamp };
+            return originalLoad(request, parent, isMain);
+        };
+        process.env.FIREBASE_SERVICE_ACCOUNT_KEY = JSON.stringify({ project_id: 'test-project' });
+        const helper = require(${JSON.stringify(modulePath)});
+        if (helper.getAdminApp() !== app || helper.getAdminAuth().app !== app || helper.getAdminFirestore().app !== app || helper.Timestamp !== timestamp) process.exit(1);
+    `;
+    const result = spawnSync(process.execPath, ['-e', script], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+
+    const helperSource = fs.readFileSync(modulePath, 'utf8');
+    const cleanupSource = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    assert.doesNotMatch(helperSource, /admin\.(credential|auth|firestore|apps|initializeApp)/);
+    assert.doesNotMatch(cleanupSource, /admin\.(auth|firestore|apps|initializeApp)/);
+});
+
 test('audit metadata extracts the trusted client IP and readable browser details', () => {
     assert.equal(getClientIp({ 'x-vercel-forwarded-for': '203.0.113.8, 10.0.0.1' }), '203.0.113.8');
     const metadata = parseUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36');

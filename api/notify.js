@@ -4,7 +4,7 @@
 // users can trigger it. Recipients are restricted server-side to emails that
 // actually belong to a provisioned staff user or a known client record —
 // a signed-in caller cannot use this to relay mail to an arbitrary address.
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail, MAIL_FROM, PORTAL_URL } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
 
@@ -109,9 +109,9 @@ module.exports = async function handler(req, res) {
         const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!idToken) { res.status(401).json({ error: 'Missing authorization token.' }); return; }
 
-        const admin = getAdminApp();
-        const decoded = await admin.auth().verifyIdToken(idToken);
-        const db = admin.firestore();
+        const auth = getAdminAuth();
+        const db = getAdminFirestore();
+        const decoded = await auth.verifyIdToken(idToken);
         const callerDoc = await db.collection('users').doc(decoded.uid).get();
         const callerRole = callerDoc.exists ? callerDoc.data().role : (isSeedAdminEmail(decoded.email) ? 'Superadmin' : null);
         if (!PORTAL_ROLES.has(callerRole)) { res.status(403).json({ error: 'This account is not provisioned for notifications.' }); return; }

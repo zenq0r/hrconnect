@@ -4,7 +4,7 @@
 // after removing the users/{uid} Firestore record, closing the gap where a
 // revoked portal user's Auth account (Identifier/Providers/Created/Signed
 // In/User UID in the Firebase Console) would otherwise linger indefinitely.
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isSeedAdminEmail } = require('./_security');
 
 module.exports = async function handler(req, res) {
@@ -15,10 +15,10 @@ module.exports = async function handler(req, res) {
         const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!idToken) { res.status(401).json({ error: 'Missing authorization token.' }); return; }
 
-        const admin = getAdminApp();
-        const decoded = await admin.auth().verifyIdToken(idToken);
+        const auth = getAdminAuth();
+        const decoded = await auth.verifyIdToken(idToken);
 
-        const db = admin.firestore();
+        const db = getAdminFirestore();
         const callerDoc = await db.collection('users').doc(decoded.uid).get();
         const callerRole = callerDoc.exists ? callerDoc.data().role : (isSeedAdminEmail(decoded.email) ? 'Superadmin' : null);
         if (!['Superadmin', 'Director'].includes(callerRole)) {
@@ -34,7 +34,7 @@ module.exports = async function handler(req, res) {
         // account, but that hiding is not itself a security boundary.
         let targetAuthUser;
         try {
-            targetAuthUser = await admin.auth().getUser(uid);
+            targetAuthUser = await auth.getUser(uid);
         } catch (lookupError) {
             if (lookupError.code === 'auth/user-not-found') {
                 // Firestore record was already deleted and this is a retry / the Auth
@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        await admin.auth().deleteUser(uid);
+        await auth.deleteUser(uid);
         res.status(200).json({ success: true });
     } catch (error) {
         console.error('delete-portal-user error:', error);

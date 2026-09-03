@@ -25,7 +25,7 @@ async function resolveFirebaseResetEmail(token) {
     return email;
 }
 
-async function resolvePasswordResetContext(admin, { resetSource, resetToken } = {}) {
+async function resolvePasswordResetContext(db, { resetSource, resetToken } = {}) {
     if (!resetToken || typeof resetToken !== 'string') {
         throw resetError('This reset link is invalid or has expired. Please request a new one.');
     }
@@ -39,7 +39,6 @@ async function resolvePasswordResetContext(admin, { resetSource, resetToken } = 
         };
     }
 
-    const db = admin.firestore();
     let tokenDoc = await db.collection('password_reset_tokens').doc(hashResetToken(resetToken)).get();
     // Supports reset links issued before token hashing was introduced.
     if (!tokenDoc.exists) tokenDoc = await db.collection('password_reset_tokens').doc(resetToken).get();

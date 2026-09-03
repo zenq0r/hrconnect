@@ -5,7 +5,7 @@
 // project (confirmed by direct testing — even firestore.exists() with a hardcoded
 // path fails there). This is the standard, supported alternative for exactly this
 // kind of role/ownership check in Storage Rules.
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isApprovedStaffEmail, normalizeEmail, isSeedAdminEmail } = require('./_security');
 
 
@@ -17,8 +17,9 @@ module.exports = async function handler(req, res) {
         const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
         if (!idToken) { res.status(401).json({ error: 'Missing authorization token.' }); return; }
 
-        const admin = getAdminApp();
-        const decoded = await admin.auth().verifyIdToken(idToken);
+        const auth = getAdminAuth();
+        const db = getAdminFirestore();
+        const decoded = await auth.verifyIdToken(idToken);
 
         const { uid } = req.body || {};
         const targetUid = (typeof uid === 'string' && uid) ? uid : decoded.uid;
@@ -28,7 +29,7 @@ module.exports = async function handler(req, res) {
         // from anything the client supplies). Syncing someone ELSE's claims requires
         // being Superadmin/Director.
         if (targetUid !== decoded.uid) {
-            const callerDoc = await admin.firestore().collection('users').doc(decoded.uid).get();
+            const callerDoc = await db.collection('users').doc(decoded.uid).get();
             const callerRole = callerDoc.exists ? callerDoc.data().role : null;
             if (!['Superadmin', 'Director'].includes(callerRole)) {
                 res.status(403).json({ error: "Only Superadmin or Director may sync another user's access claims." });
@@ -36,7 +37,7 @@ module.exports = async function handler(req, res) {
             }
         }
 
-        const users = admin.firestore().collection('users');
+        const users = db.collection('users');
         let targetDoc = await users.doc(targetUid).get();
         // The protected bootstrap administrator is created in Firebase Auth first.
         // Restore its missing portal profile on its own authenticated login so this
@@ -58,7 +59,7 @@ module.exports = async function handler(req, res) {
         }
         if (!targetDoc.exists) { res.status(404).json({ error: 'User record not found.' }); return; }
         const role = targetDoc.data().role || 'Staff';
-        const targetAuthUser = targetUid === decoded.uid ? decoded : await admin.auth().getUser(targetUid);
+        const targetAuthUser = targetUid === decoded.uid ? decoded : await auth.getUser(targetUid);
         const email = normalizeEmail(targetAuthUser.email) || '';
 
         // The Authentication record is the source of truth for sign-in identity.
@@ -74,16 +75,16 @@ module.exports = async function handler(req, res) {
             // Primary contact match first, then fall back to additionalClientEmails —
             // lets a client company authorize more than one login (e.g. their finance
             // contact) against the same customers/{clientDirectoryId} record.
-            let custSnap = await admin.firestore().collection('customers')
+            let custSnap = await db.collection('customers')
                 .where('clientEmail', '==', email).limit(1).get();
             if (custSnap.empty) {
-                custSnap = await admin.firestore().collection('customers')
+                custSnap = await db.collection('customers')
                     .where('additionalClientEmails', 'array-contains', email).limit(1).get();
             }
             if (!custSnap.empty) claims.clientDirectoryId = custSnap.docs[0].id;
         }
 
-        await admin.auth().setCustomUserClaims(targetUid, claims);
+        await auth.setCustomUserClaims(targetUid, claims);
         res.status(200).json({ success: true, claims });
     } catch (error) {
         console.error('sync-user-claims error:', error);

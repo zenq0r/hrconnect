@@ -1,5 +1,5 @@
 // Confirms the email OTP required before a user can set a new password.
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminFirestore } = require('./_firebaseAdmin');
 const crypto = require('crypto');
 const { hashOtp } = require('./_security');
 const { resolvePasswordResetContext } = require('./_passwordResetOtp');
@@ -24,10 +24,10 @@ module.exports = async function handler(req, res) {
         const { code } = req.body || {};
         if (!code || typeof code !== 'string') { res.status(400).json({ valid: false, error: 'Enter the code from your email.' }); return; }
 
-        const admin = getAdminApp();
-        const reset = await resolvePasswordResetContext(admin, req.body);
-        const docRef = admin.firestore().collection('password_reset_otp_codes').doc(reset.fingerprint);
-        const result = await admin.firestore().runTransaction(async transaction => {
+        const db = getAdminFirestore();
+        const reset = await resolvePasswordResetContext(db, req.body);
+        const docRef = db.collection('password_reset_otp_codes').doc(reset.fingerprint);
+        const result = await db.runTransaction(async transaction => {
             const doc = await transaction.get(docRef);
             if (!doc.exists) return { error: 'No verification code was requested. Request a new code.' };
             const data = doc.data();

@@ -1,4 +1,4 @@
-const { getAdminApp } = require('./_firebaseAdmin');
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { hashResetToken, normalizeEmail } = require('./_security');
 
 module.exports = async function handler(req, res) {
@@ -15,8 +15,8 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        const admin = getAdminApp();
-        const db = admin.firestore();
+        const auth = getAdminAuth();
+        const db = getAdminFirestore();
         let docRef = db.collection('password_reset_tokens').doc(hashResetToken(token));
         if (!(await docRef.get()).exists) docRef = db.collection('password_reset_tokens').doc(token);
         const otpRef = db.collection('password_reset_otp_codes').doc(hashResetToken(`legacy:${token}`));
@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
         if (claim.error) { res.status(400).json({ error: claim.error }); return; }
 
         try {
-            await admin.auth().updateUser(claim.uid, { password: newPassword });
+            await auth.updateUser(claim.uid, { password: newPassword });
             await db.collection('users').doc(claim.uid).set({ mustChangePassword: false, updatedAt: new Date().toISOString() }, { merge: true });
             await docRef.update({ used: true, processing: false, usedAt: new Date().toISOString() });
         } catch (updateError) {
