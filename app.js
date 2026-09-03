@@ -1085,10 +1085,16 @@ createApp({
         // (always the primary contact's), so prefer matching by the shared
         // clientDirectoryId claim — same linkage the docs query itself now uses.
         myClientDocs() {
+            const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+            const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
+            // Keep the original email path as a narrow compatibility path for
+            // billing records created before Client ID linking was mandatory.
+            // It is an OR, rather than a fallback: a linked client can therefore
+            // still retrieve its own historic records while all new records are
+            // isolated by the immutable Client Directory ID.
             return this.docHistory.filter(d => d.raw && (
-                this.userProfile.clientDirectoryId
-                    ? d.raw.customerId === this.userProfile.clientDirectoryId
-                    : d.raw.clientEmail === this.userProfile.email
+                (clientDirectoryId && String(d.raw.customerId || '').trim() === clientDirectoryId) ||
+                (clientEmail && String(d.raw.clientEmail || '').trim().toLowerCase() === clientEmail)
             ));
         },
         myClientRecord() {
@@ -1287,10 +1293,11 @@ createApp({
 
         clientPortalDocs() {
             if (this.userProfile.role === 'Client' || this.userProfile.role === 'Staff') {
+                const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+                const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
                 return this.docHistory.filter(d => d.raw && (
-                    this.userProfile.clientDirectoryId
-                        ? d.raw.customerId === this.userProfile.clientDirectoryId
-                        : d.raw.clientEmail === this.userProfile.email
+                    (clientDirectoryId && String(d.raw.customerId || '').trim() === clientDirectoryId) ||
+                    (clientEmail && String(d.raw.clientEmail || '').trim().toLowerCase() === clientEmail)
                 ));
             }
             return this.docHistory;
@@ -7123,22 +7130,35 @@ createApp({
             // Must mirror the monthly_archives read rule in firestore.rules, or the
             // listener throws permission-denied for every other role on sign-in.
             const canReadMonthlyArchives = ['Superadmin', 'Director', 'HR', 'Account'].includes(role);
+            const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
+            const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
+            // Firestore rules intentionally deny Client access to invoice drafts.
+            // A broad `raw.customerId == ...` query can still *potentially* return
+            // a draft, so Firestore rejects the whole listener before it returns any
+            // permitted records. Split Client billing reads into rule-compatible
+            // quotation and non-draft invoice queries, then merge by document ID.
+            // Retain the exact-email sources for pre-Client-ID records only; both
+            // source families are scoped to the signed-in Client, never by name.
+            const clientDocumentSources = role === 'Client'
+                ? [
+                    ...(clientDirectoryId ? [
+                        query(collection(db, 'docs'), where('raw.customerId', '==', clientDirectoryId), where('type', '==', 'Quotation')),
+                        query(collection(db, 'docs'), where('raw.customerId', '==', clientDirectoryId), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                    ] : []),
+                    ...(clientEmail ? [
+                        query(collection(db, 'docs'), where('raw.clientEmail', '==', clientEmail), where('type', '==', 'Quotation')),
+                        query(collection(db, 'docs'), where('raw.clientEmail', '==', clientEmail), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                    ] : [])
+                ]
+                : [];
             const documentsSource = canReadAllDocuments
                 ? collection(db, 'docs')
-                : role === 'Client'
-                    // raw.customerId links to the same customers/{clientDirectoryId} record
-                    // as the "Multi-user Client Portal" claim, so this covers both the primary
-                    // contact and any authorized secondary contact. Falls back to matching by
-                    // the account's own email if the claim hasn't been synced yet.
-                    ? (this.userProfile.clientDirectoryId
-                        ? query(collection(db, 'docs'), where('raw.customerId', '==', this.userProfile.clientDirectoryId))
-                        : query(collection(db, 'docs'), where('raw.clientEmail', '==', this.userProfile.email)))
-                    // Staff may read sent invoices solely so the Billing Workflow
+                // Staff may read sent invoices solely so the Billing Workflow
                     // can open a submitted payment proof. Draft invoices and every
                     // quotation stay outside this listener and the Firestore rule.
-                    : role === 'Staff'
-                        ? query(collection(db, 'docs'), where('billingPicEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
-                        : null;
+                : role === 'Staff'
+                    ? query(collection(db, 'docs'), where('billingPicEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                    : null;
             const payslipsSource = canReadAllPayslips
                 ? collection(db, 'payslips')
                 : role === 'Staff'
@@ -7297,7 +7317,13 @@ createApp({
                             this.projects = this.projects.map(project => this.projectWithLiveClientData(project));
                         }, 'client profile')
                     : Promise.resolve(),
-                documentsSource
+                clientDocumentSources.length
+                    ? subscribeMergedWithReadySignal(clientDocumentSources, (merged) => {
+                        this.docHistory = merged;
+                        this.generateDocNo();
+                        this.refreshDashboardCharts();
+                    }, 'client billing documents')
+                    : documentsSource
                     ? subscribeWithReadySignal(documentsSource, (snapshot) => { this.docHistory = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); this.generateDocNo(); this.refreshDashboardCharts(); }, 'documents')
                     : Promise.resolve(),
                 payslipsSource

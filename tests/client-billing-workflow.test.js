@@ -92,3 +92,17 @@ test('project details show only billing documents bound to that Client ID and pr
     assert.match(page, /Quotation &amp; Invoice/);
     assert.match(page, /projectBillingDocuments\(projectPreview\.project\)/);
 });
+
+test('Client document listeners are compatible with the no-draft access rule', () => {
+    const app = read('app.js');
+    const indexes = read('firestore.indexes.json');
+
+    assert.match(app, /const clientDocumentSources = role === 'Client'/);
+    assert.match(app, /where\('raw\.customerId', '==', clientDirectoryId\), where\('type', '==', 'Quotation'\)/);
+    assert.match(app, /where\('raw\.customerId', '==', clientDirectoryId\), where\('type', '==', 'Invoice'\), where\('status', 'not-in', \['Draft'\]\)/);
+    assert.match(app, /where\('raw\.clientEmail', '==', clientEmail\), where\('type', '==', 'Quotation'\)/);
+    assert.match(app, /subscribeMergedWithReadySignal\(clientDocumentSources/);
+    assert.match(app, /\(clientDirectoryId && String\(d\.raw\.customerId \|\| ''\)\.trim\(\) === clientDirectoryId\) \|\|/);
+    assert.match(indexes, /"fieldPath": "raw\.customerId"/);
+    assert.match(indexes, /"fieldPath": "raw\.clientEmail"/);
+});
