@@ -42,11 +42,20 @@ test('ownership is checked the same two ways the read rule allows', () => {
     assert.match(rule, /isClient\(\) &&/);
 });
 
-test('staff keep their own write path, and delete stays with admins', () => {
+test('staff keep their own write path, while Finance may delete billing documents only', () => {
     const rule = docsRule();
     assert.match(rule, /allow create: if isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\);/);
     assert.match(rule, /allow update: if \(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) \|\|/);
-    assert.match(rule, /allow delete: if isAdmin\(\);/);
+    assert.match(rule, /allow delete: if isAdmin\(\) \|\| \(isAccount\(\) && resource\.data\.type in \['Invoice', 'Quotation'\]\);/);
+});
+
+test('the document delete gate admits only Director, Finance and Superadmin', () => {
+    const app = read('app.js');
+    const page = read('index.html');
+
+    assert.match(app, /canDeleteBillingDocuments\(\) \{ return \['Superadmin', 'Director', 'Account'\]\.includes\(this\.userProfile\.role\); \}/);
+    assert.match(app, /canDeleteBillingDocument\(item\) \{[\s\S]{0,160}?\['Invoice', 'Quotation'\]\.includes\(item\?\.type\)/);
+    assert.match(page, /canDeleteBillingDocument\(item\)/);
 });
 
 test('the client gate mirrors the rule before showing the buttons', () => {

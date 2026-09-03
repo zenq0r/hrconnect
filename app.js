@@ -898,7 +898,10 @@ createApp({
         canManagePayroll() { return this.hasModulePermission('payslip-generator', 'edit'); },
         canDeleteEmployees() { return this.hasModulePermission('hr-employees', 'delete'); },
         canDeleteClients() { return this.hasModulePermission('client-directory', 'delete'); },
-        canDeleteDocuments() { return this.hasModulePermission('doc-generator', 'delete'); },
+        // Finance is stored as the Account role. It may delete only official
+        // billing documents; all other delete capabilities remain unchanged.
+        canDeleteBillingDocuments() { return ['Superadmin', 'Director', 'Account'].includes(this.userProfile.role); },
+        canDeleteDocuments() { return this.canDeleteBillingDocuments; },
         canDeletePayroll() { return this.hasModulePermission('payslip-generator', 'delete'); },
         // Superadmin and Director hold every module their role lists, with edit
         // and delete on each, and no per-user override may subtract from that.
@@ -3693,13 +3696,14 @@ createApp({
             return allowedModules.includes(permissionModule);
         },
         // Per-module permission derived from the role alone. 'edit' follows page
-        // visibility; 'delete' is Superadmin/Director only, except website-content
-        // where IT is a content admin in firestore.rules too.
+        // visibility; 'delete' is Superadmin/Director only, except Finance may
+        // delete billing documents and IT may delete website content.
         hasModulePermission(moduleName, action) {
             // website-content grants IT full edit+delete (firestore.rules' isContentAdmin()
             // covers IT for these public-site collections too), unlike every other module
             // where 'delete' defaults to Superadmin/Director only.
             if (action === 'delete' && moduleName === 'website-content') return this.hasAccess(moduleName);
+            if (action === 'delete' && moduleName === 'doc-generator') return ['Superadmin', 'Director', 'Account'].includes(this.userProfile.role);
             if (action === 'delete') return ['Superadmin', 'Director'].includes(this.userProfile.role);
             return this.hasAccess(moduleName);
         },
@@ -6697,8 +6701,8 @@ createApp({
             }
         },
         async discardInvoiceDraft(invoice) {
-            if (!this.isFullAccessRole || invoice?.type !== 'Invoice' || invoice.status !== 'Draft') {
-                this.showNotify('Only a Director or Superadmin can discard an unsent invoice draft.', 'error'); return;
+            if (!this.canDeleteBillingDocument(invoice) || invoice?.type !== 'Invoice' || invoice.status !== 'Draft') {
+                this.showNotify('Only Director, Finance or Superadmin can discard an unsent invoice draft.', 'error'); return;
             }
             if (!await this.askConfirm({ title: 'Discard invoice draft?', message: `${invoice.docNo} has not been sent to the client and will be permanently removed.`, confirmLabel: 'Discard Draft', danger: true })) return;
             try {
@@ -6711,8 +6715,8 @@ createApp({
             }
         },
         async deleteInvoiceFromWorkflow(invoice) {
-            if (!this.isFullAccessRole || invoice?.type !== 'Invoice') {
-                this.showNotify('Only a Director or Superadmin can delete an invoice.', 'error'); return;
+            if (!this.canDeleteBillingDocument(invoice) || invoice?.type !== 'Invoice') {
+                this.showNotify('Only Director, Finance or Superadmin can delete an invoice.', 'error'); return;
             }
             if (!await this.askConfirm({ title: 'Delete invoice?', message: `${invoice.docNo} will be permanently removed. This can affect the Client document history.`, confirmLabel: 'Delete Invoice', danger: true })) return;
             try {
@@ -6938,8 +6942,12 @@ createApp({
             else if (item.isVoucher) this.editPaymentVoucher(item);
             else if (item.isClaim) this.editClaimRecord(item);
         },
+        canDeleteBillingDocument(item) {
+            return this.canDeleteBillingDocuments && ['Invoice', 'Quotation'].includes(item?.type);
+        },
         async confirmDeleteRecord(item) {
-            if (!this.canDelete) { this.showNotify('Only Superadmin and Director can delete records.'); return; }
+            const canDeleteThisRecord = item?.isDoc ? this.canDeleteBillingDocument(item) : this.canDelete;
+            if (!canDeleteThisRecord) { this.showNotify(item?.isDoc ? 'Only Director, Finance or Superadmin can delete invoices and quotations.' : 'Only Superadmin and Director can delete records.'); return; }
             if (!await this.askConfirm({
                 title: 'Delete record?',
                 message: `${item.docNo || item.fileName || 'This record'} will be permanently deleted. This action cannot be undone.`,

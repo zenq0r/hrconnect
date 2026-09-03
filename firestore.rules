@@ -310,7 +310,9 @@ service cloud.firestore {
           'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName'
         ])
       );
-      allow delete: if isAdmin();
+      // Finance is the Account role. It may remove only official billing
+      // documents; every other document delete remains Director/Superadmin.
+      allow delete: if isAdmin() || (isAccount() && resource.data.type in ['Invoice', 'Quotation']);
     }
 
     // Idempotency/audit markers for the trusted /api/billing-workflow endpoint.
