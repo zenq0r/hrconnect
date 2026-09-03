@@ -223,7 +223,12 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
     const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
     const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.match(appSource, /const canReadUserDirectory = role !== 'Client'/);
-    assert.match(rulesSource, /allow read: if isApprovedStaffSession\(\) \|\| \(isClient\(\) && request\.auth\.uid == userId\)/);
+    // The own-record clause is granted on identity rather than on role, so that a
+    // Staff Portal LOCK - which strips the role for as long as it lasts - still
+    // lets the account read the one document that says it is locked. It stays
+    // scoped to that account's own document either way, which is what keeps the
+    // internal directory out of a Client's reach.
+    assert.match(rulesSource, /allow read: if isApprovedStaffSession\(\) \|\| \(isAuthenticated\(\) && request\.auth\.uid == userId\)/);
 });
 
 test('staff identity requires an exact approved Authentication email domain', () => {

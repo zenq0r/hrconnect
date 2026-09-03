@@ -972,6 +972,17 @@ html:not(.dark) #main-content .text-slate-500 { color: #556274; }
 .zq-btn-destructive:hover:not(:disabled) { background: var(--zq-error); color: #ffffff; }
 .zq-btn-info { background: var(--zq-info-bg); color: var(--zq-info); }
 .zq-btn-info:hover:not(:disabled) { background: var(--zq-info); color: #ffffff; }
+/* Caution, not danger: the Staff Portal's Lock and Reset act on somebody's
+   access without destroying anything, so they sit between .zq-btn-info and
+   .zq-btn-destructive rather than borrowing either one's meaning. */
+.zq-btn-warning { background: var(--zq-warning-bg); color: var(--zq-warning); }
+.zq-btn-warning:hover:not(:disabled) { background: var(--zq-warning); color: #ffffff; }
+.zq-btn-warning.is-loading::after { color: var(--zq-warning); }
+.zq-btn-warning:hover.is-loading::after { color: #ffffff; }
+/* The read-only interactions (View / Read / Access). Deliberately the quietest
+   variant in the row: pressing one changes nothing. */
+.zq-btn-neutral { background: var(--zq-surface-alt); color: var(--zq-text-muted); }
+.zq-btn-neutral:hover:not(:disabled) { background: var(--zq-border); color: var(--zq-text); }
 /* Solid variant (not the light-bg treatment .zq-btn-info/.zq-btn-destructive
    use) to match the "approve" action's existing solid-emerald convention
    used across Claims/Vouchers/Signed Documents before this pass. */
@@ -1237,6 +1248,17 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
 .zq-table tbody tr:last-child { border-bottom: none; }
 .zq-table tbody tr:hover { background: var(--zq-surface-alt); }
 .zq-table-actions { display: flex; align-items: center; justify-content: center; gap: 4px; }
+/* The exception to the 2-3 icon rule above. The Staff Portal roster is an
+   access-control surface where the available interactions ARE the information:
+   seeing at a glance that Lock is offered on one row and withheld on another
+   is the point, and burying them behind a three-dot menu would hide it. Each
+   button keeps its label beside the icon (never icon-only, at this count), and
+   the row wraps instead of forcing the table into a horizontal scroll. The
+   right-click menu still offers the identical list for pointer users. */
+.zq-table-actions-wide {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px;
+}
+.zq-table-actions-wide .zq-btn { flex: 0 0 auto; }
 .zq-table-empty td { padding: var(--zq-space-8) var(--zq-space-4); text-align: center; color: var(--zq-text-muted); }
 
 /* ============================================================

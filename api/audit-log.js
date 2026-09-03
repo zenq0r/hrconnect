@@ -4,9 +4,12 @@ const { getClientIp, parseUserAgent } = require('./_auditMetadata');
 const { DEFAULT_RETENTION, retentionDurationMs } = require('./_auditRetention');
 const { enforceRateLimit } = require('./_rateLimit');
 
+// LOCK/UNLOCK are the Staff Portal's account-access actions. They are recorded
+// as their own verbs rather than as a generic UPDATE: "who locked this account
+// out, when, and why" is the first question asked of the log afterwards.
 const ALLOWED_ACTIONS = new Set([
     'LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'BACKUP',
-    'UPLOAD_DOCUMENT', 'DELETE_DOCUMENT'
+    'UPLOAD_DOCUMENT', 'DELETE_DOCUMENT', 'LOCK', 'UNLOCK'
 ]);
 
 module.exports = async function handler(req, res) {

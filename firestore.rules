@@ -34,16 +34,36 @@ service cloud.firestore {
     }
 
     // Baca role dari dokumen users/{uid} — UID sebagai doc ID
+    function getUserRecord() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return getUserRecord().role;
+    }
+
+    // Staff Portal LOCK. Superadmin/Director may lock a portal account: the
+    // record and its role stay exactly as they are, but the account holds no
+    // role for the length of the lock, so every rule below that asks "is this
+    // an HR/Account/IT/Staff/Client/admin session?" answers no. Reads of one's
+    // OWN users/{uid} document deliberately stay open (see that match block) so
+    // the portal can tell the person their access is locked instead of
+    // mislabelling the denial as a removed account. `accessLocked` is absent on
+    // every record predating this feature, hence the field-existence guard.
+    function isAccessLocked() {
+      return 'accessLocked' in getUserRecord() && getUserRecord().accessLocked == true;
+    }
+
+    function hasActiveRole(role) {
+      return getUserRole() == role && !isAccessLocked();
     }
 
     function isSuperadmin() {
-      return isApprovedStaffSession() && getUserRole() == 'Superadmin';
+      return isApprovedStaffSession() && hasActiveRole('Superadmin');
     }
 
     function isDirector() {
-      return isApprovedStaffSession() && getUserRole() == 'Director';
+      return isApprovedStaffSession() && hasActiveRole('Director');
     }
 
     function isAdmin() {
@@ -51,23 +71,23 @@ service cloud.firestore {
     }
 
     function isHR() {
-      return isApprovedStaffSession() && getUserRole() == 'HR';
+      return isApprovedStaffSession() && hasActiveRole('HR');
     }
 
     function isAccount() {
-      return isApprovedStaffSession() && getUserRole() == 'Account';
+      return isApprovedStaffSession() && hasActiveRole('Account');
     }
 
     function isIT() {
-      return isApprovedStaffSession() && getUserRole() == 'IT';
+      return isApprovedStaffSession() && hasActiveRole('IT');
     }
 
     function isStaff() {
-      return isApprovedStaffSession() && getUserRole() == 'Staff';
+      return isApprovedStaffSession() && hasActiveRole('Staff');
     }
 
     function isClient() {
-      return isAuthenticated() && getUserRole() == 'Client';
+      return isAuthenticated() && hasActiveRole('Client');
     }
 
     function isProjectManager() {
@@ -163,7 +183,13 @@ service cloud.firestore {
       // Staff require the internal directory for assignments and workflow routing.
       // Clients may read only their own portal profile; project records already contain
       // the public PIC fields needed by the Client workspace.
-      allow read: if isApprovedStaffSession() || (isClient() && request.auth.uid == userId);
+      // Own record: any signed-in account, on its own document only. This was
+      // isClient()-scoped, which now resolves to false for a locked account —
+      // and a locked account that cannot read its own record gets a denial the
+      // portal can only report as "your access was removed". Reading the one
+      // document that says why you are locked is not a privilege worth
+      // withholding, so it is granted on identity rather than on role.
+      allow read: if isApprovedStaffSession() || (isAuthenticated() && request.auth.uid == userId);
       allow create: if (
         request.auth.uid == userId &&
         hasMatchingPendingAccess() &&
@@ -173,6 +199,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
       allow update: if (isAdmin() && hasAllowedRoleEmail(request.resource.data)) || (
         request.auth.uid == userId &&
+        // A locked account may still READ this record (that is how it learns it
+        // is locked) but may not keep writing to it — presence pings included,
+        // which would otherwise show a locked account as online in the roster.
+        !isAccessLocked() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo', 'mustChangePassword', 'updatedAt', 'themePreference', 'lastSeenChangelogVersion', 'notificationsLog', 'presenceStatus', 'isOnline', 'presenceUpdatedAt', 'lastSeen'])
       ) || (
         // HR can correct a name typo/legal-name change via the HR Employees form
@@ -194,6 +224,34 @@ service cloud.firestore {
       allow delete: if isAdmin() || (
         isAuthenticated() && request.auth.token.email == email
       );
+    }
+
+    // Staff Portal ACCESS REQUESTS — the queue behind the Accept/Reject buttons.
+    // A staff member raises one for themselves from their own Profile page and
+    // Superadmin/Director decide it. Three things this deliberately refuses:
+    // raising a request in somebody else's name, raising one that asks for the
+    // Client role (a Client login belongs to a customer record, not to an
+    // internal request), and the requester touching the row afterwards — a
+    // request that can be rewritten after it is filed decides nothing.
+    match /access_requests/{requestId} {
+      allow read: if isAdmin() || (
+        isAuthenticated() && resource.data.requesterUid == request.auth.uid
+      );
+      allow create: if isApprovedStaffSession() &&
+        !isAccessLocked() &&
+        request.resource.data.requesterUid == request.auth.uid &&
+        request.resource.data.requesterEmail == request.auth.token.email &&
+        request.resource.data.currentRole == getUserRole() &&
+        request.resource.data.requestedRole != 'Client' &&
+        request.resource.data.status == 'Pending';
+      // Deciding is the only update, and it may never rewrite who asked for
+      // what — only how it was answered.
+      allow update: if isAdmin() &&
+        request.resource.data.requesterUid == resource.data.requesterUid &&
+        request.resource.data.requesterEmail == resource.data.requesterEmail &&
+        request.resource.data.requestedRole == resource.data.requestedRole &&
+        request.resource.data.status in ['Accepted', 'Rejected'];
+      allow delete: if isAdmin();
     }
 
     match /employees/{empId} {

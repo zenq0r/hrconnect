@@ -302,6 +302,64 @@ const RBAC_ROLES = {
     'Staff': ['dashboard', 'project-activities', 'claims', 'profile']
 };
 
+// Human names for the RBAC modules above. The sidebar writes its own labels
+// inline; the Staff Portal's Access panel needs them as data so it can print
+// one row per module of whichever role it is describing.
+const MODULE_LABELS = {
+    'dashboard': 'Dashboard',
+    'client-task': 'Client Task',
+    'project-activities': 'Project Activities',
+    'doc-generator': 'Quotation & Invoice',
+    'payslip-generator': 'Payroll Management',
+    'claims': 'Claims & Vouchers',
+    'client-directory': 'Client Registration',
+    'hr-employees': 'HR Employees',
+    'reports': 'Reports & Analytics',
+    'website-content': 'Website Management',
+    'audit-logs': 'Audit & Security Log',
+    'settings': 'Global Company Settings',
+    'profile': 'Profile & Portal Access',
+    'client-portal': 'Client Workspace',
+    'client-documents': 'Client Documents',
+    'client-updates': 'Project Updates',
+    'client-support': 'Help & Support'
+};
+
+// The two roles that hold every module with every interaction on it, and the
+// only two that may press a Staff Portal button that writes. Named once here
+// because six separate places used to repeat the pair inline.
+const FULL_ACCESS_ROLES = ['Superadmin', 'Director'];
+
+// IT already reaches Settings and the Audit & Security Log, and support work
+// regularly needs to answer "what access does this account actually hold?".
+// They are admitted to the Staff Portal as observers: the three read-only
+// interactions and nothing that changes an account. Adding a role here grants
+// look-but-do-not-touch only — every writing action stays with FULL_ACCESS_ROLES.
+const STAFF_PORTAL_OBSERVER_ROLES = ['IT'];
+
+// Every interaction the Staff Portal offers on a portal account. The row
+// buttons, the right-click menu and the permission check are all built from
+// this one list, so an action can never appear on one surface while missing
+// from another. `write: true` means the action changes the account and is
+// therefore reserved for FULL_ACCESS_ROLES.
+const STAFF_PORTAL_ACTIONS = [
+    { key: 'view', label: 'View', icon: 'fa-eye', variant: 'zq-btn-neutral', write: false, title: 'View account details' },
+    { key: 'read', label: 'Read', icon: 'fa-file-lines', variant: 'zq-btn-neutral', write: false, title: 'Read this account’s activity trail' },
+    { key: 'access', label: 'Access', icon: 'fa-shield-halved', variant: 'zq-btn-neutral', write: false, title: 'Access rights held by this account' },
+    { key: 'edit', label: 'Edit', icon: 'fa-pen', variant: 'zq-btn-info', write: true, title: 'Edit name and role' },
+    { key: 'lock', label: 'Lock', icon: 'fa-lock', variant: 'zq-btn-warning', write: true, title: 'Lock this account out of the portal' },
+    { key: 'reset', label: 'Reset', icon: 'fa-key', variant: 'zq-btn-warning', write: true, title: 'Require a new password at next sign-in' },
+    { key: 'delete', label: 'Delete', icon: 'fa-trash', variant: 'zq-btn-destructive', write: true, title: 'Delete portal access' }
+];
+
+// The decision pair on a pending access request. Both write, so both are
+// FULL_ACCESS_ROLES-only; they are kept apart from STAFF_PORTAL_ACTIONS
+// because they act on a request, not on an existing account.
+const STAFF_PORTAL_REQUEST_ACTIONS = [
+    { key: 'accept', label: 'Accept', icon: 'fa-circle-check', variant: 'zq-btn-success', title: 'Approve and apply the requested role' },
+    { key: 'reject', label: 'Reject', icon: 'fa-circle-xmark', variant: 'zq-btn-destructive', title: 'Decline the request' }
+];
+
 // Sign-in greeting timing. HOLD covers the fade in plus the pause that follows;
 // FADE must stay >= the CSS transition on .zq-welcome-greeting or the overlay
 // would unmount mid-fade and vanish instead of easing away.
@@ -311,6 +369,16 @@ const WELCOME_GREETING_FADE_MS = 800;
 // Bump the top entry's `version` (and add a new entry above it) whenever a meaningful feature ships.
 // The list is the release history shown under Settings; nothing here interrupts a sign-in.
 const APP_CHANGELOG = [
+    {
+        version: '2026.09.04-staff-portal',
+        title: 'The Staff Portal Gets Its Buttons',
+        notes: [
+            'Portal Access Management is now the Staff Portal, with View, Read, Access, Edit, Lock, Reset and Delete on every account.',
+            'Locking an account keeps its record and role but refuses the sign-in, ends the open session, and is recorded in the audit log.',
+            'Staff can request a role change from their own Profile page; Super Admin and Director accept or reject it in the Staff Portal.',
+            'Full access stays with Super Admin and Director. IT observes the Staff Portal read-only for support work.'
+        ]
+    },
     {
         version: '2026.08.18-client-pages',
         title: 'A Better Client Workspace',
@@ -673,6 +741,7 @@ createApp({
             // company domains. Client accounts use the email registered for them.
             allowedStaffDomains: ['zenq0r.com', 'zenqor.com.my'],
             portalAccessRevocationInProgress: false,
+            portalLockCheckInProgress: false,
             // A normal sign-out (including the idle-session timeout) is never a
             // revocation. Keep that intent until Firebase notifies us that the
             // session has ended, so the signed-out screen cannot retain an old
@@ -684,6 +753,18 @@ createApp({
                 isEdit: false,
                 form: { uid: '', name: '', email: '', password: '', role: 'Staff' }
             },
+
+            // Staff Portal — the account roster's interaction surface. One
+            // drawer serves View, Read and Access; `tab` is which of the three
+            // opened it. `busyUid` disables that row's buttons while a write is
+            // in flight so a second click cannot fire the same action twice.
+            staffPortalAccount: { show: false, tab: 'overview', account: null },
+            staffPortalBusyUid: '',
+            // Portal access requests raised by staff from their own Profile page
+            // and decided (Accept/Reject) by Superadmin/Director in the Staff
+            // Portal. Requests stay listed after a decision as the record of it.
+            accessRequests: [],
+            accessRequestModal: { show: false, saving: false, requestedRole: '', reason: '', error: '' },
 
             claimSubCategories: {
                 'Medical': [
@@ -903,9 +984,50 @@ createApp({
         // Superadmin and Director hold every module their role lists, with edit
         // and delete on each, and no per-user override may subtract from that.
         // Anything narrower would let an admin lock another admin out of a page.
-        isFullAccessRole() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
+        isFullAccessRole() { return FULL_ACCESS_ROLES.includes(this.userProfile.role); },
         canDelete() { return this.isFullAccessRole; },
         canManageRBAC() { return this.isFullAccessRole; },
+        // Staff Portal. Managing it is the full-access pair and nobody else:
+        // every interaction that writes an account — Edit, Lock, Reset, Delete,
+        // Accept, Reject — is gated on this. Observing it additionally admits
+        // STAFF_PORTAL_OBSERVER_ROLES, who get View, Read and Access only.
+        canManageStaffPortal() { return this.isFullAccessRole; },
+        canObserveStaffPortal() { return this.isFullAccessRole || STAFF_PORTAL_OBSERVER_ROLES.includes(this.userProfile.role); },
+        // A locked account keeps its record and its role — it simply may not
+        // sign in or write anything until an administrator unlocks it. This is
+        // the viewer's own state, used to end a session the moment it is locked.
+        isCurrentAccountLocked() {
+            const currentUser = this.users.find(user => user.id === this.userProfile.uid);
+            return this.isAccountLocked(currentUser);
+        },
+        sortedAccessRequests() {
+            return [...this.accessRequests].sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+        },
+        pendingAccessRequests() {
+            return this.sortedAccessRequests.filter(request => (request.status || 'Pending') === 'Pending');
+        },
+        decidedAccessRequests() {
+            return this.sortedAccessRequests.filter(request => (request.status || 'Pending') !== 'Pending');
+        },
+        myAccessRequests() {
+            return this.sortedAccessRequests.filter(request => request.requesterUid === this.userProfile.uid);
+        },
+        // One open request at a time per person. A second one would leave two
+        // Accept buttons pointing at the same account with different roles.
+        myPendingAccessRequest() {
+            return this.myAccessRequests.find(request => (request.status || 'Pending') === 'Pending') || null;
+        },
+        // Roles a staff member may ask to be moved to: every staff role except
+        // the one they already hold. Client is not requestable — a Client
+        // account belongs to a customer record, not to an internal request.
+        requestableRoles() {
+            return Object.keys(RBAC_ROLES).filter(role => role !== 'Client' && role !== this.userProfile.role);
+        },
+        // The Profile page offers the request form to staff who are not already
+        // full access. Superadmin and Director would be asking themselves.
+        canRequestAccessChange() {
+            return !this.isFullAccessRole && this.userProfile.role !== 'Client' && Boolean(this.userProfile.uid);
+        },
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
         // Must mirror the customers subscription condition in loadPortalData(), or
@@ -1542,6 +1664,7 @@ createApp({
                 this.clientActionConfirm.show || this.employeeActionConfirm.show ||
                 this.contextMenu.show || this.clientTaskModal.show ||
                 this.idleWarningVisible || this.employeeModal.show || this.userModal.show ||
+                this.staffPortalAccount.show || this.accessRequestModal.show ||
                 this.changePasswordModal.show ||
                 this.claimPreview.show || this.attachmentPreview.show || this.recordPreview.show ||
                 this.notificationsPanelOpen || this.staffDirectoryPanelOpen;
@@ -3106,6 +3229,19 @@ Note: "${note}"` : ''}`
         isPortalEmailAllowed(email, role) {
             return role === 'Client' || this.isStaffEmail(email);
         },
+        // A locked account keeps a valid Firebase credential and a valid portal
+        // record - the lock is this portal's own gate, so all three entry points
+        // have to honour it: the interactive sign-in, the restored session, and
+        // the live directory listener for a session locked while it is open.
+        // Returns the message to show, or '' when the account is not locked.
+        // The seed administrator is exempt: it is the account that unlocks
+        // everybody else, and locking it out would strand the whole portal.
+        accountLockedSignInMessage(userData, email) {
+            if (this.isSeedAdminEmail(email)) return '';
+            if (userData?.accessLocked !== true) return '';
+            const reason = String(userData?.accessLockReason || '').trim();
+            return `Your portal access is locked. Please contact your administrator.${reason ? ` Reason: ${reason}` : ''}`;
+        },
         // A realtime listener is NOT proof that access was revoked. Firestore
         // delivers a cached snapshot before the server round-trip, and a listener
         // is denied whenever the ID token it was opened with has gone stale —
@@ -3151,6 +3287,41 @@ Note: "${note}"` : ''}`
         },
         async revokePortalAccessIfConfirmed(reason) {
             if (await this.isPortalAccessTrulyRevoked(reason)) this.revokeCurrentPortalAccess();
+        },
+        // A Staff Portal LOCK ends the session the same disciplined way a
+        // revocation does. The listener's snapshot may be the cached one, so the
+        // lock is re-read from the server on a freshly minted token before the
+        // session is ended - an account unlocked seconds ago must not be thrown
+        // out by a stale copy that still reads locked, and a network failure
+        // must never end a valid session at all. Returns the message to show,
+        // or '' when the account is not (or no longer) locked.
+        async isPortalAccessTrulyLocked() {
+            const user = auth.currentUser;
+            if (!user || this.isSeedAdminEmail(user.email)) return '';
+            try {
+                await user.getIdToken(true);
+                const snapshot = await getDocFromServer(doc(db, 'users', user.uid));
+                // A missing record is a revocation, not a lock. Leave that call
+                // to isPortalAccessTrulyRevoked(), which the listener path that
+                // detects a missing record already makes.
+                if (!snapshot.exists()) return '';
+                return this.accountLockedSignInMessage(snapshot.data(), user.email);
+            } catch (error) {
+                console.warn('Could not confirm a portal access lock; keeping the session:', error);
+                return '';
+            }
+        },
+        async revokePortalAccessIfLocked() {
+            // The listener re-fires on every snapshot; without this the confirming
+            // read would be issued once per snapshot while the sign-out settles.
+            if (this.portalLockCheckInProgress || this.portalAccessRevocationInProgress) return;
+            this.portalLockCheckInProgress = true;
+            try {
+                const message = await this.isPortalAccessTrulyLocked();
+                if (message) this.revokeCurrentPortalAccess(message);
+            } finally {
+                this.portalLockCheckInProgress = false;
+            }
         },
         async revokeCurrentPortalAccess(message = 'Your portal access has been removed. Please contact your administrator.') {
             if (this.portalAccessRevocationInProgress) return;
@@ -4411,6 +4582,14 @@ Note: "${note}"` : ''}`
                     return;
                 }
 
+                const lockedMessage = this.accountLockedSignInMessage(userData, firebaseUser.email);
+                if (lockedMessage) {
+                    await signOut(auth);
+                    this.loginError = lockedMessage;
+                    this.loginLoading = false;
+                    return;
+                }
+
                 let role = userData?.role || 'Staff';
                 let name = userData?.name || firebaseUser.displayName || firebaseUser.email;
                 let photo = userData?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0B1E36&color=D4AF37`;
@@ -4913,6 +5092,287 @@ Note: "${note}"` : ''}`
                 // Stated rather than inferred: the server's wording varies with
                 // the cause, and two of its messages read as neutral prose.
                 this.showNotify(error?.message || 'Unable to delete portal access.', 'error');
+            }
+        },
+
+        // ============================================================
+        // STAFF PORTAL - interaction buttons on a portal account
+        // View / Read / Access are read-only and open the same drawer on a
+        // different tab. Edit / Lock / Reset / Delete write, and every one of
+        // them re-checks canManageStaffPortal here rather than trusting that
+        // the button was hidden - the right-click menu, a stale render and the
+        // console all reach these methods too. firestore.rules checks again.
+        // ============================================================
+        isAccountLocked(user) {
+            return user?.accessLocked === true;
+        },
+        staffPortalStatusBadge(usr) {
+            if (this.isAccountLocked(usr)) return { label: 'Locked', className: 'zq-badge-error', icon: 'fa-lock' };
+            if (usr?.mustChangePassword === true) return { label: 'Password Reset Pending', className: 'zq-badge-warning', icon: 'fa-key' };
+            if (this.isPortalUserOnline(usr)) return { label: 'Active - Online', className: 'zq-badge-success', icon: 'fa-circle' };
+            return { label: 'Active', className: 'zq-badge-neutral', icon: 'fa-circle-check' };
+        },
+        // The seed administrator is the non-deletable bootstrap account: locking,
+        // resetting or deleting it is how an organisation locks itself out of its
+        // own portal, so none of the writing actions are offered on it. Lock and
+        // Delete are additionally withheld on the viewer's own row, for the same
+        // reason at the individual level.
+        isStaffPortalActionAvailable(actionKey, usr) {
+            const action = STAFF_PORTAL_ACTIONS.find(item => item.key === actionKey);
+            if (!action) return false;
+            if (!action.write) return this.canObserveStaffPortal;
+            if (!this.canManageStaffPortal) return false;
+            if (this.isSeedAdminEmail(usr?.email)) return false;
+            if (['lock', 'delete'].includes(actionKey) && usr?.id === this.userProfile.uid) return false;
+            return true;
+        },
+        // The row's buttons, in the fixed order of STAFF_PORTAL_ACTIONS, already
+        // filtered to what this viewer may press on this account. Lock is the one
+        // entry whose label depends on the row: it reads Unlock once locked.
+        staffPortalActionsFor(usr) {
+            return STAFF_PORTAL_ACTIONS
+                .filter(action => this.isStaffPortalActionAvailable(action.key, usr))
+                .map(action => {
+                    if (action.key !== 'lock' || !this.isAccountLocked(usr)) return { ...action };
+                    return { ...action, label: 'Unlock', icon: 'fa-lock-open', variant: 'zq-btn-success', title: 'Restore portal access for this account' };
+                });
+        },
+        runStaffPortalAction(actionKey, usr) {
+            if (!this.isStaffPortalActionAvailable(actionKey, usr)) { this.showNotify('You do not have permission for that Staff Portal action.'); return; }
+            const handlers = {
+                view: () => this.openStaffPortalAccount(usr, 'overview'),
+                read: () => this.openStaffPortalAccount(usr, 'activity'),
+                access: () => this.openStaffPortalAccount(usr, 'access'),
+                edit: () => this.openUserAccessModal(usr),
+                lock: () => this.toggleStaffPortalLock(usr),
+                reset: () => this.requireStaffPortalPasswordChange(usr),
+                delete: () => this.deletePortalUser(usr.id, usr.email)
+            };
+            (handlers[actionKey] || (() => {}))();
+        },
+        openStaffPortalAccount(usr, tab = 'overview') {
+            if (!this.canObserveStaffPortal) { this.showNotify('You do not have permission to open the Staff Portal.'); return; }
+            this.staffPortalAccount = { show: true, tab, account: usr ? { ...usr } : null };
+        },
+        closeStaffPortalAccount() {
+            this.staffPortalAccount = { show: false, tab: 'overview', account: null };
+        },
+        // What the role on this account actually unlocks, one row per module, so
+        // the Access tab answers "what can this person reach?" out of RBAC_ROLES
+        // and the same rule hasModulePermission() applies, not a second
+        // hand-maintained list that would drift away from the real gates.
+        staffPortalAccessMatrix(role) {
+            const modules = RBAC_ROLES[role] || [];
+            const isFullAccess = FULL_ACCESS_ROLES.includes(role);
+            return modules.map(moduleName => ({
+                module: moduleName,
+                label: MODULE_LABELS[moduleName] || moduleName,
+                view: true,
+                edit: true,
+                // Mirrors hasModulePermission(): delete is the full-access pair
+                // everywhere, plus IT on the public-website collections.
+                remove: isFullAccess || (moduleName === 'website-content' && role === 'IT')
+            }));
+        },
+        // The Read tab: this account's own trail out of the audit log that
+        // Superadmin/Director/IT already subscribe to. auditLogs arrives sorted
+        // newest-first, and the result is capped so a long-serving account does
+        // not render thousands of rows into a drawer. Matched on uid where the
+        // entry carries one and on the signed-in email otherwise, so events
+        // recorded before a UID migration are not silently dropped.
+        staffPortalAccountActivity(account) {
+            const uid = String(account?.id || '').trim();
+            const email = String(account?.email || '').trim().toLowerCase();
+            if (!uid && !email) return [];
+            return this.auditLogs
+                .filter(log => (uid && log.uid === uid) || (email && String(log.user || '').trim().toLowerCase() === email))
+                .slice(0, 100);
+        },
+        async toggleStaffPortalLock(usr) {
+            if (!this.isStaffPortalActionAvailable('lock', usr)) { this.showNotify('Only Superadmin and Director can lock a portal account.'); return; }
+            const locking = !this.isAccountLocked(usr);
+            const answer = await this.askConfirmWithNote({
+                title: locking ? 'Lock this portal account?' : 'Unlock this portal account?',
+                message: locking
+                    ? `${usr.email} keeps their record and role but cannot sign in, and their open session ends. Unlock restores access at any time.`
+                    : `${usr.email} will be able to sign in again immediately.`,
+                confirmLabel: locking ? 'Yes, Lock Access' : 'Yes, Unlock Access',
+                danger: locking,
+                noteLabel: locking ? 'Reason recorded on the account' : '',
+                notePlaceholder: locking ? 'e.g. On extended leave, pending investigation' : ''
+            });
+            if (!answer.confirmed) return;
+            this.staffPortalBusyUid = usr.id;
+            try {
+                await setDoc(doc(db, 'users', usr.id), {
+                    accessLocked: locking,
+                    accessLockedAt: locking ? new Date().toISOString() : '',
+                    accessLockedBy: locking ? String(this.userProfile.email || '') : '',
+                    accessLockReason: locking ? answer.note : ''
+                }, { merge: true });
+                this.logAudit(locking ? 'LOCK' : 'UNLOCK', `${locking ? 'Locked' : 'Unlocked'} portal access for ${usr.email}${locking && answer.note ? ` - ${answer.note}` : ''}`);
+                this.showNotify(locking ? 'Portal access locked.' : 'Portal access unlocked.');
+                this.notifyByEmail({
+                    to: usr.email,
+                    subject: `[ZENQOR ENTERPRISE] Portal access ${locking ? 'locked' : 'restored'}`,
+                    heading: locking ? 'Portal access locked' : 'Portal access restored',
+                    message: locking
+                        ? 'Your ZENQOR portal access has been locked by an administrator. Please contact your administrator for details.'
+                        : 'Your ZENQOR portal access has been restored. You may sign in again.'
+                });
+            } catch (error) {
+                console.error('Staff Portal lock change failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, locking ? 'lock this account' : 'unlock this account'));
+            } finally {
+                this.staffPortalBusyUid = '';
+            }
+        },
+        // "Reset" here is the portal-side half only: it flags the account so the
+        // next sign-in is forced through the change-password flow. Nothing in
+        // this portal can read or set anybody else's password.
+        async requireStaffPortalPasswordChange(usr) {
+            if (!this.isStaffPortalActionAvailable('reset', usr)) { this.showNotify('Only Superadmin and Director can require a password reset.'); return; }
+            if (usr.mustChangePassword === true) { this.showNotify('This account is already required to change its password at the next sign-in.'); return; }
+            if (!await this.askConfirm({
+                title: 'Require a new password?',
+                message: `${usr.email} will be asked to set a new password the next time they sign in. Their current password keeps working until then.`,
+                confirmLabel: 'Yes, Require Reset'
+            })) return;
+            this.staffPortalBusyUid = usr.id;
+            try {
+                await setDoc(doc(db, 'users', usr.id), { mustChangePassword: true }, { merge: true });
+                this.logAudit('UPDATE', `Required a password change at next sign-in for ${usr.email}`);
+                this.showNotify('The account will be asked for a new password at its next sign-in.');
+                this.notifyByEmail({
+                    to: usr.email,
+                    subject: '[ZENQOR ENTERPRISE] Password change required',
+                    heading: 'Password change required',
+                    message: 'Your administrator has asked you to set a new ZENQOR portal password. You will be prompted for one the next time you sign in.'
+                });
+            } catch (error) {
+                console.error('Password reset requirement failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'require a password reset'));
+            } finally {
+                this.staffPortalBusyUid = '';
+            }
+        },
+
+        // ============================================================
+        // STAFF PORTAL - access requests (Accept / Reject)
+        // A staff member asks from their own Profile page for a different role;
+        // Superadmin/Director decide it in the Staff Portal. Accepting applies
+        // the role to users/{uid} and re-syncs the Auth custom claims, exactly
+        // what the Edit form does - so an accepted request and a manual role
+        // change leave the account in the same state.
+        // ============================================================
+        openAccessRequestModal() {
+            if (!this.canRequestAccessChange) { this.showNotify('Your account cannot raise a portal access request.'); return; }
+            if (this.myPendingAccessRequest) { this.showNotify('You already have a request awaiting a decision.'); return; }
+            this.accessRequestModal = { show: true, saving: false, requestedRole: this.requestableRoles[0] || '', reason: '', error: '' };
+        },
+        async submitAccessRequest() {
+            if (!this.canRequestAccessChange) { this.showNotify('Your account cannot raise a portal access request.'); return; }
+            if (this.myPendingAccessRequest) { this.accessRequestModal.error = 'You already have a request awaiting a decision.'; return; }
+            const requestedRole = this.accessRequestModal.requestedRole;
+            const reason = String(this.accessRequestModal.reason || '').trim();
+            if (!this.requestableRoles.includes(requestedRole)) { this.accessRequestModal.error = 'Choose a role to request.'; return; }
+            if (reason.length < 10) { this.accessRequestModal.error = 'Please give the reviewer at least a short reason (10 characters).'; return; }
+            this.accessRequestModal.saving = true;
+            this.accessRequestModal.error = '';
+            try {
+                const requestRef = doc(collection(db, 'access_requests'));
+                await setDoc(requestRef, {
+                    requesterUid: this.userProfile.uid,
+                    requesterEmail: String(this.userProfile.email || '').trim().toLowerCase(),
+                    requesterName: this.userProfile.name || '',
+                    currentRole: this.userProfile.role,
+                    requestedRole,
+                    reason,
+                    status: 'Pending',
+                    createdAt: new Date().toISOString()
+                });
+                this.logAudit('CREATE', `Requested a portal access change to ${requestedRole}`);
+                this.accessRequestModal = { show: false, saving: false, requestedRole: '', reason: '', error: '' };
+                this.showNotify('Your access request has been sent for a decision.');
+                this.notifyByEmail({
+                    to: [...this.emailsForRole('Superadmin'), ...this.emailsForRole('Director')],
+                    subject: '[ZENQOR ENTERPRISE] New portal access request',
+                    heading: 'A portal access request is waiting',
+                    message: `${this.userProfile.name || this.userProfile.email} asked to move from ${this.getRoleDisplayName(this.userProfile.role)} to ${this.getRoleDisplayName(requestedRole)}.`,
+                    ctaLabel: 'Open the Staff Portal'
+                });
+            } catch (error) {
+                console.error('Access request failed:', error);
+                this.accessRequestModal.error = this.getFirestoreWriteError(error, 'send this access request');
+            } finally {
+                this.accessRequestModal.saving = false;
+            }
+        },
+        accessRequestStatusBadge(request) {
+            const status = request?.status || 'Pending';
+            if (status === 'Accepted') return { label: 'Accepted', className: 'zq-badge-success', icon: 'fa-circle-check' };
+            if (status === 'Rejected') return { label: 'Rejected', className: 'zq-badge-error', icon: 'fa-circle-xmark' };
+            return { label: 'Pending', className: 'zq-badge-warning', icon: 'fa-hourglass-half' };
+        },
+        staffPortalRequestActions() {
+            return this.canManageStaffPortal ? STAFF_PORTAL_REQUEST_ACTIONS.map(action => ({ ...action })) : [];
+        },
+        runAccessRequestAction(actionKey, request) {
+            if (actionKey === 'accept') return this.decideAccessRequest(request, 'Accepted');
+            if (actionKey === 'reject') return this.decideAccessRequest(request, 'Rejected');
+        },
+        async decideAccessRequest(request, decision) {
+            if (!this.canManageStaffPortal) { this.showNotify('Only Superadmin and Director can decide an access request.'); return; }
+            if (!request?.id || (request.status || 'Pending') !== 'Pending') { this.showNotify('This request has already been decided.'); return; }
+            const accepting = decision === 'Accepted';
+            // Accepting writes the requester's role. Refuse rather than guess if
+            // the target account has since left the portal directory.
+            const target = this.users.find(user => user.id === request.requesterUid);
+            if (accepting && !target) { this.showNotify('The requesting account no longer exists in the portal directory.'); return; }
+            if (accepting && !this.isPortalEmailAllowed(request.requesterEmail, request.requestedRole)) {
+                this.showNotify(`Staff and Management access requires ${this.approvedStaffDomainsLabel()}.`);
+                return;
+            }
+            const answer = await this.askConfirmWithNote({
+                title: accepting ? 'Accept this access request?' : 'Reject this access request?',
+                message: accepting
+                    ? `${request.requesterEmail} becomes ${this.getRoleDisplayName(request.requestedRole)} immediately, replacing ${this.getRoleDisplayName(request.currentRole)}.`
+                    : `${request.requesterEmail} keeps ${this.getRoleDisplayName(request.currentRole)} and is told the request was declined.`,
+                confirmLabel: accepting ? 'Yes, Accept Request' : 'Yes, Reject Request',
+                danger: !accepting,
+                noteLabel: 'Decision note (optional)',
+                notePlaceholder: accepting ? 'e.g. Approved for the new finance duties' : 'e.g. Raise this again after the handover'
+            });
+            if (!answer.confirmed) return;
+            this.staffPortalBusyUid = request.id;
+            try {
+                if (accepting) {
+                    await setDoc(doc(db, 'users', request.requesterUid), { role: request.requestedRole }, { merge: true });
+                    // The same follow-up the Edit form does: Storage Rules read the
+                    // role from the Auth custom claims, which do not move on their own.
+                    await this.syncUserClaims(request.requesterUid);
+                }
+                await setDoc(doc(db, 'access_requests', request.id), {
+                    status: decision,
+                    decidedBy: String(this.userProfile.email || '').trim().toLowerCase(),
+                    decidedAt: new Date().toISOString(),
+                    decisionNote: answer.note
+                }, { merge: true });
+                this.logAudit('UPDATE', `${decision} the portal access request from ${request.requesterEmail} for ${request.requestedRole}`);
+                this.showNotify(accepting ? 'Access request accepted and the role applied.' : 'Access request rejected.');
+                this.notifyByEmail({
+                    to: request.requesterEmail,
+                    subject: `[ZENQOR ENTERPRISE] Your access request was ${decision.toLowerCase()}`,
+                    heading: accepting ? 'Access request accepted' : 'Access request rejected',
+                    message: accepting
+                        ? `Your portal role is now ${this.getRoleDisplayName(request.requestedRole)}. Sign out and back in to pick it up.`
+                        : `Your request to move to ${this.getRoleDisplayName(request.requestedRole)} was declined.${answer.note ? ` Note: ${answer.note}` : ''}`
+                });
+            } catch (error) {
+                console.error('Access request decision failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, accepting ? 'accept this request' : 'reject this request'));
+            } finally {
+                this.staffPortalBusyUid = '';
             }
         },
 
@@ -6031,12 +6491,25 @@ Note: "${note}"` : ''}`
                 (row.override && this.hasModulePermission('website-content', 'delete')) ? { label: 'Reset to Default', icon: 'fa-rotate-left', danger: true, action: () => this.resetSiteTextOverride(row.key) } : null
             ];
         },
+        // Built from the same STAFF_PORTAL_ACTIONS list as the row buttons, so
+        // right-clicking a row offers exactly what its buttons offer - never one
+        // action more, never one less.
         portalUserRowMenuItems(usr) {
-            if (this.isSeedAdminEmail(usr.email)) return [];
-            return [
-                { label: 'Edit Access', icon: 'fa-pen', action: () => this.openUserAccessModal(usr) },
-                { label: 'Delete Access', icon: 'fa-trash', danger: true, action: () => this.deletePortalUser(usr.id, usr.email) }
-            ];
+            return this.staffPortalActionsFor(usr).map(action => ({
+                label: action.label,
+                icon: action.icon,
+                danger: action.key === 'delete',
+                action: () => this.runStaffPortalAction(action.key, usr)
+            }));
+        },
+        accessRequestRowMenuItems(request) {
+            if ((request?.status || 'Pending') !== 'Pending') return [];
+            return this.staffPortalRequestActions().map(action => ({
+                label: action.label,
+                icon: action.icon,
+                danger: action.key === 'reject',
+                action: () => this.runAccessRequestAction(action.key, request)
+            }));
         },
         projectActivityMenuItems(activity) {
             return [
@@ -6982,6 +7455,13 @@ Note: "${note}"` : ''}`
                 ]
                 : [collection(db, 'project_client_updates')];
             const portalNotificationsSource = query(collection(db, 'portal_notifications'), where('recipientUid', '==', this.userProfile.uid));
+            // A Client account never raises or decides a portal access request,
+            // so it subscribes to nothing here rather than to an empty query.
+            const accessRequestsSource = role === 'Client'
+                ? null
+                : (FULL_ACCESS_ROLES.includes(role)
+                    ? collection(db, 'access_requests')
+                    : query(collection(db, 'access_requests'), where('requesterUid', '==', this.userProfile.uid)));
 
             const userSubscription = canReadUserDirectory
                 ? subscribeWithReadySignal(collection(db, 'users'), (snapshot) => {
@@ -6994,6 +7474,14 @@ Note: "${note}"` : ''}`
                     }
                     if (!this.isPortalEmailAllowed(this.userProfile.email, currentUser.role) && !this.isSeedAdminEmail(this.userProfile.email)) {
                         this.revokePortalAccessIfConfirmed('role no longer permits this email');
+                        return;
+                    }
+                    // Locked while signed in. Confirmed against the server for the
+                    // same reason a revocation is: this snapshot may be the cached
+                    // one, and an account unlocked moments ago must not be thrown
+                    // out by a stale copy that still reads locked.
+                    if (this.isAccountLocked(currentUser)) {
+                        this.revokePortalAccessIfLocked();
                         return;
                     }
                     this.userProfile.role = currentUser.role || this.userProfile.role;
@@ -7023,6 +7511,12 @@ Note: "${note}"` : ''}`
                     const currentUser = { ...snapshot.data(), id: snapshot.id };
                     if (!this.isPortalEmailAllowed(this.userProfile.email, currentUser.role)) {
                         this.revokePortalAccessIfConfirmed('role no longer permits this email');
+                        return;
+                    }
+                    // Same server-confirmed lock gate as the directory listener
+                    // above, for the roles that only read their own profile.
+                    if (this.isAccountLocked(currentUser)) {
+                        this.revokePortalAccessIfLocked();
                         return;
                     }
                     this.users = [currentUser];
@@ -7158,6 +7652,16 @@ Note: "${note}"` : ''}`
                 canReadAuditLogs
                     ? subscribeWithReadySignal(collection(db, "audit_logs"), (snapshot) => { this.auditLogs = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)); }, 'audit logs')
                     : Promise.resolve(),
+
+                // Staff Portal access requests. Superadmin/Director read the whole
+                // queue because they decide it; everyone else reads only the rows
+                // they raised themselves, which is exactly what the access_requests
+                // read rule permits - a broader listener would just be denied.
+                accessRequestsSource
+                    ? subscribeWithReadySignal(accessRequestsSource, (snapshot) => {
+                        this.accessRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }, 'portal access requests')
+                    : Promise.resolve(),
                 // Closed monthly packages listed in Enterprise Reports & Data Export.
                 canReadMonthlyArchives
                     ? subscribeWithReadySignal(collection(db, 'monthly_archives'), (snapshot) => {
@@ -7201,6 +7705,7 @@ Note: "${note}"` : ''}`
             if (this.markProjectDoneModal.show && this.markProjectDoneModal.project) { this.closeMarkProjectDoneModal(); return; }
             if (this.appConfirm.show) { this.resolveAppConfirm(false); return; }
             if (this.employeeView.show) { this.employeeView.show = false; return; }
+            if (this.staffPortalAccount.show) { this.closeStaffPortalAccount(); return; }
             if (this.clientView.show) { this.closeClientView(); return; }
             if (this.clientUpdateModal.show && this.clientUpdateModal.project) { this.closeClientUpdateModal(); return; }
             if (this.websiteContentModal.show) { this.closeWebsiteContentModal(); return; }
@@ -7246,6 +7751,13 @@ Note: "${note}"` : ''}`
 
                     if (!userData && !isSeedAdmin) {
                         this.loginError = 'This account is not provisioned or your access has been revoked. Contact your administrator.';
+                        await signOut(auth);
+                        return;
+                    }
+
+                    const lockedMessage = this.accountLockedSignInMessage(userData, firebaseUser.email);
+                    if (lockedMessage) {
+                        this.loginError = lockedMessage;
                         await signOut(auth);
                         return;
                     }
@@ -7330,6 +7842,9 @@ Note: "${note}"` : ''}`
                 this.paymentVouchers = [];
                 this.users = [];
                 this.auditLogs = [];
+                this.accessRequests = [];
+                this.staffPortalAccount = { show: false, tab: 'overview', account: null };
+                this.staffPortalBusyUid = '';
                 this.websiteContent = { portfolio_web: [], portfolio_gaming: [], services: [] };
                 this.siteTextOverrides = {};
                 this.notificationsLog = [];

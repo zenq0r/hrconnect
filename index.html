@@ -3444,55 +3444,157 @@
                                 </div>
                             </div>
 
-                            <div v-if="canManageRBAC" class="pt-6 space-y-4 border-t border-slate-200 dark:border-slate-700">
-                                <div class="flex justify-between items-center">
-                                    <h3 class="zq-text-section-title"><i class="fa-solid fa-users-viewfinder text-brand-blue mr-2"></i>Portal Access Management (Superadmin &amp; Director)</h3>
-                                    <button type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary">
-                                        <i class="fa-solid fa-user-plus"></i><span>Add Access</span>
+                            <!-- STAFF PORTAL — raising an access request (everyone who is not already full access) -->
+                            <div v-if="canRequestAccessChange" class="pt-6 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                                <div class="flex flex-wrap justify-between items-center gap-3">
+                                    <div>
+                                        <h3 class="zq-text-section-title"><i class="fa-solid fa-hand text-brand-blue mr-2"></i>Staff Portal Access Request</h3>
+                                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Ask Super Admin or Director to move your account to a different role. They accept or reject it from the Staff Portal.</p>
+                                    </div>
+                                    <button type="button" @click="openAccessRequestModal()" :disabled="Boolean(myPendingAccessRequest)" class="zq-btn zq-btn-outline">
+                                        <i class="fa-solid fa-paper-plane"></i><span>{{ myPendingAccessRequest ? 'Request Pending' : 'Request Access Change' }}</span>
                                     </button>
                                 </div>
-
-                                <div class="overflow-x-auto">
+                                <div v-if="myAccessRequests.length" class="overflow-x-auto">
                                     <table class="zq-table">
                                         <thead>
-                                            <tr>
-                                                <th>Username</th>
-                                                <th>Sign-In Email</th>
-                                                <th>Role</th>
-                                                <th class="text-center w-36">Actions</th>
-                                            </tr>
+                                            <tr><th>Requested Role</th><th>Reason</th><th>Raised</th><th>Status</th></tr>
                                         </thead>
                                         <tbody>
-                                            <tr v-for="(usr, uIdx) in users" :key="uIdx" @contextmenu.prevent="openContextMenu($event, portalUserRowMenuItems(usr))" v-longpress="(touch) => openContextMenu(touch, portalUserRowMenuItems(usr))">
-                                                <td class="font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
-                                                <td class="font-medium text-slate-700 dark:text-slate-300">{{ usr.email }}</td>
+                                            <tr v-for="request in myAccessRequests" :key="request.id">
+                                                <td class="font-bold text-slate-800 dark:text-slate-200">{{ getRoleDisplayName(request.requestedRole) }}</td>
+                                                <td class="text-slate-600 dark:text-slate-300">{{ request.reason }}</td>
+                                                <td class="text-slate-500 dark:text-slate-400">{{ formatDateTime(request.createdAt) }}</td>
                                                 <td>
-                                                    <span class="bg-brand-gold/20 text-brand-dark dark:text-amber-100 font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">{{ getRoleDisplayName(usr.role) }}</span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="zq-table-actions">
-                                                    <button v-if="!isSeedAdminEmail(usr.email)" type="button" @click="openUserAccessModal(usr)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Access">
-                                                        <i class="fa-solid fa-pen"></i>
-                                                    </button>
-                                                    <button v-if="!isSeedAdminEmail(usr.email)" type="button" @click="deletePortalUser(usr.id, usr.email)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Access">
-                                                        <i class="fa-solid fa-trash"></i>
-                                                    </button>
-                                                    <span v-if="isSeedAdminEmail(usr.email)" class="text-[9px] font-bold uppercase text-slate-400">Protected Seed Account</span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr v-if="!users.length" class="zq-table-empty">
-                                                <td colspan="4">
-                                                    <div class="zq-empty-state zq-empty-state-compact">
-                                                        <i class="fa-solid fa-users-viewfinder zq-empty-state-icon" aria-hidden="true"></i>
-                                                        <p class="zq-empty-state-title">No portal accounts yet</p>
-                                                        <p class="zq-empty-state-text">Grant portal access to give someone a login for this system.</p>
-                                                        <div class="zq-empty-state-action"><button type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-user-plus"></i><span>Add Access</span></button></div>
-                                                    </div>
+                                                    <span :class="['zq-badge', accessRequestStatusBadge(request).className]"><i :class="['fa-solid', accessRequestStatusBadge(request).icon]"></i>{{ accessRequestStatusBadge(request).label }}</span>
+                                                    <p v-if="request.decisionNote" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ request.decisionNote }}</p>
                                                 </td>
                                             </tr>
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+
+                            <!-- STAFF PORTAL — the account roster and its interaction buttons -->
+                            <div v-if="canObserveStaffPortal" class="pt-6 space-y-5 border-t border-slate-200 dark:border-slate-700">
+                                <div class="flex flex-wrap justify-between items-center gap-3">
+                                    <div>
+                                        <h3 class="zq-text-section-title"><i class="fa-solid fa-users-viewfinder text-brand-blue mr-2"></i>Staff Portal — Portal Access Management</h3>
+                                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                            <span v-if="canManageStaffPortal">Full access: Super Admin and Director. Every interaction below — Lock, Read, Edit, View, Delete, Access, Accept and Reject — is theirs.</span>
+                                            <span v-else>You are viewing the Staff Portal as an observer: View, Read and Access only. Changing an account is Super Admin and Director.</span>
+                                        </p>
+                                    </div>
+                                    <button v-if="canManageStaffPortal" type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary">
+                                        <i class="fa-solid fa-user-plus"></i><span>Add Access</span>
+                                    </button>
+                                </div>
+
+                                <!-- ACCEPT / REJECT — access requests awaiting a decision -->
+                                <div v-if="canManageStaffPortal" class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Access Requests</h4>
+                                        <span v-if="pendingAccessRequests.length" class="zq-badge zq-badge-warning"><i class="fa-solid fa-hourglass-half"></i>{{ pendingAccessRequests.length }} awaiting decision</span>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="zq-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Requester</th>
+                                                    <th>Role Change</th>
+                                                    <th>Reason</th>
+                                                    <th>Status</th>
+                                                    <th class="text-right w-56">Decision</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="request in sortedAccessRequests" :key="request.id" @contextmenu.prevent="openContextMenu($event, accessRequestRowMenuItems(request))" v-longpress="(touch) => openContextMenu(touch, accessRequestRowMenuItems(request))">
+                                                    <td>
+                                                        <p class="font-bold text-slate-800 dark:text-slate-200">{{ request.requesterName || request.requesterEmail }}</p>
+                                                        <p class="text-[10px] text-slate-500 dark:text-slate-400 break-all">{{ request.requesterEmail }}</p>
+                                                    </td>
+                                                    <td class="text-slate-600 dark:text-slate-300">{{ getRoleDisplayName(request.currentRole) }} <i class="fa-solid fa-arrow-right mx-1 text-[9px] text-slate-400"></i> <span class="font-bold">{{ getRoleDisplayName(request.requestedRole) }}</span></td>
+                                                    <td class="text-slate-600 dark:text-slate-300">
+                                                        <p>{{ request.reason }}</p>
+                                                        <p class="mt-1 text-[10px] text-slate-400">Raised {{ formatDateTime(request.createdAt) }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <span :class="['zq-badge', accessRequestStatusBadge(request).className]"><i :class="['fa-solid', accessRequestStatusBadge(request).icon]"></i>{{ accessRequestStatusBadge(request).label }}</span>
+                                                        <p v-if="request.decidedBy" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ request.decidedBy }} · {{ formatDateTime(request.decidedAt) }}</p>
+                                                        <p v-if="request.decisionNote" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ request.decisionNote }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <div class="zq-table-actions-wide">
+                                                            <template v-if="(request.status || 'Pending') === 'Pending'">
+                                                                <button v-for="action in staffPortalRequestActions()" :key="action.key" type="button" @click="runAccessRequestAction(action.key, request)" :disabled="staffPortalBusyUid === request.id" :title="action.title" :class="['zq-btn', 'zq-btn-sm', action.variant]">
+                                                                    <i :class="['fa-solid', action.icon]"></i><span>{{ action.label }}</span>
+                                                                </button>
+                                                            </template>
+                                                            <span v-else class="text-[9px] font-bold uppercase text-slate-400">Decided</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr v-if="!sortedAccessRequests.length" class="zq-table-empty">
+                                                    <td colspan="5">
+                                                        <div class="zq-empty-state zq-empty-state-compact">
+                                                            <i class="fa-solid fa-inbox zq-empty-state-icon" aria-hidden="true"></i>
+                                                            <p class="zq-empty-state-title">No access requests</p>
+                                                            <p class="zq-empty-state-text">Staff raise these from their own Profile page. Accept and Reject appear here when one arrives.</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- LOCK / READ / EDIT / VIEW / DELETE / ACCESS — one portal account per row -->
+                                <div class="space-y-2">
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Portal Accounts</h4>
+                                    <div class="overflow-x-auto">
+                                        <table class="zq-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Username</th>
+                                                    <th>Sign-In Email</th>
+                                                    <th>Role</th>
+                                                    <th>Status</th>
+                                                    <th class="text-right w-[26rem]">Interactions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="(usr, uIdx) in users" :key="uIdx" @contextmenu.prevent="openContextMenu($event, portalUserRowMenuItems(usr))" v-longpress="(touch) => openContextMenu(touch, portalUserRowMenuItems(usr))">
+                                                    <td class="font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
+                                                    <td class="font-medium text-slate-700 dark:text-slate-300 break-all">{{ usr.email }}</td>
+                                                    <td>
+                                                        <span class="bg-brand-gold/20 text-brand-dark dark:text-amber-100 font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">{{ getRoleDisplayName(usr.role) }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span :class="['zq-badge', staffPortalStatusBadge(usr).className]"><i :class="['fa-solid', staffPortalStatusBadge(usr).icon]"></i>{{ staffPortalStatusBadge(usr).label }}</span>
+                                                        <p v-if="isAccountLocked(usr) && usr.accessLockReason" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ usr.accessLockReason }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <div class="zq-table-actions-wide">
+                                                            <button v-for="action in staffPortalActionsFor(usr)" :key="action.key" type="button" @click="runStaffPortalAction(action.key, usr)" :disabled="staffPortalBusyUid === usr.id" :title="action.title" :class="['zq-btn', 'zq-btn-sm', action.variant]">
+                                                                <i :class="['fa-solid', action.icon]"></i><span>{{ action.label }}</span>
+                                                            </button>
+                                                            <span v-if="isSeedAdminEmail(usr.email)" class="text-[9px] font-bold uppercase text-slate-400">Protected Seed Account</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr v-if="!users.length" class="zq-table-empty">
+                                                    <td colspan="5">
+                                                        <div class="zq-empty-state zq-empty-state-compact">
+                                                            <i class="fa-solid fa-users-viewfinder zq-empty-state-icon" aria-hidden="true"></i>
+                                                            <p class="zq-empty-state-title">No portal accounts yet</p>
+                                                            <p class="zq-empty-state-text">Grant portal access to give someone a login for this system.</p>
+                                                            <div v-if="canManageStaffPortal" class="zq-empty-state-action"><button type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-user-plus"></i><span>Add Access</span></button></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </template>
@@ -3914,6 +4016,125 @@
                 <div class="zq-modal-footer">
                     <button type="button" @click="userModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
                     <button type="submit" class="zq-btn zq-btn-primary">Save Access</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- STAFF PORTAL ACCOUNT DRAWER — the View / Read / Access interactions.
+             All three are read-only, so they share one drawer and differ only in
+             which tab it opens on. -->
+        <div v-if="staffPortalAccount.show" class="zq-drawer-overlay z-[102]" role="dialog" aria-modal="true" aria-label="Staff Portal account" @click.self="closeStaffPortalAccount()">
+            <div class="zq-drawer zq-drawer-lg">
+                <div class="zq-modal-header">
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Staff Portal</p>
+                        <h3 class="zq-modal-title mt-1">{{ staffPortalAccount.account?.name || staffPortalAccount.account?.email }}</h3>
+                        <p class="zq-modal-description">{{ staffPortalAccount.account?.email }} · {{ getRoleDisplayName(staffPortalAccount.account?.role) }}</p>
+                    </div>
+                    <button type="button" @click="closeStaffPortalAccount()" aria-label="Close Staff Portal account" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" @click="staffPortalAccount.tab = 'overview'" :class="staffPortalAccount.tab === 'overview' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition"><i class="fa-solid fa-eye mr-1.5"></i>View</button>
+                        <button type="button" @click="staffPortalAccount.tab = 'activity'" :class="staffPortalAccount.tab === 'activity' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition"><i class="fa-solid fa-file-lines mr-1.5"></i>Read</button>
+                        <button type="button" @click="staffPortalAccount.tab = 'access'" :class="staffPortalAccount.tab === 'access' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition"><i class="fa-solid fa-shield-halved mr-1.5"></i>Access</button>
+                    </div>
+
+                    <div v-if="staffPortalAccount.tab === 'overview'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
+                            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Account status</p>
+                            <span :class="['zq-badge', 'mt-2', staffPortalStatusBadge(staffPortalAccount.account).className]"><i :class="['fa-solid', staffPortalStatusBadge(staffPortalAccount.account).icon]"></i>{{ staffPortalStatusBadge(staffPortalAccount.account).label }}</span>
+                        </div>
+                        <div><p class="font-bold text-slate-400">Username</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ staffPortalAccount.account?.name || '-' }}</p></div>
+                        <div><p class="font-bold text-slate-400">Sign-In Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ staffPortalAccount.account?.email || '-' }}</p></div>
+                        <div><p class="font-bold text-slate-400">Role (RBAC)</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ getRoleDisplayName(staffPortalAccount.account?.role) }}</p></div>
+                        <div><p class="font-bold text-slate-400">Password change required</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ staffPortalAccount.account?.mustChangePassword === true ? 'Yes — at next sign-in' : 'No' }}</p></div>
+                        <div v-if="isAccountLocked(staffPortalAccount.account)" class="sm:col-span-2 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-900 p-4">
+                            <p class="font-bold text-rose-700 dark:text-rose-300"><i class="fa-solid fa-lock mr-1.5"></i>Locked out of the portal</p>
+                            <p class="mt-1 text-rose-700 dark:text-rose-300">{{ staffPortalAccount.account?.accessLockReason || 'No reason recorded.' }}</p>
+                            <p class="mt-1 text-[10px] text-rose-700 dark:text-rose-300">Locked by {{ staffPortalAccount.account?.accessLockedBy || 'an administrator' }} · {{ formatDateTime(staffPortalAccount.account?.accessLockedAt) }}</p>
+                        </div>
+                    </div>
+
+                    <div v-else-if="staffPortalAccount.tab === 'activity'" class="space-y-2">
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">The last 100 audited events recorded for this account.</p>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead><tr><th>When</th><th>Action</th><th>Detail</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="log in staffPortalAccountActivity(staffPortalAccount.account)" :key="log.id">
+                                        <td class="whitespace-nowrap text-slate-500 dark:text-slate-400">{{ formatDateTime(log.timestamp) }}</td>
+                                        <td><span class="zq-badge zq-badge-neutral">{{ log.action }}</span></td>
+                                        <td class="text-slate-600 dark:text-slate-300">{{ log.details }}</td>
+                                    </tr>
+                                    <tr v-if="!staffPortalAccountActivity(staffPortalAccount.account).length" class="zq-table-empty">
+                                        <td colspan="3">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-file-lines zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">Nothing recorded yet</p>
+                                                <p class="zq-empty-state-text">Audited events for this account will appear here.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div v-else class="space-y-2">
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">What the {{ getRoleDisplayName(staffPortalAccount.account?.role) }} role reaches, straight from the portal's own access rules.</p>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead><tr><th>Module</th><th class="text-center">Open</th><th class="text-center">Edit</th><th class="text-center">Delete</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="entry in staffPortalAccessMatrix(staffPortalAccount.account?.role)" :key="entry.module">
+                                        <td class="font-bold text-slate-800 dark:text-slate-200">{{ entry.label }}</td>
+                                        <td class="text-center"><i :class="entry.view ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                        <td class="text-center"><i :class="entry.edit ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                        <td class="text-center"><i :class="entry.remove ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                    </tr>
+                                    <tr v-if="!staffPortalAccessMatrix(staffPortalAccount.account?.role).length" class="zq-table-empty">
+                                        <td colspan="4">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-shield-halved zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No modules for this role</p>
+                                                <p class="zq-empty-state-text">This account holds no workspace beyond the sign-in screen.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="closeStaffPortalAccount()" class="zq-btn zq-btn-primary">Close</button></div>
+            </div>
+        </div>
+
+        <!-- STAFF PORTAL ACCESS REQUEST — raised by the account holder, decided by Super Admin/Director -->
+        <div v-if="accessRequestModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Request a portal access change">
+            <form @submit.prevent="submitAccessRequest" class="zq-modal zq-modal-sm">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Request a Portal Access Change</h3>
+                    <button type="button" @click="accessRequestModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div>
+                        <label for="req-role" class="zq-label">Role you are requesting *</label>
+                        <select id="req-role" name="reqRole" v-model="accessRequestModal.requestedRole" required class="zq-input font-bold">
+                            <option v-for="role in requestableRoles" :key="role" :value="role">{{ getRoleDisplayName(role) }}</option>
+                        </select>
+                        <p class="mt-1 text-[10px] text-slate-400">You currently hold {{ getRoleDisplayName(userProfile.role) }}.</p>
+                    </div>
+                    <div>
+                        <label for="req-reason" class="zq-label">Reason *</label>
+                        <textarea id="req-reason" name="reqReason" v-model="accessRequestModal.reason" rows="3" required class="zq-input" placeholder="Why this account needs the different role"></textarea>
+                    </div>
+                    <p v-if="accessRequestModal.error" class="zq-alert zq-alert-error">{{ accessRequestModal.error }}</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="accessRequestModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" :disabled="accessRequestModal.saving" :class="{ 'is-loading': accessRequestModal.saving }" class="zq-btn zq-btn-primary">Send Request</button>
                 </div>
             </form>
         </div>
