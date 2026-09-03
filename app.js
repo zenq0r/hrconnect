@@ -1306,20 +1306,27 @@ createApp({
                 .filter(project => project.clientDirectoryId === customerId)
                 .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
         },
-        // Every internal role can see a sent invoice and its submitted proof. The
-        // three privileges below deliberately do not overlap: only HR/Account may
-        // settle a payment, while only the two full-access roles manage invoices.
-        canViewBillingWorkflow() { return this.userProfile.role !== 'Client'; },
+        // Client Billing Workflow is not a general staff module. A current PIC,
+        // HR/Account, Director or Superadmin is admitted; everyone else receives
+        // no billing queue at all.
+        billingPicProjectIds() {
+            const email = String(this.userProfile.email || '').trim().toLowerCase();
+            return new Set(this.projects
+                .filter(project => String(project.ownerEmail || '').trim().toLowerCase() === email)
+                .map(project => String(project.id || ''))
+                .filter(Boolean));
+        },
+        isBillingProjectPic() { return this.billingPicProjectIds.size > 0; },
+        canViewBillingWorkflow() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
         canManageBillingWorkflow() { return this.isFullAccessRole; },
-        canVerifyPaymentProof() { return ['HR', 'Account'].includes(this.userProfile.role); },
+        canVerifyPaymentProof() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
         billingWorkflowQueue() {
             if (!this.canViewBillingWorkflow) return [];
+            const isCentralReviewer = this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role);
             const submittedProofs = this.docHistory
                 .filter(item => item.type === 'Invoice' && item.status !== 'Draft' && item.paymentProofUrl)
-                .map(item => ({ ...item, workflowAction: this.canVerifyPaymentProof ? 'review-proof' : 'view-proof', workflowLabel: this.canVerifyPaymentProof ? (item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof') : 'View payment proof' }));
-            // HR Management and Finance/Account see every proof awaiting their
-            // verification. All other staff receive the same invoice-proof list,
-            // but never a settlement action.
+                .filter(item => isCentralReviewer || this.billingPicProjectIds.has(String(item.raw?.projectId || '')))
+                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Verified' ? 'Payment verified' : item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
             if (!this.canManageBillingWorkflow) return submittedProofs
                 .sort((a, b) => String(b.paymentProofAt || b.date || '').localeCompare(String(a.paymentProofAt || a.date || '')));
             const linkedInvoiceQuoteIds = new Set(this.docHistory
@@ -6703,6 +6710,20 @@ createApp({
                 this.showNotify('Unable to discard this invoice draft.', 'error');
             }
         },
+        async deleteInvoiceFromWorkflow(invoice) {
+            if (!this.isFullAccessRole || invoice?.type !== 'Invoice') {
+                this.showNotify('Only a Director or Superadmin can delete an invoice.', 'error'); return;
+            }
+            if (!await this.askConfirm({ title: 'Delete invoice?', message: `${invoice.docNo} will be permanently removed. This can affect the Client document history.`, confirmLabel: 'Delete Invoice', danger: true })) return;
+            try {
+                await deleteDoc(doc(db, 'docs', invoice.id));
+                this.logAudit('DELETE', `Deleted invoice ${invoice.docNo} from Client Billing Workflow`);
+                this.showNotify('Invoice deleted.');
+            } catch (error) {
+                console.error('Invoice delete failed:', error);
+                this.showNotify('Unable to delete this invoice.', 'error');
+            }
+        },
         
         async saveDocRecord() {
             try {
@@ -6713,7 +6734,8 @@ createApp({
                 normalizedDocForm.clientEmail = String(this.docForm.clientEmail || '').trim().toLowerCase();
                 Object.assign(this.docForm, normalizedDocForm);
                 const docId = String(this.editingDocId || Date.now());
-                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, raw: JSON.parse(JSON.stringify(this.docForm)) };
+                const linkedProject = this.projects.find(project => String(project.id || '') === String(this.docForm.projectId || ''));
+                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
                 if (!this.clientSavedForDocument) { this.showNotify('Select a registered client before saving this document.'); return false; }
                 // Hard guarantee, not just an implied one: every document must carry
                 // its client's real customers/{id}, never just a name snapshot — two
@@ -7053,7 +7075,7 @@ createApp({
                     // can open a submitted payment proof. Draft invoices and every
                     // quotation stay outside this listener and the Firestore rule.
                     : role === 'Staff'
-                        ? query(collection(db, 'docs'), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
+                        ? query(collection(db, 'docs'), where('billingPicEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
                         : null;
             const payslipsSource = canReadAllPayslips
                 ? collection(db, 'payslips')

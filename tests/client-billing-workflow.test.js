@@ -38,20 +38,20 @@ test('invoice draft, issue, proof and verification form one controlled flow', ()
     assert.match(page, /Upload Corrected Proof/);
 });
 
-test('all staff can view submitted invoice proofs, HR and Finance verify them, and only full access manages invoices', () => {
+test('only the PIC, HR, Finance and full access roles receive Client Billing Workflow actions', () => {
     const app = read('app.js');
     const page = read('index.html');
     const handler = read('api/billing-workflow.js');
     const rules = read('firestore.rules');
 
-    assert.match(app, /canViewBillingWorkflow\(\) \{ return this\.userProfile\.role !== 'Client'; \}/);
+    assert.match(app, /isBillingProjectPic\(\) \{ return this\.billingPicProjectIds\.size > 0; \}/);
     assert.match(app, /canManageBillingWorkflow\(\) \{ return this\.isFullAccessRole; \}/);
-    assert.match(app, /canVerifyPaymentProof\(\) \{ return \['HR', 'Account'\]\.includes/);
+    assert.match(app, /canVerifyPaymentProof\(\) \{ return this\.isFullAccessRole \|\| \['HR', 'Account'\]\.includes/);
     assert.match(page, /v-if="canViewBillingWorkflow"/);
-    assert.match(page, /View sent invoices and their submitted payment proofs only/);
-    assert.match(page, /v-if="canVerifyPaymentProof"/);
-    assert.match(app, /where\('type', '==', 'Invoice'\), where\('status', 'not-in', \['Draft'\]\)/);
-    assert.match(rules, /isApprovedStaffSession\(\) && resource\.data\.type in \['Invoice'\] && resource\.data\.status != 'Draft'/);
+    assert.match(page, /Only PIC Project Activities, HR, Finance, Director and Superadmin can access this workflow/);
+    assert.match(page, /Delete Invoice/);
+    assert.match(app, /deleteInvoiceFromWorkflow/);
     assert.match(handler, /INVOICE_MANAGEMENT_ROLES = new Set\(\['Director', 'Superadmin'\]\)/);
     assert.match(handler, /PAYMENT_REVIEW_ROLES = new Set\(\['HR', 'Account'\]\)/);
+    assert.match(handler, /callerIsProjectPic/);
 });

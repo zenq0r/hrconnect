@@ -62,6 +62,11 @@ async function resolveProject(db, document) {
         .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))[0] || null;
 }
 
+async function callerIsProjectPic(db, document, email) {
+    const project = await resolveProject(db, document);
+    return Boolean(project && normalizeEmail(project.ownerEmail) === normalizeEmail(email));
+}
+
 async function createPicHandover(db, documentId, document, project, timestamp, workflowSource = 'quotation-accepted') {
     if (!project?.id || !normalizeEmail(project.ownerEmail)) return false;
     const isPaymentProof = workflowSource === 'payment-proof-submitted';
@@ -158,15 +163,15 @@ module.exports = async function handler(req, res) {
             if (!clientOwnsDocument || document.type !== 'Invoice' || !document.paymentProofUrl || document.paymentProofByUid !== identity.uid) {
                 res.status(403).json({ error: 'This payment proof cannot be submitted for workflow review.' }); return;
             }
+            const project = await resolveProject(db, document);
             const eventRef = db.collection('billing_events').doc(`${documentId}_proof_${String(document.paymentProofAt || '').replace(/[^a-zA-Z0-9]/g, '')}`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, clientUid: identity.uid, createdAt: timestamp });
-                transaction.update(documentRef, { paymentProofReviewStatus: 'Submitted', billingWorkflowStatus: 'Payment Proof Review', billingWorkflowUpdatedAt: timestamp });
+                transaction.update(documentRef, { paymentProofReviewStatus: 'Submitted', billingWorkflowStatus: 'Payment Proof Review', billingWorkflowUpdatedAt: timestamp, billingPicEmail: normalizeEmail(project?.ownerEmail) });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
-            const project = await resolveProject(db, document);
             await createPicHandover(db, documentId, document, project, timestamp, 'payment-proof-submitted');
             const recipients = [project?.ownerEmail, ...(await recipientsForRoles(db, ['Account', 'Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
@@ -186,11 +191,12 @@ module.exports = async function handler(req, res) {
                 res.status(403).json({ error: 'Only Director or Superadmin may issue an invoice.' }); return;
             }
             if (document.status !== 'Unpaid') { res.status(409).json({ error: 'Only an unpaid invoice can be sent to the client.' }); return; }
+            const project = await resolveProject(db, document);
             const eventRef = db.collection('billing_events').doc(`${documentId}_invoice_sent`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, sentByUid: identity.uid, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email });
+                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingPicEmail: normalizeEmail(project?.ownerEmail) });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
@@ -204,8 +210,11 @@ module.exports = async function handler(req, res) {
         }
 
         if (action === 'payment-proof-reviewed') {
-            if (!PAYMENT_REVIEW_ROLES.has(callerRole)) {
-                res.status(403).json({ error: 'Only HR Management or Finance may verify a payment proof.' }); return;
+            const allowedReviewer = PAYMENT_REVIEW_ROLES.has(callerRole) ||
+                INVOICE_MANAGEMENT_ROLES.has(callerRole) ||
+                await callerIsProjectPic(db, document, identity.email);
+            if (!allowedReviewer) {
+                res.status(403).json({ error: 'Only the assigned PIC, HR Management, Finance, Director or Superadmin may verify a payment proof.' }); return;
             }
             if (!document.paymentProofUrl || !['Submitted', 'Rejected'].includes(document.paymentProofReviewStatus || 'Submitted')) {
                 res.status(409).json({ error: 'No submitted payment proof is awaiting review.' }); return;

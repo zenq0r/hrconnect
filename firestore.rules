@@ -74,6 +74,14 @@ service cloud.firestore {
       return isAdmin();
     }
 
+    function isDocumentProjectPic(data) {
+      return isApprovedStaffSession() &&
+        data.billingPicEmail is string &&
+        data.billingPicEmail == request.auth.token.email &&
+        data.type == 'Invoice' &&
+        data.status != 'Draft';
+    }
+
     // IT is trusted with the public zenqor-tech website's content collections
     // (Portfolio galleries, Services, page-text overrides) alongside Superadmin/
     // Director, but NOT with the rest of what isAdmin() unlocks (payroll, HR,
@@ -239,10 +247,9 @@ service cloud.firestore {
     match /docs/{docId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() || isIT() ||
-        // Every approved staff account may read a sent invoice to open its
-        // payment proof from Client Billing Workflow. Drafts and quotations
-        // remain unavailable to ordinary Staff accounts.
-        (isApprovedStaffSession() && resource.data.type in ['Invoice'] && resource.data.status != 'Draft') ||
+        // A PIC may read only sent invoices indexed to that PIC. Drafts,
+        // quotations and another project's billing data stay unavailable.
+        isDocumentProjectPic(resource.data) ||
         // An invoice draft belongs to the Finance workspace until it is formally
         // issued. Clients never see a partial/unsent bill in their document list.
         (isClient() && (resource.data.type != 'Invoice' || resource.data.status != 'Draft') && resource.data.raw.clientEmail == request.auth.token.email) ||

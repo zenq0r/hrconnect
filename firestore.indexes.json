@@ -4,6 +4,7 @@
       "collectionGroup": "docs",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "billingPicEmail", "order": "ASCENDING" },
         { "fieldPath": "type", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
