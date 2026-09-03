@@ -11,7 +11,8 @@ test('Firestore falls back to long polling only where the stream actually fails'
     // path or a buffering proxy, and listeners stall until they retry.
     assert.match(src, /initializeFirestore\(app, \{ experimentalAutoDetectLongPolling: true \}\)/);
     // Forcing it would slow every healthy client down to fix the few that break.
-    assert.doesNotMatch(src, /experimentalForceLongPolling/);
+    // Match it as a setting, not as a word — the comment above the call names it.
+    assert.doesNotMatch(src, /experimentalForceLongPolling\s*:/);
 });
 
 test('settings are applied at initialization, not bolted on afterwards', () => {
