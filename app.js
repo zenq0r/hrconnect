@@ -655,7 +655,7 @@ createApp({
                 isEdit: false,
                 saving: false,
                 form: {
-                    id: '', clientId: '', clientName: '', clientSSM: '', companyType: '', industry: '', clientTier: 'Standard',
+                    id: '', clientId: '', clientName: '', clientSSM: '', clientBrnNew: '', clientBrnOld: '', clientTin: '', companyType: '', industry: '', clientTier: 'Standard',
                     clientContactPerson: '', clientPosition: '', clientEmail: '', clientPhone: '', additionalClientEmailsText: '',
                     clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '',
                     clientCountry: 'Malaysia', clientNotes: '', createdAt: ''
@@ -1610,6 +1610,40 @@ createApp({
         // January 2023.
         normalizeTin(value) {
             return String(value || '').toUpperCase().replace(/[\s-]/g, '');
+        },
+        // SSM has used two registration formats. Since 11 October 2019 every
+        // entity carries a 12-digit number — 4-digit year of incorporation, a
+        // 2-digit entity code, then a 6-digit sequence. Records from before then
+        // also keep the older sequence-and-check-letter number, and both are
+        // printed together during the transition, e.g. 199301012242 (266980-X).
+        // Enterprises registered in a state carry a state prefix on the old one,
+        // such as JM1045730-D, so the prefix is optional rather than absent.
+        brnNewFormatState(value) {
+            const v = String(value || '').replace(/\s/g, '');
+            if (!v) return 'empty';
+            return /^\d{12}$/.test(v) ? 'valid' : 'invalid';
+        },
+        brnOldFormatState(value) {
+            const v = String(value || '').replace(/\s/g, '').toUpperCase();
+            if (!v) return 'empty';
+            return /^[A-Z]{0,3}\d{4,10}-[A-Z]{1,2}$/.test(v) ? 'valid' : 'invalid';
+        },
+        // clientSSM stays the stored, printed and searched value — 36 places read
+        // it — so the parts are composed back into the shape everything expects.
+        composeClientSSM(newBrn, oldBrn) {
+            const a = String(newBrn || '').trim();
+            const b = String(oldBrn || '').trim().toUpperCase();
+            if (a && b) return `${a} (${b})`;
+            return a || b;
+        },
+        // Existing records only have the combined string, so opening one splits
+        // it back apart rather than making staff retype what is already there.
+        splitClientSSM(value) {
+            const raw = String(value || '').trim();
+            const paired = raw.match(/^(\d{12})\s*\(([^)]+)\)$/);
+            if (paired) return { newBrn: paired[1], oldBrn: paired[2].trim().toUpperCase() };
+            if (/^\d{12}$/.test(raw)) return { newBrn: raw, oldBrn: '' };
+            return { newBrn: '', oldBrn: raw.toUpperCase() };
         },
         tinFormatState(value) {
             const tin = this.normalizeTin(value);
@@ -4939,6 +4973,9 @@ Note: "${note}"` : ''}`
             this.clientInformationModal.form = {
                 ...this.emptyClientInformationForm(),
                 id: record.id || '', clientId: record.clientId || '', clientName: record.clientName || '', clientSSM: record.clientSSM || '',
+                clientBrnNew: record.clientBrnNew || this.splitClientSSM(record.clientSSM).newBrn,
+                clientBrnOld: record.clientBrnOld || this.splitClientSSM(record.clientSSM).oldBrn,
+                clientTin: record.clientTin || '',
                 companyType: record.companyType || '', industry: record.industry || '', clientTier: record.clientTier || 'Standard',
                 clientContactPerson: record.clientContactPerson || '', clientPosition: record.clientPosition || '',
                 clientEmail: record.clientEmail || '', clientPhone: record.clientPhone || '', additionalClientEmailsText: additionalClientEmails,
@@ -4970,12 +5007,19 @@ Note: "${note}"` : ''}`
                 const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
                 const additionalClientEmails = String(form.additionalClientEmailsText || '')
                     .split(',').map(email => email.trim().toLowerCase()).filter(email => email && email.includes('@'));
-                const clientId = existingCust?.clientId || form.clientId || this.generateClientId(form.clientSSM);
+                const composedSSM = this.composeClientSSM(form.clientBrnNew, form.clientBrnOld);
+                // Client ID is derived from the BRN, so it must read the composed
+                // value rather than the now-unbound clientSSM field.
+                const clientId = existingCust?.clientId || form.clientId || this.generateClientId(composedSSM);
                 const now = new Date().toISOString();
                 const clientTier = ['Standard', 'Premium', 'Priority'].includes(form.clientTier) ? form.clientTier : (existingCust?.clientTier || 'Standard');
                 const clientRecord = this.normalizeOfficialRecord({
                     clientId,
-                    clientName: String(form.clientName).trim(), clientSSM: String(form.clientSSM || '').trim(),
+                    clientName: String(form.clientName).trim(),
+                    clientSSM: this.composeClientSSM(form.clientBrnNew, form.clientBrnOld),
+                    clientBrnNew: String(form.clientBrnNew || '').replace(/\s/g, ''),
+                    clientBrnOld: String(form.clientBrnOld || '').replace(/\s/g, '').toUpperCase(),
+                    clientTin: this.normalizeTin(form.clientTin),
                     companyType: String(form.companyType || '').trim(), industry: String(form.industry || '').trim(), clientTier,
                     clientContactPerson: String(form.clientContactPerson || '').trim(), clientPosition: String(form.clientPosition || '').trim(),
                     clientEmail: String(form.clientEmail || '').trim().toLowerCase(), clientPhone: String(form.clientPhone || '').trim(),

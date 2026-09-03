@@ -3518,7 +3518,30 @@
                             <h4 class="zq-form-section-title">Company profile</h4>
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                                 <div><label for="client-info-name" class="zq-label">Client / Company Name *</label><input id="client-info-name" v-model="clientInformationModal.form.clientName" required autocomplete="organization" placeholder="Registered company name" class="zq-input font-semibold"></div>
-                                <div><label for="client-info-ssm" class="zq-label">Business Reg. / TIN</label><input id="client-info-ssm" v-model="clientInformationModal.form.clientSSM" placeholder="200901029271 (872376-W)" class="zq-input"></div>
+                                <div>
+                                    <label for="client-info-brn-new" class="zq-label">Business Reg. No. &mdash; new SSM format</label>
+                                    <input id="client-info-brn-new" v-model="clientInformationModal.form.clientBrnNew" inputmode="numeric" maxlength="12" placeholder="200901029271" class="zq-input" aria-describedby="client-info-brn-new-hint">
+                                    <p id="client-info-brn-new-hint" class="mt-1 text-[10px]" :class="brnNewFormatState(clientInformationModal.form.clientBrnNew) === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">
+                                        <span v-if="brnNewFormatState(clientInformationModal.form.clientBrnNew) === 'invalid'">Expected exactly 12 digits.</span>
+                                        <span v-else>12 digits: year, entity code, sequence. Issued to every entity since 11 Oct 2019.</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <label for="client-info-brn-old" class="zq-label">Business Reg. No. &mdash; old format</label>
+                                    <input id="client-info-brn-old" v-model="clientInformationModal.form.clientBrnOld" maxlength="16" placeholder="872376-W" class="zq-input uppercase" aria-describedby="client-info-brn-old-hint">
+                                    <p id="client-info-brn-old-hint" class="mt-1 text-[10px]" :class="brnOldFormatState(clientInformationModal.form.clientBrnOld) === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">
+                                        <span v-if="brnOldFormatState(clientInformationModal.form.clientBrnOld) === 'invalid'">Expected digits then a dash and a check letter, e.g. 872376&#8209;W.</span>
+                                        <span v-else>Pre&#8209;2019 number, kept for documents still bearing it. State prefix allowed, e.g. JM1045730&#8209;D.</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <label for="client-info-tin" class="zq-label">Tax Identification No. (TIN) &mdash; LHDN</label>
+                                    <input id="client-info-tin" v-model="clientInformationModal.form.clientTin" @blur="clientInformationModal.form.clientTin = normalizeTin(clientInformationModal.form.clientTin)" maxlength="12" class="zq-input uppercase" placeholder="C20880050010" aria-describedby="client-info-tin-hint">
+                                    <p id="client-info-tin-hint" class="mt-1 text-[10px]" :class="tinFormatState(clientInformationModal.form.clientTin) === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">
+                                        <span v-if="tinFormatState(clientInformationModal.form.clientTin) === 'invalid'">Does not match an LHDN TIN &mdash; entity prefix then digits, 11&ndash;12 characters.</span>
+                                        <span v-else>Separate from the SSM number. C company, D partnership, IG sole proprietor.</span>
+                                    </p>
+                                </div>
                                 <div><label for="client-info-type" class="zq-label">Company Type</label><select id="client-info-type" v-model="clientInformationModal.form.companyType" class="zq-input"><option value="">Select company type</option><option>Sole Proprietorship / Enterprise</option><option>Partnership</option><option>Private Limited (Sdn. Bhd.)</option><option>Public Limited (Berhad)</option><option>Limited Liability Partnership (LLP)</option><option>Government / GLC</option><option>Association / NGO</option><option>Other</option></select></div>
                                 <div><label for="client-info-industry" class="zq-label">Industry / Business Category</label><input id="client-info-industry" v-model="clientInformationModal.form.industry" placeholder="e.g. Retail, Construction, Professional Services" class="zq-input"></div>
                                 <div><label for="client-info-tier" class="zq-label">Client Tier</label><select id="client-info-tier" v-model="clientInformationModal.form.clientTier" class="zq-input"><option>Standard</option><option>Premium</option><option>Priority</option></select></div>
