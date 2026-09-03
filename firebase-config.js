@@ -6,7 +6,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 // Analytics is loaded lazily (see below) so its bundle is not downloaded on every
 // page load while Analytics is disabled.
 import {
-    getFirestore,
+    initializeFirestore,
     collection,
     doc,
     getDoc,
@@ -115,7 +115,15 @@ if (firebaseConfig.measurementId) {
         .catch((error) => console.warn('Analytics disabled:', error?.message || error));
 }
 
-const db = getFirestore(app);
+// Firestore streams over WebChannel by default. Where QUIC is broken or a
+// proxy buffers the hanging GET, that stream dies and the console fills with
+// ERR_QUIC_PROTOCOL_ERROR while listeners stall until they retry.
+// Auto-detect falls back to long polling only on the connections that actually
+// fail, so a healthy network keeps the faster streaming transport — unlike
+// experimentalForceLongPolling, which would slow every client down to fix a few.
+// initializeFirestore must run before anything touches Firestore, which is why
+// it replaces getFirestore here rather than being configured later.
+const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 const auth = getAuth(app);
 const storage = getStorage(app);
 
