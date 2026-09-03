@@ -61,9 +61,11 @@ async function resolveProject(db, document) {
         .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))[0] || null;
 }
 
-async function createPicHandover(db, documentId, document, project, timestamp) {
+async function createPicHandover(db, documentId, document, project, timestamp, workflowSource = 'quotation-accepted') {
     if (!project?.id || !normalizeEmail(project.ownerEmail)) return false;
-    const activityRef = db.collection('project_activities').doc(`billing-${documentId}`);
+    const isPaymentProof = workflowSource === 'payment-proof-submitted';
+    const proofVersion = String(document.paymentProofAt || timestamp).replace(/[^a-zA-Z0-9]/g, '');
+    const activityRef = db.collection('project_activities').doc(isPaymentProof ? `billing-proof-${documentId}-${proofVersion}` : `billing-${documentId}`);
     const existing = await activityRef.get();
     if (existing.exists) return false;
     await activityRef.set({
@@ -72,8 +74,12 @@ async function createPicHandover(db, documentId, document, project, timestamp) {
         projectTitle: project.title || 'Client project',
         projectOwnerEmail: normalizeEmail(project.ownerEmail),
         activityType: 'Billing handover',
-        summary: `Client accepted quotation ${document.docNo}. Confirm scope and hand over to Finance.`,
-        details: 'This task was created automatically from the Client Portal. Finance and Director have been notified in parallel.',
+        summary: isPaymentProof
+            ? `Client submitted payment proof for ${document.docNo}. Finance and Director are reviewing it.`
+            : `Client accepted quotation ${document.docNo}. Confirm scope and hand over to Finance.`,
+        details: isPaymentProof
+            ? 'This task was created automatically from the Client Portal. Finance and Director have been notified to verify the payment proof.'
+            : 'This task was created automatically from the Client Portal. Finance and Director have been notified in parallel.',
         dueDate: timestamp.slice(0, 10),
         assignedEmpNo: project.ownerEmpNo || '',
         assignedName: project.ownerName || project.ownerEmail,
@@ -83,9 +89,10 @@ async function createPicHandover(db, documentId, document, project, timestamp) {
         createdAt: timestamp,
         createdByUid: 'system:client-billing-workflow',
         createdByEmail: 'system@zenqor.com.my',
-        workflowSource: 'quotation-accepted',
-        quotationId: documentId,
-        quotationNo: document.docNo || ''
+        workflowSource,
+        ...(isPaymentProof
+            ? { invoiceId: documentId, invoiceNo: document.docNo || '' }
+            : { quotationId: documentId, quotationNo: document.docNo || '' })
     });
     return true;
 }
@@ -159,6 +166,7 @@ module.exports = async function handler(req, res) {
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
             const project = await resolveProject(db, document);
+            await createPicHandover(db, documentId, document, project, timestamp, 'payment-proof-submitted');
             const recipients = [project?.ownerEmail, ...(await recipientsForRoles(db, ['Account', 'Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
                 title: `Payment proof submitted — ${document.docNo}`,

@@ -1306,12 +1306,32 @@ createApp({
                 .filter(project => project.clientDirectoryId === customerId)
                 .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
         },
+        // Every internal role can see that the Client Billing Workflow exists, but
+        // Client financial information is deliberately not a company-wide feed.
+        // Finance/Director retain the full queue; a PIC sees only the handovers
+        // assigned to that PIC's own projects (built from project_activities).
+        canViewBillingWorkflow() { return this.userProfile.role !== 'Client'; },
         canProcessBilling() { return ['Account', 'Director', 'Superadmin'].includes(this.userProfile.role); },
-        // Finance/Director get an explicit queue rather than having to infer an
-        // action from a generic document list. PIC receives the matching project
-        // handover as an assigned Project Activity created by the server.
         billingWorkflowQueue() {
-            if (!this.canProcessBilling) return [];
+            if (!this.canViewBillingWorkflow) return [];
+            if (!this.canProcessBilling) {
+                const email = String(this.userProfile.email || '').trim().toLowerCase();
+                return this.projectActivities
+                    .filter(activity => String(activity.assignedEmail || '').trim().toLowerCase() === email)
+                    .filter(activity => ['quotation-accepted', 'payment-proof-submitted'].includes(String(activity.workflowSource || '')))
+                    .filter(activity => activity.status !== 'Done')
+                    .map(activity => ({
+                        id: activity.id,
+                        docNo: activity.quotationNo || activity.invoiceNo || 'Client billing item',
+                        name: activity.projectTitle || 'Assigned client project',
+                        amount: null,
+                        raw: { projectRef: activity.projectRef || '', projectTitle: activity.projectTitle || '', projectId: activity.projectId || '' },
+                        projectId: activity.projectId || '',
+                        workflowAction: 'pic-handover',
+                        workflowLabel: activity.workflowSource === 'payment-proof-submitted' ? 'Payment proof submitted' : 'PIC billing handover'
+                    }))
+                    .sort((a, b) => String(b.workflowLabel || '').localeCompare(String(a.workflowLabel || '')));
+            }
             const linkedInvoiceQuoteIds = new Set(this.docHistory
                 .filter(item => item.type === 'Invoice' && item.raw?.sourceQuotationId)
                 .map(item => item.raw.sourceQuotationId));

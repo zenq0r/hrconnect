@@ -37,3 +37,17 @@ test('invoice draft, issue, proof and verification form one controlled flow', ()
     assert.match(page, /Client Billing Workflow/);
     assert.match(page, /Upload Corrected Proof/);
 });
+
+test('all staff see the workflow, while only Finance, Director and an assigned PIC see a work item', () => {
+    const app = read('app.js');
+    const page = read('index.html');
+    const handler = read('api/billing-workflow.js');
+
+    assert.match(app, /canViewBillingWorkflow\(\) \{ return this\.userProfile\.role !== 'Client'; \}/);
+    assert.match(app, /\['quotation-accepted', 'payment-proof-submitted'\]\.includes/);
+    assert.match(page, /v-if="canViewBillingWorkflow"/);
+    assert.match(page, /Workflow availability is visible to all staff/);
+    assert.match(page, /Assigned PIC handover/);
+    assert.match(page, /Only the assigned PIC, Finance and Director can access Client billing records and actions/);
+    assert.match(handler, /'payment-proof-submitted'\);/);
+});
