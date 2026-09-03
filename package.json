@@ -19,7 +19,10 @@
   },
   "overrides": {
     "@google-cloud/storage": "8.0.1",
-    "gaxios": "7.3.1"
+    "gaxios": "7.3.1",
+    "jwks-rsa": {
+      "jose": "4.15.9"
+    }
   },
   "keywords": [
     "zenqor",

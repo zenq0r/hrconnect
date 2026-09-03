@@ -181,6 +181,13 @@ test('Firebase Admin v14 uses modular app, Auth, and Firestore services', () => 
     assert.doesNotMatch(cleanupSource, /admin\.(auth|firestore|apps|initializeApp)/);
 });
 
+test('Firebase Admin CommonJS runtime pins the compatible jose dependency', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
+    const functionManifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'functions', 'package.json'), 'utf8'));
+    assert.equal(manifest.overrides['jwks-rsa'].jose, '4.15.9');
+    assert.equal(functionManifest.overrides['jwks-rsa'].jose, '4.15.9');
+});
+
 test('audit metadata extracts the trusted client IP and readable browser details', () => {
     assert.equal(getClientIp({ 'x-vercel-forwarded-for': '203.0.113.8, 10.0.0.1' }), '203.0.113.8');
     const metadata = parseUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36');
