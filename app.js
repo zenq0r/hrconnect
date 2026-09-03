@@ -829,6 +829,11 @@ createApp({
                 clientContactPerson: '',
                 clientPosition: '',
                 customerId: '',
+                projectId: '',
+                projectRef: '',
+                projectTitle: '',
+                sourceQuotationId: '',
+                sourceQuotationNo: '',
                 additionalClientEmailsText: '',
                 items: [{ desc: '', qty: 1, price: 0 }],
                 discount: 0
@@ -1293,6 +1298,34 @@ createApp({
                 const statusOk = this.clientPortalFilter.status === 'all' || (d.status || 'Unpaid') === this.clientPortalFilter.status;
                 return typeOk && statusOk;
             });
+        },
+        documentProjectsForSelectedClient() {
+            const customerId = String(this.docForm.customerId || '');
+            if (!customerId) return [];
+            return this.projects
+                .filter(project => project.clientDirectoryId === customerId)
+                .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+        },
+        canProcessBilling() { return ['Account', 'Director', 'Superadmin'].includes(this.userProfile.role); },
+        // Finance/Director get an explicit queue rather than having to infer an
+        // action from a generic document list. PIC receives the matching project
+        // handover as an assigned Project Activity created by the server.
+        billingWorkflowQueue() {
+            if (!this.canProcessBilling) return [];
+            const linkedInvoiceQuoteIds = new Set(this.docHistory
+                .filter(item => item.type === 'Invoice' && item.raw?.sourceQuotationId)
+                .map(item => item.raw.sourceQuotationId));
+            const acceptedQuotes = this.docHistory
+                .filter(item => item.type === 'Quotation' && item.status === 'Accepted' && !linkedInvoiceQuoteIds.has(item.id))
+                .map(item => ({ ...item, workflowAction: 'issue-invoice', workflowLabel: 'Prepare invoice' }));
+            const invoiceDrafts = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.status === 'Draft')
+                .map(item => ({ ...item, workflowAction: 'edit-draft', workflowLabel: 'Finance draft' }));
+            const submittedProofs = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.paymentProofUrl && item.paymentProofReviewStatus !== 'Verified')
+                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
+            return [...acceptedQuotes, ...invoiceDrafts, ...submittedProofs]
+                .sort((a, b) => String(b.billingWorkflowUpdatedAt || b.paymentProofAt || b.clientDecisionAt || b.date || '').localeCompare(String(a.billingWorkflowUpdatedAt || a.paymentProofAt || a.clientDecisionAt || a.date || '')));
         },
 
         // PAGINATION & SORTING UNTUK CLAIMS MODULE
@@ -1957,6 +1990,18 @@ createApp({
             if (!d || d.type !== 'Quotation' || (d.status || 'Open') !== 'Open') return false;
             return this.clientPortalDocs.some(own => own.id === d.id);
         },
+        async runBillingWorkflow(action, documentId, extra = {}) {
+            if (!auth.currentUser?.uid) throw new Error('Your session has ended. Please sign in again.');
+            const idToken = await auth.currentUser.getIdToken();
+            const response = await fetch('/api/billing-workflow', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                body: JSON.stringify({ action, documentId, ...extra })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'The billing workflow could not be updated.');
+            return data;
+        },
         async decideQuotation(d, decision) {
             if (!this.canDecideQuotation(d)) { this.showNotify('This quotation can no longer be answered.', 'error'); return; }
             const accepting = decision === 'Accepted';
@@ -1980,14 +2025,19 @@ createApp({
                     clientDecisionNote: note
                 });
                 this.logAudit('UPDATE', `Client ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo}`);
-                this.showNotify(accepting ? 'Quotation accepted. Our team has been notified.' : 'Quotation declined. Our team has been notified.');
-                this.notifyByEmail({
+                if (accepting) {
+                    // The server derives the PIC, Finance and Director recipients
+                    // from protected records. Client-side code never chooses them.
+                    await this.runBillingWorkflow('quotation-accepted', d.id);
+                }
+                this.showNotify(accepting
+                    ? 'Quotation accepted. PIC, Finance and Director have been notified.'
+                    : 'Quotation declined. Our team has been notified.');
+                if (!accepting) this.notifyByEmail({
                     to: this.company.email || this.supportEmail,
-                    subject: `Quotation ${accepting ? 'Accepted' : 'Declined'} — ${d.docNo}`,
-                    heading: `Quotation ${accepting ? 'Accepted' : 'Declined'}`,
-                    message: `${this.userProfile.name || this.userProfile.email} ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `
-
-Note: "${note}"` : ''}`
+                    subject: `Quotation Declined — ${d.docNo}`,
+                    heading: 'Quotation Declined',
+                    message: `${this.userProfile.name || this.userProfile.email} declined quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `\n\nNote: "${note}"` : ''}`
                 });
             } catch (error) {
                 console.error('Quotation decision failed:', error);
@@ -2000,6 +2050,13 @@ Note: "${note}"` : ''}`
             if (this.userProfile.role !== 'Client') return false;
             if (!d || d.type !== 'Invoice' || d.status === 'Paid') return false;
             return this.clientPortalDocs.some(own => own.id === d.id);
+        },
+        clientBillingStatus(d) {
+            if (d?.type !== 'Invoice') return d?.status || 'Open';
+            if (d.paymentProofReviewStatus === 'Verified' || d.status === 'Paid') return 'Paid';
+            if (d.paymentProofReviewStatus === 'Submitted') return 'Payment Under Review';
+            if (d.paymentProofReviewStatus === 'Rejected') return 'Proof Needs Attention';
+            return d.status || 'Unpaid';
         },
         async handlePaymentProofUpload(event, d) {
             const file = event.target.files[0];
@@ -2045,13 +2102,8 @@ Note: "${note}"` : ''}`
                     paymentProofByName: this.userProfile.name || this.userProfile.email
                 });
                 this.logAudit('UPDATE', `Client attached payment proof to ${d.docNo}`);
-                this.showNotify('Payment proof submitted. Our team will verify it and update the invoice.');
-                this.notifyByEmail({
-                    to: this.company.email || this.supportEmail,
-                    subject: `Payment Proof Submitted — ${d.docNo}`,
-                    heading: 'Payment Proof Submitted',
-                    message: `${this.userProfile.name || this.userProfile.email} attached proof of payment for invoice ${d.docNo} (${this.formatCurrency(d.amount)}). Verify it and mark the invoice Paid if it checks out.`
-                });
+                await this.runBillingWorkflow('payment-proof-submitted', d.id);
+                this.showNotify('Payment proof submitted. Finance, Director and your PIC will review it.');
             } catch (error) {
                 console.error('Payment proof upload failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'submit your payment proof'), 'error');
@@ -3059,7 +3111,7 @@ Note: "${note}"` : ''}`
             this.docForm = {
                 type: 'Invoice', docNo: '', status: 'Unpaid', paymentMethod: 'Bank Transfer (EFT)', paymentBank: '', paymentReceiver: '', paymentRefNo: '', paymentAttachment: '',
                 date: new Date().toISOString().substr(0, 10), dueDate: new Date(Date.now() + 5*24*60*60*1000).toISOString().substr(0, 10),
-                customerId: '', clientName: '', clientPhone: '', clientSSM: '', clientAddress: '', clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '', clientCountry: 'Malaysia', clientEmail: '', clientContactPerson: '', clientPosition: '', additionalClientEmailsText: '',
+                customerId: '', projectId: '', projectRef: '', projectTitle: '', sourceQuotationId: '', sourceQuotationNo: '', clientName: '', clientPhone: '', clientSSM: '', clientAddress: '', clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '', clientCountry: 'Malaysia', clientEmail: '', clientContactPerson: '', clientPosition: '', additionalClientEmailsText: '',
                 items: [{ desc: '', qty: 1, price: 0 }], discount: 0
             };
             this.payForm = {
@@ -4927,6 +4979,13 @@ Note: "${note}"` : ''}`
             this.docForm.clientCountry = cust.clientCountry || 'Malaysia';
             this.docForm.customerId = cust.id;
             this.docForm.additionalClientEmailsText = Array.isArray(cust.additionalClientEmails) ? cust.additionalClientEmails.join(', ') : '';
+            // A quotation is tied to the delivery project so its acceptance can
+            // create a deterministic handover to that project's assigned PIC.
+            if (switchedCompany) {
+                this.docForm.projectId = '';
+                this.docForm.projectRef = '';
+                this.docForm.projectTitle = '';
+            }
             this.clientSavedForDocument = true;
 
             // A saved document must never be overwritten just because the user
@@ -4946,9 +5005,18 @@ Note: "${note}"` : ''}`
                 this.loadCustomerIntoDocument(cust);
             } else {
                 this.docForm.customerId = '';
+                this.docForm.projectId = '';
+                this.docForm.projectRef = '';
+                this.docForm.projectTitle = '';
                 this.docForm.additionalClientEmailsText = '';
                 this.clientSavedForDocument = false;
             }
+        },
+        selectProjectForDoc(e) {
+            const project = this.documentProjectsForSelectedClient.find(item => item.id === e.target.value);
+            this.docForm.projectId = project?.id || '';
+            this.docForm.projectRef = project?.projectRef || '';
+            this.docForm.projectTitle = project?.title || '';
         },
         // Human-readable, non-random client reference — same convention as
         // projectRef/docNo/empNo elsewhere in this app, but derived from the
@@ -6569,6 +6637,65 @@ Note: "${note}"` : ''}`
         setPrintOrientation(orientation, margin) { const styleEl = document.getElementById('dynamic-print-orientation'); if (styleEl) styleEl.innerHTML = `@media print { @page { size: A4 ${orientation}; margin: ${margin} !important; } }`; },
         async printDocumentModule() { if (!this.clientSavedForDocument) return this.showNotify('Select a registered client before previewing or printing this document.'); this.activePrintModule = this.docForm.type === 'Quotation' ? 'QUOTATION' : 'INVOICE'; this.setPrintOrientation('portrait', '15mm'); setTimeout(() => { window.print(); }, 250); },
         async printPayslipModule() { if (!this.payForm.name || !this.payForm.empNo) return this.showNotify('Enter Name and Emp ID.'); this.autoCalculatePayroll(); this.activePrintModule = 'PAYSLIP'; this.setPrintOrientation('landscape', '0mm'); setTimeout(() => { window.print(); }, 250); },
+        createInvoiceFromQuotation(quotation) {
+            if (!this.canProcessBilling || quotation?.type !== 'Quotation' || quotation.status !== 'Accepted') {
+                this.showNotify('Only Finance or Director can prepare an invoice from an accepted quotation.', 'error'); return;
+            }
+            const source = JSON.parse(JSON.stringify(quotation.raw || {}));
+            this.editingDocId = null;
+            this.docForm = {
+                ...source,
+                type: 'Invoice',
+                docNo: '',
+                status: 'Draft',
+                paymentRefNo: '',
+                paymentAttachment: '',
+                sourceQuotationId: quotation.id,
+                sourceQuotationNo: quotation.docNo || '',
+                date: new Date().toISOString().substr(0, 10),
+                dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().substr(0, 10)
+            };
+            this.clientSavedForDocument = Boolean(this.docForm.customerId);
+            this.generateDocNo();
+            this.switchTab('document-quotations');
+            this.showNotify(`Invoice draft prepared from ${quotation.docNo}. Review it, then Save as Draft or Send to Client.`);
+        },
+        async reviewPaymentProof(invoice, approved) {
+            if (!this.canProcessBilling || !invoice?.paymentProofUrl) { this.showNotify('You do not have a payment proof to review.', 'error'); return; }
+            const { confirmed, note } = await this.askConfirmWithNote({
+                title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
+                message: approved
+                    ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.`
+                    : `${invoice.docNo} stays Unpaid. The client will be asked to upload a corrected proof.`,
+                confirmLabel: approved ? 'Verify and Mark Paid' : 'Reject Proof',
+                danger: !approved,
+                noteLabel: approved ? 'Verification note (optional)' : 'Reason for rejection',
+                notePlaceholder: approved ? 'Reference checked by Finance' : 'Explain what the client needs to correct'
+            });
+            if (!confirmed) return;
+            try {
+                await this.runBillingWorkflow('payment-proof-reviewed', invoice.id, { decision: approved ? 'approved' : 'rejected', note });
+                this.logAudit('UPDATE', `${approved ? 'Verified' : 'Rejected'} payment proof for ${invoice.docNo}`);
+                this.showNotify(approved ? `${invoice.docNo} is marked Paid.` : `Payment proof for ${invoice.docNo} was rejected; client has been notified.`);
+            } catch (error) {
+                console.error('Payment proof review failed:', error);
+                this.showNotify(error.message || 'Unable to review the payment proof.', 'error');
+            }
+        },
+        async discardInvoiceDraft(invoice) {
+            if (!this.isFullAccessRole || invoice?.type !== 'Invoice' || invoice.status !== 'Draft') {
+                this.showNotify('Only a Director or Superadmin can discard an unsent invoice draft.', 'error'); return;
+            }
+            if (!await this.askConfirm({ title: 'Discard invoice draft?', message: `${invoice.docNo} has not been sent to the client and will be permanently removed.`, confirmLabel: 'Discard Draft', danger: true })) return;
+            try {
+                await deleteDoc(doc(db, 'docs', invoice.id));
+                this.logAudit('DELETE', `Discarded unsent invoice draft ${invoice.docNo}`);
+                this.showNotify('Invoice draft discarded.');
+            } catch (error) {
+                console.error('Invoice draft discard failed:', error);
+                this.showNotify('Unable to discard this invoice draft.', 'error');
+            }
+        },
         
         async saveDocRecord() {
             try {
@@ -6589,7 +6716,27 @@ Note: "${note}"` : ''}`
                 // always sets docForm.customerId first), so this is a defensive
                 // backstop, not the primary mechanism.
                 if (!payload.raw.customerId) { this.showNotify('This document is missing its linked client ID — reselect a client from Client Information before saving this document.'); return false; }
-                await setDoc(doc(db, "docs", docId), payload, { merge: true }); this.editingDocId = docId; this.showNotify(`Document saved.`); return true;
+                if (payload.type === 'Quotation' && !payload.raw.projectId) { this.showNotify('Select the assigned project/PIC before saving a quotation.'); return false; }
+                const previous = this.docHistory.find(item => item.id === docId);
+                const isInvoiceBeingSent = payload.type === 'Invoice' && payload.status === 'Unpaid' && (!previous || previous.status === 'Draft' || !previous.invoiceSentAt);
+                if (isInvoiceBeingSent) {
+                    payload.invoiceWorkflowStatus = 'Sending to Client';
+                    payload.raw.invoiceWorkflowStatus = 'Sending to Client';
+                } else if (payload.type === 'Invoice' && payload.status === 'Draft') {
+                    payload.invoiceWorkflowStatus = 'Draft — Finance Review';
+                    payload.raw.invoiceWorkflowStatus = 'Draft — Finance Review';
+                }
+                await setDoc(doc(db, "docs", docId), payload, { merge: true });
+                this.editingDocId = docId;
+                if (isInvoiceBeingSent) {
+                    if (payload.raw.sourceQuotationId) await updateDoc(doc(db, 'docs', payload.raw.sourceQuotationId), { status: 'Invoiced', invoiceDocId: docId, invoiceCreatedAt: new Date().toISOString() });
+                    try { await this.runBillingWorkflow('invoice-sent', docId); }
+                    catch (workflowError) { console.error('Invoice notification workflow failed:', workflowError); this.showNotify('Invoice was saved, but its notification will be retried from the billing queue.', 'error'); return false; }
+                    this.showNotify(`Invoice sent to Client and recorded in the billing workflow.`);
+                } else {
+                    this.showNotify(payload.status === 'Draft' ? 'Invoice draft saved. It is not visible to the Client.' : 'Document saved.');
+                }
+                return true;
             } catch (error) { console.error('Document save failed:', error); this.showNotify('Unable to save document. Check the attachment size and try again.'); return false; }
         },
         async savePayslipRecord() {
@@ -6733,7 +6880,7 @@ Note: "${note}"` : ''}`
         },
         editRecord(item) {
             this.mobileMenuOpen = false;
-            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.raw.status || item.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); } this.switchTab('document-quotations'); }
+            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.status || item.raw.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); this.clientSavedForDocument = Boolean(this.docForm.customerId); } this.switchTab('document-quotations'); }
             else if (item.isPay) { this.editingPayId = item.id; if (item.raw) { this.payForm = JSON.parse(JSON.stringify(item.raw)); this.selectedPayEmployeeId = this.payForm.empNo || ''; } this.autoCalculatePayroll(); this.switchTab('payslip-generator'); }
             else if (item.isVoucher) this.editPaymentVoucher(item);
             else if (item.isClaim) this.editClaimRecord(item);

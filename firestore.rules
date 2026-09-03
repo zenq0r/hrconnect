@@ -239,13 +239,16 @@ service cloud.firestore {
     match /docs/{docId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() || isIT() ||
-        (isClient() && resource.data.raw.clientEmail == request.auth.token.email) ||
+        // An invoice draft belongs to the Finance workspace until it is formally
+        // issued. Clients never see a partial/unsent bill in their document list.
+        (isClient() && (resource.data.type != 'Invoice' || resource.data.status != 'Draft') && resource.data.raw.clientEmail == request.auth.token.email) ||
         (
           // Multi-user Client Portal: a secondary authorized email (see
           // customers/{id}.additionalClientEmails) doesn't match raw.clientEmail
           // (always the primary contact's), so fall back to the linked customer
           // record the same way client_documents does.
           isClient() &&
+          (resource.data.type != 'Invoice' || resource.data.status != 'Draft') &&
           resource.data.raw.customerId is string &&
           resource.data.raw.customerId.size() > 0 &&
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
@@ -297,6 +300,13 @@ service cloud.firestore {
         ])
       );
       allow delete: if isAdmin();
+    }
+
+    // Idempotency/audit markers for the trusted /api/billing-workflow endpoint.
+    // The Admin SDK alone writes these; browser sessions cannot forge a workflow
+    // handover or suppress a notification by creating its marker first.
+    match /billing_events/{eventId} {
+      allow read, write: if false;
     }
 
     // Client Document Repository — centralized JPEG/JPG/PNG/PDF storage metadata per client.
