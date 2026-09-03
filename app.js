@@ -9,6 +9,7 @@ import {
     collection,
     doc,
     getDoc,
+    getDocFromServer,
     setDoc,
     updateDoc,
     deleteDoc,
@@ -3131,7 +3132,6 @@ Note: "${note}"` : ''}`
                 // check must go to Firestore's server rather than falling back
                 // to persistence. Network failures are handled below as
                 // transient and keep the valid session open.
-                const { getDocFromServer } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
                 const snapshot = await getDocFromServer(doc(db, 'users', user.uid));
                 if (!snapshot.exists()) return !this.isSeedAdminEmail(user.email);
                 return !this.isPortalEmailAllowed(user.email, snapshot.data()?.role || '');
@@ -4441,7 +4441,15 @@ Note: "${note}"` : ''}`
 
                 await this.completeLogin(loginContext);
             } catch (error) {
-                this.loginError = 'Invalid email or password credentials / System Error.';
+                console.error('Sign-in failed:', error);
+                // The credentials were accepted the moment signInWithEmailAndPassword
+                // resolved, so a later Firestore failure is a connection problem, not a
+                // bad password. Saying "invalid credentials" there sends the user off
+                // retyping a password that was never wrong.
+                const isCredentialFailure = String(error?.code || '').startsWith('auth/');
+                this.loginError = isCredentialFailure
+                    ? 'Invalid email or password credentials / System Error.'
+                    : 'We could not reach the portal to finish signing you in. Please check your connection and try again.';
                 this.loginLoading = false;
             } finally {
                 this.interactiveLoginInProgress = false;
@@ -4726,9 +4734,16 @@ Note: "${note}"` : ''}`
                     mustChangePassword: false
                 };
             }
-            const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
             const userRef = doc(db, 'users', firebaseUser.uid);
-            const userSnapshot = await getDoc(userRef);
+            // Both callers read a null return as "not provisioned or revoked" and
+            // sign the account out saying so. getDoc() falls back to the local
+            // cache when Firestore's transport is down, and a document that was
+            // never cached comes back as a missing one rather than an error — so
+            // a stalled connection would accuse a perfectly valid account of
+            // having had its access removed. Confirm against the server: a real
+            // outage now throws, and the callers report it as a session that
+            // could not be restored.
+            const userSnapshot = await getDocFromServer(userRef);
             if (userSnapshot.exists()) return userSnapshot.data();
 
             const pendingRef = doc(db, 'pending_access', normalizedEmail);

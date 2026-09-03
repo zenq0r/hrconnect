@@ -501,8 +501,7 @@ test('a valid portal session is never revoked on an unconfirmed signal', () => {
     // against the server first.
     assert.match(app, /async isPortalAccessTrulyRevoked\(reason\)/);
     assert.match(app, /async revokePortalAccessIfConfirmed\(reason\)/);
-    assert.match(app, /await user\.getIdToken\(true\);[\s\S]*const \{ getDocFromServer \}/);
-    assert.match(app, /getDocFromServer\(doc\(db, 'users', user\.uid\)\)/);
+    assert.match(app, /await user\.getIdToken\(true\);(\s*\/\/[^\n]*)*\s*const snapshot = await getDocFromServer\(doc\(db, 'users', user\.uid\)\);/);
     // A transient failure keeps the session; only a freshly-minted token that is
     // still refused counts as a real revocation.
     assert.match(app, /if \(error\?\.code === 'permission-denied'\) return !this\.isSeedAdminEmail\(user\.email\);/);
@@ -510,6 +509,39 @@ test('a valid portal session is never revoked on an unconfirmed signal', () => {
     const listeners = app.slice(app.indexOf('const userSubscription = canReadUserDirectory'), app.indexOf('const initialLoads = ['));
     assert.doesNotMatch(listeners, /this\.revokeCurrentPortalAccess\(/);
     assert.match(listeners, /this\.revokePortalAccessIfConfirmed\(/);
+});
+
+test('an unreachable Firestore is never reported as removed portal access', () => {
+    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const config = fs.readFileSync(path.join(__dirname, '..', 'firebase-config.js'), 'utf8');
+
+    // getDoc() answers from the local cache once Firestore's transport is down, and
+    // a document that was never cached comes back missing rather than as an error.
+    // Both callers of this loader turn a null return into a sign-out that tells the
+    // account an administrator revoked it, so the users/{uid} read that decides it
+    // has to be server-confirmed.
+    const loader = app.slice(app.indexOf('async loadOrMigrateUserMetadata(firebaseUser)'), app.indexOf('sendWelcomeEmail(userForm)'));
+    assert.ok(loader.length > 0, 'loadOrMigrateUserMetadata not found in app.js');
+    assert.match(loader, /const userSnapshot = await getDocFromServer\(userRef\);/);
+    assert.doesNotMatch(loader, /getDoc\(userRef\)/);
+
+    // That accusing message stays reserved for an answer the server actually gave.
+    const provisioningRefusals = app.match(/not provisioned or your access has been revoked/g) || [];
+    assert.equal(provisioningRefusals.length, 2);
+    assert.equal((app.match(/if \(!userData && !isSeedAdmin\)/g) || []).length, 2);
+
+    // Credentials were already accepted by the time the loader runs, so a failure
+    // there is a connection problem — never a wrong password the user should retype.
+    assert.match(app, /const isCredentialFailure = String\(error\?\.code \|\| ''\)\.startsWith\('auth\/'\);/);
+    assert.match(app, /isCredentialFailure\s*\?\s*'Invalid email or password credentials[^']*'\s*:\s*'We could not reach the portal/);
+
+    // One Firestore module instance for the whole portal: a second copy pulled from
+    // a hardcoded CDN URL would be handed a DocumentReference it does not recognise,
+    // and it would fail on exactly the reads that decide whether to end a session.
+    assert.match(app, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "\.\/firebase-config\.js";/);
+    assert.doesNotMatch(app, /getDocFromServer[^\n]*await import\(/);
+    assert.match(config, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "https:\/\/www\.gstatic\.com\/firebasejs\/[\d.]+\/firebase-firestore\.js";/);
+    assert.equal((config.match(/^\s+getDocFromServer,\s*$/gm) || []).length, 2);
 });
 
 test('a normal logout cannot be labelled as removed portal access', () => {
