@@ -365,7 +365,8 @@ test('legacy Project Activities can only be re-linked to one matching registered
 
 test('Client Portal does not render obsolete dashboard layers or overlapping hero grid', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-    assert.match(source, /<div v-if="currentTab === 'dashboard'"/);
+    assert.match(source, /currentTab === 'dashboard' && userProfile\.role !== 'Client'/);
+    assert.match(source, /zq-client-workspace/);
     assert.doesNotMatch(source, /portal-hero-dot-/);
     assert.match(source, /relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between/);
 });
