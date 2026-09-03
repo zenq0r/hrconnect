@@ -16,7 +16,7 @@ test('accepted quotations use a server-owned PIC and Finance handover', () => {
     assert.match(handler, /recipientsForRoles\(db, \['Account', 'Director', 'Superadmin'\]\)/);
     assert.match(handler, /document\.clientDecisionByUid !== identity\.uid/);
     assert.match(page, /Assigned Project \/ PIC/);
-    assert.match(app, /Select the assigned project\/PIC before saving a quotation/);
+    assert.match(app, /Select the exact assigned project\/PIC before saving this billing document/);
 });
 
 test('invoice draft, issue, proof and verification form one controlled flow', () => {
@@ -28,6 +28,7 @@ test('invoice draft, issue, proof and verification form one controlled flow', ()
     assert.match(app, /createInvoiceFromQuotation/);
     assert.match(app, /status: 'Draft'/);
     assert.match(app, /runBillingWorkflow\('invoice-sent', docId\)/);
+    assert.match(app, /runBillingWorkflow\('quotation-issued', docId\)/);
     assert.match(app, /runBillingWorkflow\('payment-proof-submitted', d\.id\)/);
     assert.match(app, /runBillingWorkflow\('payment-proof-reviewed', invoice\.id/);
     assert.match(handler, /paymentProofReviewStatus: approved \? 'Verified' : 'Rejected'/);
@@ -65,4 +66,18 @@ test('only the PIC, HR, Finance and full access roles receive Client Billing Wor
     assert.match(handler, /INVOICE_MANAGEMENT_ROLES = new Set\(\['Director', 'Superadmin'\]\)/);
     assert.match(handler, /PAYMENT_REVIEW_ROLES = new Set\(\['HR', 'Account'\]\)/);
     assert.match(handler, /callerIsProjectPic/);
+});
+
+test('billing workflows are bound to the exact Client ID and assigned project', () => {
+    const app = read('app.js');
+    const handler = read('api/billing-workflow.js');
+
+    assert.match(app, /billingClientId: String\(this\.docForm\.customerId \|\| ''\)\.trim\(\)/);
+    assert.match(app, /billingProjectId: String\(this\.docForm\.projectId \|\| ''\)\.trim\(\)/);
+    assert.match(app, /The selected project belongs to a different Client ID/);
+    assert.match(handler, /const projectId = String\(raw\.projectId \|\| ''\)\.trim\(\)/);
+    assert.match(handler, /if \(!customerId \|\| !projectId\) return null/);
+    assert.match(handler, /String\(project\.clientDirectoryId \|\| ''\)\.trim\(\) === customerId/);
+    assert.doesNotMatch(handler, /where\('clientDirectoryId', '==', customerId\)/);
+    assert.match(handler, /action === 'quotation-issued'/);
 });

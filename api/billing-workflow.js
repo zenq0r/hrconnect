@@ -7,6 +7,9 @@ const { enforceRateLimit } = require('./_rateLimit');
 
 const INVOICE_MANAGEMENT_ROLES = new Set(['Director', 'Superadmin']);
 const PAYMENT_REVIEW_ROLES = new Set(['HR', 'Account']);
+// Quotation publishing can be performed by the document team. Invoice issuing
+// remains restricted to the full-access roles above.
+const DOCUMENT_ISSUE_ROLES = new Set(['Director', 'Superadmin', 'HR', 'Account']);
 
 function clientOwnsCustomer(customer, email) {
     const normalized = normalizeEmail(email);
@@ -50,16 +53,17 @@ async function createPortalNotifications(db, emails, notification) {
 
 async function resolveProject(db, document) {
     const raw = document.raw || {};
-    if (raw.projectId) {
-        const direct = await db.collection('projects').doc(String(raw.projectId)).get();
-        if (direct.exists) return { id: direct.id, ...direct.data() };
-    }
-    const customerId = String(raw.customerId || '');
-    if (!customerId) return null;
-    const projects = await db.collection('projects').where('clientDirectoryId', '==', customerId).get();
-    return projects.docs
-        .map((entry) => ({ id: entry.id, ...entry.data() }))
-        .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')))[0] || null;
+    const customerId = String(raw.customerId || '').trim();
+    const projectId = String(raw.projectId || '').trim();
+    // Never infer a project by choosing a Client's latest task. A PIC can own
+    // several Client tasks, so every billing document must name its exact
+    // customer and project, and the pair must agree before notifications or
+    // handovers can be created.
+    if (!customerId || !projectId) return null;
+    const direct = await db.collection('projects').doc(projectId).get();
+    if (!direct.exists) return null;
+    const project = { id: direct.id, ...direct.data() };
+    return String(project.clientDirectoryId || '').trim() === customerId ? project : null;
 }
 
 async function callerIsProjectPic(db, document, email) {
@@ -120,7 +124,7 @@ module.exports = async function handler(req, res) {
         const caller = callerSnapshot.exists ? callerSnapshot.data() : null;
         const callerRole = caller?.role || (isSeedAdminEmail(identity.email) ? 'Superadmin' : '');
         const { action, documentId } = req.body || {};
-        if (!['quotation-accepted', 'invoice-sent', 'payment-proof-submitted', 'payment-proof-reviewed'].includes(action) || typeof documentId !== 'string' || !documentId) {
+        if (!['quotation-issued', 'quotation-accepted', 'invoice-sent', 'payment-proof-submitted', 'payment-proof-reviewed'].includes(action) || typeof documentId !== 'string' || !documentId) {
             res.status(400).json({ error: 'Invalid workflow request.' }); return;
         }
         const rate = await enforceRateLimit(db, { scope: 'billing-workflow', key: identity.uid, limit: 20, windowMs: 5 * 60 * 1000 });
@@ -136,19 +140,53 @@ module.exports = async function handler(req, res) {
         const clientOwnsDocument = callerRole === 'Client' && clientOwnsCustomer(customer, identity.email);
         const timestamp = new Date().toISOString();
 
+        if (action === 'quotation-issued') {
+            if (!DOCUMENT_ISSUE_ROLES.has(callerRole) || document.type !== 'Quotation' || document.status !== 'Open') {
+                res.status(403).json({ error: 'Only an authorized document manager may issue an open quotation.' }); return;
+            }
+            const project = await resolveProject(db, document);
+            if (!customer || !project) {
+                res.status(409).json({ error: 'The document Client ID and assigned project do not match. Re-select the Client and its project before issuing it.' }); return;
+            }
+            const eventRef = db.collection('billing_events').doc(`${documentId}_quotation_issued`);
+            const created = await db.runTransaction(async (transaction) => {
+                if ((await transaction.get(eventRef)).exists) return false;
+                transaction.create(eventRef, { action, documentId, issuedByUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
+                transaction.update(documentRef, {
+                    billingWorkflowStatus: 'Quotation Sent to Client',
+                    billingWorkflowUpdatedAt: timestamp,
+                    billingClientId: customerId,
+                    billingProjectId: project.id,
+                    billingPicEmail: normalizeEmail(project.ownerEmail)
+                });
+                return true;
+            });
+            if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
+            const recipients = [customer.clientEmail, ...(Array.isArray(customer.additionalClientEmails) ? customer.additionalClientEmails : [])];
+            const count = await createPortalNotifications(db, recipients, {
+                title: `Quotation issued — ${document.docNo}`,
+                message: `Your quotation for ${document.name || 'your account'} is ready. Review it in Documents & Billing.`,
+                actionLabel: 'OPEN QUOTATION'
+            });
+            res.status(200).json({ success: true, recipients: count }); return;
+        }
+
         if (action === 'quotation-accepted') {
             if (!clientOwnsDocument || document.type !== 'Quotation' || document.status !== 'Accepted' || document.clientDecisionByUid !== identity.uid) {
                 res.status(403).json({ error: 'This accepted quotation cannot start a workflow for this account.' }); return;
             }
+            const project = await resolveProject(db, document);
+            if (!customer || !project) {
+                res.status(409).json({ error: 'The accepted quotation has an invalid Client ID and project link. No workflow was started.' }); return;
+            }
             const eventRef = db.collection('billing_events').doc(`${documentId}_quotation_accepted`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
-                transaction.create(eventRef, { action, documentId, clientUid: identity.uid, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Awaiting Finance Invoice', billingWorkflowUpdatedAt: timestamp });
+                transaction.create(eventRef, { action, documentId, clientUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
+                transaction.update(documentRef, { billingWorkflowStatus: 'Awaiting Finance Invoice', billingWorkflowUpdatedAt: timestamp, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
-            const project = await resolveProject(db, document);
             await createPicHandover(db, documentId, document, project, timestamp);
             const recipients = [project?.ownerEmail, ...(await recipientsForRoles(db, ['Account', 'Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
@@ -164,11 +202,14 @@ module.exports = async function handler(req, res) {
                 res.status(403).json({ error: 'This payment proof cannot be submitted for workflow review.' }); return;
             }
             const project = await resolveProject(db, document);
+            if (!customer || !project) {
+                res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. Payment proof was not routed.' }); return;
+            }
             const eventRef = db.collection('billing_events').doc(`${documentId}_proof_${String(document.paymentProofAt || '').replace(/[^a-zA-Z0-9]/g, '')}`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
-                transaction.create(eventRef, { action, documentId, clientUid: identity.uid, createdAt: timestamp });
-                transaction.update(documentRef, { paymentProofReviewStatus: 'Submitted', billingWorkflowStatus: 'Payment Proof Review', billingWorkflowUpdatedAt: timestamp, billingPicEmail: normalizeEmail(project?.ownerEmail) });
+                transaction.create(eventRef, { action, documentId, clientUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
+                transaction.update(documentRef, { paymentProofReviewStatus: 'Submitted', billingWorkflowStatus: 'Payment Proof Review', billingWorkflowUpdatedAt: timestamp, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
@@ -192,11 +233,14 @@ module.exports = async function handler(req, res) {
             }
             if (document.status !== 'Unpaid') { res.status(409).json({ error: 'Only an unpaid invoice can be sent to the client.' }); return; }
             const project = await resolveProject(db, document);
+            if (!customer || !project) {
+                res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. It was not sent.' }); return;
+            }
             const eventRef = db.collection('billing_events').doc(`${documentId}_invoice_sent`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
-                transaction.create(eventRef, { action, documentId, sentByUid: identity.uid, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingPicEmail: normalizeEmail(project?.ownerEmail) });
+                transaction.create(eventRef, { action, documentId, sentByUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
+                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
@@ -219,6 +263,10 @@ module.exports = async function handler(req, res) {
             if (!document.paymentProofUrl || !['Submitted', 'Rejected'].includes(document.paymentProofReviewStatus || 'Submitted')) {
                 res.status(409).json({ error: 'No submitted payment proof is awaiting review.' }); return;
             }
+            const project = await resolveProject(db, document);
+            if (!customer || !project) {
+                res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. Payment proof cannot be reviewed.' }); return;
+            }
             const approved = req.body?.decision === 'approved';
             const note = safeNote(req.body?.note);
             const nextStatus = approved ? 'Paid' : 'Unpaid';
@@ -232,9 +280,11 @@ module.exports = async function handler(req, res) {
                 paymentProofReviewedByName: caller?.name || identity.email,
                 paymentProofReviewNote: note,
                 billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
-                billingWorkflowUpdatedAt: timestamp
+                billingWorkflowUpdatedAt: timestamp,
+                billingClientId: customerId,
+                billingProjectId: project.id,
+                billingPicEmail: normalizeEmail(project.ownerEmail)
             });
-            const project = await resolveProject(db, document);
             const recipients = [customer?.clientEmail, ...(Array.isArray(customer?.additionalClientEmails) ? customer.additionalClientEmails : []), project?.ownerEmail, ...(await recipientsForRoles(db, ['Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
                 title: approved ? `Payment verified — ${document.docNo}` : `Payment proof needs attention — ${document.docNo}`,
