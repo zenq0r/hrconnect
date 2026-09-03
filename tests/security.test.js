@@ -501,7 +501,8 @@ test('a valid portal session is never revoked on an unconfirmed signal', () => {
     // against the server first.
     assert.match(app, /async isPortalAccessTrulyRevoked\(reason\)/);
     assert.match(app, /async revokePortalAccessIfConfirmed\(reason\)/);
-    assert.match(app, /await user\.getIdToken\(true\);\s*const \{ getDoc \}/);
+    assert.match(app, /await user\.getIdToken\(true\);[\s\S]*const \{ getDocFromServer \}/);
+    assert.match(app, /getDocFromServer\(doc\(db, 'users', user\.uid\)\)/);
     // A transient failure keeps the session; only a freshly-minted token that is
     // still refused counts as a real revocation.
     assert.match(app, /if \(error\?\.code === 'permission-denied'\) return !this\.isSeedAdminEmail\(user\.email\);/);

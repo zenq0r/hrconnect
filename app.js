@@ -3125,8 +3125,14 @@ Note: "${note}"` : ''}`
                 // Re-mint the token first: the listener that raised this may have
                 // been holding the pre-password-change one.
                 await user.getIdToken(true);
-                const { getDoc } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
-                const snapshot = await getDoc(doc(db, 'users', user.uid));
+                // A listener can first emit its local cache while the freshly
+                // minted token is still settling. A cached miss is not evidence
+                // that an administrator removed the account, so this decisive
+                // check must go to Firestore's server rather than falling back
+                // to persistence. Network failures are handled below as
+                // transient and keep the valid session open.
+                const { getDocFromServer } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+                const snapshot = await getDocFromServer(doc(db, 'users', user.uid));
                 if (!snapshot.exists()) return !this.isSeedAdminEmail(user.email);
                 return !this.isPortalEmailAllowed(user.email, snapshot.data()?.role || '');
             } catch (error) {
