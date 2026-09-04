@@ -135,3 +135,56 @@ test('presence is written to the record that stores your email, never one that s
     // it is simply no longer trusted to say which record to write to.
     assert.match(fn, /presenceUid: auth\.currentUser\.uid/);
 });
+
+test('a Client login may not use a company domain, and staff may use nothing else', () => {
+    const src = appSource();
+    const start = src.indexOf('        isPortalEmailAllowed(email, role) {');
+    const end = src.indexOf('        portalEmailRejectionMessage(role) {');
+    assert.ok(start > -1 && end > start, 'the portal email gate must remain in app.js');
+    const gate = new Function(`return { ${src.slice(start, end)} };`)();
+    gate.allowedStaffDomains = ['zenq0r.com', 'zenqor.com.my'];
+    gate.isStaffEmail = function (email) {
+        const e = String(email || '').toLowerCase().trim();
+        return /^[^\s@]+@[^\s@]+$/.test(e) && this.allowedStaffDomains.includes(e.split('@')[1]);
+    };
+
+    // A Client is somebody outside the company, so a company address is not a
+    // valid Client identity - both company domains, not just the one asked about.
+    for (const email of ['orang@zenqor.com.my', 'ORANG@ZENQOR.COM.MY', 'orang@zenq0r.com']) {
+        assert.equal(gate.isPortalEmailAllowed(email, 'Client'), false, `${email} must be refused as a Client`);
+    }
+    // Real client addresses keep working - these are the ones actually in use.
+    for (const email of ['zenqort@gmail.com', 'azziemahmad@gmail.com', 'azrul@monsta.com', 'nurhaniffzaid@publicimage.asia']) {
+        assert.equal(gate.isPortalEmailAllowed(email, 'Client'), true, `${email} must still sign in as a Client`);
+    }
+    // And the original direction is untouched.
+    for (const role of ['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff']) {
+        assert.equal(gate.isPortalEmailAllowed('person@zenqor.com.my', role), true);
+        assert.equal(gate.isPortalEmailAllowed('person@gmail.com', role), false);
+    }
+});
+
+test('the refusal is phrased for the side it failed on', () => {
+    const src = appSource();
+    const start = src.indexOf('        portalEmailRejectionMessage(role) {');
+    const fn = src.slice(start, start + 420);
+    // Telling a Client that staff sign-in needs @zenqor.com.my reads as an
+    // instruction to go and get one.
+    assert.match(fn, /role === 'Client'/);
+    assert.match(fn, /Client access cannot use a company address/);
+    assert.match(fn, /Staff and Management sign-in requires/);
+    // Both sign-in paths use it rather than hardcoding the staff wording.
+    assert.equal((src.match(/this\.loginError = this\.portalEmailRejectionMessage\(role\);/g) || []).length, 2);
+});
+
+test('the rule is enforced server-side too, not only in the portal forms', () => {
+    const rulesSrc = read('firestore.rules');
+    const fn = rulesSrc.slice(rulesSrc.indexOf('function hasAllowedRoleEmail(data)'), rulesSrc.indexOf('// Multi-user Client Portal access'));
+    assert.match(fn, /data\.role == 'Client' && !hasApprovedCompanyEmail\(data\.email\)/);
+    assert.match(fn, /data\.role != 'Client' && hasApprovedCompanyEmail\(data\.email\)/);
+
+    // And in the claims endpoint, so an account created straight in the Firebase
+    // console - past every form - still cannot reach Storage as a Client.
+    const api = read(path.join('api', 'sync-user-claims.js'));
+    assert.match(api, /if \(role === 'Client' && isApprovedStaffEmail\(email\)\) \{/);
+});

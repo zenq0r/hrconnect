@@ -3332,8 +3332,24 @@ createApp({
         approvedStaffDomainsLabel() {
             return this.allowedStaffDomains.map(domain => `@${domain}`).join(' or ');
         },
+        // The two directions of one rule: a staff or management login must be on
+        // an approved company domain, and a Client login must NOT be. Client
+        // access used to be domain-neutral, which let a company address be
+        // registered as an external customer's login - never a security hole,
+        // since the role still decides which portal admits it, but a confusing
+        // thing to find in the directory and an easy way to mis-provision
+        // somebody. A Client is by definition somebody outside the company, so
+        // their sign-in address is too.
         isPortalEmailAllowed(email, role) {
-            return role === 'Client' || this.isStaffEmail(email);
+            return role === 'Client' ? !this.isStaffEmail(email) : this.isStaffEmail(email);
+        },
+        // Why a given address was refused, phrased for the side it failed on.
+        // Telling a Client that "Staff sign-in requires @zenqor.com.my" would
+        // read as an instruction to go and get one.
+        portalEmailRejectionMessage(role) {
+            return role === 'Client'
+                ? `Client access cannot use a company address (${this.approvedStaffDomainsLabel()}). Register the client's own email instead.`
+                : `Staff and Management sign-in requires ${this.approvedStaffDomainsLabel()}.`;
         },
         // A locked account keeps a valid Firebase credential and a valid portal
         // record - the lock is this portal's own gate, so all three entry points
@@ -4751,7 +4767,7 @@ createApp({
                 if (isSeedAdmin) role = 'Superadmin';
                 if (!this.isPortalEmailAllowed(firebaseUser.email, role)) {
                     await signOut(auth);
-                    this.loginError = `Staff and Management sign-in requires ${this.approvedStaffDomainsLabel()}.`;
+                    this.loginError = this.portalEmailRejectionMessage(role);
                     this.loginLoading = false;
                     return;
                 }
@@ -5122,8 +5138,10 @@ createApp({
             try {
                 if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
                 if (!this.userModal.form.name || !this.userModal.form.email || (this.userModal.isEdit === false && !this.userModal.form.password)) { this.showNotify("Please fill out all required fields."); return; }
-                if (this.userModal.form.role !== 'Client' && !this.isStaffEmail(this.userModal.form.email)) {
-                    this.showNotify(`Staff and Management access requires ${this.approvedStaffDomainsLabel()}. Client access may use the email registered by staff.`);
+                // Both directions, checked before the account exists rather than
+                // discovered at the first sign-in attempt.
+                if (!this.isPortalEmailAllowed(this.userModal.form.email, this.userModal.form.role)) {
+                    this.showNotify(this.portalEmailRejectionMessage(this.userModal.form.role));
                     return;
                 }
 
@@ -8128,7 +8146,7 @@ createApp({
                     const mustChangePassword = userData?.mustChangePassword === true;
                     if (isSeedAdmin) role = 'Superadmin';
                     if (!this.isPortalEmailAllowed(firebaseUser.email, role)) {
-                        this.loginError = `Staff and Management sign-in requires ${this.approvedStaffDomainsLabel()}.`;
+                        this.loginError = this.portalEmailRejectionMessage(role);
                         await signOut(auth);
                         return;
                     }

@@ -70,6 +70,14 @@ module.exports = async function handler(req, res) {
             res.status(403).json({ error: 'Staff and Management accounts require an approved company email domain.' });
             return;
         }
+        // The mirror of the rule above. A Client is somebody outside the company,
+        // so a company address is not a valid Client identity — refusing the
+        // claims here means such an account could not reach Storage even if one
+        // were created straight in the Firebase console, past the portal's forms.
+        if (role === 'Client' && isApprovedStaffEmail(email)) {
+            res.status(403).json({ error: 'Client accounts cannot use a company email domain.' });
+            return;
+        }
 
         // A locked account is issued no claims at all, so a re-sync can never
         // hand a locked session its Storage access back — see _portalClaims.js.

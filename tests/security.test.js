@@ -246,8 +246,15 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(appSource, /allowedStaffDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
     assert.match(appSource, /this\.allowedStaffDomains\.includes\(emailDomain\)/);
     assert.match(appSource, /this\.authView === 'staff' && !this\.isStaffEmail\(this\.loginForm\.email\)/);
-    assert.match(appSource, /this\.userModal\.form\.role !== 'Client' && !this\.isStaffEmail\(this\.userModal\.form\.email\)/);
-    assert.match(appSource, /return role === 'Client' \|\| this\.isStaffEmail\(email\)/);
+    // The provisioning form now runs the same gate as sign-in, in both
+    // directions, rather than only checking the staff side of it.
+    assert.match(appSource, /if \(!this\.isPortalEmailAllowed\(this\.userModal\.form\.email, this\.userModal\.form\.role\)\)/);
+    // The gate itself is symmetrical: staff must be on a company domain and a
+    // Client must not be. It used to admit any address at all for a Client,
+    // which allowed a company address to be provisioned as an external
+    // customer's login. Registered client emails on outside domains — the ones
+    // actually in use — are unaffected, which the assertions below confirm.
+    assert.match(appSource, /return role === 'Client' \? !this\.isStaffEmail\(email\) : this\.isStaffEmail\(email\)/);
     assert.match(appSource, /isSeedAdminEmail\(email\)/);
     assert.match(appSource, /if \(this\.isSeedAdminEmail\(normalizedEmail\)\)/);
     assert.match(appSource, /!this\.isPortalEmailAllowed\(this\.userProfile\.email, currentUser\.role\) && !this\.isSeedAdminEmail\(this\.userProfile\.email\)/);

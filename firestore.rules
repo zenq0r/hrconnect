@@ -148,12 +148,16 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/customers/$(clientDirectoryId)).data.clientTaskCreatedAt.size() > 0;
     }
 
+    // The company domains are for staff and management, and for nobody else. A
+    // Client is by definition somebody outside the company, so their sign-in
+    // address must NOT be on an approved company domain — the mirror image of
+    // the rule that has always applied to staff. Client access used to be
+    // domain-neutral here, which allowed a company address to be provisioned as
+    // an external customer's login.
     function hasAllowedRoleEmail(data) {
-      return (
-        data.role == 'Client'
-      ) || (
-        data.role != 'Client' &&
-        data.email is string && hasApprovedCompanyEmail(data.email)
+      return data.email is string && (
+        (data.role == 'Client' && !hasApprovedCompanyEmail(data.email)) ||
+        (data.role != 'Client' && hasApprovedCompanyEmail(data.email))
       );
     }
 
