@@ -7,6 +7,7 @@
 // kind of role/ownership check in Storage Rules.
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isApprovedStaffEmail, normalizeEmail, isSeedAdminEmail } = require('./_security');
+const { buildPortalClaims } = require('./_portalClaims');
 
 
 module.exports = async function handler(req, res) {
@@ -70,19 +71,9 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        const claims = { role };
-        if (role === 'Client' && email) {
-            // Primary contact match first, then fall back to additionalClientEmails —
-            // lets a client company authorize more than one login (e.g. their finance
-            // contact) against the same customers/{clientDirectoryId} record.
-            let custSnap = await db.collection('customers')
-                .where('clientEmail', '==', email).limit(1).get();
-            if (custSnap.empty) {
-                custSnap = await db.collection('customers')
-                    .where('additionalClientEmails', 'array-contains', email).limit(1).get();
-            }
-            if (!custSnap.empty) claims.clientDirectoryId = custSnap.docs[0].id;
-        }
+        // A locked account is issued no claims at all, so a re-sync can never
+        // hand a locked session its Storage access back — see _portalClaims.js.
+        const claims = await buildPortalClaims(db, { role, email, accessLocked: targetDoc.data().accessLocked });
 
         await auth.setCustomUserClaims(targetUid, claims);
         res.status(200).json({ success: true, claims });

@@ -192,3 +192,45 @@ test('LOCK and UNLOCK are audited as themselves, not as a generic update', () =>
     assert.match(auditApi, /'UPLOAD_DOCUMENT', 'DELETE_DOCUMENT', 'LOCK', 'UNLOCK'/);
     assert.match(appSource(), /this\.logAudit\(locking \? 'LOCK' : 'UNLOCK'/);
 });
+
+test('a lock reaches Storage, not only Firestore', () => {
+    const claims = read(path.join('api', '_portalClaims.js'));
+    // storage.rules reads the role off the ID token, so a locked account must
+    // carry no claims at all — otherwise the portal closes and client_documents
+    // stays open, which is a lock in name only.
+    assert.match(claims, /if \(accessLocked === true\) return \{\};/);
+
+    // Both claim writers go through that one helper, so they cannot disagree
+    // about what a locked account may carry.
+    const sync = read(path.join('api', 'sync-user-claims.js'));
+    assert.match(sync, /require\('\.\/_portalClaims'\)/);
+    assert.match(sync, /buildPortalClaims\(db, \{ role, email, accessLocked: targetDoc\.data\(\)\.accessLocked \}\)/);
+    assert.doesNotMatch(sync, /where\('clientEmail', '==', email\)/, 'the claim shape must live in one place only');
+});
+
+test('locking is a server action, and refuses what the interface refuses', () => {
+    const endpoint = read(path.join('api', 'set-portal-lock.js'));
+    assert.match(endpoint, /\['Superadmin', 'Director'\]\.includes\(callerRole\)/);
+    assert.match(endpoint, /callerDoc\.data\(\)\.accessLocked === true/, 'a locked admin must not keep locking others');
+    assert.match(endpoint, /locked && uid === decoded\.uid/, 'self-lock must be refused server-side too');
+    assert.match(endpoint, /isSeedAdminEmail\(targetData\.email\)/, 'the seed account must be refused server-side too');
+    // The actor is taken from the verified token, never from the request body.
+    assert.match(endpoint, /accessLockedBy: locked \? String\(decoded\.email \|\| ''\)/);
+    // Auth: no new token can be minted for a locked account.
+    assert.match(endpoint, /await auth\.revokeRefreshTokens\(uid\)/);
+    assert.match(endpoint, /await auth\.updateUser\(uid, \{ disabled: locked \}\)/);
+
+    // The browser calls it instead of writing the fields itself.
+    const app = appSource();
+    const toggle = app.slice(app.indexOf('async toggleStaffPortalLock(usr)'), app.indexOf('async requireStaffPortalPasswordChange(usr)'));
+    assert.match(toggle, /fetch\('\/api\/set-portal-lock'/);
+    assert.doesNotMatch(toggle, /setDoc\(/, 'the lock fields must not be written straight from the browser');
+});
+
+test('the restrictive half is always the part left applied', () => {
+    const endpoint = read(path.join('api', 'set-portal-lock.js'));
+    // No transaction spans Firestore, Storage claims and Auth, so the order is
+    // chosen so a failure between them can only leave the account MORE closed.
+    const ordering = endpoint.slice(endpoint.indexOf('if (locked) {'), endpoint.indexOf('res.status(200)'));
+    assert.match(ordering, /if \(locked\) \{\s*await writeAuth\(\);\s*await writeFirestore\(\);\s*\} else \{\s*await writeFirestore\(\);\s*await writeAuth\(\);\s*\}/);
+});

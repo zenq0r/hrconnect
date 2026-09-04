@@ -537,8 +537,14 @@ test('an unreachable Firestore is never reported as removed portal access', () =
 
     // Credentials were already accepted by the time the loader runs, so a failure
     // there is a connection problem — never a wrong password the user should retype.
-    assert.match(app, /const isCredentialFailure = String\(error\?\.code \|\| ''\)\.startsWith\('auth\/'\);/);
+    assert.match(app, /const errorCode = String\(error\?\.code \|\| ''\);/);
+    assert.match(app, /const isCredentialFailure = errorCode\.startsWith\('auth\/'\);/);
     assert.match(app, /isCredentialFailure\s*\?\s*'Invalid email or password credentials[^']*'\s*:\s*'We could not reach the portal/);
+    // A Staff Portal lock disables the Authentication account, so a locked
+    // account now fails at signInWithEmailAndPassword rather than at the
+    // Firestore check. That is not a wrong password either, and must not be
+    // reported as one — it has its own branch ahead of the generic auth/ case.
+    assert.match(app, /errorCode === 'auth\/user-disabled'/);
 
     // One copy of the SDK for the whole portal. Every symbol comes through
     // firebase-config.js, which pins the version in a single place; a second copy

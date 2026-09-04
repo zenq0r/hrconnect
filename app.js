@@ -4715,10 +4715,19 @@ createApp({
                 // resolved, so a later Firestore failure is a connection problem, not a
                 // bad password. Saying "invalid credentials" there sends the user off
                 // retyping a password that was never wrong.
-                const isCredentialFailure = String(error?.code || '').startsWith('auth/');
-                this.loginError = isCredentialFailure
-                    ? 'Invalid email or password credentials / System Error.'
-                    : 'We could not reach the portal to finish signing you in. Please check your connection and try again.';
+                const errorCode = String(error?.code || '');
+                const isCredentialFailure = errorCode.startsWith('auth/');
+                // A Staff Portal lock disables the Authentication account, so
+                // sign-in now fails here rather than at the Firestore check
+                // below it. Reporting that as a wrong password would send the
+                // person off resetting a password that was never the problem.
+                if (errorCode === 'auth/user-disabled') {
+                    this.loginError = 'Your portal access is locked. Please contact your administrator.';
+                } else {
+                    this.loginError = isCredentialFailure
+                        ? 'Invalid email or password credentials / System Error.'
+                        : 'We could not reach the portal to finish signing you in. Please check your connection and try again.';
+                }
                 this.loginLoading = false;
             } finally {
                 this.interactiveLoginInProgress = false;
@@ -5290,12 +5299,24 @@ createApp({
             if (!answer.confirmed) return;
             this.staffPortalBusyUid = usr.id;
             try {
-                await setDoc(doc(db, 'users', usr.id), {
-                    accessLocked: locking,
-                    accessLockedAt: locking ? new Date().toISOString() : '',
-                    accessLockedBy: locking ? String(this.userProfile.email || '') : '',
-                    accessLockReason: locking ? answer.note : ''
-                }, { merge: true });
+                // Routed through the Admin SDK rather than written from here. A
+                // lock has to reach Storage as well, and storage.rules reads the
+                // role from the ID token's custom claims, which only the server
+                // can clear — a Firestore write alone would close the portal and
+                // leave client_documents open. The endpoint also stamps who
+                // locked the account from its verified token, so that field
+                // cannot be forged. See api/set-portal-lock.js.
+                if (!auth.currentUser) throw new Error('Your session has ended. Sign in again, then retry.');
+                const idToken = await auth.currentUser.getIdToken();
+                const response = await fetch('/api/set-portal-lock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                    body: JSON.stringify({ uid: usr.id, locked: locking, reason: answer.note })
+                });
+                if (!response.ok) {
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error(body.error || 'Unable to change this account’s portal access.');
+                }
                 this.logAudit(locking ? 'LOCK' : 'UNLOCK', `${locking ? 'Locked' : 'Unlocked'} portal access for ${usr.email}${locking && answer.note ? ` - ${answer.note}` : ''}`);
                 this.showNotify(locking ? 'Portal access locked.' : 'Portal access unlocked.');
                 this.notifyByEmail({
@@ -5308,7 +5329,10 @@ createApp({
                 });
             } catch (error) {
                 console.error('Staff Portal lock change failed:', error);
-                this.showNotify(this.getFirestoreWriteError(error, locking ? 'lock this account' : 'unlock this account'));
+                // Stated rather than inferred: the endpoint's wording varies with
+                // the cause, and it is the only thing that knows how far the
+                // change got across Firestore, Storage claims and Authentication.
+                this.showNotify(error?.message || 'Unable to change this account’s portal access.', 'error');
             } finally {
                 this.staffPortalBusyUid = '';
             }
