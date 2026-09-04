@@ -5169,10 +5169,10 @@ createApp({
                 // here, since deleteDoc alone only ever removed the Firestore record.
                 if (auth.currentUser) {
                     const idToken = await auth.currentUser.getIdToken();
-                    const resp = await fetch('/api/delete-portal-user', {
+                    const resp = await fetch('/api/portal-account', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                        body: JSON.stringify({ uid })
+                        body: JSON.stringify({ action: 'delete', uid })
                     });
                     if (!resp.ok) {
                         const errBody = await resp.json().catch(() => ({}));
@@ -5305,13 +5305,13 @@ createApp({
                 // can clear — a Firestore write alone would close the portal and
                 // leave client_documents open. The endpoint also stamps who
                 // locked the account from its verified token, so that field
-                // cannot be forged. See api/set-portal-lock.js.
+                // cannot be forged. See api/portal-account.js.
                 if (!auth.currentUser) throw new Error('Your session has ended. Sign in again, then retry.');
                 const idToken = await auth.currentUser.getIdToken();
-                const response = await fetch('/api/set-portal-lock', {
+                const response = await fetch('/api/portal-account', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                    body: JSON.stringify({ uid: usr.id, locked: locking, reason: answer.note })
+                    body: JSON.stringify({ action: locking ? 'lock' : 'unlock', uid: usr.id, reason: answer.note })
                 });
                 if (!response.ok) {
                     const body = await response.json().catch(() => ({}));

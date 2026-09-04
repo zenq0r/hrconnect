@@ -209,10 +209,11 @@ test('a lock reaches Storage, not only Firestore', () => {
 });
 
 test('locking is a server action, and refuses what the interface refuses', () => {
-    const endpoint = read(path.join('api', 'set-portal-lock.js'));
+    const endpoint = read(path.join('api', 'portal-account.js'));
     assert.match(endpoint, /\['Superadmin', 'Director'\]\.includes\(callerRole\)/);
     assert.match(endpoint, /callerDoc\.data\(\)\.accessLocked === true/, 'a locked admin must not keep locking others');
-    assert.match(endpoint, /locked && uid === decoded\.uid/, 'self-lock must be refused server-side too');
+    // Lock and delete on one's own row are refused here, not merely hidden.
+    assert.match(endpoint, /uid === decoded\.uid && action !== 'unlock'/, 'self-lock and self-delete must be refused server-side too');
     assert.match(endpoint, /isSeedAdminEmail\(targetData\.email\)/, 'the seed account must be refused server-side too');
     // The actor is taken from the verified token, never from the request body.
     assert.match(endpoint, /accessLockedBy: locked \? String\(decoded\.email \|\| ''\)/);
@@ -223,14 +224,50 @@ test('locking is a server action, and refuses what the interface refuses', () =>
     // The browser calls it instead of writing the fields itself.
     const app = appSource();
     const toggle = app.slice(app.indexOf('async toggleStaffPortalLock(usr)'), app.indexOf('async requireStaffPortalPasswordChange(usr)'));
-    assert.match(toggle, /fetch\('\/api\/set-portal-lock'/);
+    assert.match(toggle, /fetch\('\/api\/portal-account'/);
+    assert.match(toggle, /action: locking \? 'lock' : 'unlock'/);
     assert.doesNotMatch(toggle, /setDoc\(/, 'the lock fields must not be written straight from the browser');
+
+    // Delete goes through the same route, on its own action.
+    const remove = app.slice(app.indexOf('async deletePortalUser(uid, email)'), app.indexOf('backupDatabase() {'));
+    assert.match(remove, /fetch\('\/api\/portal-account'/);
+    assert.match(remove, /action: 'delete', uid/);
+});
+
+test('every admin action on somebody else\'s account is one route', () => {
+    // The Hobby plan caps serverless functions per deployment, so a route added
+    // per verb is a cost the project cannot keep paying. lock/unlock/delete
+    // share every guard they need — caller role, caller not locked, seed
+    // account, acting on oneself — so they share the route as well.
+    const routes = fs.readdirSync(path.join(__dirname, '..', 'api'))
+        .filter(name => name.endsWith('.js') && !name.startsWith('_'));
+    assert.ok(routes.includes('portal-account.js'), 'the merged route must exist');
+    assert.ok(!routes.includes('set-portal-lock.js'), 'the per-verb lock route must be gone');
+    assert.ok(!routes.includes('delete-portal-user.js'), 'the per-verb delete route must be gone');
+
+    const endpoint = read(path.join('api', 'portal-account.js'));
+    assert.match(endpoint, /const ACTIONS = \['lock', 'unlock', 'delete'\];/);
+    assert.match(endpoint, /if \(!ACTIONS\.includes\(action\)\)/, 'an unknown action must be refused');
+    // Unlocking oneself is unreachable rather than dangerous; lock and delete
+    // on one's own row are refused here as well as hidden in the interface.
+    assert.match(endpoint, /uid === decoded\.uid && action !== 'unlock'/);
+
+    // Nothing in the repo may still point at the retired routes.
+    for (const file of ['app.js', path.join('api', '_portalClaims.js')]) {
+        assert.doesNotMatch(read(file), /set-portal-lock|delete-portal-user/, `${file} still references a retired route`);
+    }
 });
 
 test('the restrictive half is always the part left applied', () => {
-    const endpoint = read(path.join('api', 'set-portal-lock.js'));
+    const endpoint = read(path.join('api', 'portal-account.js'));
     // No transaction spans Firestore, Storage claims and Auth, so the order is
     // chosen so a failure between them can only leave the account MORE closed.
-    const ordering = endpoint.slice(endpoint.indexOf('if (locked) {'), endpoint.indexOf('res.status(200)'));
+    // Anchored on the lock/unlock branch specifically — delete returns its own
+    // 200 earlier in the merged route, so a looser slice would come back empty.
+    const ordering = endpoint.slice(
+        endpoint.indexOf("const locked = action === 'lock';"),
+        endpoint.indexOf('res.status(200).json({ success: true, locked, claims })')
+    );
+    assert.ok(ordering.length > 0, 'the lock/unlock branch must be findable');
     assert.match(ordering, /if \(locked\) \{\s*await writeAuth\(\);\s*await writeFirestore\(\);\s*\} else \{\s*await writeFirestore\(\);\s*await writeAuth\(\);\s*\}/);
 });

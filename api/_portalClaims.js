@@ -9,7 +9,7 @@
 // Without this a Staff Portal lock would close Firestore and leave Storage open.
 //
 // Shared by api/sync-user-claims.js (called after every sign-in and after a role
-// change) and api/set-portal-lock.js, so the two can never disagree about what a
+// change) and api/portal-account.js, so the two can never disagree about what a
 // locked account is allowed to carry.
 async function buildPortalClaims(db, { role, email, accessLocked }) {
     if (accessLocked === true) return {};
