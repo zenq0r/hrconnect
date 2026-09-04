@@ -4069,8 +4069,23 @@ createApp({
         async setCurrentEmployeePresence(isOnline) {
             if (!auth.currentUser || !this.userProfile.email || !this.employees.length) return false;
             const email = this.userProfile.email.trim().toLowerCase();
-            const employee = this.employees.find(emp => emp.presenceUid === auth.currentUser.uid)
-                || this.employees.find(emp => String(emp.email || '').trim().toLowerCase() === email);
+            // Matched on the email alone. This used to try presenceUid first and
+            // fall back to the email, which sounds harmless and is not: the uid
+            // branch never checked the email, so once a record carried somebody
+            // else's presenceUid it kept collecting their heartbeats forever,
+            // and could not recover on its own because the uid branch always won.
+            // That is exactly what happened - a finance employee record held the
+            // Super Admin's uid and showed ONLINE for as long as the Super Admin
+            // was signed in, while the Super Admin's own presence went nowhere.
+            //
+            // The email is the real link between a portal login and a Staff ID,
+            // and it is what firestore.rules requires anyway on the self-presence
+            // path (resource.data.email == request.auth.token.email). The uid
+            // branch could therefore only ever "work" for an admin, whose write
+            // is admitted by isAdmin() instead - and when it worked, it was wrong.
+            // presenceUid is still written below, since the rules check it; it is
+            // simply no longer trusted to identify which record to write to.
+            const employee = this.employees.find(emp => String(emp.email || '').trim().toLowerCase() === email);
             if (!employee) return false;
             const timestamp = new Date().toISOString();
             const presenceChanged = this.isEmployeeOnline(employee) !== Boolean(isOnline);

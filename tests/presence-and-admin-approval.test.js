@@ -118,3 +118,20 @@ test('the approve button is labelled by the record stage, not by who is reading 
     // final decision; the old label told them it would be forwarded onward.
     assert.match(markup(), /claimPreview\.claim\.status === 'Pending Director' \? 'Final Approve' : 'Approve & Forward'/);
 });
+
+test('presence is written to the record that stores your email, never one that stores your uid', () => {
+    const src = appSource();
+    const fn = src.slice(src.indexOf('async setCurrentEmployeePresence(isOnline)'), src.indexOf('async startPresenceTracking()'));
+    assert.ok(fn.length > 0, 'setCurrentEmployeePresence must remain in app.js');
+
+    // The record is chosen by email and by nothing else. Choosing it by
+    // presenceUid without also checking the email let one account's heartbeat
+    // land on another account's record: once a record carried somebody else's
+    // uid the uid branch always won, so it could never recover on its own.
+    assert.match(fn, /const employee = this\.employees\.find\(emp => String\(emp\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\) === email\);/);
+    assert.doesNotMatch(fn, /find\(emp => emp\.presenceUid === auth\.currentUser\.uid\)/, 'the uid lookup must not come back');
+
+    // presenceUid is still stamped on the write - firestore.rules checks it -
+    // it is simply no longer trusted to say which record to write to.
+    assert.match(fn, /presenceUid: auth\.currentUser\.uid/);
+});
