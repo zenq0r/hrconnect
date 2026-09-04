@@ -370,6 +370,16 @@ const WELCOME_GREETING_FADE_MS = 800;
 // The list is the release history shown under Settings; nothing here interrupts a sign-in.
 const APP_CHANGELOG = [
     {
+        version: '2026.09.04-presence-and-approvals',
+        title: 'An Online Light You Can Trust',
+        notes: [
+            'The Directory now shows an account as online only when the email it signs in with is stored on a Staff ID or a Client ID. Super Admin is the one exception, since it is not tied to either.',
+            'An account that appears in neither directory now reads Offline rather than Online — add its employee or client record to bring the indicator back.',
+            'Super Admin can now Approve and Reject a claim or payment voucher from the record preview. The permission was always there; the buttons were not.',
+            'The approve button is now labelled by the stage of the record rather than by who is reading it, so a final approval never reads as "Approve & Forward".'
+        ]
+    },
+    {
         version: '2026.09.04-staff-portal',
         title: 'The Staff Portal Gets Its Buttons',
         notes: [
@@ -1060,6 +1070,26 @@ createApp({
         // online staff surfaced first (then alphabetical) so Director/Superadmin
         // gets an at-a-glance headcount-style view, not a presence filter.
         companyTinState() { return this.tinFormatState(this.company.tin); },
+        // Every email that a directory record vouches for: the HR employee
+        // directory plus every authorized address on a client company record
+        // (the primary contact and any additionalClientEmails). Built once per
+        // data change rather than rescanned per row - isPresenceAnchored() is
+        // called from list sorting and from every rendered row, so a linear
+        // scan there would be quadratic on a large staff list.
+        presenceAnchorEmails() {
+            const anchored = new Set();
+            this.employees.forEach(emp => {
+                const email = String(emp.email || '').trim().toLowerCase();
+                if (email) anchored.add(email);
+            });
+            this.customers.forEach(customer => {
+                [customer.clientEmail, ...(Array.isArray(customer.additionalClientEmails) ? customer.additionalClientEmails : [])]
+                    .map(address => String(address || '').trim().toLowerCase())
+                    .filter(Boolean)
+                    .forEach(address => anchored.add(address));
+            });
+            return anchored;
+        },
         canViewStaffDirectory() { return this.canManageRBAC; },
         // HR employee records plus every non-Client portal login that has no
         // employee record of its own — the seed administrator above all, who
@@ -3921,11 +3951,33 @@ createApp({
             const parsed = new Date(value).getTime();
             return Number.isFinite(parsed) ? parsed : 0;
         },
+        // An account is "anchored" when the email it signs in with is the email
+        // stored on a real directory record: employees/{empNo} for staff, or a
+        // customers/{id} clientEmail/additionalClientEmails entry for a Client.
+        // Presence is only honoured for anchored accounts, because an ONLINE
+        // light on an account that appears in neither directory is a claim
+        // nobody can check against anything.
+        //
+        // Superadmin alone is exempt: it is the system account that runs the
+        // portal and is deliberately not tied to a Staff ID or a Client ID. The
+        // protected seed administrator is exempt for the same reason - it was
+        // signed in and running the system while absent from the HR directory.
+        // Director is NOT exempt: a Director is a person on the staff, so their
+        // portal login is expected to sit on an employee record like anyone
+        // else's, and an unanchored one is worth seeing as offline.
+        isPresenceAnchored(user) {
+            const email = String(user?.email || '').trim().toLowerCase();
+            if (!email) return false;
+            if (user?.role === 'Superadmin' || this.isSeedAdminEmail(email)) return true;
+            return this.presenceAnchorEmails.has(email);
+        },
         isEmployeeOnline(emp) {
+            if (!this.isPresenceAnchored(emp)) return false;
             const lastUpdate = this.getPresenceTime(emp.presenceUpdatedAt || emp.lastSeen);
             return emp.presenceStatus === 'Online' && lastUpdate > 0 && (this.presenceNow - lastUpdate) < 90000;
         },
         isPortalUserOnline(user) {
+            if (!this.isPresenceAnchored(user)) return false;
             const lastUpdate = this.getPresenceTime(user?.presenceUpdatedAt || user?.lastSeen);
             return user?.presenceStatus === 'Online' && lastUpdate > 0 && (this.presenceNow - lastUpdate) < 90000;
         },
