@@ -133,7 +133,16 @@ test('a locked account is refused at every way into the portal', () => {
 test('the lock is enforced by the rules, not only by the interface', () => {
     const rulesSource = rules();
     assert.match(rulesSource, /function isAccessLocked\(\) \{/);
-    assert.match(rulesSource, /function hasActiveRole\(role\) \{\s*return getUserRole\(\) == role && !isAccessLocked\(\);/);
+    // The role is only active when the record is not locked. Asserted on the
+    // guarantee rather than on one spelling of it: the helpers now take the
+    // already-fetched record as an argument so a role question costs one
+    // document read instead of three.
+    assert.match(rulesSource, /function recordHasActiveRole\(record, role\) \{\s*return record\.role == role && !recordIsLocked\(record\);/);
+    assert.match(rulesSource, /function hasActiveRole\(role\) \{\s*return recordHasActiveRole\(getUserRecord\(\), role\);/);
+    // One read per question, not three — a Client is checked last in every role
+    // list, so it pays for every failed check ahead of it.
+    assert.equal((rulesSource.match(/get\(\/databases\/\$\(database\)\/documents\/users\/\$\(request\.auth\.uid\)\)/g) || []).length, 1,
+        'the user record must be fetched from exactly one place');
     // Every role a rule can ask about resolves to false while the lock is on.
     for (const role of ['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff', 'Client']) {
         assert.match(rulesSource, new RegExp(`hasActiveRole\\('${role}'\\)`), `${role} must go through the lock check`);

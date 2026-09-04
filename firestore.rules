@@ -50,12 +50,26 @@ service cloud.firestore {
     // the portal can tell the person their access is locked instead of
     // mislabelling the denial as a removed account. `accessLocked` is absent on
     // every record predating this feature, hence the field-existence guard.
+    // Both of these take the already-fetched record rather than fetching it
+    // again. The first version of isAccessLocked() called getUserRecord() twice
+    // in one expression, and hasActiveRole() then called it a third time through
+    // getUserRole() — so every role question cost three reads where the original
+    // getUserRole() cost one. A Client feels that worst: Client is checked last
+    // in every role list, so it pays for each failed check ahead of it.
+    function recordIsLocked(record) {
+      return 'accessLocked' in record && record.accessLocked == true;
+    }
+
+    function recordHasActiveRole(record, role) {
+      return record.role == role && !recordIsLocked(record);
+    }
+
     function isAccessLocked() {
-      return 'accessLocked' in getUserRecord() && getUserRecord().accessLocked == true;
+      return recordIsLocked(getUserRecord());
     }
 
     function hasActiveRole(role) {
-      return getUserRole() == role && !isAccessLocked();
+      return recordHasActiveRole(getUserRecord(), role);
     }
 
     function isSuperadmin() {
