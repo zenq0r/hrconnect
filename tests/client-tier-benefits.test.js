@@ -88,7 +88,8 @@ test('the gate opens exactly the features the tier reaches', () => {
 });
 
 test('an unknown or missing tier is treated as the lowest, never the highest', () => {
-    for (const tier of ['', null, undefined, 'Platinum', 'PREMIUM', 'priority']) {
+    // Case variants are NOT unknown — see the stored-case tests below.
+    for (const tier of ['', null, undefined, 'Platinum', 'Gold', 'tier-2', '  ']) {
         const gate = buildGate(tier);
         assert.equal(gate.clientTierAllows('project-tracking'), true, 'the basics stay open');
         assert.equal(gate.clientTierAllows('client-reply'), false, `"${tier}" must not open Premium features`);
@@ -126,7 +127,7 @@ test('canReplyAsClient is gated, so every caller inherits the check', () => {
 test('firestore.rules enforces the reply tier server-side and fails closed', () => {
     const source = rules();
     assert.match(source, /function callerTierAllowsReply\(\)/);
-    assert.match(source, /clientTier == 'Premium' \|\| customer\.clientTier == 'Priority'/);
+    assert.match(source, /clientTier\.upper\(\) == 'PREMIUM'/);
     // A missing customer record must deny, not fall through to allow.
     assert.match(source, /exists\(\/databases\/\$\(database\)\/documents\/customers\/\$\(request\.auth\.token\.clientDirectoryId\)\)/);
     // And it has to actually be wired into the client's create branch.
@@ -255,4 +256,57 @@ test('every client token is defined in the light block, not only under .dark', (
     for (const token of names(darkBlock)) {
         assert.ok(light.has(token), `${token} is only defined under .dark, so light mode would fall back to nothing`);
     }
+});
+
+// --- stored case ------------------------------------------------------------
+
+// normalizeOfficialRecord() uppercases clientTier on write, so this is the
+// case every record on file actually carries. Exact-case comparison read them
+// all as Standard: the portal showed STANDARD for a PRIORITY client, the staff
+// Priority Clients panel sat empty, and the deployed rule denied every reply.
+test('a tier stored in any case resolves to the right tier', () => {
+    const { CLIENT_TIER_ORDER, CLIENT_TIER_FEATURES } = tierModel();
+    const priorityOnly = CLIENT_TIER_FEATURES.find(f => f.minTier === 2);
+    const premiumOnly = CLIENT_TIER_FEATURES.find(f => f.minTier === 1);
+
+    for (const stored of ['PRIORITY', 'Priority', 'priority', '  priority  ']) {
+        const gate = buildGate(stored);
+        assert.equal(gate.clientTierAllows(priorityOnly.key), true, `stored as "${stored}" must open Priority`);
+    }
+    for (const stored of ['PREMIUM', 'Premium', 'premium']) {
+        const gate = buildGate(stored);
+        assert.equal(gate.clientTierAllows(premiumOnly.key), true, `stored as "${stored}" must open Premium`);
+        assert.equal(gate.clientTierAllows(priorityOnly.key), false, `stored as "${stored}" must stop below Priority`);
+    }
+    assert.equal(CLIENT_TIER_ORDER.length, 3);
+});
+
+test('every read of a stored tier goes through the canonicaliser', () => {
+    const src = appSource();
+    assert.match(src, /function canonicalClientTier\(value\)/);
+
+    // Any survivor of the old exact-case comparison is the same bug again.
+    const offenders = [...src.matchAll(/clientTier\s*===\s*'(Standard|Premium|Priority)'/g)].map(m => m[0]);
+    assert.deepEqual(offenders, [], 'compare through canonicalClientTier, not exact case');
+
+    // Each method body runs to its own closing brace at method indentation.
+    const nlEnd = '\n        },';
+    for (const reader of ['myClientTier', 'clientTierMeta', 'clientTierForId', 'priorityClients']) {
+        const start = src.indexOf(`        ${reader}(`);
+        assert.ok(start > -1, `${reader} must exist`);
+        const body = src.slice(start, src.indexOf(nlEnd, start));
+        assert.match(body, /canonicalClientTier/, `${reader} must canonicalise the stored value`);
+    }
+});
+
+test('firestore.rules compares the tier case-insensitively', () => {
+    const source = rules();
+    const start = source.indexOf('function tierAllowsReply(');
+    const body = source.slice(start, source.indexOf('}', source.indexOf('return', start)));
+
+    // Records on file store 'PREMIUM'/'PRIORITY'; the form offers title case.
+    // A case-sensitive rule here denies both.
+    assert.match(body, /clientTier\.upper\(\) == 'PREMIUM'/);
+    assert.match(body, /clientTier\.upper\(\) == 'PRIORITY'/);
+    assert.match(body, /clientTier is string/, 'upper() on a missing field would error the rule');
 });

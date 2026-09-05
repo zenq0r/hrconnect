@@ -107,8 +107,15 @@ service cloud.firestore {
     // app.js (CLIENT_TIER_ORDER / CLIENT_TIER_FEATURES); this mirrors the one
     // boundary that has to hold server-side -- replying is Premium and above.
     // Takes the already-fetched customer document so a caller pays for one read.
+    // Case-insensitive on purpose: app.js normalizeOfficialRecord() uppercases
+    // clientTier on write, so records on file read 'PREMIUM'/'PRIORITY' while
+    // the form offers title case. Comparing exact case matched neither and
+    // denied every client, including Priority ones.
     function tierAllowsReply(customer) {
-      return customer.clientTier == 'Premium' || customer.clientTier == 'Priority';
+      return customer.clientTier is string && (
+        customer.clientTier.upper() == 'PREMIUM' ||
+        customer.clientTier.upper() == 'PRIORITY'
+      );
     }
     // Fails closed: a client whose directory record is missing cannot reply.
     // Their clientDirectoryId claim is what links them to a project at all, so

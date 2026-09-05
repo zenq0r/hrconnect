@@ -367,6 +367,18 @@ const STAFF_PORTAL_REQUEST_ACTIONS = [
 // re-listing tiers by hand. Order matters: the index IS the rank.
 const CLIENT_TIER_ORDER = ['Standard', 'Premium', 'Priority'];
 
+// clientTier is NOT in normalizeOfficialRecord's protected-key list, so every
+// client record on file stores it uppercased ('PRIORITY', not 'Priority').
+// Comparing exact case therefore matched nothing: every client read back as
+// Standard, the staff Priority Clients panel was permanently empty, and the
+// tier badge always printed Standard. Every read of a stored tier goes
+// through here; an unknown value falls back to the lowest tier, never the
+// highest.
+function canonicalClientTier(value) {
+    const wanted = String(value || '').trim().toUpperCase();
+    return CLIENT_TIER_ORDER.find(tier => tier.toUpperCase() === wanted) || CLIENT_TIER_ORDER[0];
+}
+
 // minTier is an index into CLIENT_TIER_ORDER. `key` is the gate name passed to
 // clientTierAllows(); anything not listed here is ungated.
 const CLIENT_TIER_FEATURES = [
@@ -1202,7 +1214,7 @@ createApp({
         },
         unreadNotificationsCount() { return this.notificationsForDisplay.filter(n => !n.read).length; },
         appChangelog() { return APP_CHANGELOG; },
-        priorityClients() { return this.customers.filter(c => c.clientTier === 'Priority'); },
+        priorityClients() { return this.customers.filter(c => canonicalClientTier(c.clientTier) === 'Priority'); },
         // Client Task board: every client bucketed by the LIVE status of their
         // own projects (clientTaskStatus) — not the manual clientTier tag, which
         // stays a separate, untouched feature (Dashboard's Priority Clients
@@ -1408,10 +1420,7 @@ createApp({
         // or on a record registered before Client IDs were issued -- staff
         // saving that record once mints one (see saveClientInformation).
         myClientId() { return String(this.clientPortalIdentity?.clientId || '').trim(); },
-        myClientTier() {
-            const tier = String(this.clientPortalIdentity?.clientTier || '').trim();
-            return CLIENT_TIER_ORDER.includes(tier) ? tier : CLIENT_TIER_ORDER[0];
-        },
+        myClientTier() { return canonicalClientTier(this.clientPortalIdentity?.clientTier); },
         myClientTierIndex() { return CLIENT_TIER_ORDER.indexOf(this.myClientTier); },
         clientTierFeatureList() {
             return CLIENT_TIER_FEATURES.map(feature => ({
@@ -2143,8 +2152,7 @@ createApp({
         clientTierAllows(featureKey) {
             const feature = CLIENT_TIER_FEATURES.find(item => item.key === featureKey);
             if (!feature) return true;
-            const tier = String(this.clientPortalIdentity?.clientTier || '').trim();
-            const index = CLIENT_TIER_ORDER.indexOf(CLIENT_TIER_ORDER.includes(tier) ? tier : CLIENT_TIER_ORDER[0]);
+            const index = CLIENT_TIER_ORDER.indexOf(canonicalClientTier(this.clientPortalIdentity?.clientTier));
             return index >= feature.minTier;
         },
         clientTierLockMessage(featureKey) {
@@ -5820,7 +5828,7 @@ createApp({
                 clientBrnNew: record.clientBrnNew || this.splitClientSSM(record.clientSSM).newBrn,
                 clientBrnOld: record.clientBrnOld || this.splitClientSSM(record.clientSSM).oldBrn,
                 clientTin: record.clientTin || '',
-                companyType: record.companyType || '', industry: record.industry || '', clientTier: record.clientTier || 'Standard',
+                companyType: record.companyType || '', industry: record.industry || '', clientTier: canonicalClientTier(record.clientTier),
                 clientContactPerson: record.clientContactPerson || '', clientPosition: record.clientPosition || '',
                 clientEmail: record.clientEmail || '', clientPhone: record.clientPhone || '', additionalClientEmailsText: additionalClientEmails,
                 clientAddress1: record.clientAddress1 || record.clientAddress || '', clientAddress2: record.clientAddress2 || '', clientAddress3: record.clientAddress3 || '',
@@ -5856,7 +5864,7 @@ createApp({
                 // value rather than the now-unbound clientSSM field.
                 const clientId = existingCust?.clientId || form.clientId || this.generateClientId(composedSSM);
                 const now = new Date().toISOString();
-                const clientTier = ['Standard', 'Premium', 'Priority'].includes(form.clientTier) ? form.clientTier : (existingCust?.clientTier || 'Standard');
+                const clientTier = canonicalClientTier(form.clientTier || existingCust?.clientTier);
                 const clientRecord = this.normalizeOfficialRecord({
                     clientId,
                     clientName: String(form.clientName).trim(),
@@ -5940,11 +5948,11 @@ createApp({
                 Premium: { label: 'Premium', badgeClass: 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300' },
                 Standard: { label: 'Standard', badgeClass: 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200' }
             };
-            return map[tier] || map.Standard;
+            return map[canonicalClientTier(tier)] || map.Standard;
         },
         clientTierForId(clientDirectoryId, fallbackTier = 'Standard') {
             const customer = this.customers.find(c => c.id === clientDirectoryId);
-            return customer?.clientTier || fallbackTier || 'Standard';
+            return canonicalClientTier(customer?.clientTier || fallbackTier);
         },
         clientSsmForId(clientDirectoryId, fallbackSSM = '') {
             const customer = this.customers.find(c => c.id === clientDirectoryId);
