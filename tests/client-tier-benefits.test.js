@@ -92,7 +92,7 @@ test('an unknown or missing tier is treated as the lowest, never the highest', (
         const gate = buildGate(tier);
         assert.equal(gate.clientTierAllows('project-tracking'), true, 'the basics stay open');
         assert.equal(gate.clientTierAllows('client-reply'), false, `"${tier}" must not open Premium features`);
-        assert.equal(gate.clientTierAllows('full-archive'), false, `"${tier}" must not open Priority features`);
+        assert.equal(gate.clientTierAllows('expiry-alerts'), false, `"${tier}" must not open Priority features`);
     }
 });
 
@@ -134,23 +134,72 @@ test('firestore.rules enforces the reply tier server-side and fails closed', () 
     assert.match(createBranch, /isClient\(\) &&\s*callerTierAllowsReply\(\)/);
 });
 
-test('document retention is applied once, where the counts are derived', () => {
+test('a registered client sees their complete history — no tier withholds records', () => {
     const src = appSource();
     const start = src.indexOf('        myClientDocs() {');
     const body = src.slice(start, src.indexOf('        myClientRecord() {', start));
-    assert.match(body, /clientRetentionCutoff/, 'retention must filter the list the figures count');
+
+    // Every record ever filed against the Client ID, on every tier. A date
+    // window here would hide a client's own documents from them.
+    assert.doesNotMatch(body, /clientRetentionCutoff|ARCHIVE_WINDOW/, 'no retention window may filter a client from their own records');
+    assert.equal(appSource().includes('CLIENT_ARCHIVE_WINDOW_MONTHS'), false);
+    assert.equal(tierModel().CLIENT_TIER_FEATURES.some(f => f.key === 'full-archive'), false);
+
     // clientPortalDocs must not re-derive its own client list, or the two can disagree.
     const portalStart = src.indexOf('        clientPortalDocs() {');
     const portalBody = src.slice(portalStart, src.indexOf('        filteredClientPortalDocs() {', portalStart));
     assert.match(portalBody, /role === 'Client'\) return this\.myClientDocs/);
 });
 
-test('retention is lifted by the full-archive feature and never applies to staff', () => {
+test('a client is matched to its record by Client ID or any authorized email', () => {
     const src = appSource();
-    const start = src.indexOf('        clientRetentionCutoff() {');
-    const body = src.slice(start, src.indexOf('        clientNextTier() {', start));
-    assert.match(body, /role !== 'Client'\) return null/);
-    assert.match(body, /clientTierAllows\('full-archive'\)\) return null/);
+    const start = src.indexOf('        myClientDocs() {');
+    const body = src.slice(start, src.indexOf('        myClientRecord() {', start));
+
+    // A secondary authorized contact's own email never appears on the records,
+    // so the customerId match is what carries them; the email match is the
+    // compatibility path for records filed before Client ID linking. Losing
+    // either one silently empties an authorized client's document centre.
+    assert.match(body, /customerId \|\| ''\)\.trim\(\) === clientDirectoryId/);
+    assert.match(body, /clientEmail \|\| ''\)\.trim\(\)\.toLowerCase\(\) === clientEmail/);
+});
+
+test('sign-in resolves the directory record from Additional Authorized Emails', () => {
+    const claims = fs.readFileSync(path.join(__dirname, '..', 'api', '_portalClaims.js'), 'utf8');
+
+    // Staff add a contact under Additional Authorized Emails; that address must
+    // then reach the same customers/{id} the primary contact reaches, or the
+    // account signs in to an empty portal.
+    assert.match(claims, /where\('clientEmail', '==', email\)/);
+    assert.match(claims, /where\('additionalClientEmails', 'array-contains', email\)/);
+    assert.match(claims, /claims\.clientDirectoryId = custSnap\.docs\[0\]\.id/);
+});
+
+test('the portal prints the registered Client ID, never the Firestore document key', () => {
+    const html = markup();
+    const src = appSource();
+
+    // clientDirectoryId is the document key — often a legacy slug such as
+    // "zenqor_technologies". The Client ID the Client Directory issues lives in
+    // customers/{id}.clientId as ZCT-<6 digits>-<letter>.
+    const page = html.slice(html.indexOf('CLIENT PORTAL MODULE'), html.indexOf('WEBSITE CONTENT MODULE'));
+    assert.doesNotMatch(page, /userProfile\.clientDirectoryId/, 'the client-facing page must not show the document key');
+    assert.equal((page.match(/myClientId/g) || []).length >= 2, true, 'the cover and the account panel both print it');
+    assert.match(src, /myClientId\(\) \{ return String\(this\.clientPortalIdentity\?\.clientId/);
+});
+
+test('Client IDs are minted on save and disappear with the record', () => {
+    const src = appSource();
+
+    // Auto-generated on every client save, reusing the existing ID when there
+    // is one so an update never reissues it.
+    assert.match(src, /const clientId = existingCust\?\.clientId \|\| form\.clientId \|\| this\.generateClientId\(/);
+    // Deterministic from the BRN, not random — the same client always resolves
+    // to the same ID.
+    assert.match(src, /return `ZCT-\$\{sixDigits\}-\$\{letter\}`/);
+    // Deleting the client deletes the document the ID lives on, so nothing is
+    // left behind to collide with or resurrect.
+    assert.match(src, /deleteDoc\(doc\(db, "customers", client\.id\)\)/);
 });
 
 // --- one page, one palette --------------------------------------------------

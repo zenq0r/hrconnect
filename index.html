@@ -2778,7 +2778,7 @@
                             <p class="zq-cp-eyebrow">Client Workspace</p>
                             <h2 class="zq-cp-title">{{ clientPortalIdentity.clientName }}</h2>
                             <div class="zq-cp-regs">
-                                <p class="zq-cp-reg">Client ID<span class="zq-cp-mono">{{ userProfile.clientDirectoryId || '—' }}</span></p>
+                                <p class="zq-cp-reg">Client ID<span class="zq-cp-mono">{{ myClientId || 'Pending registration' }}</span></p>
                                 <p class="zq-cp-reg">SSM<span class="zq-cp-mono">{{ clientPortalIdentity.clientSSM || 'Pending' }}</span></p>
                                 <p class="zq-cp-reg">Sign-in email<span class="zq-cp-lower">{{ clientPortalIdentity.clientEmail }}</span></p>
                             </div>
@@ -2875,11 +2875,10 @@
                                 </div>
                             </div>
 
-                            <!-- Retention is a real limit, not a nudge: these records are filtered
-                                 out of the list below, so say so rather than let the count look wrong. -->
-                            <p v-if="clientRetentionCutoff" class="zq-cp-note">
+                            <!-- Every record ever filed against this Client ID, on every tier. -->
+                            <p class="zq-cp-note">
                                 <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
-                                <span>On {{ myClientTier }}, this archive covers documents dated {{ clientRetentionCutoff }} onward. <button type="button" @click="clientPanel = 'tb'" class="zq-cp-note-link">See tier benefits</button></span>
+                                <span>This is your complete history — every quotation and invoice filed against Client ID {{ myClientId || 'your account' }}, with no cut-off date.</span>
                             </p>
 
                             <div class="zq-cp-filters">
@@ -3082,11 +3081,11 @@
                             </div>
                             <dl class="zq-cp-defs">
                                 <div><dt>Company</dt><dd>{{ clientPortalIdentity.clientName }}</dd></div>
-                                <div><dt>Client ID</dt><dd class="zq-cp-mono">{{ userProfile.clientDirectoryId || 'Not linked' }}</dd></div>
+                                <div><dt>Client ID</dt><dd class="zq-cp-mono">{{ myClientId || 'Pending registration' }}</dd></div>
                                 <div><dt>SSM</dt><dd class="zq-cp-mono">{{ clientPortalIdentity.clientSSM || 'Pending' }}</dd></div>
                                 <div><dt>Tier</dt><dd>{{ myClientTier }}</dd></div>
                                 <div><dt>Profile completeness</dt><dd>{{ clientProfileCompletion }}%</dd></div>
-                                <div><dt>Document archive</dt><dd>{{ clientRetentionCutoff ? `From ${clientRetentionCutoff}` : 'Complete history' }}</dd></div>
+                                <div><dt>Document archive</dt><dd>Complete history</dd></div>
                             </dl>
                         </div>
                     </section>

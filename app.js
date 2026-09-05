@@ -377,8 +377,7 @@ const CLIENT_TIER_FEATURES = [
     { key: 'client-reply', minTier: 1, label: 'Reply to your officer', detail: 'Two-way conversation on each project update.' },
     { key: 'account-statement', minTier: 1, label: 'Download account statement', detail: 'A CSV statement of every transaction on record.' },
     { key: 'officer-presence', minTier: 2, label: 'Live officer availability', detail: 'See when the officer handling your account is online.' },
-    { key: 'expiry-alerts', minTier: 2, label: 'Early expiry warnings', detail: 'Advance notice before a document or licence lapses.' },
-    { key: 'full-archive', minTier: 2, label: 'Complete document archive', detail: 'Every document since day one, with no retention window.' }
+    { key: 'expiry-alerts', minTier: 2, label: 'Early expiry warnings', detail: 'Advance notice before a document or licence lapses.' }
 ];
 
 // Support response commitment per tier, indexed the same way.
@@ -387,10 +386,6 @@ const CLIENT_SUPPORT_CHANNELS = [
     { name: 'Priority Support', promise: 'Reply within 1 working day' },
     { name: 'Direct Channel', promise: 'Same-day reply, direct line to your officer' }
 ];
-
-// Standard keeps a rolling window rather than the full archive; the
-// full-archive feature lifts it. In months so the boundary stays auditable.
-const CLIENT_ARCHIVE_WINDOW_MONTHS = 12;
 
 // How much of the conversation a client sees without the full-timeline feature.
 const CLIENT_TIMELINE_PREVIEW_COUNT = 5;
@@ -1306,10 +1301,9 @@ createApp({
                 (clientDirectoryId && String(d.raw.customerId || '').trim() === clientDirectoryId) ||
                 (clientEmail && String(d.raw.clientEmail || '').trim().toLowerCase() === clientEmail)
             ));
-            // Retention is applied here rather than at the table, so every figure
-            // derived from this list counts exactly what the client can open.
-            const cutoff = this.clientRetentionCutoff;
-            return cutoff ? owned.filter(d => String(d.date || '') >= cutoff) : owned;
+            // A registered client sees their complete history -- every record ever
+            // filed against their Client ID, with no retention window on any tier.
+            return owned;
         },
         myClientRecord() {
             if (this.userProfile.clientDirectoryId) {
@@ -1324,6 +1318,10 @@ createApp({
             const linkedProject = this.projects.find(project => project.clientDirectoryId || project.clientName) || null;
             return {
                 clientName: linkedProject?.clientName || this.userProfile.name || 'Client Account',
+                // Projects carry no clientId snapshot, so this stays empty until the
+                // directory record loads. The portal prints a placeholder, never the
+                // clientDirectoryId document key, which is internal plumbing.
+                clientId: '',
                 clientSSM: linkedProject?.clientSSM || '',
                 // Projects retain a tier snapshot for the portal fallback. The
                 // authoritative value still comes from customers/{id} when it is
@@ -1405,6 +1403,11 @@ createApp({
         // The authoritative tier is customers/{id}.clientTier. clientPortalIdentity
         // already falls back to the project snapshot when the client record is not
         // loaded yet, so read through it rather than reaching for customers twice.
+        // The Client ID printed in Staff Workspace > Client Registration >
+        // Registered Client Directory. Empty until the directory record loads,
+        // or on a record registered before Client IDs were issued -- staff
+        // saving that record once mints one (see saveClientInformation).
+        myClientId() { return String(this.clientPortalIdentity?.clientId || '').trim(); },
         myClientTier() {
             const tier = String(this.clientPortalIdentity?.clientTier || '').trim();
             return CLIENT_TIER_ORDER.includes(tier) ? tier : CLIENT_TIER_ORDER[0];
@@ -1419,15 +1422,6 @@ createApp({
         },
         clientSupportChannel() {
             return CLIENT_SUPPORT_CHANNELS[this.myClientTierIndex] || CLIENT_SUPPORT_CHANNELS[0];
-        },
-        // Null means no window at all -- either the tier lifted it, or the viewer
-        // is not a Client and retention never applied to them in the first place.
-        clientRetentionCutoff() {
-            if (this.userProfile.role !== 'Client') return null;
-            if (this.clientTierAllows('full-archive')) return null;
-            const cutoff = new Date();
-            cutoff.setMonth(cutoff.getMonth() - CLIENT_ARCHIVE_WINDOW_MONTHS);
-            return cutoff.toISOString().slice(0, 10);
         },
         clientNextTier() {
             return CLIENT_TIER_ORDER[this.myClientTierIndex + 1] || null;
