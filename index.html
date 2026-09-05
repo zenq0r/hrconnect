@@ -420,7 +420,7 @@
                     <button v-if="userProfile.role !== 'Client' && hasAccess('dashboard')" type="button" @click="switchTab('dashboard')" :class="{'sidebar-item-active': currentTab === 'dashboard', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'dashboard'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-chart-pie w-5 text-center"></i><span>Dashboard</span>
                     </button>
-                    <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-portal')" :class="{'sidebar-item-active': currentTab === 'client-portal', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-portal'}" class="zq-nav-item w-full">
+                    <button v-if="userProfile.role === 'Client'" type="button" @click="openClientPanel('ov')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'ov', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'ov')}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-house-chimney w-5 text-center"></i><span>Dashboard</span>
                     </button>
 
@@ -440,9 +440,13 @@
                     <button v-if="hasAccess('project-activities') && !hasAccess('client-task')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>
+                    <!-- Documents, Updates, Benefits and Support are panels of the single
+                         Client Workspace page, so these deep-link into it rather than
+                         switching route. Active state follows the panel, not currentTab. -->
                     <template v-if="userProfile.role === 'Client'">
-                        <button type="button" @click="switchTab('client-documents')" :class="{'sidebar-item-active': currentTab === 'client-documents', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-documents'}" class="zq-nav-item w-full"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-cyan-400/15 px-2 py-0.5 text-[9px] text-cyan-300">{{ clientPortalDocs.length }}</span></button>
-                        <button type="button" @click="switchTab('client-updates')" :class="{'sidebar-item-active': currentTab === 'client-updates', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-updates'}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientUpdatesTimeline.length" class="ml-auto rounded-full bg-amber-400/15 px-2 py-0.5 text-[9px] text-amber-300">{{ clientUpdatesTimeline.length }}</span></button>
+                        <button type="button" @click="openClientPanel('dc')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'dc', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'dc')}" class="zq-nav-item w-full"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ clientPortalDocs.length }}</span></button>
+                        <button type="button" @click="openClientPanel('up')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'up', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'up')}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientUpdatesTimeline.length" class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ clientUpdatesTimeline.length }}</span></button>
+                        <button type="button" @click="openClientPanel('tb')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'tb', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'tb')}" class="zq-nav-item w-full"><i class="fa-solid fa-layer-group w-5 text-center"></i><span>Tier Benefits</span><span class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ myClientTier }}</span></button>
                     </template>
                     <div v-if="hasAccess('doc-generator')" class="pt-3 pb-1"><p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Billing &amp; Documents</p></div>
                     <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
@@ -483,7 +487,7 @@
                     <button v-if="hasAccess('profile')" type="button" @click="switchTab('profile')" :class="{'sidebar-item-active': currentTab === 'profile', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'profile'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-user-shield w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'Account & Security' : 'Profile & RBAC' }}</span>
                     </button>
-                    <button v-if="userProfile.role === 'Client'" type="button" @click="switchTab('client-support')" :class="{'sidebar-item-active': currentTab === 'client-support', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-support'}" class="zq-nav-item w-full"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
+                    <button v-if="userProfile.role === 'Client'" type="button" @click="openClientPanel('sp')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'sp', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'sp')}" class="zq-nav-item w-full"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
                 </nav>
 
                 <div class="zq-sidebar-footer p-3 border-t border-slate-800">
@@ -1512,129 +1516,6 @@
                     </div>
 
                     <!-- 2. VIEW PELANGGAN (CLIENT DASHBOARD) -->
-                    <div v-else-if="userProfile.role === 'Client'" class="zq-client-overview space-y-6">
-                        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark via-brand-dark to-blue-900 p-6 text-white shadow-lg">
-                            <div class="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div>
-                                    <div class="flex flex-wrap items-center gap-2"><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-gold">Client Portal</p><span class="rounded-full bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-100"><i class="fa-solid fa-shield-halved mr-1 text-emerald-300"></i>Secure Workspace</span></div>
-                                    <h2 class="mt-1 text-2xl font-extrabold tracking-tight">Welcome back, {{ userProfile.name }}</h2>
-                                    <p class="mt-1 text-xs text-blue-100">Here's your live project, document and account snapshot.</p>
-                                </div>
-                                <div class="flex flex-wrap gap-2"><button @click="switchTab('project-activities')" class="shrink-0 border border-white/20 bg-white/10 text-white hover:bg-white/20 font-bold px-4 py-2.5 rounded-xl transition text-xs"><i class="fa-solid fa-diagram-project mr-2"></i>Track Projects</button><button @click="switchTab('client-portal')" class="shrink-0 bg-white text-brand-dark hover:bg-slate-100 font-bold px-4 py-2.5 rounded-xl shadow-lg transition text-xs"><i class="fa-solid fa-folder-open mr-2"></i>Open Documents</button></div>
-                            </div>
-                            <i class="fa-solid fa-building absolute -right-4 -bottom-6 text-[120px] text-white/5"></i>
-                        </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                            <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-file-invoice text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ myClientDocs.length }}</p>
-                                <p class="zq-kpi-card-label truncate">Total Documents</p>
-                                <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Quotations &amp; Invoices</p>
-                            </div>
-
-                            <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span><i class="fa-solid fa-circle-exclamation text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                <p class="zq-kpi-card-value text-lg text-red-700 dark:text-red-300 truncate">{{ formatCurrency(myUnpaidInvoicesAmount) }}</p>
-                                <p class="zq-kpi-card-label truncate">Unpaid Invoices</p>
-                                <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ myUnpaidInvoicesCount }} Invois Unpaid</p>
-                            </div>
-
-                            <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myPaidInvoicesAmount) }}</p>
-                                <p class="zq-kpi-card-label truncate">Total Paid Amount</p>
-                                <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">Status: Paid</p>
-                            </div>
-
-                            <div class="zq-kpi-card">
-                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-violet-500"></span><i class="fa-solid fa-diagram-project text-[10px] text-slate-300 dark:text-slate-400"></i></div>
-                                <p class="zq-kpi-card-value text-xl text-violet-700 dark:text-violet-300 truncate">{{ clientActiveProjectsCount }}</p>
-                                <p class="zq-kpi-card-label truncate">Active Projects</p>
-                                <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">{{ projects.length }} total project(s)</p>
-                            </div>
-                        </div>
-
-                        <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                            <button type="button" @click="switchTab('project-activities')" class="group flex items-center gap-4 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-blue-900 dark:from-blue-950/40 dark:to-slate-800"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-blue text-white shadow"><i class="fa-solid fa-route"></i></span><span><span class="block text-xs font-extrabold text-brand-dark dark:text-white">Track Project Journey</span><span class="mt-1 block text-[10px] text-slate-500 dark:text-slate-400">View milestones, PIC and target dates</span></span><i class="fa-solid fa-arrow-right ml-auto text-slate-300 transition group-hover:translate-x-1 group-hover:text-brand-blue"></i></button>
-                            <button type="button" @click="switchTab('client-portal')" class="group flex items-center gap-4 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-emerald-900 dark:from-emerald-950/30 dark:to-slate-800"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow"><i class="fa-solid fa-cloud-arrow-up"></i></span><span><span class="block text-xs font-extrabold text-brand-dark dark:text-white">Documents Centre</span><span class="mt-1 block text-[10px] text-slate-500 dark:text-slate-400">View billing and upload requested files</span></span><i class="fa-solid fa-arrow-right ml-auto text-slate-300 transition group-hover:translate-x-1 group-hover:text-emerald-600"></i></button>
-                            <button type="button" @click="switchTab('profile')" class="group flex items-center gap-4 rounded-2xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-amber-900 dark:from-amber-950/30 dark:to-slate-800"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow"><i class="fa-solid fa-user-shield"></i></span><span><span class="block text-xs font-extrabold text-brand-dark dark:text-white">Account &amp; Security</span><span class="mt-1 block text-[10px] text-slate-500 dark:text-slate-400">Profile completeness: {{ clientProfileCompletion }}%</span></span><i class="fa-solid fa-arrow-right ml-auto text-slate-300 transition group-hover:translate-x-1 group-hover:text-amber-500"></i></button>
-                        </section>
-
-                        <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                            <div class="lg:col-span-2 zq-card p-5">
-                                <div class="mb-4 flex items-center justify-between"><div><h2 class="zq-text-section-title">Project Updates &amp; Messages</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Updates and conversation messages from your project activities.</p></div><span class="rounded-full bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 text-[9px] font-bold text-brand-blue dark:text-blue-300">{{ clientRecentUpdates.length }} recent</span></div>
-                                <div v-if="clientRecentUpdates.length" class="space-y-3"><button v-for="update in clientRecentUpdates" :key="`dashboard-update-${update.id}`" type="button" @click="switchTab('client-updates')" class="flex w-full items-start gap-3 rounded-xl border border-slate-100 dark:border-slate-700 p-3 text-left transition hover:border-brand-blue hover:bg-blue-50/40 dark:hover:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="update.senderRole === 'Client' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300' : 'bg-blue-100 text-brand-blue dark:bg-blue-950/50 dark:text-blue-300'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-reply' : 'fa-bullhorn'"></i></span><span class="min-w-0"><span class="flex flex-wrap items-center gap-1.5"><span class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ update.projectRef }}</span><span class="text-[9px] text-slate-400">· {{ update.updateType }}</span></span><span class="mt-1 block truncate text-[11px] font-semibold text-slate-700 dark:text-slate-200">{{ update.message }}</span><span class="mt-1 block text-[9px] text-slate-400">{{ formatDateTime(update.createdAt || update.updateDate) }}</span></span></button></div>
-                                <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No updates yet</p><p class="zq-empty-state-text">Project updates will appear here once your project starts.</p></div>
-                            </div>
-                            <div class="relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-sm"><div class="relative z-10"><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/15 text-emerald-300"><i class="fa-solid fa-shield-halved"></i></span><h3 class="mt-4 text-sm font-extrabold">Your workspace is protected</h3><p class="mt-2 text-[10px] leading-relaxed text-slate-300">Secure sign-in, email verification and role-based access help protect your company records.</p><div class="mt-4 space-y-2 text-[10px] font-semibold"><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Identity verified</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Private company workspace</p><p><i class="fa-solid fa-circle-check mr-2 text-emerald-400"></i>Activity securely logged</p></div></div><i class="fa-solid fa-fingerprint absolute -bottom-8 -right-5 text-[110px] text-white/5"></i></div>
-                        </section>
-
-                        <section class="zq-card p-5">
-                            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div><h2 class="zq-text-section-title">Project Progress</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live workflow status for projects assigned to your Client Portal account.</p></div>
-                                <button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button>
-                            </div>
-                            <div class="space-y-3">
-                                <button v-for="project in projects.slice(0, 3)" :key="`client-dashboard-track-${project.id}`" type="button" @click="openProjectDetails(project)" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                    <div class="flex flex-wrap items-center justify-between gap-2">
-                                        <div class="min-w-0 flex-1">
-                                            <span class="rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[9px] font-extrabold text-brand-blue dark:text-blue-300 border border-blue-100 dark:border-blue-900">{{ project.projectRef }}</span>
-                                            <p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ project.title }}</p>
-                                        </div>
-                                        <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ project.status }}</span>
-                                    </div>
-                                    <div class="mt-3 flex items-center gap-1">
-                                        <template v-for="(stage, stageIndex) in projectStages" :key="stage">
-                                            <span class="h-1.5 flex-1 rounded-full" :class="stageIndex <= projectStages.indexOf(project.status) ? ['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][projectStages.indexOf(project.status)] : 'bg-slate-100 dark:bg-slate-700'"></span>
-                                        </template>
-                                    </div>
-                                    <p class="mt-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Step {{ projectStages.indexOf(project.status) + 1 }} of {{ projectStages.length }}</p>
-                                </button>
-                                <p v-if="projects.length > 3" class="text-center text-[10px] font-bold text-slate-400 dark:text-slate-400">+{{ projects.length - 3 }} more project(s) — view all for full tracker</p>
-                                <div v-if="!projects.length" class="overflow-hidden rounded-xl border border-blue-100 dark:border-slate-700 bg-gradient-to-r from-blue-50 via-white to-emerald-50 dark:from-blue-950/30 dark:via-slate-800 dark:to-emerald-950/20 p-5">
-                                    <div class="flex flex-col gap-5 lg:flex-row lg:items-center"><div class="flex items-start gap-3 lg:w-1/3"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-blue text-white shadow"><i class="fa-solid fa-rocket"></i></span><div><p class="text-xs font-extrabold text-brand-dark dark:text-white">Your workspace is ready</p><p class="mt-1 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Your project tracker will activate automatically when the Zenqor team assigns your first project.</p></div></div><div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3"><div class="rounded-xl bg-white/80 dark:bg-slate-900/40 p-3"><span class="text-[9px] font-extrabold text-emerald-600">01 · COMPLETE</span><p class="mt-1 text-[10px] font-bold text-slate-700 dark:text-slate-200">Portal account activated</p></div><div class="rounded-xl bg-white/80 dark:bg-slate-900/40 p-3"><span class="text-[9px] font-extrabold text-amber-600">02 · NEXT</span><p class="mt-1 text-[10px] font-bold text-slate-700 dark:text-slate-200">Project assignment</p></div><div class="rounded-xl bg-white/80 dark:bg-slate-900/40 p-3"><span class="text-[9px] font-extrabold text-slate-400">03 · UPCOMING</span><p class="mt-1 text-[10px] font-bold text-slate-700 dark:text-slate-200">Live milestones &amp; updates</p></div></div></div>
-                                </div>
-                            </div>
-                        </section>
-
-                        <div class="zq-card p-6">
-                            <div class="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 class="zq-text-section-title">Your Company Official Documents</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Your five most recent quotations and invoices.</p></div><button v-if="myClientDocs.length" type="button" @click="switchTab('client-portal')" class="zq-btn zq-btn-outline zq-btn-sm">View All Documents <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
-                            <div class="overflow-x-auto">
-                                <table class="zq-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Type</th>
-                                            <th>Document No.</th>
-                                            <th class="text-right">Amount (RM)</th>
-                                            <th class="text-center">Status</th>
-                                            <th class="text-center">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="d in clientRecentDocuments" :key="d.id">
-                                            <td>{{ d.date }}</td>
-                                            <td><span class="px-2 py-0.5 rounded font-bold" :class="d.type==='Invoice'?'bg-blue-100 text-blue-800':'bg-amber-100 text-amber-800'">{{ d.type }}</span></td>
-                                            <td class="font-bold text-brand-dark dark:text-white">{{ d.docNo }}</td>
-                                            <td class="text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
-                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold" :class="d.status==='Paid'?'bg-emerald-100 text-emerald-800':'bg-red-100 text-red-800'">{{ d.status || 'Unpaid' }}</span></td>
-                                            <td class="text-center"><button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print mr-1"></i>Print</button></td>
-                                        </tr>
-                                        <tr v-if="!clientRecentDocuments.length" class="zq-table-empty">
-                                            <td colspan="6">
-                                                <div class="zq-empty-state zq-empty-state-compact">
-                                                    <i class="fa-regular fa-file-lines zq-empty-state-icon" aria-hidden="true"></i>
-                                                    <p class="zq-empty-state-title">No official documents yet</p>
-                                                    <p class="zq-empty-state-text">Quotations and invoices issued to your company will appear here automatically.</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- 3. VIEW EKSEKUTIF (SUPERADMIN / HR / ACCOUNT / IT / OWNER) -->
                     <div v-else class="space-y-6">
@@ -2884,136 +2765,124 @@
                     </div>
                 </div>
 
-                <!-- CLIENT PORTAL MODULE -->
-                <div v-show="['client-portal', 'client-documents', 'client-updates', 'client-support'].includes(currentTab)" class="zq-client-workspace p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-                    <div v-if="currentTab !== 'client-portal'" class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="flex items-center gap-3">
-                            <div><p class="text-[9px] font-black uppercase tracking-[0.2em] text-teal-600">Client Workspace</p><h2 class="mt-1 text-xl font-black text-slate-900 dark:text-white">{{ currentTab === 'client-documents' ? 'Documents & Billing' : currentTab === 'client-updates' ? 'Project Updates' : 'Help & Support' }}</h2><p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{{ currentTab === 'client-documents' ? 'Manage your quotations, invoices and payment records.' : currentTab === 'client-updates' ? 'Follow the latest information shared by your project team.' : 'Get assistance and contact the ZENQOR support team.' }}</p></div>
-                        </div>
-                        <button type="button" @click="returnToDashboard" class="zq-btn zq-btn-outline"><i class="fa-solid fa-arrow-left"></i><span>Back to Dashboard</span></button>
-                    </div>
+                <!-- CLIENT PORTAL MODULE — one route, six panels.
+                     Documents, Updates and Support used to be separate tabs; they are
+                     panels now, so nothing here changes currentTab. The palette is
+                     smoke grey and black-grey only, scoped by .zq-cp so it cannot leak
+                     into the staff modules, which keep the blue/teal identity. -->
+                <div v-show="currentTab === 'client-portal'" class="zq-cp p-4 md:p-8 max-w-7xl mx-auto w-full">
 
-                    <section v-if="currentTab === 'client-portal'" class="zq-client-hero relative overflow-hidden rounded-3xl bg-brand-dark px-5 py-6 md:px-8 md:py-8 text-white shadow-xl border border-white/5">
-                        <div class="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-blue/15 blur-2xl"></div>
-                        <div class="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-                            <div class="flex items-start gap-4">
-                                <div>
-                                    <div class="mb-2 flex flex-wrap items-center gap-2"><span class="text-[10px] font-black uppercase tracking-[0.24em] text-slate-300">Client Workspace</span><span class="inline-flex items-center gap-1 rounded-full border border-emerald-400/25 bg-emerald-500/10 px-2 py-1 text-[9px] font-extrabold text-emerald-300"><i class="fa-solid fa-shield-halved"></i>Secure &amp; Live</span></div>
-                                    <h2 class="text-2xl font-black tracking-tight md:text-3xl">Welcome, {{ clientPortalIdentity.clientName }}</h2>
-                                    <p class="mt-2 max-w-2xl text-xs leading-relaxed text-slate-200 md:text-sm">Everything for your projects, official documents and payment progress is gathered here in one secure workspace.</p>
-                                </div>
+                    <!-- FILE COVER — who this account is, stamped once at the top -->
+                    <section class="zq-cp-cover">
+                        <div class="zq-cp-cover-main">
+                            <p class="zq-cp-eyebrow">Client Workspace</p>
+                            <h2 class="zq-cp-title">{{ clientPortalIdentity.clientName }}</h2>
+                            <div class="zq-cp-regs">
+                                <p class="zq-cp-reg">Client ID<span class="zq-cp-mono">{{ userProfile.clientDirectoryId || '—' }}</span></p>
+                                <p class="zq-cp-reg">SSM<span class="zq-cp-mono">{{ clientPortalIdentity.clientSSM || 'Pending' }}</span></p>
+                                <p class="zq-cp-reg">Sign-in email<span class="zq-cp-lower">{{ clientPortalIdentity.clientEmail }}</span></p>
                             </div>
-                            <div class="relative flex flex-wrap gap-2 lg:justify-end">
-                                <button type="button" @click="switchTab('project-activities')" class="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-extrabold text-slate-900 shadow-lg transition hover:-translate-y-0.5"><i class="fa-solid fa-route text-brand-blue"></i>Track Projects</button>
-                                <button type="button" @click="switchTab('profile')" class="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/20"><i class="fa-solid fa-user-shield"></i>My Account</button>
-                                <button type="button" @click="refreshApp" class="inline-flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-3 text-xs font-extrabold text-white transition hover:bg-white/20"><i class="fa-solid fa-rotate-right"></i>Refresh Portal</button>
-                            </div>
+                        </div>
+                        <div class="zq-cp-cover-side">
+                            <span class="zq-cp-stamp">{{ myClientTier }}</span>
+                            <p class="zq-cp-stamp-note">{{ clientSupportChannel.promise }}</p>
+                            <button type="button" @click="refreshApp" class="zq-cp-ghost-btn"><i class="fa-solid fa-rotate-right"></i><span>Refresh Portal</span></button>
                         </div>
                     </section>
 
-                    <div v-if="currentTab === 'client-portal'" class="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
-                        <section class="zq-client-identity relative overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-lg border border-white/5">
-                            <div class="absolute -bottom-10 -right-8 h-32 w-32 rounded-full bg-brand-blue/20"></div>
-                            <div class="relative flex items-center gap-4">
-                                <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-slate-100 text-brand-dark text-xl font-black shadow-inner dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100">{{ getInitials(clientPortalIdentity.clientName) }}</div>
-                                <div class="min-w-0 flex-1"><p class="truncate text-base font-black">{{ clientPortalIdentity.clientName }}</p><p class="mt-1 truncate text-[11px] text-slate-100">{{ clientPortalIdentity.clientSSM || 'Business profile pending' }}</p><span :class="clientTierMeta(clientPortalIdentity.clientTier).badgeClass" class="mt-2 inline-flex rounded-full px-2 py-1 text-[9px] font-black">{{ clientTierMeta(clientPortalIdentity.clientTier).label }} Client</span></div>
-                            </div>
-                            <div class="relative mt-5 border-t border-white/15 pt-4 text-[10px] text-slate-300"><p class="flex items-center gap-2 truncate"><i class="fa-solid fa-envelope"></i>{{ clientPortalIdentity.clientEmail }}</p><p class="mt-2 flex items-center gap-2"><i class="fa-solid fa-lock"></i>Protected client access</p></div>
-                        </section>
-                        <section class="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                            <div class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Documents</span><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-file-lines"></i></span></div><p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ clientPortalDocs.length }}</p><p class="mt-1 text-[10px] text-slate-500">Official files available</p></div>
-                            <div class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Paid</span><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300"><i class="fa-solid fa-circle-check"></i></span></div><p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ myClientPaidCount }}</p><p class="mt-1 text-[10px] text-slate-500">Invoices completed</p></div>
-                            <div class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Action Needed</span><span class="flex h-9 w-9 items-center justify-center rounded-xl" :class="myClientUnpaidCount > 0 ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/40 dark:text-rose-300' : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400'"><i class="fa-solid fa-clock"></i></span></div><p class="mt-3 text-2xl font-black" :class="myClientUnpaidCount > 0 ? 'text-rose-600' : 'text-slate-900 dark:text-white'">{{ myClientUnpaidCount }}</p><p class="mt-1 text-[10px] text-slate-500">Unpaid invoices</p></div>
-                            <div class="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase tracking-wider text-slate-400">Active Projects</span><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-diagram-project"></i></span></div><p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ clientActiveProjectsCount }}</p><p class="mt-1 text-[10px] text-slate-500">Currently in progress</p></div>
-                        </section>
+                    <!-- PANEL RAIL — switches the section below without leaving the page -->
+                    <div class="zq-cp-rail" role="tablist" aria-label="Client workspace sections">
+                        <button v-for="panel in clientPanelList()" :key="`cp-rail-${panel.key}`" type="button" role="tab"
+                                :aria-selected="clientPanel === panel.key" :class="{ 'is-active': clientPanel === panel.key }"
+                                @click="clientPanel = panel.key" class="zq-cp-rail-btn">
+                            <i class="fa-solid" :class="panel.icon" aria-hidden="true"></i><span>{{ panel.label }}</span>
+                            <span v-if="panel.key === 'dc' && clientPortalDocs.length" class="zq-cp-count">{{ clientPortalDocs.length }}</span>
+                            <span v-else-if="panel.key === 'up' && clientUpdatesTimeline.length" class="zq-cp-count">{{ clientUpdatesTimeline.length }}</span>
+                            <span v-else-if="panel.key === 'tb'" class="zq-cp-count">{{ clientUnlockedFeatureCount }}/{{ clientTierFeatureList.length }}</span>
+                        </button>
                     </div>
 
-                    <section v-if="currentTab === 'client-portal'" class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <button type="button" @click="switchTab('project-activities')" class="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-route"></i></span><span><strong class="block text-xs text-slate-900 dark:text-white">Project Journey</strong><small class="mt-1 block text-[10px] text-slate-500">Milestones, PIC and latest status</small></span><i class="fa-solid fa-arrow-right ml-auto text-xs text-slate-300 transition group-hover:translate-x-1 group-hover:text-brand-blue"></i></button>
-                        <button type="button" @click="switchTab('client-documents')" class="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-folder-open"></i></span><span><strong class="block text-xs text-slate-900 dark:text-white">Documents Centre</strong><small class="mt-1 block text-[10px] text-slate-500">Invoices, quotations and PDFs</small></span><i class="fa-solid fa-arrow-right ml-auto text-xs text-slate-300 transition group-hover:translate-x-1 group-hover:text-brand-blue"></i></button>
-                        <button type="button" @click="switchTab('client-support')" class="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-headset"></i></span><span><strong class="block text-xs text-slate-900 dark:text-white">Need Assistance?</strong><small class="mt-1 block text-[10px] text-slate-500">Open the support centre</small></span><i class="fa-solid fa-arrow-right ml-auto text-xs text-slate-300 transition group-hover:translate-x-1 group-hover:text-brand-blue"></i></button>
-                    </section>
-
-                    <!-- PROJECT PROGRESS — systematic project overview for this client, same stepper pattern used elsewhere -->
-                    <div v-if="currentTab === 'client-portal'" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 md:p-6">
-                        <div class="mb-4 flex items-center justify-between gap-3">
-                            <h3 class="text-sm font-extrabold text-brand-dark dark:text-white flex items-center gap-2"><i class="fa-solid fa-diagram-project text-brand-blue"></i>Your Project Progress</h3>
-                            <button type="button" @click="switchTab('project-activities')" class="text-[10px] font-bold text-brand-blue hover:underline">View Full Tracker</button>
+                    <!-- ============================ OVERVIEW ============================ -->
+                    <section v-show="clientPanel === 'ov'" class="zq-cp-panel" role="tabpanel" aria-label="Overview">
+                        <div class="zq-cp-figs">
+                            <div class="zq-cp-fig"><p class="zq-cp-eyebrow">Documents</p><p class="zq-cp-fig-n">{{ clientPortalDocs.length }}</p><p class="zq-cp-fig-l">Official files you can open</p></div>
+                            <div class="zq-cp-fig is-done"><p class="zq-cp-eyebrow">Settled</p><p class="zq-cp-fig-n">{{ myClientPaidCount }}</p><p class="zq-cp-fig-l">Invoices paid in full</p></div>
+                            <div class="zq-cp-fig" :class="myClientUnpaidCount > 0 ? 'is-act' : ''"><p class="zq-cp-eyebrow">Needs action</p><p class="zq-cp-fig-n">{{ myClientUnpaidCount }}</p><p class="zq-cp-fig-l">Invoices still outstanding</p></div>
+                            <div class="zq-cp-fig is-wait"><p class="zq-cp-eyebrow">Active projects</p><p class="zq-cp-fig-n">{{ clientActiveProjectsCount }}</p><p class="zq-cp-fig-l">Currently in progress</p></div>
                         </div>
-                        <div v-if="projects.length" class="space-y-3">
-                            <button type="button" v-for="project in projects.slice(0, 4)" :key="`portal-project-${project.id}`" @click="openProjectDetails(project)" class="w-full rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-left transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md">
-                                <div class="flex flex-wrap items-center justify-between gap-2">
-                                    <div class="min-w-0 flex-1">
-                                        <span class="rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[9px] font-extrabold text-brand-blue dark:text-blue-300 border border-blue-100 dark:border-blue-900">{{ project.projectRef }}</span>
-                                        <p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ project.title }}</p>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Your project progress</h3><p class="zq-cp-sub">Each bar shows how far a project has moved through the five stages.</p></div>
+                                <button type="button" @click="switchTab('project-activities')" class="zq-cp-link">Full tracker <i class="fa-solid fa-arrow-right"></i></button>
+                            </div>
+                            <div v-if="projects.length" class="zq-cp-cases">
+                                <button type="button" v-for="project in projects.slice(0, 5)" :key="`cp-project-${project.id}`" @click="openProjectDetails(project)" class="zq-cp-case">
+                                    <div class="zq-cp-case-top">
+                                        <div class="min-w-0">
+                                            <p class="zq-cp-ref">{{ project.projectRef }}</p>
+                                            <p class="zq-cp-case-title">{{ project.title }}</p>
+                                        </div>
+                                        <span class="zq-cp-pill">{{ project.status }}</span>
                                     </div>
-                                    <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ project.status }}</span>
-                                </div>
-                                <div class="mt-3 flex items-center gap-1">
-                                    <template v-for="(stage, stageIndex) in projectStages" :key="stage">
-                                        <span class="h-1.5 flex-1 rounded-full" :class="stageIndex <= projectStages.indexOf(project.status) ? 'bg-brand-blue' : 'bg-slate-100 dark:bg-slate-700'"></span>
-                                    </template>
-                                </div>
-                            </button>
+                                    <div class="zq-cp-stages" role="img" :aria-label="`Stage ${projectStages.indexOf(project.status) + 1} of ${projectStages.length}`">
+                                        <span v-for="(stage, stageIndex) in projectStages" :key="`cp-stage-${project.id}-${stage}`" class="zq-cp-stage" :class="{ 'is-reached': stageIndex <= projectStages.indexOf(project.status) }"></span>
+                                    </div>
+                                </button>
+                            </div>
+                            <div v-else class="zq-empty-state">
+                                <i class="fa-solid fa-rocket zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">Your next project will appear here</p>
+                                <p class="zq-empty-state-text">Once our team assigns a project to your account, every milestone shows up on this page.</p>
+                            </div>
                         </div>
-                        <div v-else class="zq-empty-state">
-                            <i class="fa-solid fa-rocket zq-empty-state-icon" aria-hidden="true"></i>
-                            <p class="zq-empty-state-title">Your next project will appear here</p>
-                            <p class="zq-empty-state-text">Once our team assigns a project to your account, you can follow every milestone and update in real time.</p>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Latest from your team</h3><p class="zq-cp-sub">The most recent messages on your projects.</p></div>
+                                <button type="button" @click="clientPanel = 'up'" class="zq-cp-link">All updates <i class="fa-solid fa-arrow-right"></i></button>
+                            </div>
+                            <div v-if="clientRecentUpdates.length" class="zq-cp-msgs">
+                                <article v-for="update in clientRecentUpdates" :key="`cp-recent-${update.id}`" class="zq-cp-msg" :class="update.senderRole === 'Client' ? 'is-mine' : ''">
+                                    <p class="zq-cp-msg-meta">{{ update.senderRole === 'Client' ? 'You' : (update.senderName || 'Project team') }} · {{ formatDateTime(update.createdAt || update.updateDate) }}</p>
+                                    <p class="zq-cp-msg-body">{{ update.message }}</p>
+                                    <p class="zq-cp-msg-ref">{{ update.projectRef || 'Project activity' }}</p>
+                                </article>
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No messages yet</p>
+                                <p class="zq-empty-state-text">Updates from your project team will appear here.</p>
+                            </div>
                         </div>
-                    </div>
+                    </section>
 
-                    <div v-if="currentTab === 'client-updates'" class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_320px]">
-                        <div class="space-y-4">
-                            <section class="rounded-2xl border border-teal-200 bg-white p-5 shadow-sm dark:border-teal-900/70 dark:bg-slate-800">
-                                <div class="mb-4 flex items-center justify-between"><div><p class="text-[9px] font-black uppercase tracking-[0.18em] text-teal-600 dark:text-teal-300">Most Important</p><h3 class="mt-1 text-sm font-black text-slate-900 dark:text-white">Current Project Status</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live status for every project linked to your Client Portal account.</p></div><span class="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-50 text-teal-600 dark:bg-teal-950/40 dark:text-teal-300"><i class="fa-solid fa-diagram-project"></i></span></div>
-                                <div v-if="clientProjectStatusCards.length" class="grid grid-cols-1 gap-3 md:grid-cols-2">
-                                    <article v-for="project in clientProjectStatusCards" :key="`client-status-${project.id}`" class="rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-700 dark:bg-slate-700/35"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ project.projectRef || 'Project' }}</p><h4 class="mt-1 truncate text-xs font-black text-slate-900 dark:text-white">{{ project.title || 'Project activity' }}</h4></div><span :class="clientProjectStatusBadgeClass(project.status || 'Project Planning')" class="shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black"><i class="fa-solid fa-circle mr-1 text-[6px]" aria-hidden="true"></i>{{ project.status || 'Project Planning' }}</span></div><div class="mt-3 border-t border-slate-200 pt-2.5 dark:border-slate-600"><p class="text-[9px] font-bold uppercase tracking-wider text-slate-400">Latest Project Update</p><p class="mt-1 text-[10px] leading-relaxed text-slate-600 dark:text-slate-300">{{ project.latestProjectEvent?.message || 'Current project status is shown above.' }}</p><p class="mt-1.5 text-[9px] font-bold text-brand-blue">{{ formatDateTime(project.latestProjectEvent?.createdAt || project.updatedAt || project.createdAt) }}</p></div></article>
-                                </div>
-                                <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-solid fa-diagram-project zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No project status yet</p><p class="zq-empty-state-text">A live status will appear when a project is linked to your account.</p></div>
-                            </section>
-
-                            <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-                                <div class="mb-4 flex items-center justify-between"><div><h3 class="text-sm font-black text-slate-900 dark:text-white">Project Updates &amp; Conversation History</h3><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Messages shared by your project team and your own replies are kept separately from the current status.</p></div><span class="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-comments"></i></span></div>
-                                <div v-if="clientConversationHistory.length" class="space-y-3">
-                                    <div v-for="update in clientConversationHistory" :key="`portal-conversation-${update.id}`" class="flex gap-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-700/40"><span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-xs shadow-sm dark:bg-slate-800" :class="update.senderRole === 'Client' ? 'text-teal-600 dark:text-teal-300' : 'text-brand-blue dark:text-blue-300'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-reply' : 'fa-comment-dots'"></i></span><div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-1.5"><p class="text-xs font-extrabold text-slate-800 dark:text-slate-100">{{ update.projectRef || 'Project activity' }}</p><span class="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-brand-blue dark:bg-blue-950/40 dark:text-blue-300">{{ update.updateType || 'Project Update' }}</span></div><p class="mt-1 truncate text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ update.projectTitle || 'Project activity' }}</p><p class="mt-1 text-[10px] leading-relaxed text-slate-600 dark:text-slate-300">{{ update.message || 'A new message is available for your project.' }}</p><p class="mt-1.5 text-[9px] font-bold text-brand-blue"><span>{{ update.senderRole === 'Client' ? 'You' : (update.senderName || 'Project team') }}</span> · {{ formatDateTime(update.createdAt || update.updateDate) }}</p></div></div>
-                                </div>
-                                <div v-else class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No conversation yet</p><p class="zq-empty-state-text">Project messages and your replies will appear here.</p></div>
-                            </section>
-                        </div>
-                        <aside class="overflow-hidden rounded-2xl bg-brand-dark p-5 text-white shadow-lg border border-white/5">
-                            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-lg"><i class="fa-solid fa-shield-heart"></i></span><h3 class="mt-4 text-base font-black">Need help with an update?</h3><p class="mt-2 text-[11px] leading-relaxed text-slate-100">Open the dedicated Support Centre or reply through the relevant project tracker.</p><button type="button" @click="switchTab('client-support')" class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black text-brand-dark shadow transition hover:-translate-y-0.5"><i class="fa-solid fa-headset"></i>Open Support Centre</button>
-                        </aside>
-                    </div>
-
-                    <div v-if="currentTab === 'client-support'" class="space-y-5">
-                        <section class="relative overflow-hidden rounded-3xl bg-brand-dark p-6 text-white shadow-xl md:p-8 border border-white/5">
-                            <div class="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-blue/15 blur-2xl"></div><div class="relative max-w-2xl"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 text-xl"><i class="fa-solid fa-headset"></i></span><h3 class="mt-5 text-2xl font-black">How can we help?</h3><p class="mt-2 text-sm leading-relaxed text-slate-300">Choose the most suitable channel below. For project-specific questions, open My Projects so your message stays connected to the correct project history.</p></div>
-                        </section>
-                        <section class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <a :href="`mailto:${company.email || supportEmail}`" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><span class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-envelope"></i></span><h4 class="mt-4 text-sm font-black text-slate-900 dark:text-white">Email Support</h4><p class="mt-1 text-[10px] leading-relaxed text-slate-500">Send a general account, document or billing enquiry.</p><span class="mt-4 block truncate text-[10px] font-bold text-brand-blue">{{ company.email || supportEmail }}</span></a>
-                            <a v-if="company.phone" :href="`tel:${company.phone}`" class="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><span class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-phone"></i></span><h4 class="mt-4 text-sm font-black text-slate-900 dark:text-white">Call Our Team</h4><p class="mt-1 text-[10px] leading-relaxed text-slate-500">For urgent assistance during normal business hours.</p><span class="mt-4 block text-[10px] font-bold text-brand-blue">{{ company.phone }}</span></a>
-                            <button type="button" @click="switchTab('project-activities')" class="group rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:border-teal-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800"><span class="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-brand-blue dark:bg-slate-700 dark:text-teal-300"><i class="fa-solid fa-comments"></i></span><h4 class="mt-4 text-sm font-black text-slate-900 dark:text-white">Project Enquiry</h4><p class="mt-1 text-[10px] leading-relaxed text-slate-500">Open a project and reply within its activity history.</p><span class="mt-4 block text-[10px] font-bold text-brand-blue">Open My Projects <i class="fa-solid fa-arrow-right ml-1"></i></span></button>
-                        </section>
-                        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800"><h3 class="text-sm font-black text-slate-900 dark:text-white">Before contacting support</h3><div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3"><div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/40"><i class="fa-solid fa-hashtag text-teal-600"></i><p class="mt-2 text-xs font-bold text-slate-800 dark:text-white">Include reference number</p><p class="mt-1 text-[10px] text-slate-500">Provide the project or document number.</p></div><div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/40"><i class="fa-solid fa-align-left text-teal-600"></i><p class="mt-2 text-xs font-bold text-slate-800 dark:text-white">Describe the issue</p><p class="mt-1 text-[10px] text-slate-500">Explain what happened and the expected result.</p></div><div class="rounded-xl bg-slate-50 p-4 dark:bg-slate-700/40"><i class="fa-solid fa-image text-teal-600"></i><p class="mt-2 text-xs font-bold text-slate-800 dark:text-white">Attach evidence</p><p class="mt-1 text-[10px] text-slate-500">Include a screenshot when relevant.</p></div></div></section>
-                    </div>
-
-                    <div v-if="currentTab === 'client-documents'" class="zq-card p-5 md:p-6">
-                        <div class="mb-5"><h3 class="zq-text-section-title"><i class="fa-solid fa-folder-open mr-2 text-teal-600"></i>Documents &amp; Billing</h3><p class="mt-1 text-[10px] text-slate-500">Review and print your official quotations and invoices.</p></div>
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="text-xs font-bold text-slate-400">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s)</span>
-                                <template v-if="filteredClientPortalDocs.length">
-                                    <button type="button" @click="printAllClientDocuments" :disabled="bulkPrintPreparing" class="zq-btn zq-btn-outline zq-btn-sm">
-                                        <i class="fa-solid" :class="bulkPrintPreparing ? 'fa-spinner fa-spin' : 'fa-print'"></i>
-                                        <span>{{ bulkPrintPreparing ? 'Preparing' : 'Print All' }}</span>
+                    <!-- ======================= DOCUMENTS & BILLING ======================= -->
+                    <section v-show="clientPanel === 'dc'" class="zq-cp-panel" role="tabpanel" aria-label="Documents and billing">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Documents &amp; billing</h3><p class="zq-cp-sub">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s).</p></div>
+                                <div class="zq-cp-actions">
+                                    <button v-if="filteredClientPortalDocs.length" type="button" @click="printAllClientDocuments" :disabled="bulkPrintPreparing" class="zq-btn zq-btn-outline zq-btn-sm">
+                                        <i class="fa-solid" :class="bulkPrintPreparing ? 'fa-spinner fa-spin' : 'fa-print'"></i><span>{{ bulkPrintPreparing ? 'Preparing' : 'Print All' }}</span>
                                     </button>
-                                    <button type="button" @click="exportClientStatement" class="zq-btn zq-btn-outline zq-btn-sm">
+                                    <button v-if="filteredClientPortalDocs.length && clientTierAllows('account-statement')" type="button" @click="exportClientStatement" class="zq-btn zq-btn-outline zq-btn-sm">
                                         <i class="fa-solid fa-file-csv"></i><span>Statement (CSV)</span>
                                     </button>
-                                </template>
+                                    <button v-else-if="filteredClientPortalDocs.length" type="button" @click="clientPanel = 'tb'" class="zq-cp-locked-btn" :title="clientTierLockMessage('account-statement')">
+                                        <i class="fa-solid fa-lock"></i><span>Statement (CSV)</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="flex flex-wrap items-center gap-2">
+
+                            <!-- Retention is a real limit, not a nudge: these records are filtered
+                                 out of the list below, so say so rather than let the count look wrong. -->
+                            <p v-if="clientRetentionCutoff" class="zq-cp-note">
+                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                <span>On {{ myClientTier }}, this archive covers documents dated {{ clientRetentionCutoff }} onward. <button type="button" @click="clientPanel = 'tb'" class="zq-cp-note-link">See tier benefits</button></span>
+                            </p>
+
+                            <div class="zq-cp-filters">
                                 <div class="zq-filter-chip-group" role="group" aria-label="Filter by document type">
                                     <button type="button" @click="clientPortalFilter.type = 'all'" :class="{ 'is-active': clientPortalFilter.type === 'all' }" :aria-pressed="clientPortalFilter.type === 'all'" class="zq-filter-chip">All</button>
                                     <button type="button" @click="clientPortalFilter.type = 'Quotation'" :class="{ 'is-active': clientPortalFilter.type === 'Quotation' }" :aria-pressed="clientPortalFilter.type === 'Quotation'" class="zq-filter-chip">Quotations</button>
@@ -3021,68 +2890,208 @@
                                 </div>
                                 <div class="zq-filter-chip-group" role="group" aria-label="Filter by payment status">
                                     <button type="button" @click="clientPortalFilter.status = 'all'" :class="{ 'is-active': clientPortalFilter.status === 'all' }" :aria-pressed="clientPortalFilter.status === 'all'" class="zq-filter-chip">All</button>
-                                    <button type="button" @click="clientPortalFilter.status = 'Paid'" :class="{ 'is-active': clientPortalFilter.status === 'Paid' }" :aria-pressed="clientPortalFilter.status === 'Paid'" class="zq-filter-chip is-success">Paid</button>
-                                    <button type="button" @click="clientPortalFilter.status = 'Unpaid'" :class="{ 'is-active': clientPortalFilter.status === 'Unpaid' }" :aria-pressed="clientPortalFilter.status === 'Unpaid'" class="zq-filter-chip is-danger">Unpaid</button>
+                                    <button type="button" @click="clientPortalFilter.status = 'Paid'" :class="{ 'is-active': clientPortalFilter.status === 'Paid' }" :aria-pressed="clientPortalFilter.status === 'Paid'" class="zq-filter-chip">Paid</button>
+                                    <button type="button" @click="clientPortalFilter.status = 'Unpaid'" :class="{ 'is-active': clientPortalFilter.status === 'Unpaid' }" :aria-pressed="clientPortalFilter.status === 'Unpaid'" class="zq-filter-chip">Unpaid</button>
                                 </div>
                             </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="zq-table zq-cp-table">
+                                    <thead>
+                                        <tr><th>Type</th><th>Document No.</th><th>Date</th><th class="text-right">Amount (RM)</th><th class="text-center">Status</th><th class="text-center">Actions</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-if="!filteredClientPortalDocs.length" class="zq-table-empty">
+                                            <td colspan="6">
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-solid fa-file-circle-plus zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p>
+                                                    <p class="zq-empty-state-text">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices appear here automatically when our team issues them.' }}</p>
+                                                    <div v-if="clientPortalDocs.length && (clientPortalFilter.type !== 'all' || clientPortalFilter.status !== 'all')" class="zq-empty-state-action"><button type="button" @click="clientPortalFilter.type = 'all'; clientPortalFilter.status = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr v-for="d in filteredClientPortalDocs" :key="d.id">
+                                            <td><span class="zq-cp-type"><i class="fa-solid" :class="d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-pen'"></i>{{ d.type }}</span></td>
+                                            <td class="zq-cp-mono zq-cp-strong">{{ d.docNo }}</td>
+                                            <td class="zq-cp-mono">{{ d.date }}</td>
+                                            <td class="text-right zq-cp-mono zq-cp-strong">{{ formatCurrency(d.amount) }}</td>
+                                            <td class="text-center">
+                                                <span class="zq-cp-pill" :class="['Paid', 'Accepted'].includes(d.status) ? 'is-done' : ['Open', 'Payment Under Review'].includes(clientBillingStatus(d)) ? 'is-wait' : 'is-act'">{{ clientBillingStatus(d) }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                                    <button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
+                                                    <template v-if="canDecideQuotation(d)">
+                                                        <button type="button" @click="decideQuotation(d, 'Accepted')" class="zq-btn zq-btn-sm zq-cp-accept"><i class="fa-solid fa-check"></i><span>Accept</span></button>
+                                                        <button type="button" @click="decideQuotation(d, 'Rejected')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-xmark"></i><span>Decline</span></button>
+                                                    </template>
+                                                    <label v-if="canAttachPaymentProof(d)" class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer" :class="{ 'opacity-60 pointer-events-none': paymentProofUploadingFor === d.id }">
+                                                        <i class="fa-solid" :class="paymentProofUploadingFor === d.id ? 'fa-spinner fa-spin' : 'fa-receipt'"></i>
+                                                        <span>{{ paymentProofUploadingFor === d.id ? 'Uploading' : (d.paymentProofReviewStatus === 'Rejected' ? 'Upload Corrected Proof' : (d.paymentProofUrl ? 'Replace Proof' : 'Payment Proof')) }}</span>
+                                                        <input type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" @change="handlePaymentProofUpload($event, d)">
+                                                    </label>
+                                                    <button v-if="d.paymentProofUrl" type="button" @click="openAttachment(d.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View submitted payment proof" aria-label="View submitted payment proof"><i class="fa-solid fa-eye"></i></button>
+                                                </div>
+                                                <p v-if="d.clientDecisionAt" class="zq-cp-cell-note">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
+                                                <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="zq-cp-cell-note is-act">Proof needs attention{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>
+                                                <p v-else-if="d.paymentProofAt" class="zq-cp-cell-note is-done">Proof submitted — awaiting Finance verification</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="zq-table">
-                                <thead>
-                                    <tr>
-                                        <th>Type</th>
-                                        <th>Document No.</th>
-                                        <th>Date</th>
-                                        <th class="text-right">Amount (RM)</th>
-                                        <th class="text-center">Status</th>
-                                        <th class="text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-if="!filteredClientPortalDocs.length" class="zq-table-empty">
-                                        <td colspan="6">
-                                            <div class="zq-empty-state zq-empty-state-compact">
-                                                <i class="fa-solid fa-file-circle-plus zq-empty-state-icon" aria-hidden="true"></i>
-                                                <p class="zq-empty-state-title">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p>
-                                                <p class="zq-empty-state-text">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices will appear here automatically when issued by our team.' }}</p>
-                                                <div v-if="clientPortalDocs.length && (clientPortalFilter.type !== 'all' || clientPortalFilter.status !== 'all')" class="zq-empty-state-action"><button type="button" @click="clientPortalFilter.type = 'all'; clientPortalFilter.status = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr v-for="d in filteredClientPortalDocs" :key="d.id">
-                                        <td>
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold" :class="d.type === 'Invoice' ? 'bg-teal-50 dark:bg-teal-950/40 text-brand-blue dark:text-teal-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'"><i class="fa-solid" :class="d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-pen'"></i>{{ d.type }}</span>
-                                        </td>
-                                        <td class="font-bold text-brand-dark dark:text-slate-100">{{ d.docNo }}</td>
-                                        <td class="text-slate-600 dark:text-slate-300">{{ d.date }}</td>
-                                        <td class="text-right font-extrabold">{{ formatCurrency(d.amount) }}</td>
-                                        <td class="text-center">
-                                            <span :class="['Paid', 'Accepted'].includes(d.status) ? 'bg-emerald-100 text-emerald-800' : ['Open', 'Payment Under Review'].includes(clientBillingStatus(d)) ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'" class="px-2.5 py-1 rounded-full text-xs font-bold">{{ clientBillingStatus(d) }}</span>
-                                        </td>
-                                        <td class="text-center">
-                                            <div class="flex flex-wrap items-center justify-center gap-1.5">
-                                                <button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
-                                                <template v-if="canDecideQuotation(d)">
-                                                    <button type="button" @click="decideQuotation(d, 'Accepted')" class="zq-btn zq-btn-sm bg-emerald-600 text-white hover:bg-emerald-700"><i class="fa-solid fa-check"></i><span>Accept</span></button>
-                                                    <button type="button" @click="decideQuotation(d, 'Rejected')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-xmark"></i><span>Decline</span></button>
-                                                </template>
-                                                <label v-if="canAttachPaymentProof(d)" class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer" :class="{ 'opacity-60 pointer-events-none': paymentProofUploadingFor === d.id }">
-                                                    <i class="fa-solid" :class="paymentProofUploadingFor === d.id ? 'fa-spinner fa-spin' : 'fa-receipt'"></i>
-                                                    <span>{{ paymentProofUploadingFor === d.id ? 'Uploading' : (d.paymentProofReviewStatus === 'Rejected' ? 'Upload Corrected Proof' : (d.paymentProofUrl ? 'Replace Proof' : 'Payment Proof')) }}</span>
-                                                    <input type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" @change="handlePaymentProofUpload($event, d)">
-                                                </label>
-                                                <button v-if="d.paymentProofUrl" type="button" @click="openAttachment(d.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View submitted payment proof" aria-label="View submitted payment proof"><i class="fa-solid fa-eye"></i></button>
-                                            </div>
-                                            <p v-if="d.clientDecisionAt" class="mt-1 text-[10px] text-slate-400">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
-                                            <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="mt-1 text-[10px] text-red-600 dark:text-red-300">Proof needs attention{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>
-                                            <p v-else-if="d.paymentProofAt" class="mt-1 text-[10px] text-emerald-600 dark:text-emerald-400">Proof submitted &mdash; awaiting Finance verification</p>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    </section>
+
+                    <!-- ========================= PROJECT UPDATES ========================= -->
+                    <section v-show="clientPanel === 'up'" class="zq-cp-panel" role="tabpanel" aria-label="Project updates">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Current project status</h3><p class="zq-cp-sub">Live status for every project linked to your account.</p></div>
+                            </div>
+                            <div v-if="clientProjectStatusCards.length" class="zq-cp-status-grid">
+                                <article v-for="project in clientProjectStatusCards" :key="`cp-status-${project.id}`" class="zq-cp-status">
+                                    <div class="zq-cp-case-top">
+                                        <div class="min-w-0"><p class="zq-cp-ref">{{ project.projectRef || 'Project' }}</p><p class="zq-cp-case-title">{{ project.title || 'Project activity' }}</p></div>
+                                        <span class="zq-cp-pill">{{ project.status || 'Project Planning' }}</span>
+                                    </div>
+                                    <div class="zq-cp-status-foot">
+                                        <p class="zq-cp-eyebrow">Latest update</p>
+                                        <p class="zq-cp-msg-body">{{ project.latestProjectEvent?.message || 'Current project status is shown above.' }}</p>
+                                        <p class="zq-cp-msg-ref">{{ formatDateTime(project.latestProjectEvent?.createdAt || project.updatedAt || project.createdAt) }}</p>
+                                    </div>
+                                </article>
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-diagram-project zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No project status yet</p>
+                                <p class="zq-empty-state-text">A live status appears as soon as a project is linked to your account.</p>
+                            </div>
                         </div>
-                    </div>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Conversation history</h3><p class="zq-cp-sub">Messages written by your project team, and your own replies.</p></div>
+                            </div>
+                            <!-- full-timeline is a Premium feature: below it the client sees the
+                                 recent conversation but not the complete recorded trail. -->
+                            <div v-if="clientConversationHistory.length" class="zq-cp-msgs">
+                                <article v-for="update in clientVisibleConversation" :key="`cp-convo-${update.id}`" class="zq-cp-msg" :class="update.senderRole === 'Client' ? 'is-mine' : ''">
+                                    <p class="zq-cp-msg-meta">{{ update.senderRole === 'Client' ? 'You' : (update.senderName || 'Project team') }} · {{ formatDateTime(update.createdAt || update.updateDate) }}</p>
+                                    <p class="zq-cp-msg-body">{{ update.message || 'A new message is available for your project.' }}</p>
+                                    <p class="zq-cp-msg-ref">{{ update.projectRef || 'Project activity' }} · {{ update.updateType || 'Project Update' }}</p>
+                                </article>
+                                <div v-if="clientHiddenConversationCount" class="zq-cp-lock">
+                                    <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                    <p>{{ clientHiddenConversationCount }} earlier {{ clientHiddenConversationCount === 1 ? 'entry is' : 'entries are' }} part of the full activity timeline.</p>
+                                    <button type="button" @click="clientPanel = 'tb'" class="zq-cp-link">See tier benefits <i class="fa-solid fa-arrow-right"></i></button>
+                                </div>
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No conversation yet</p>
+                                <p class="zq-empty-state-text">Project messages and your replies will appear here.</p>
+                            </div>
+                            <p v-if="!clientTierAllows('client-reply')" class="zq-cp-note">
+                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                <span>{{ clientTierLockMessage('client-reply') }} These updates are read-only on {{ myClientTier }}. <button type="button" @click="clientPanel = 'tb'" class="zq-cp-note-link">See tier benefits</button></span>
+                            </p>
+                            <p v-else class="zq-cp-note">
+                                <i class="fa-solid fa-reply" aria-hidden="true"></i>
+                                <span>Open a project from <button type="button" @click="switchTab('project-activities')" class="zq-cp-note-link">My Projects</button> to reply inside its activity history.</span>
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- ========================== TIER BENEFITS ========================== -->
+                    <section v-show="clientPanel === 'tb'" class="zq-cp-panel" role="tabpanel" aria-label="Tier benefits">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div>
+                                    <h3 class="zq-cp-h3">What your tier opens</h3>
+                                    <p class="zq-cp-sub">Your account is on <strong>{{ myClientTier }}</strong>, which opens {{ clientUnlockedFeatureCount }} of {{ clientTierFeatureList.length }} features.<template v-if="clientNextTier"> {{ clientNextTier }} opens more.</template></p>
+                                </div>
+                            </div>
+                            <ul class="zq-cp-bens">
+                                <li v-for="feature in clientTierFeatureList" :key="`cp-ben-${feature.key}`" class="zq-cp-ben" :class="feature.unlocked ? 'is-open' : 'is-shut'">
+                                    <i class="fa-solid zq-cp-ben-icon" :class="feature.unlocked ? 'fa-circle-check' : 'fa-lock'" aria-hidden="true"></i>
+                                    <div class="min-w-0">
+                                        <p class="zq-cp-ben-t">{{ feature.label }}</p>
+                                        <p class="zq-cp-ben-d">{{ feature.detail }}</p>
+                                    </div>
+                                    <span class="zq-cp-ben-tier">{{ feature.unlocked ? 'Included' : feature.tierLabel }}</span>
+                                </li>
+                            </ul>
+                            <p class="zq-cp-note">
+                                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                <span>To change your tier, speak to your account officer through <button type="button" @click="clientPanel = 'sp'" class="zq-cp-note-link">Help &amp; Support</button>.</span>
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- ========================== HELP &amp; SUPPORT ====================== -->
+                    <section v-show="clientPanel === 'sp'" class="zq-cp-panel" role="tabpanel" aria-label="Help and support">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">How can we help?</h3><p class="zq-cp-sub">Your tier sets the response commitment below.</p></div>
+                            </div>
+                            <div class="zq-cp-figs zq-cp-figs-2">
+                                <div class="zq-cp-fig is-done">
+                                    <p class="zq-cp-eyebrow">Your channel</p>
+                                    <p class="zq-cp-fig-name">{{ clientSupportChannel.name }}</p>
+                                    <p class="zq-cp-fig-l">{{ clientSupportChannel.promise }}</p>
+                                </div>
+                                <div class="zq-cp-fig">
+                                    <p class="zq-cp-eyebrow">Reach us</p>
+                                    <p class="zq-cp-fig-name">{{ company.name || 'ZENQOR Technologies' }}</p>
+                                    <p class="zq-cp-fig-l zq-cp-mono zq-cp-lower">{{ company.email || supportEmail }}</p>
+                                    <p v-if="company.phone" class="zq-cp-fig-l zq-cp-mono">{{ company.phone }}</p>
+                                </div>
+                            </div>
+                            <div class="zq-cp-actions zq-cp-actions-wide">
+                                <a :href="`mailto:${company.email || supportEmail}`" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-envelope"></i><span>Email support</span></a>
+                                <a v-if="company.phone" :href="`tel:${company.phone}`" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-phone"></i><span>Call our team</span></a>
+                                <button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-comments"></i><span>Ask about a project</span></button>
+                            </div>
+                        </div>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head"><div><h3 class="zq-cp-h3">Before you write to us</h3><p class="zq-cp-sub">Three things that get your enquiry answered on the first reply.</p></div></div>
+                            <ol class="zq-cp-steps">
+                                <li><span class="zq-cp-step-n">1</span><div><p class="zq-cp-ben-t">Quote the reference</p><p class="zq-cp-ben-d">The project or document number, exactly as it appears on this page.</p></div></li>
+                                <li><span class="zq-cp-step-n">2</span><div><p class="zq-cp-ben-t">Say what you expected</p><p class="zq-cp-ben-d">What happened, and what should have happened instead.</p></div></li>
+                                <li><span class="zq-cp-step-n">3</span><div><p class="zq-cp-ben-t">Attach the evidence</p><p class="zq-cp-ben-d">A screenshot, or the document itself where it is relevant.</p></div></li>
+                            </ol>
+                        </div>
+                    </section>
+
+                    <!-- ============================= ACCOUNT ============================= -->
+                    <section v-show="clientPanel === 'ac'" class="zq-cp-panel" role="tabpanel" aria-label="Account">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Account</h3><p class="zq-cp-sub">Who this sign-in belongs to, and what it is linked to.</p></div>
+                                <button type="button" @click="switchTab('profile')" class="zq-cp-link">Security settings <i class="fa-solid fa-arrow-right"></i></button>
+                            </div>
+                            <div class="zq-cp-ident">
+                                <span class="zq-cp-avatar">{{ getInitials(userProfile.name || clientPortalIdentity.clientName) }}</span>
+                                <div class="min-w-0">
+                                    <p class="zq-cp-case-title">{{ userProfile.name || clientPortalIdentity.clientName }}</p>
+                                    <p class="zq-cp-msg-ref zq-cp-lower">{{ userProfile.email }}</p>
+                                </div>
+                            </div>
+                            <dl class="zq-cp-defs">
+                                <div><dt>Company</dt><dd>{{ clientPortalIdentity.clientName }}</dd></div>
+                                <div><dt>Client ID</dt><dd class="zq-cp-mono">{{ userProfile.clientDirectoryId || 'Not linked' }}</dd></div>
+                                <div><dt>SSM</dt><dd class="zq-cp-mono">{{ clientPortalIdentity.clientSSM || 'Pending' }}</dd></div>
+                                <div><dt>Tier</dt><dd>{{ myClientTier }}</dd></div>
+                                <div><dt>Profile completeness</dt><dd>{{ clientProfileCompletion }}%</dd></div>
+                                <div><dt>Document archive</dt><dd>{{ clientRetentionCutoff ? `From ${clientRetentionCutoff}` : 'Complete history' }}</dd></div>
+                            </dl>
+                        </div>
+                    </section>
                 </div>
+
 
 
                 <!-- WEBSITE CONTENT MODULE (zenqor-tech Portfolio, Services, Page Text) -->

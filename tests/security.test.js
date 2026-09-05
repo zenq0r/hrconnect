@@ -375,12 +375,23 @@ test('legacy Project Activities can only be re-linked to one matching registered
     assert.doesNotMatch(repair, /deleteDoc|batch\.delete/);
 });
 
-test('Client Portal does not render obsolete dashboard layers or overlapping hero grid', () => {
+test('Client Portal does not render obsolete dashboard layers', () => {
     const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+    // The staff dashboard never renders for a Client, and the Client Portal is
+    // its own single-route workspace rather than a branch inside that dashboard.
     assert.match(source, /currentTab === 'dashboard' && userProfile\.role !== 'Client'/);
-    assert.match(source, /zq-client-workspace/);
+    assert.match(source, /class="zq-cp /, 'the Client Workspace page must render');
+
+    // Layers that were replaced and must not return. zq-client-overview was a
+    // Client branch nested inside a block that already excluded Clients, so it
+    // could never render; it duplicated the portal and drifted out of step.
     assert.doesNotMatch(source, /portal-hero-dot-/);
-    assert.match(source, /relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between/);
+    assert.doesNotMatch(source, /zq-client-overview/);
+    assert.doesNotMatch(source, /zq-client-workspace/);
+
+    // One cover, rendered once — not a hero stacked over a second identity card.
+    assert.equal((source.match(/class="zq-cp-cover"/g) || []).length, 1);
 });
 
 test('incoming portal notifications are recipient-scoped and protected from client-side creation', () => {

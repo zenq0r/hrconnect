@@ -103,6 +103,21 @@ service cloud.firestore {
     function isClient() {
       return isAuthenticated() && hasActiveRole('Client');
     }
+    // Client tier gate. The tiers, and which features each opens, are defined in
+    // app.js (CLIENT_TIER_ORDER / CLIENT_TIER_FEATURES); this mirrors the one
+    // boundary that has to hold server-side -- replying is Premium and above.
+    // Takes the already-fetched customer document so a caller pays for one read.
+    function tierAllowsReply(customer) {
+      return customer.clientTier == 'Premium' || customer.clientTier == 'Priority';
+    }
+    // Fails closed: a client whose directory record is missing cannot reply.
+    // Their clientDirectoryId claim is what links them to a project at all, so
+    // an absent record already means the account is not properly provisioned.
+    function callerTierAllowsReply() {
+      return request.auth.token.clientDirectoryId is string &&
+        exists(/databases/$(database)/documents/customers/$(request.auth.token.clientDirectoryId)) &&
+        tierAllowsReply(get(/databases/$(database)/documents/customers/$(request.auth.token.clientDirectoryId)).data);
+    }
 
     function isProjectManager() {
       return isAdmin();
@@ -811,6 +826,7 @@ service cloud.firestore {
             // single clientPortalUid, so authorize by clientDirectoryId claim
             // instead (mirrors the projects read rule's secondary-contact path).
             isClient() &&
+            callerTierAllowsReply() &&
             request.resource.data.senderRole == 'Client' &&
             request.resource.data.clientPortalUid == request.auth.uid &&
             get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientDirectoryId == request.auth.token.clientDirectoryId

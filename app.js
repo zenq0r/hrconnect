@@ -360,6 +360,58 @@ const STAFF_PORTAL_REQUEST_ACTIONS = [
     { key: 'reject', label: 'Reject', icon: 'fa-circle-xmark', variant: 'zq-btn-destructive', title: 'Decline the request' }
 ];
 
+// ---- Client tier model ----------------------------------------------------
+// Until now clientTier was a badge and nothing else. These constants are the
+// single source of truth for what a tier actually opens, and every gate -- UI,
+// method guard and firestore.rules -- is derived from them rather than
+// re-listing tiers by hand. Order matters: the index IS the rank.
+const CLIENT_TIER_ORDER = ['Standard', 'Premium', 'Priority'];
+
+// minTier is an index into CLIENT_TIER_ORDER. `key` is the gate name passed to
+// clientTierAllows(); anything not listed here is ungated.
+const CLIENT_TIER_FEATURES = [
+    { key: 'project-tracking', minTier: 0, label: 'Project and stage tracking', detail: 'See every project and the stage it currently sits at.' },
+    { key: 'billing-decisions', minTier: 0, label: 'Quotations and invoices', detail: 'Accept or decline a quotation and download any invoice.' },
+    { key: 'payment-proof', minTier: 0, label: 'Submit payment proof', detail: 'Upload a receipt straight onto the invoice it settles.' },
+    { key: 'full-timeline', minTier: 1, label: 'Full activity timeline', detail: 'Every recorded step on a project, not just its stage.' },
+    { key: 'client-reply', minTier: 1, label: 'Reply to your officer', detail: 'Two-way conversation on each project update.' },
+    { key: 'account-statement', minTier: 1, label: 'Download account statement', detail: 'A CSV statement of every transaction on record.' },
+    { key: 'officer-presence', minTier: 2, label: 'Live officer availability', detail: 'See when the officer handling your account is online.' },
+    { key: 'expiry-alerts', minTier: 2, label: 'Early expiry warnings', detail: 'Advance notice before a document or licence lapses.' },
+    { key: 'full-archive', minTier: 2, label: 'Complete document archive', detail: 'Every document since day one, with no retention window.' }
+];
+
+// Support response commitment per tier, indexed the same way.
+const CLIENT_SUPPORT_CHANNELS = [
+    { name: 'Email Support', promise: 'Reply within 3 working days' },
+    { name: 'Priority Support', promise: 'Reply within 1 working day' },
+    { name: 'Direct Channel', promise: 'Same-day reply, direct line to your officer' }
+];
+
+// Standard keeps a rolling window rather than the full archive; the
+// full-archive feature lifts it. In months so the boundary stays auditable.
+const CLIENT_ARCHIVE_WINDOW_MONTHS = 12;
+
+// How much of the conversation a client sees without the full-timeline feature.
+const CLIENT_TIMELINE_PREVIEW_COUNT = 5;
+
+// The Client Portal is one route with several panels rather than several
+// routes. CLIENT_LEGACY_TABS maps the tabs it replaced onto their panel, so
+// an older switchTab() call anywhere still lands somewhere real.
+const CLIENT_PANELS = [
+    { key: 'ov', label: 'Overview', icon: 'fa-gauge-high' },
+    { key: 'dc', label: 'Documents & Billing', icon: 'fa-folder-open' },
+    { key: 'up', label: 'Project Updates', icon: 'fa-bell' },
+    { key: 'tb', label: 'Tier Benefits', icon: 'fa-layer-group' },
+    { key: 'sp', label: 'Help & Support', icon: 'fa-headset' },
+    { key: 'ac', label: 'Account', icon: 'fa-user-shield' }
+];
+const CLIENT_LEGACY_TABS = {
+    'client-documents': 'dc',
+    'client-updates': 'up',
+    'client-support': 'sp'
+};
+
 // Sign-in greeting timing. HOLD covers the fade in plus the pause that follows;
 // FADE must stay >= the CSS transition on .zq-welcome-greeting or the overlay
 // would unmount mid-fade and vanish instead of easing away.
@@ -634,6 +686,7 @@ createApp({
             clientUpdateTypes: ['Progress Update', 'Document Update', 'Government Update', 'Client Action Required', 'Milestone Completed', 'General Notice'],
             clientUpdateModal: { show: false, isEdit: false, updateId: '', original: null, project: null, form: { updateType: 'Progress Update', updateDate: '', message: '' } },
             clientReplyMessage: '',
+            clientPanel: 'ov',
             // Which invoice row is mid-upload, so only that row shows a spinner.
             paymentProofUploadingFor: '',
             bulkPrintPreparing: false,
@@ -1249,10 +1302,14 @@ createApp({
             // It is an OR, rather than a fallback: a linked client can therefore
             // still retrieve its own historic records while all new records are
             // isolated by the immutable Client Directory ID.
-            return this.docHistory.filter(d => d.raw && (
+            const owned = this.docHistory.filter(d => d.raw && (
                 (clientDirectoryId && String(d.raw.customerId || '').trim() === clientDirectoryId) ||
                 (clientEmail && String(d.raw.clientEmail || '').trim().toLowerCase() === clientEmail)
             ));
+            // Retention is applied here rather than at the table, so every figure
+            // derived from this list counts exactly what the client can open.
+            const cutoff = this.clientRetentionCutoff;
+            return cutoff ? owned.filter(d => String(d.date || '') >= cutoff) : owned;
         },
         myClientRecord() {
             if (this.userProfile.clientDirectoryId) {
@@ -1343,6 +1400,50 @@ createApp({
         clientProfileCompletion() {
             const values = [this.userProfile.name, this.userProfile.email, this.userProfile.photo];
             return Math.round((values.filter(Boolean).length / values.length) * 100);
+        },
+        // ---- Client tier ----------------------------------------------------
+        // The authoritative tier is customers/{id}.clientTier. clientPortalIdentity
+        // already falls back to the project snapshot when the client record is not
+        // loaded yet, so read through it rather than reaching for customers twice.
+        myClientTier() {
+            const tier = String(this.clientPortalIdentity?.clientTier || '').trim();
+            return CLIENT_TIER_ORDER.includes(tier) ? tier : CLIENT_TIER_ORDER[0];
+        },
+        myClientTierIndex() { return CLIENT_TIER_ORDER.indexOf(this.myClientTier); },
+        clientTierFeatureList() {
+            return CLIENT_TIER_FEATURES.map(feature => ({
+                ...feature,
+                tierLabel: CLIENT_TIER_ORDER[feature.minTier],
+                unlocked: this.myClientTierIndex >= feature.minTier
+            }));
+        },
+        clientSupportChannel() {
+            return CLIENT_SUPPORT_CHANNELS[this.myClientTierIndex] || CLIENT_SUPPORT_CHANNELS[0];
+        },
+        // Null means no window at all -- either the tier lifted it, or the viewer
+        // is not a Client and retention never applied to them in the first place.
+        clientRetentionCutoff() {
+            if (this.userProfile.role !== 'Client') return null;
+            if (this.clientTierAllows('full-archive')) return null;
+            const cutoff = new Date();
+            cutoff.setMonth(cutoff.getMonth() - CLIENT_ARCHIVE_WINDOW_MONTHS);
+            return cutoff.toISOString().slice(0, 10);
+        },
+        clientNextTier() {
+            return CLIENT_TIER_ORDER[this.myClientTierIndex + 1] || null;
+        },
+        clientUnlockedFeatureCount() {
+            return this.clientTierFeatureList.filter(feature => feature.unlocked).length;
+        },
+        // Without full-timeline the conversation is capped at the most recent
+        // entries. Both halves are derived from one constant so the visible list
+        // and the 'N earlier entries' line can never disagree.
+        clientVisibleConversation() {
+            const history = this.clientConversationHistory;
+            return this.clientTierAllows('full-timeline') ? history : history.slice(0, CLIENT_TIMELINE_PREVIEW_COUNT);
+        },
+        clientHiddenConversationCount() {
+            return this.clientConversationHistory.length - this.clientVisibleConversation.length;
         },
         myUnpaidInvoicesCount() { return this.myClientDocs.filter(d => d.type === 'Invoice' && d.status !== 'Paid').length; },
         myUnpaidInvoicesAmount() { return this.myClientDocs.filter(d => d.type === 'Invoice' && d.status !== 'Paid').reduce((sum, d) => sum + (Number(d.amount) || 0), 0); },
@@ -1449,7 +1550,10 @@ createApp({
         financePendingClaims() { return [...this.claimsHistory, ...this.paymentVouchers].filter(c => c.status === 'Pending Account'); },
 
         clientPortalDocs() {
-            if (this.userProfile.role === 'Client' || this.userProfile.role === 'Staff') {
+            // A Client reads the retention-gated list; Staff previewing the portal
+            // are not subject to a client's tier, so they keep the raw match.
+            if (this.userProfile.role === 'Client') return this.myClientDocs;
+            if (this.userProfile.role === 'Staff') {
                 const clientDirectoryId = String(this.userProfile.clientDirectoryId || '').trim();
                 const clientEmail = String(this.userProfile.email || '').trim().toLowerCase();
                 return this.docHistory.filter(d => d.raw && (
@@ -2040,10 +2144,28 @@ createApp({
             const email = String(this.userProfile.email || '').trim().toLowerCase();
             return this.canManageProjects || (this.userProfile.role !== 'Client' && String(project?.ownerEmail || '').trim().toLowerCase() === email);
         },
+        // The one gate every tier check goes through. An unknown key is treated
+        // as ungated so adding a feature to the UI can never silently lock it.
+        clientTierAllows(featureKey) {
+            const feature = CLIENT_TIER_FEATURES.find(item => item.key === featureKey);
+            if (!feature) return true;
+            const tier = String(this.clientPortalIdentity?.clientTier || '').trim();
+            const index = CLIENT_TIER_ORDER.indexOf(CLIENT_TIER_ORDER.includes(tier) ? tier : CLIENT_TIER_ORDER[0]);
+            return index >= feature.minTier;
+        },
+        clientTierLockMessage(featureKey) {
+            const feature = CLIENT_TIER_FEATURES.find(item => item.key === featureKey);
+            if (!feature) return '';
+            return `${feature.label} is available on the ${CLIENT_TIER_ORDER[feature.minTier]} tier and above.`;
+        },
         canReplyAsClient(project) {
             // A secondary authorized contact's uid never matches the project's single
             // clientPortalUid (always the primary contact's), so authorize by the shared
             // clientDirectoryId claim instead of comparing uids directly.
+            // Replying is a Premium feature. Gating it here rather than on the
+            // button means every caller inherits the check; firestore.rules
+            // enforces the same boundary server-side.
+            if (!this.clientTierAllows('client-reply')) return false;
             return this.userProfile.role === 'Client' && Boolean(this.userProfile.clientDirectoryId) && String(project?.clientDirectoryId || '') === String(this.userProfile.clientDirectoryId || '');
         },
         clientProjectStatusBadgeClass(status) {
@@ -2295,6 +2417,7 @@ createApp({
         },
         async sendClientReply() {
             const project = this.projectPreview.project;
+            if (!this.clientTierAllows('client-reply')) { this.showNotify(this.clientTierLockMessage('client-reply'), 'error'); return; }
             if (!project || !this.canReplyAsClient(project)) { this.showNotify('You do not have permission to reply on this project.'); return; }
             const message = this.clientReplyMessage.trim();
             if (!message) { this.showNotify('Write a message before sending.'); return; }
@@ -4338,6 +4461,12 @@ createApp({
             this.welcomeGreetingTimers = [];
         },
         switchTab(tabName) {
+            // Documents, Updates and Support are panels of client-portal now, not
+            // routes. Redirect rather than 404 so every existing caller keeps working.
+            if (this.userProfile.role === 'Client' && CLIENT_LEGACY_TABS[tabName]) {
+                this.openClientPanel(CLIENT_LEGACY_TABS[tabName]);
+                return;
+            }
             if (!this.hasAccess(tabName)) { this.showNotify('Access Denied: Your role does not permit access to this module.'); return; }
             if (this.currentTab === tabName) {
                 this.mobileMenuOpen = false;
@@ -4351,6 +4480,17 @@ createApp({
             this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
         },
+        openClientPanel(panelKey) {
+            this.clientPanel = CLIENT_PANELS.some(panel => panel.key === panelKey) ? panelKey : 'ov';
+            this.mobileMenuOpen = false;
+            this.desktopSidebarOpen = false;
+            if (this.currentTab !== 'client-portal') {
+                window.history.pushState({ zenqorPortal: true, tab: 'client-portal' }, '', window.location.href);
+                this.currentTab = 'client-portal';
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        },
+        clientPanelList() { return CLIENT_PANELS; },
         startClientStatusClock() {
             if (this.clientStatusClockTimer) clearInterval(this.clientStatusClockTimer);
             this.clientStatusNow = Date.now();
@@ -7544,6 +7684,10 @@ createApp({
             }
         },
         exportClientStatement() {
+            if (!this.clientTierAllows('account-statement')) {
+                this.showNotify(this.clientTierLockMessage('account-statement'), 'error');
+                return;
+            }
             const items = this.filteredClientPortalDocs;
             if (!items.length) { this.showNotify('There are no documents to export.', 'error'); return; }
             const rows = [

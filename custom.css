@@ -2333,3 +2333,275 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     #app .zq-welcome-greeting-copy { transition-duration: 1ms; }
     #app .zq-welcome-greeting-copy { transform: none; }
 }
+
+/* ==========================================================================
+   CLIENT WORKSPACE — smoke grey and black-grey only
+   --------------------------------------------------------------------------
+   Every colour below is neutral: no channel of any value here differs from
+   another by more than a few points. That is deliberate, and it costs the page
+   its usual status colours, so status is carried by VALUE instead — the thing
+   that needs attention is the brightest, settled work is the quietest. Tokens
+   are scoped to .zq-cp so the staff modules keep their own blue/teal identity.
+   ========================================================================== */
+.zq-cp {
+    --cp-ground: #EDEEEF;
+    --cp-surface: #FBFBFB;
+    --cp-surface-2: #F1F2F3;
+    --cp-line: #D2D4D6;
+    --cp-text: #1D1F21;
+    --cp-dim: #5A5F64;
+    --cp-faint: #868B90;
+    --cp-smoke: #6E7479;
+    --cp-key: #3A3F44;
+    --cp-key-soft: rgba(58, 63, 68, .07);
+    --cp-on-key: #FBFBFB;
+    --cp-accent: linear-gradient(103deg, #5E6469 0%, #7C8287 52%, #A5AAAF 100%);
+    /* Status by value: act is darkest on light, brightest on dark. */
+    --cp-done: #8A9095;
+    --cp-wait: #5E6469;
+    --cp-act: #232629;
+    --cp-r: 4px;
+    color: var(--cp-text);
+}
+.dark .zq-cp {
+    --cp-ground: #16181A;
+    --cp-surface: #1C1F22;
+    --cp-surface-2: #23262A;
+    --cp-line: #34383C;
+    --cp-text: #E9EBEC;
+    --cp-dim: #A0A5AA;
+    --cp-faint: #74797E;
+    --cp-smoke: #9CA2A8;
+    --cp-key: #C7CCD1;
+    --cp-key-soft: rgba(199, 204, 209, .10);
+    --cp-on-key: #16181A;
+    --cp-accent: linear-gradient(103deg, #C2C7CC 0%, #9CA2A8 52%, #6E7479 100%);
+    --cp-done: #8E9499;
+    --cp-wait: #A8AEB4;
+    --cp-act: #DDE1E4;
+}
+
+.zq-cp { display: flex; flex-direction: column; gap: 18px; }
+.zq-cp .zq-cp-mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.zq-cp .zq-cp-lower { text-transform: lowercase; }
+.zq-cp .zq-cp-strong { font-weight: 700; color: var(--cp-text); }
+.zq-cp .zq-cp-eyebrow {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--cp-faint); margin: 0;
+}
+
+/* ---- File cover ---------------------------------------------------------- */
+.zq-cp-cover {
+    position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: start;
+    border: 1px solid var(--cp-line); background: var(--cp-surface);
+    border-radius: var(--cp-r); padding: 22px 22px 20px;
+}
+/* The accent transition reads clearest as one long edge, not as a fill. */
+.zq-cp-cover::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background-image: var(--cp-accent); }
+.zq-cp-title { font-size: 23px; font-weight: 800; line-height: 1.2; letter-spacing: -.015em; margin: 6px 0 0; color: var(--cp-text); text-wrap: balance; }
+.zq-cp-regs { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 12px; }
+.zq-cp-reg { font-size: 10px; color: var(--cp-faint); margin: 0; letter-spacing: .04em; text-transform: uppercase; font-weight: 700; }
+.zq-cp-reg span { display: block; color: var(--cp-dim); font-size: 12px; margin-top: 2px; letter-spacing: 0; text-transform: none; font-weight: 600; }
+.zq-cp-cover-side { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.zq-cp-stamp {
+    display: inline-block; border-radius: 2px; padding: 6px 14px;
+    font-size: 10.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
+    background-image: var(--cp-accent); color: var(--cp-on-key);
+}
+.zq-cp-stamp-note { font-size: 10px; color: var(--cp-faint); margin: 0; max-width: 22ch; }
+.zq-cp-ghost-btn {
+    display: inline-flex; align-items: center; gap: 7px; margin-top: 2px;
+    border: 1px solid var(--cp-line); background: var(--cp-surface-2); color: var(--cp-dim);
+    border-radius: var(--cp-r); padding: 7px 12px; font-size: 11px; font-weight: 700; cursor: pointer;
+    transition: color .15s, border-color .15s;
+}
+.zq-cp-ghost-btn:hover { color: var(--cp-text); border-color: var(--cp-smoke); }
+
+/* ---- Panel rail ---------------------------------------------------------- */
+.zq-cp-rail { display: flex; gap: 2px; border-bottom: 1px solid var(--cp-line); overflow-x: auto; }
+.zq-cp-rail-btn {
+    display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
+    background: none; border: 0; border-bottom: 2px solid transparent;
+    color: var(--cp-dim); padding: 11px 14px 9px;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; transition: color .15s, border-color .15s;
+}
+.zq-cp-rail-btn:hover { color: var(--cp-text); }
+.zq-cp-rail-btn.is-active { color: var(--cp-key); border-bottom-color: var(--cp-key); font-weight: 700; }
+.zq-cp-count {
+    font-size: 9.5px; font-weight: 700; color: var(--cp-faint);
+    background: var(--cp-key-soft); border-radius: 999px; padding: 2px 7px;
+}
+.zq-cp-rail-btn.is-active .zq-cp-count { color: var(--cp-key); }
+
+/* ---- Panels and blocks --------------------------------------------------- */
+.zq-cp-panel { display: flex; flex-direction: column; gap: 16px; }
+.zq-cp-block {
+    border: 1px solid var(--cp-line); background: var(--cp-surface);
+    border-radius: var(--cp-r); padding: 18px 18px 20px;
+}
+.zq-cp-block-head { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.zq-cp-h3 { font-size: 15px; font-weight: 800; margin: 0; color: var(--cp-text); letter-spacing: -.01em; }
+.zq-cp-sub { font-size: 11.5px; color: var(--cp-dim); margin: 4px 0 0; max-width: 68ch; line-height: 1.5; }
+.zq-cp-sub strong { color: var(--cp-text); font-weight: 700; }
+.zq-cp-link {
+    display: inline-flex; align-items: center; gap: 6px; background: none; border: 0;
+    color: var(--cp-key); font-size: 11.5px; font-weight: 700; cursor: pointer; padding: 0;
+}
+.zq-cp-link:hover { text-decoration: underline; }
+.zq-cp-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.zq-cp-actions-wide { margin-top: 14px; }
+.zq-cp-locked-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px dashed var(--cp-line); background: transparent; color: var(--cp-faint);
+    border-radius: var(--cp-r); padding: 7px 12px; font-size: 11.5px; font-weight: 700; cursor: pointer;
+}
+.zq-cp-locked-btn:hover { color: var(--cp-dim); border-color: var(--cp-smoke); }
+
+/* ---- Figures ------------------------------------------------------------- */
+.zq-cp-figs { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.zq-cp-figs-2 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.zq-cp-fig {
+    border: 1px solid var(--cp-line); border-left: 3px solid var(--cp-line);
+    background: var(--cp-surface); border-radius: var(--cp-r); padding: 14px 16px;
+}
+.zq-cp-fig.is-act { border-left-color: var(--cp-act); }
+.zq-cp-fig.is-wait { border-left-color: var(--cp-wait); }
+.zq-cp-fig.is-done { border-left-color: var(--cp-done); }
+.zq-cp-fig-n { font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -.02em; margin: 8px 0 4px; color: var(--cp-text); font-variant-numeric: tabular-nums; }
+.zq-cp-fig-name { font-size: 16px; font-weight: 700; margin: 8px 0 3px; color: var(--cp-text); }
+.zq-cp-fig-l { font-size: 11px; color: var(--cp-dim); margin: 0; }
+
+/* ---- Project cases ------------------------------------------------------- */
+.zq-cp-cases { display: flex; flex-direction: column; gap: 9px; }
+.zq-cp-case {
+    width: 100%; text-align: left; cursor: pointer;
+    border: 1px solid var(--cp-line); background: var(--cp-surface-2);
+    border-radius: var(--cp-r); padding: 13px 15px; transition: border-color .15s, background .15s;
+}
+.zq-cp-case:hover { border-color: var(--cp-smoke); }
+.zq-cp-case-top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.zq-cp-ref { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--cp-faint); margin: 0; font-variant-numeric: tabular-nums; }
+.zq-cp-case-title { font-size: 13.5px; font-weight: 700; color: var(--cp-text); margin: 3px 0 0; overflow: hidden; text-overflow: ellipsis; }
+.zq-cp-stages { display: flex; gap: 3px; margin-top: 11px; }
+.zq-cp-stage { height: 4px; flex: 1; border-radius: 999px; background: var(--cp-line); }
+.zq-cp-stage.is-reached { background: var(--cp-key); }
+
+/* ---- Pills: value, not hue ---------------------------------------------- */
+.zq-cp-pill {
+    display: inline-flex; align-items: center; white-space: nowrap;
+    border: 1px solid var(--cp-line); border-radius: 2px; padding: 3px 9px;
+    font-size: 10.5px; font-weight: 700; color: var(--cp-dim); background: var(--cp-key-soft);
+}
+.zq-cp-pill.is-done { color: var(--cp-done); border-color: var(--cp-done); }
+.zq-cp-pill.is-wait { color: var(--cp-wait); border-color: var(--cp-wait); }
+.zq-cp-pill.is-act { color: var(--cp-act); border-color: var(--cp-act); font-weight: 800; }
+
+/* ---- Messages ------------------------------------------------------------ */
+.zq-cp-msgs { display: flex; flex-direction: column; gap: 9px; }
+.zq-cp-msg {
+    border: 1px solid var(--cp-line); border-left: 3px solid var(--cp-line);
+    background: var(--cp-surface-2); border-radius: var(--cp-r); padding: 12px 14px;
+}
+.zq-cp-msg.is-mine { border-left-color: var(--cp-key); }
+.zq-cp-msg-meta { font-size: 10px; font-weight: 700; color: var(--cp-faint); margin: 0; }
+.zq-cp-msg-body { font-size: 12.5px; line-height: 1.55; color: var(--cp-text); margin: 6px 0 0; }
+.zq-cp-msg-ref { font-size: 10px; color: var(--cp-faint); margin: 6px 0 0; }
+
+/* ---- Status cards -------------------------------------------------------- */
+.zq-cp-status-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.zq-cp-status { border: 1px solid var(--cp-line); background: var(--cp-surface-2); border-radius: var(--cp-r); padding: 14px 15px; }
+.zq-cp-status-foot { border-top: 1px solid var(--cp-line); margin-top: 12px; padding-top: 10px; }
+
+/* ---- Locked notice ------------------------------------------------------- */
+.zq-cp-lock {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+    border: 1px dashed var(--cp-line); border-radius: var(--cp-r);
+    padding: 12px 14px; color: var(--cp-faint); font-size: 11.5px;
+}
+.zq-cp-lock p { margin: 0; flex: 1 1 220px; }
+.zq-cp-note {
+    display: flex; align-items: flex-start; gap: 9px;
+    border: 1px dashed var(--cp-line); background: var(--cp-key-soft);
+    border-radius: var(--cp-r); padding: 10px 13px; margin: 14px 0 0;
+    font-size: 11.5px; line-height: 1.5; color: var(--cp-dim);
+}
+.zq-cp-note > i { margin-top: 2px; color: var(--cp-faint); }
+.zq-cp-note-link { background: none; border: 0; padding: 0; color: var(--cp-key); font-weight: 700; font-size: inherit; cursor: pointer; text-decoration: underline; }
+
+/* ---- Tier benefits ------------------------------------------------------- */
+.zq-cp-bens { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.zq-cp-ben {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+    padding: 12px 4px; border-bottom: 1px solid var(--cp-line);
+}
+.zq-cp-ben:last-child { border-bottom: 0; }
+.zq-cp-ben-icon { font-size: 13px; }
+.zq-cp-ben.is-open .zq-cp-ben-icon { color: var(--cp-key); }
+.zq-cp-ben.is-shut .zq-cp-ben-icon { color: var(--cp-faint); }
+.zq-cp-ben.is-shut .zq-cp-ben-t, .zq-cp-ben.is-shut .zq-cp-ben-d { color: var(--cp-faint); }
+.zq-cp-ben-t { font-size: 13px; font-weight: 700; color: var(--cp-text); margin: 0; }
+.zq-cp-ben-d { font-size: 11.5px; color: var(--cp-dim); margin: 3px 0 0; line-height: 1.5; }
+.zq-cp-ben-tier {
+    font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--cp-faint); white-space: nowrap; border: 1px solid var(--cp-line);
+    border-radius: 2px; padding: 3px 8px;
+}
+.zq-cp-ben.is-open .zq-cp-ben-tier { color: var(--cp-key); border-color: var(--cp-key); }
+
+/* ---- Numbered steps: the order is the information ----------------------- */
+.zq-cp-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.zq-cp-steps li { display: grid; grid-template-columns: auto 1fr; gap: 13px; align-items: start; }
+.zq-cp-step-n {
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 2px; flex-shrink: 0;
+    border: 1px solid var(--cp-line); color: var(--cp-key);
+    font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+
+/* ---- Account ------------------------------------------------------------- */
+.zq-cp-ident { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.zq-cp-avatar {
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: 52px; height: 52px; border-radius: var(--cp-r);
+    border: 1px solid var(--cp-line); background: var(--cp-surface-2);
+    font-size: 16px; font-weight: 800; color: var(--cp-key);
+}
+.zq-cp-defs { display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin: 0; background: var(--cp-line); border: 1px solid var(--cp-line); border-radius: var(--cp-r); overflow: hidden; }
+.zq-cp-defs > div { background: var(--cp-surface); padding: 12px 14px; }
+.zq-cp-defs dt { font-size: 9.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--cp-faint); }
+.zq-cp-defs dd { font-size: 13px; font-weight: 600; color: var(--cp-text); margin: 5px 0 0; word-break: break-word; }
+
+/* ---- Table --------------------------------------------------------------- */
+.zq-cp-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.zq-cp-type { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--cp-dim); }
+.zq-cp-cell-note { font-size: 10px; color: var(--cp-faint); margin: 5px 0 0; }
+.zq-cp-cell-note.is-act { color: var(--cp-act); font-weight: 700; }
+.zq-cp-cell-note.is-done { color: var(--cp-done); }
+.zq-cp .zq-cp-accept { background: var(--cp-key); color: var(--cp-on-key); border-color: var(--cp-key); }
+.zq-cp .zq-cp-accept:hover { opacity: .88; }
+
+/* Keyboard focus must stay visible in a palette this quiet. */
+.zq-cp button:focus-visible,
+.zq-cp a:focus-visible,
+.zq-cp label:focus-within { outline: 2px solid var(--cp-key); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+    .zq-cp-cover { grid-template-columns: 1fr; }
+    .zq-cp-cover-side { align-items: flex-start; text-align: left; }
+}
+
+@media screen {
+    /* The app shell paints a navy ground for every module. Inside the Client
+       Workspace that ground has to be neutral too, or the page floats in the
+       exact blue this palette removed. Scoped to zq-client-main, so the staff
+       modules keep the shell they were designed against. */
+    #app .zq-client-main {
+        background-color: #EDEEEF;
+        background-image: linear-gradient(180deg, #F3F4F4 0%, #E4E5E6 100%);
+    }
+    .dark #app .zq-client-main {
+        background-color: #16181A;
+        background-image: linear-gradient(180deg, #191B1D 0%, #101112 100%);
+    }
+}
