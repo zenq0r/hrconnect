@@ -4942,17 +4942,22 @@ createApp({
                 // retyping a password that was never wrong.
                 const errorCode = String(error?.code || '');
                 const isCredentialFailure = errorCode.startsWith('auth/');
+                const isClientProvisioningFailure = errorCode.startsWith('client/');
                 // A Staff Portal lock disables the Authentication account, so
                 // sign-in now fails here rather than at the Firestore check
                 // below it. Reporting that as a wrong password would send the
                 // person off resetting a password that was never the problem.
                 if (errorCode === 'auth/user-disabled') {
                     this.loginError = 'Your portal access is locked. Please contact your administrator.';
+                } else if (isClientProvisioningFailure) {
+                    this.loginError = error.message;
                 } else {
                     this.loginError = isCredentialFailure
                         ? 'Invalid email or password credentials / System Error.'
                         : 'We could not reach the portal to finish signing you in. Please check your connection and try again.';
                 }
+                this.isLoggedIn = false;
+                if (auth.currentUser) await signOut(auth).catch(signOutError => console.error('Sign-out after failed login setup failed:', signOutError));
                 this.loginLoading = false;
             } finally {
                 this.interactiveLoginInProgress = false;
@@ -5208,8 +5213,14 @@ createApp({
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
                     body: JSON.stringify(targetUid ? { uid: targetUid } : {})
                 });
-                if (!resp.ok) { console.warn('Claims sync failed:', await resp.text()); return; }
                 const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    const error = new Error(data.error || 'Unable to sync access claims right now.');
+                    error.code = data.errorCode || (resp.status === 409 ? 'client/email-ambiguous' : '');
+                    if (!targetUid || targetUid === auth.currentUser?.uid) throw error;
+                    console.warn('Claims sync failed:', error);
+                    return;
+                }
                 if (!targetUid || targetUid === auth.currentUser.uid) {
                     await auth.currentUser.getIdToken(true);
                     // The API resolves this server-side from the authorized customer
@@ -5218,7 +5229,8 @@ createApp({
                     this.userProfile.clientDirectoryId = data?.claims?.clientDirectoryId || '';
                 }
             } catch (error) {
-                console.warn('Claims sync error:', error);
+                console.error('Claims sync error:', error);
+                if (!targetUid || targetUid === auth.currentUser?.uid) throw error;
             }
         },
         async loadOrMigrateUserMetadata(firebaseUser) {
@@ -5857,8 +5869,30 @@ createApp({
                 const isNewRecord = !form.id;
                 const docId = form.id || doc(collection(db, 'customers')).id;
                 const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
-                const additionalClientEmails = String(form.additionalClientEmailsText || '')
-                    .split(',').map(email => email.trim().toLowerCase()).filter(email => email && email.includes('@'));
+                const clientEmail = String(form.clientEmail || '').trim().toLowerCase();
+                const additionalClientEmails = [...new Set(String(form.additionalClientEmailsText || '')
+                    .split(',').map(email => email.trim().toLowerCase()).filter(email => email && email.includes('@')))]
+                    .filter(email => email !== clientEmail);
+                const registeredEmails = new Set([
+                    clientEmail,
+                    ...additionalClientEmails
+                ].filter(Boolean));
+                const conflictingCustomer = this.customers.find(customer => {
+                    if (customer.id === docId) return false;
+                    const customerEmails = [
+                        customer.clientEmail,
+                        ...(Array.isArray(customer.additionalClientEmails) ? customer.additionalClientEmails : [])
+                    ].map(email => String(email || '').trim().toLowerCase());
+                    return customerEmails.some(email => registeredEmails.has(email));
+                });
+                if (conflictingCustomer) {
+                    const conflictingEmail = [
+                        conflictingCustomer.clientEmail,
+                        ...(Array.isArray(conflictingCustomer.additionalClientEmails) ? conflictingCustomer.additionalClientEmails : [])
+                    ].map(email => String(email || '').trim().toLowerCase()).find(email => registeredEmails.has(email));
+                    this.showNotify(`Email ${conflictingEmail} is already registered to Client Directory record "${conflictingCustomer.clientName || conflictingCustomer.id}". Keep each client login email on one record only.`);
+                    return false;
+                }
                 const composedSSM = this.composeClientSSM(form.clientBrnNew, form.clientBrnOld);
                 // Client ID is derived from the BRN, so it must read the composed
                 // value rather than the now-unbound clientSSM field.
@@ -5874,7 +5908,7 @@ createApp({
                     clientTin: this.normalizeTin(form.clientTin),
                     companyType: String(form.companyType || '').trim(), industry: String(form.industry || '').trim(), clientTier,
                     clientContactPerson: String(form.clientContactPerson || '').trim(), clientPosition: String(form.clientPosition || '').trim(),
-                    clientEmail: String(form.clientEmail || '').trim().toLowerCase(), clientPhone: String(form.clientPhone || '').trim(),
+                    clientEmail, clientPhone: String(form.clientPhone || '').trim(),
                     additionalClientEmails,
                     clientAddress: String(form.clientAddress1).trim(), clientAddress1: String(form.clientAddress1).trim(),
                     clientAddress2: String(form.clientAddress2 || '').trim(), clientAddress3: String(form.clientAddress3 || '').trim(),

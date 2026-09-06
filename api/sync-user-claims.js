@@ -87,6 +87,14 @@ module.exports = async function handler(req, res) {
         res.status(200).json({ success: true, claims });
     } catch (error) {
         console.error('sync-user-claims error:', error);
+        if (error?.code === 'client/email-ambiguous') {
+            res.status(409).json({ error: error.message, errorCode: error.code });
+            return;
+        }
+        if (error?.code === 'client/email-not-registered') {
+            res.status(404).json({ error: error.message, errorCode: error.code });
+            return;
+        }
         res.status(500).json({ error: 'Unable to sync access claims right now. Please try again shortly.' });
     }
 };

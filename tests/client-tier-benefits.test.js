@@ -173,7 +173,20 @@ test('sign-in resolves the directory record from Additional Authorized Emails', 
     // account signs in to an empty portal.
     assert.match(claims, /where\('clientEmail', '==', email\)/);
     assert.match(claims, /where\('additionalClientEmails', 'array-contains', email\)/);
-    assert.match(claims, /claims\.clientDirectoryId = custSnap\.docs\[0\]\.id/);
+    assert.match(claims, /claims\.clientDirectoryId = matches\[0\]\.id/);
+});
+
+test('Client Directory email matches are unique and missing matches fail clearly', () => {
+    const claims = fs.readFileSync(path.join(__dirname, '..', 'api', '_portalClaims.js'), 'utf8');
+    const app = appSource();
+
+    assert.match(claims, /const primarySnap = .*where\('clientEmail', '==', email\)/s);
+    assert.match(claims, /const additionalSnap = .*where\('additionalClientEmails', 'array-contains', email\)/s);
+    assert.match(claims, /client\/email-ambiguous/);
+    assert.match(claims, /client\/email-not-registered/);
+    assert.match(app, /const conflictingCustomer = this\.customers\.find\(customer =>/);
+    assert.match(app, /Keep each client login email on one record only/);
+    assert.match(app, /\[\.\.\.new Set\(String\(form\.additionalClientEmailsText/);
 });
 
 test('the portal prints the registered Client ID, never the Firestore document key', () => {

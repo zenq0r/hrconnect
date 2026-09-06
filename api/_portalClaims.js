@@ -16,16 +16,27 @@ async function buildPortalClaims(db, { role, email, accessLocked }) {
 
     const claims = { role };
     if (role === 'Client' && email) {
-        // Primary contact match first, then fall back to additionalClientEmails —
-        // lets a client company authorize more than one login (e.g. their finance
-        // contact) against the same customers/{clientDirectoryId} record.
-        let custSnap = await db.collection('customers')
-            .where('clientEmail', '==', email).limit(1).get();
-        if (custSnap.empty) {
-            custSnap = await db.collection('customers')
-                .where('additionalClientEmails', 'array-contains', email).limit(1).get();
+        // Query both fields and reject an ambiguous address. Picking the first
+        // document would make the same login point at a different customer
+        // depending on Firestore's result order.
+        const primarySnap = await db.collection('customers')
+            .where('clientEmail', '==', email).get();
+        const additionalSnap = await db.collection('customers')
+            .where('additionalClientEmails', 'array-contains', email).get();
+        const matches = [...primarySnap.docs, ...additionalSnap.docs]
+            .filter((doc, index, docs) => docs.findIndex(candidate => candidate.id === doc.id) === index);
+        if (matches.length > 1) {
+            const error = new Error('This email is registered to more than one Client Directory record. Ask an administrator to keep it on one record only.');
+            error.code = 'client/email-ambiguous';
+            throw error;
         }
-        if (!custSnap.empty) claims.clientDirectoryId = custSnap.docs[0].id;
+        if (matches.length === 1) {
+            claims.clientDirectoryId = matches[0].id;
+        } else {
+            const error = new Error('This email is not registered in the Client Directory. Ask an administrator to add it to the correct client record.');
+            error.code = 'client/email-not-registered';
+            throw error;
+        }
     }
     return claims;
 }
