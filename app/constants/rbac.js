@@ -54,6 +54,17 @@ export const FULL_ACCESS_ROLES = ['Superadmin', 'Director'];
 // look-but-do-not-touch only — every writing action stays with FULL_ACCESS_ROLES.
 export const STAFF_PORTAL_OBSERVER_ROLES = ['IT'];
 
+// Roles that must confirm a code sent to their own inbox before the portal
+// opens, on top of the password. These three are the ones that reach payroll,
+// bank details and the money: a leaked password for any of them is the whole
+// system. Adding a role here is the only change needed to extend it — the
+// sign-in flow reads this list and nothing else.
+//
+// Staff and Client are deliberately absent. They hold their own records and
+// little else, and a code at every sign-in for an account with nothing to
+// reach buys security theatre rather than security.
+export const SECOND_FACTOR_ROLES = ['Superadmin', 'Director', 'Account'];
+
 // Every interaction the Staff Portal offers on a portal account. The row
 // buttons, the right-click menu and the permission check are all built from
 // this one list, so an action can never appear on one surface while missing

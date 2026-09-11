@@ -58,4 +58,32 @@ async function resolvePasswordResetContext(db, { resetSource, resetToken } = {})
     };
 }
 
-module.exports = { resolvePasswordResetContext };
+// The second factor at sign-in. By the time this runs the password has already
+// been accepted by Firebase, so the caller holds a real ID token — that token,
+// verified here, is what says which account is asking for a code. Nothing is
+// taken from the request body: an attacker who guessed a password cannot send
+// somebody else's address and have the code go there instead.
+//
+// One pending code per account, keyed by uid, so a resend replaces the last one
+// rather than leaving several valid at once.
+async function resolveSignInContext(adminAuth, { idToken } = {}) {
+    if (!idToken || typeof idToken !== 'string') {
+        throw resetError('Your sign-in session has expired. Please sign in again.');
+    }
+    let decoded;
+    try {
+        decoded = await adminAuth.verifyIdToken(idToken);
+    } catch (error) {
+        throw resetError('Your sign-in session has expired. Please sign in again.');
+    }
+    const email = normalizeEmail(decoded.email);
+    if (!email) throw resetError('This account has no email address to send a code to.');
+    return {
+        email,
+        uid: decoded.uid,
+        source: 'sign-in',
+        fingerprint: hashResetToken(`signin:${decoded.uid}`)
+    };
+}
+
+module.exports = { resolvePasswordResetContext, resolveSignInContext };

@@ -20,6 +20,26 @@ function isSeedAdminEmail(value) {
     return SEED_ADMIN_EMAILS.has(String(value || '').trim().toLowerCase());
 }
 
+// Deliberately a second copy of app/constants/password-policy.js. A rule the
+// browser applies is a hint; this is where it is decided. Any password the
+// portal sets or resets passes through here, and the two copies are held
+// together by tests/password-policy.test.js.
+const PASSWORD_MIN_LENGTH = 12;
+
+function passwordPolicyError(password) {
+    const value = String(password || '');
+    if (value.length < PASSWORD_MIN_LENGTH) {
+        return `Your new password must be at least ${PASSWORD_MIN_LENGTH} characters long.`;
+    }
+    const missing = [];
+    if (!/[a-z]/.test(value)) missing.push('a lowercase letter');
+    if (!/[A-Z]/.test(value)) missing.push('an uppercase letter');
+    if (!/[0-9]/.test(value)) missing.push('a number');
+    if (!/[^A-Za-z0-9]/.test(value)) missing.push('a symbol');
+    if (missing.length) return `Your new password still needs ${missing.join(', ')}.`;
+    return '';
+}
+
 function generateOtp() {
     return String(crypto.randomInt(100000, 1000000));
 }
@@ -77,4 +97,4 @@ function isApprovedStaffEmail(value) {
     return parts.length === 2 && APPROVED_STAFF_DOMAINS.has(parts[1]);
 }
 
-module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, SEED_ADMIN_PRIMARY, MAIL_FROM, PORTAL_URL };
+module.exports = { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail, isApprovedStaffEmail, isSeedAdminEmail, passwordPolicyError, PASSWORD_MIN_LENGTH, SEED_ADMIN_PRIMARY, MAIL_FROM, PORTAL_URL };

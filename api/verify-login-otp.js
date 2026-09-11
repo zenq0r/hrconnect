@@ -1,8 +1,9 @@
-// Confirms the email OTP required before a user can set a new password.
-const { getAdminFirestore } = require('./_firebaseAdmin');
+// Confirms an email OTP: the one required before a new password may be set,
+// and the one a privileged role must clear before the portal opens.
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const crypto = require('crypto');
 const { hashOtp } = require('./_security');
-const { resolvePasswordResetContext } = require('./_passwordResetOtp');
+const { resolvePasswordResetContext, resolveSignInContext } = require('./_passwordResetOtp');
 
 const MAX_ATTEMPTS = 5;
 
@@ -16,8 +17,9 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
     try {
-        if (req.body?.purpose !== 'password-reset') {
-            res.status(400).json({ valid: false, error: 'Verification codes are available only for password resets.' });
+        const purpose = req.body?.purpose;
+        if (purpose !== 'password-reset' && purpose !== 'sign-in') {
+            res.status(400).json({ valid: false, error: 'Verification codes are available only for signing in and for password resets.' });
             return;
         }
 
@@ -25,7 +27,9 @@ module.exports = async function handler(req, res) {
         if (!code || typeof code !== 'string') { res.status(400).json({ valid: false, error: 'Enter the code from your email.' }); return; }
 
         const db = getAdminFirestore();
-        const reset = await resolvePasswordResetContext(db, req.body);
+        const reset = purpose === 'sign-in'
+            ? await resolveSignInContext(getAdminAuth(), req.body)
+            : await resolvePasswordResetContext(db, req.body);
         const docRef = db.collection('password_reset_otp_codes').doc(reset.fingerprint);
         const result = await db.runTransaction(async transaction => {
             const doc = await transaction.get(docRef);
@@ -45,6 +49,15 @@ module.exports = async function handler(req, res) {
         });
 
         if (!result.valid) { res.status(400).json({ valid: false, error: result.error }); return; }
+
+        // A cleared second factor is recorded against the account, so the audit
+        // trail can show that this session passed one and when.
+        if (purpose === 'sign-in') {
+            await db.collection('users').doc(reset.uid)
+                .set({ lastSecondFactorAt: new Date().toISOString() }, { merge: true })
+                .catch(error => console.error('Could not record the second factor:', error));
+        }
+
         res.status(200).json({ valid: true });
     } catch (error) {
         console.error('verify-login-otp error:', error);

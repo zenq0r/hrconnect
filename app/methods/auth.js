@@ -18,12 +18,32 @@ import {
     applyActionCode
 } from "../../firebase-config.js";
 import { SEED_ADMIN_EMAILS, createEmailActionFlow } from "../config.js";
+import { SECOND_FACTOR_ROLES } from "../constants/rbac.js";
+import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_TEXT, passwordPolicyError } from "../constants/password-policy.js";
 export const authMethods = {
-        generateRandomPassword(length = 8) {
-            const allChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-            let pwd = "";
-            for (let i = 0; i < length; i++) pwd += allChars.charAt(Math.floor(Math.random() * allChars.length));
-            return pwd;
+        // The password a new account is emailed. It has to satisfy the same
+        // policy the account will be held to when it changes it, and drawing
+        // every character from one pool does not guarantee that — a short
+        // random string is quite capable of containing no digit at all. One
+        // character is taken from each required class first, and the shuffle
+        // keeps those four out of a predictable position.
+        generateRandomPassword(length = 16) {
+            const classes = [
+                'ABCDEFGHJKLMNPQRSTUVWXYZ',
+                'abcdefghijkmnpqrstuvwxyz',
+                '23456789',
+                '!@#$%^&*?-_'
+            ];
+            const pool = classes.join('');
+            const pick = (chars) => chars.charAt(Math.floor(Math.random() * chars.length));
+            const size = Math.max(PASSWORD_MIN_LENGTH, Number(length) || 0);
+            const characters = classes.map(pick);
+            while (characters.length < size) characters.push(pick(pool));
+            for (let i = characters.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [characters[i], characters[j]] = [characters[j], characters[i]];
+            }
+            return characters.join('');
         },
 
         isStaffEmail(email) {
@@ -261,7 +281,8 @@ export const authMethods = {
             flow.error = '';
             if (flow.mode === 'resetPassword' && !flow.otpVerified) { flow.error = 'Verify the 6-digit code sent to your email before setting a new password.'; return; }
             if (flow.mode === 'firstLogin' && !flow.temporaryPassword) { flow.error = 'Enter the password used for this sign-in to continue.'; return; }
-            if (flow.newPassword.length < 8) { flow.error = 'New password must be at least 8 characters long.'; return; }
+            const policyError = passwordPolicyError(flow.newPassword);
+            if (policyError) { flow.error = policyError; return; }
             if (flow.newPassword !== flow.confirmPassword) { flow.error = 'Passwords do not match.'; return; }
             flow.loading = true;
             try {
@@ -315,7 +336,7 @@ export const authMethods = {
             } catch (error) {
                 console.error('Password reset confirmation failed:', error);
                 flow.error = error?.code === 'auth/weak-password'
-                    ? 'Please choose a stronger password with at least 8 characters.'
+                    ? `Please choose a stronger password. ${PASSWORD_POLICY_TEXT}`
                     : (error.message || 'Unable to reset your password. Please try again.');
             } finally {
                 flow.loading = false;
@@ -472,6 +493,16 @@ export const authMethods = {
                     return;
                 }
 
+                // A password is one factor. For the roles that reach payroll,
+                // bank details and the money, it is not enough on its own: a
+                // code goes to the account's own inbox and the portal does not
+                // open until it comes back.
+                if (SECOND_FACTOR_ROLES.includes(role)) {
+                    this.loginLoading = false;
+                    await this.startSignInOtp(loginContext);
+                    return;
+                }
+
                 await this.completeLogin(loginContext);
             } catch (error) {
                 console.error('Sign-in failed:', error);
@@ -512,14 +543,19 @@ export const authMethods = {
             this.loginOtp.error = '';
             try {
                 const flow = this.passwordResetFlow;
-                if (this.loginOtp.purpose !== 'password-reset' || !flow?.valid || !flow.oobCode) {
+                let body;
+                if (this.loginOtp.purpose === 'sign-in') {
+                    body = await this.signInOtpPayload();
+                } else if (this.loginOtp.purpose === 'password-reset' && flow?.valid && flow.oobCode) {
+                    body = { purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode };
+                } else {
                     throw new Error('Your password reset session has expired. Please request a new reset link.');
                 }
                 const resp = await Promise.race([
                     fetch('/api/request-login-otp', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode })
+                        body: JSON.stringify(body)
                     }),
                     this.timeoutPromise(15000, 'Sending the verification code is taking too long. Please try again.')
                 ]);
@@ -549,16 +585,33 @@ export const authMethods = {
             this.loginOtp.error = '';
             try {
                 const flow = this.passwordResetFlow;
-                if (this.loginOtp.purpose !== 'password-reset' || !flow?.valid || !flow.oobCode) {
+                const isSignIn = this.loginOtp.purpose === 'sign-in';
+                let body;
+                if (isSignIn) {
+                    body = await this.signInOtpPayload();
+                } else if (this.loginOtp.purpose === 'password-reset' && flow?.valid && flow.oobCode) {
+                    body = { purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode };
+                } else {
                     throw new Error('Your password reset session has expired. Please request a new reset link.');
                 }
                 const resp = await fetch('/api/verify-login-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: this.loginOtp.code.trim(), purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode })
+                    body: JSON.stringify({ ...body, code: this.loginOtp.code.trim() })
                 });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
+                if (isSignIn) {
+                    this.setPendingSecondFactor('');
+                    const context = this.pendingLoginContext;
+                    this.pendingLoginContext = null;
+                    clearInterval(this.loginOtpCooldownTimer);
+                    this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
+                    if (!context?.firebaseUser) throw new Error('Your sign-in session has expired. Please sign in again.');
+                    this.loginLoading = true;
+                    await this.completeLogin(context);
+                    return;
+                }
                 flow.otpVerified = true;
                 flow.error = '';
                 clearInterval(this.loginOtpCooldownTimer);
@@ -570,11 +623,80 @@ export const authMethods = {
             }
         },
         async cancelLoginOtp() {
+            const wasSignIn = this.loginOtp.purpose === 'sign-in';
             clearInterval(this.loginOtpCooldownTimer);
             this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
             if (this.passwordResetFlow?.active && this.passwordResetFlow.mode === 'resetPassword') {
                 this.passwordResetFlow.error = 'Verification is required before you can set a new password.';
             }
+            // Abandoning the challenge abandons the sign-in. The password was
+            // accepted, so a Firebase session exists at this point and would
+            // otherwise be restored on the next page load without the code ever
+            // having been entered.
+            if (wasSignIn) {
+                this.setPendingSecondFactor('');
+                this.pendingLoginContext = null;
+                this.loginError = 'Sign-in was cancelled before the verification code was confirmed.';
+                if (auth.currentUser) {
+                    this.intentionalLogoutInProgress = true;
+                    await signOut(auth).catch(error => console.error('Sign-out after an abandoned verification failed:', error));
+                }
+            }
+        },
+
+        // The second factor at sign-in, for the roles in SECOND_FACTOR_ROLES.
+        //
+        // Worth being precise about what this is: the password has already been
+        // accepted by Firebase when this runs, so the account holds a session
+        // either way. What the code decides is whether the PORTAL opens. Someone
+        // driving the Firebase SDK by hand with a stolen password is not stopped
+        // by it — stopping that needs the code to gate a custom claim the rules
+        // then require, which locks out every open session on the day it ships
+        // and is an operational decision, not a code one. What this does stop is
+        // the realistic case: a leaked or phished password typed into the real
+        // portal by someone who does not have the inbox.
+        async startSignInOtp(loginContext) {
+            this.pendingLoginContext = loginContext;
+            const email = loginContext?.firebaseUser?.email || '';
+            // The password was accepted, so Firebase already holds a session —
+            // and a session is restorable. Without this marker, opening a second
+            // tab while the code is still unanswered would restore that session
+            // straight into the portal, and the challenge would be decoration.
+            // It is cleared when the code is confirmed, when the challenge is
+            // abandoned, and on any sign-out.
+            this.setPendingSecondFactor(loginContext?.firebaseUser?.uid || '');
+            this.loginOtp = { show: true, code: '', error: '', sending: false, verifying: false, email, purpose: 'sign-in', cooldownSeconds: 0 };
+            await this.$nextTick();
+            await this.requestLoginOtp();
+        },
+
+        setPendingSecondFactor(uid) {
+            try {
+                if (uid) localStorage.setItem('zqPendingSecondFactor', uid);
+                else localStorage.removeItem('zqPendingSecondFactor');
+            } catch (error) {
+                // Private browsing, or storage disabled entirely. The challenge
+                // still holds in this tab; it just cannot be enforced across a
+                // second one.
+                console.warn('Could not record the pending verification:', error);
+            }
+        },
+
+        pendingSecondFactorUid() {
+            try {
+                return localStorage.getItem('zqPendingSecondFactor') || '';
+            } catch (error) {
+                return '';
+            }
+        },
+
+        // The token is proof of who is asking. It is minted by Firebase after
+        // the password was accepted, and the server re-verifies it rather than
+        // trusting any address in the request body.
+        async signInOtpPayload() {
+            const user = auth.currentUser;
+            if (!user) throw new Error('Your sign-in session has expired. Please sign in again.');
+            return { purpose: 'sign-in', idToken: await user.getIdToken() };
         },
         async completeLogin({ firebaseUser, userData, role, name, photo, mustChangePassword }) {
             if (mustChangePassword) {
@@ -615,6 +737,7 @@ export const authMethods = {
             // Mark this before signOut() so onAuthStateChanged's signed-out
             // branch knows this is user/idle initiated, not an access revocation.
             this.intentionalLogoutInProgress = true;
+            this.setPendingSecondFactor('');
             this.loginError = '';
             try { await this.logAudit('LOGOUT', 'User logged out'); } catch (error) { console.error('Audit log failed during logout:', error); }
             try { await this.setCurrentPresence(false); } catch (error) { console.error('Presence update failed during logout:', error); }
@@ -647,7 +770,8 @@ export const authMethods = {
             this.changePasswordModal.error = '';
             const { currentPassword, newPassword, confirmPassword } = this.changePasswordModal;
             if (newPassword !== confirmPassword) { this.changePasswordModal.error = 'New passwords do not match.'; return; }
-            if (newPassword.length < 8) { this.changePasswordModal.error = 'New password must be at least 8 characters long.'; return; }
+            const policyError = passwordPolicyError(newPassword);
+            if (policyError) { this.changePasswordModal.error = policyError; return; }
             this.changePasswordModal.loading = true;
             try {
                 const user = auth.currentUser;

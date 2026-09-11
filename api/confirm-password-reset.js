@@ -1,5 +1,5 @@
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
-const { hashResetToken, normalizeEmail } = require('./_security');
+const { hashResetToken, normalizeEmail, passwordPolicyError } = require('./_security');
 
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
@@ -10,8 +10,9 @@ module.exports = async function handler(req, res) {
             res.status(400).json({ error: 'This reset link is invalid. Please request a new one.' });
             return;
         }
-        if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 8) {
-            res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+        const policyError = typeof newPassword === 'string' ? passwordPolicyError(newPassword) : 'A new password is required.';
+        if (policyError) {
+            res.status(400).json({ error: policyError });
             return;
         }
 

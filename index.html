@@ -193,11 +193,11 @@
                         </div>
                         <div>
                             <label for="reset-new-password" class="zq-label">New Password</label>
-                            <input id="reset-new-password" name="newPassword" type="password" v-model="passwordResetFlow.newPassword" required minlength="8" autocomplete="new-password" placeholder="At least 8 characters" class="zq-input font-medium">
+                            <input id="reset-new-password" name="newPassword" type="password" v-model="passwordResetFlow.newPassword" required :minlength="12" autocomplete="new-password" :placeholder="passwordPolicy" class="zq-input font-medium">
                         </div>
                         <div>
                             <label for="reset-confirm-password" class="zq-label">Confirm New Password</label>
-                            <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required minlength="8" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
+                            <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required :minlength="12" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
                         </div>
                         <div class="zq-alert-slot" aria-live="polite">
                             <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>
@@ -350,7 +350,28 @@
                     </p>
                 </div>
 
-                <form @submit.prevent="handleLogin" class="space-y-4">
+                <!-- SECOND FACTOR — the password was accepted; the portal opens on the code -->
+                <div v-if="loginOtp.show && loginOtp.purpose === 'sign-in'" class="space-y-4">
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
+                        <label for="sign-in-otp-code" class="zq-label">Verification Code</label>
+                        <input id="sign-in-otp-code" name="signInOtpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending || loginOtp.verifying" autocomplete="one-time-code" placeholder="6-digit code" class="zq-input mt-1.5 text-center text-lg font-extrabold tracking-[0.5em]">
+                        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ loginOtp.sending ? 'Sending a 6-digit code to' : 'Enter the 6-digit code sent to' }} <span class="font-bold lowercase">{{ loginOtp.email }}</span>. It expires in 5 minutes.</p>
+                    </div>
+                    <div class="zq-alert-slot" aria-live="polite">
+                        <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
+                    </div>
+                    <button type="button" @click="verifyLoginOtp" :disabled="loginOtp.sending || loginOtp.verifying" :class="{ 'is-loading': loginOtp.sending || loginOtp.verifying }" class="zq-btn zq-btn-primary w-full uppercase tracking-wider">
+                        Confirm &amp; Sign In
+                    </button>
+                    <div class="flex items-center justify-between gap-3">
+                        <button type="button" @click="cancelLoginOtp" :disabled="loginOtp.verifying" class="zq-btn zq-btn-ghost zq-btn-sm">Cancel</button>
+                        <button type="button" @click="requestLoginOtp" :disabled="loginOtp.sending || loginOtp.verifying || loginOtp.cooldownSeconds > 0" class="zq-btn zq-btn-ghost zq-btn-sm">
+                            {{ loginOtp.cooldownSeconds > 0 ? `Resend in ${loginOtp.cooldownSeconds}s` : 'Resend code' }}
+                        </button>
+                    </div>
+                </div>
+
+                <form v-else @submit.prevent="handleLogin" class="space-y-4">
                     <div>
                         <label for="login-email" class="zq-label">{{ authView === 'client' ? 'Client Email' : 'Company Email' }}</label>
                         <input id="login-email" name="email" type="email" v-model="loginForm.email" required autocomplete="username" :placeholder="authView === 'client' ? 'Registered client email' : 'Company email'" class="zq-input font-medium">

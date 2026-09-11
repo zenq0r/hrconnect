@@ -24,7 +24,7 @@ export const adminUserMethods = {
         openUserAccessModal(usr = null) {
             if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
             if (usr) { this.userModal.isEdit = true; this.userModal.form = { uid: usr.uid || usr.id || '', name: usr.name || '', email: usr.email || '', password: '', role: usr.role || 'Staff' }; }
-            else { this.userModal.isEdit = false; this.userModal.form = { uid: '', name: '', email: '', password: this.generateRandomPassword(8), role: 'Staff' }; }
+            else { this.userModal.isEdit = false; this.userModal.form = { uid: '', name: '', email: '', password: this.generateRandomPassword(), role: 'Staff' }; }
             this.userModal.show = true;
         },
 
@@ -41,7 +41,7 @@ export const adminUserMethods = {
                 uid: '',
                 name: customer?.clientContactPerson || customer?.clientName || '',
                 email: String(email || '').trim().toLowerCase(),
-                password: this.generateRandomPassword(8),
+                password: this.generateRandomPassword(),
                 role: 'Client',
             };
             this.userModal.show = true;

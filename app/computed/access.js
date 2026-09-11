@@ -5,7 +5,11 @@ import {
 } from "../../firebase-config.js";
 import { SUPPORT_EMAIL } from "../config.js";
 import { RBAC_ROLES, FULL_ACCESS_ROLES, STAFF_PORTAL_OBSERVER_ROLES } from "../constants/rbac.js";
+import { PASSWORD_POLICY_TEXT } from "../constants/password-policy.js";
 export const accessComputed = {
+        // Shown next to every field that sets a password, so the rule is read
+        // before it is enforced rather than after.
+        passwordPolicy() { return PASSWORD_POLICY_TEXT; },
         canManageSensitiveData() { return ['Superadmin', 'Director', 'HR'].includes(this.userProfile.role); },
         // Identity/banking numbers (IC/Passport, Bank Account, EPF/SOCSO) may be
         // entered ONCE when an employee record is first created by anyone with HR

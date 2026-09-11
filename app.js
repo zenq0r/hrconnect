@@ -180,6 +180,18 @@ createApp({
                 this.desktopSidebarOpen = false;
                 if (this.interactiveLoginInProgress) { this.authLoading = false; return; }
                 if (this.isLoggedIn && this.userProfile.uid === firebaseUser.uid) { this.authLoading = false; return; }
+                // A sign-in that stopped at the verification code leaves a real
+                // Firebase session behind, and a session is restorable. Without
+                // this, reloading the page — or opening a second tab — would
+                // walk straight past the code that was never answered.
+                if (this.pendingSecondFactorUid() === firebaseUser.uid) {
+                    this.setPendingSecondFactor('');
+                    this.intentionalLogoutInProgress = true;
+                    this.loginError = 'Sign-in was not completed. Enter the verification code sent to your email.';
+                    this.authLoading = false;
+                    await signOut(auth).catch(error => console.error('Sign-out of an unverified session failed:', error));
+                    return;
+                }
                 try {
                     this.loginLoading = true;
                     // A restored session on a slow/flaky connection (mobile data, a cold

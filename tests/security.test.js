@@ -590,7 +590,7 @@ test('a normal logout cannot be labelled as removed portal access', () => {
     // The intent is set before Firebase signs the user out, and the stale error
     // is cleared before the login screen is displayed. A genuine revocation
     // explicitly clears that intent before it sets its own error.
-    assert.match(normalLogout, /this\.intentionalLogoutInProgress = true;\s*this\.loginError = '';/);
+    assert.match(normalLogout, /this\.intentionalLogoutInProgress = true;[\s\S]{0,200}?this\.loginError = '';/);
     assert.match(signedOutObserver, /if \(this\.intentionalLogoutInProgress\) this\.loginError = '';/);
     assert.match(app, /async revokeCurrentPortalAccess\([\s\S]{0,240}?this\.intentionalLogoutInProgress = false;\s*this\.loginError = message;/);
 });

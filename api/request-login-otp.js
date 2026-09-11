@@ -1,22 +1,30 @@
-// Email OTP is used only to confirm a password-reset action. Normal portal
-// sign-in remains a password-only flow.
-const { getAdminFirestore } = require('./_firebaseAdmin');
+// Email OTP. Two callers: confirming a password reset, and the second factor
+// the roles in SECOND_FACTOR_ROLES must clear before the portal opens.
+const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { generateOtp, hashOtp, MAIL_FROM } = require('./_security');
-const { resolvePasswordResetContext } = require('./_passwordResetOtp');
+const { resolvePasswordResetContext, resolveSignInContext } = require('./_passwordResetOtp');
 
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
-function buildOtpEmailHtml(code) {
+function buildOtpEmailHtml(code, purpose) {
+    const isSignIn = purpose === 'sign-in';
+    const heading = isSignIn ? 'Confirm Your Sign-In' : 'Confirm Your Password Reset';
+    const intro = isSignIn
+        ? 'Enter this code to finish signing in to the portal. It expires in 5 minutes.'
+        : 'Enter this code before choosing a new password. It expires in 5 minutes.';
+    const footnote = isSignIn
+        ? 'If you did not just try to sign in, your password is known to somebody else. Change it and tell your administrator.'
+        : 'If you did not request a password reset, you can ignore this email and your account will remain secure.';
     return `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 0; background-color: #ffffff; border-radius: 16px; border: 1px solid #E5E7EB; overflow: hidden;">
   <div style="background-color: #0B1E36; padding: 28px 32px; text-align: center;">
     <span style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">ZENQOR</span><span style="font-size: 20px; font-weight: 800; color: #14B8A6; letter-spacing: 0.5px;"> HRMS/CDTS</span>
   </div>
   <div style="padding: 36px 32px; text-align: center;">
-    <h2 style="color: #0B1E36; font-size: 19px; margin: 0 0 12px;">Confirm Your Password Reset</h2>
-    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">Enter this code before choosing a new password. It expires in 5 minutes.</p>
+    <h2 style="color: #0B1E36; font-size: 19px; margin: 0 0 12px;">${heading}</h2>
+    <p style="color: #475569; font-size: 14px; line-height: 1.7; margin: 0 0 24px;">${intro}</p>
     <div style="display: inline-block; background-color: #F8FAFC; border: 2px dashed #14B8A6; border-radius: 12px; padding: 16px 32px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0B1E36;">${code}</div>
-    <p style="color: #94A3B8; font-size: 12px; line-height: 1.6; margin: 24px 0 0;">If you did not request a password reset, you can ignore this email and your account will remain secure.</p>
+    <p style="color: #94A3B8; font-size: 12px; line-height: 1.6; margin: 24px 0 0;">${footnote}</p>
   </div>
   <div style="background-color: #F8FAFC; padding: 20px 32px; text-align: center; border-top: 1px solid #E5E7EB;">
     <p style="color: #94A3B8; font-size: 11px; margin: 0;">© ZENQOR HRMS/CDTS · Zenqor Technologies</p>
@@ -24,7 +32,7 @@ function buildOtpEmailHtml(code) {
 </div>`;
 }
 
-async function sendOtpEmail(email, code) {
+async function sendOtpEmail(email, code, purpose) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not set.');
 
@@ -34,8 +42,8 @@ async function sendOtpEmail(email, code) {
         body: JSON.stringify({
             from: MAIL_FROM,
             to: [email],
-            subject: 'Confirm Your ZENQOR Password Reset',
-            html: buildOtpEmailHtml(code)
+            subject: purpose === 'sign-in' ? 'Your ZENQOR Sign-In Code' : 'Confirm Your ZENQOR Password Reset',
+            html: buildOtpEmailHtml(code, purpose)
         })
     });
     if (!response.ok) throw new Error(`Resend send failed: ${response.status} ${await response.text()}`);
@@ -45,13 +53,16 @@ module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
     try {
-        if (req.body?.purpose !== 'password-reset') {
-            res.status(400).json({ error: 'Verification codes are available only for password resets.' });
+        const purpose = req.body?.purpose;
+        if (purpose !== 'password-reset' && purpose !== 'sign-in') {
+            res.status(400).json({ error: 'Verification codes are available only for signing in and for password resets.' });
             return;
         }
 
         const db = getAdminFirestore();
-        const reset = await resolvePasswordResetContext(db, req.body);
+        const reset = purpose === 'sign-in'
+            ? await resolveSignInContext(getAdminAuth(), req.body)
+            : await resolvePasswordResetContext(db, req.body);
         const now = Date.now();
         const otpRef = db.collection('password_reset_otp_codes').doc(reset.fingerprint);
         const existing = await otpRef.get();
@@ -70,7 +81,7 @@ module.exports = async function handler(req, res) {
             used: false,
             attempts: 0
         });
-        await sendOtpEmail(reset.email, code);
+        await sendOtpEmail(reset.email, code, purpose);
 
         res.status(200).json({ success: true });
     } catch (error) {
