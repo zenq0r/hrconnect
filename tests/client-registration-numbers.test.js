@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource, methodSource, constantSource } = require('./helpers/sources');
 
-const appSource = () => fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+const appSource = () => readSource('app.js');
 
 // Lift the real helpers out of app.js. These are regex-heavy, and a stripped
 // backslash turns \d into a literal d without breaking the syntax — a fault
@@ -72,7 +73,7 @@ test('the Client ID still derives from the composed number', () => {
 test('the client TIN is stored separately from the registration number', () => {
     const src = appSource();
     assert.match(src, /clientTin: this\.normalizeTin\(form\.clientTin\)/);
-    const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const page = readSource('index.html');
     for (const id of ['client-info-brn-new', 'client-info-brn-old', 'client-info-tin']) {
         assert.ok(page.includes(`id="${id}"`), `${id} must exist on the form`);
     }

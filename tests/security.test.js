@@ -7,6 +7,7 @@ const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail
 const { getClientIp, parseUserAgent } = require('../api/_auditMetadata');
 const { normalizeRetention, retentionDurationMs } = require('../api/_auditRetention');
 const { rateLimitId } = require('../api/_rateLimit');
+const { readSource, methodSource, constantSource } = require('./helpers/sources');
 
 test('OTP is always a six-digit string', () => {
     for (let i = 0; i < 100; i += 1) assert.match(generateOtp(), /^\d{6}$/);
@@ -26,9 +27,9 @@ test('password reset tokens are not stored using the raw link secret', () => {
 });
 
 test('ordinary sign-in does not request OTP, while password reset does', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const requestOtpSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'request-login-otp.js'), 'utf8');
-    const verifyOtpSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'verify-login-otp.js'), 'utf8');
+    const appSource = readSource('app.js');
+    const requestOtpSource = readSource('api/request-login-otp.js');
+    const verifyOtpSource = readSource('api/verify-login-otp.js');
 
     const loginStart = appSource.indexOf('async handleLogin()');
   const loginEnd = appSource.indexOf('async requestLoginOtp()', loginStart);
@@ -43,7 +44,7 @@ test('ordinary sign-in does not request OTP, while password reset does', () => {
 });
 
 test('starting the password reset OTP actually dispatches the request', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const appSource = readSource('app.js');
 
     const start = appSource.indexOf('async startPasswordResetOtp()');
     const body = appSource.slice(start, appSource.indexOf('startLoginOtpCooldown(seconds)', start));
@@ -56,7 +57,7 @@ test('starting the password reset OTP actually dispatches the request', () => {
 });
 
 test('password reset renders its OTP field inline and not behind a separate popup', () => {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const html = readSource('index.html');
 
     assert.match(html, /id="password-reset-otp-code" name="passwordResetOtpCode"/);
     assert.match(html, /<template v-if="loginOtp\.show">/);
@@ -64,7 +65,7 @@ test('password reset renders its OTP field inline and not behind a separate popu
 });
 
 test('every workspace module page renders inside the scrollable main region', () => {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const html = readSource('index.html');
 
     const mainStart = html.indexOf('<main id="main-content"');
     const mainEnd = html.indexOf('</main>', mainStart);
@@ -82,8 +83,8 @@ test('every workspace module page renders inside the scrollable main region', ()
 });
 
 test('every colour utility the markup uses exists in the built stylesheet', () => {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-    const css = fs.readFileSync(path.join(__dirname, '..', 'tailwind.css'), 'utf8');
+    const html = readSource('index.html');
+    const css = readSource('tailwind.css');
 
     // tailwind.css is a committed build, not generated per request, so a utility
     // absent when it was built silently resolves to nothing: the element keeps its
@@ -176,14 +177,14 @@ test('Firebase Admin v14 uses modular app, Auth, and Firestore services', () => 
     assert.equal(result.status, 0, result.stderr);
 
     const helperSource = fs.readFileSync(modulePath, 'utf8');
-    const cleanupSource = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    const cleanupSource = readSource('functions/index.js');
     assert.doesNotMatch(helperSource, /admin\.(credential|auth|firestore|apps|initializeApp)/);
     assert.doesNotMatch(cleanupSource, /admin\.(auth|firestore|apps|initializeApp)/);
 });
 
 test('Firebase Admin CommonJS runtime pins the compatible jose dependency', () => {
-    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-    const functionManifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'functions', 'package.json'), 'utf8'));
+    const manifest = JSON.parse(readSource('package.json'));
+    const functionManifest = JSON.parse(readSource('functions/package.json'));
     assert.equal(manifest.overrides['jwks-rsa'].jose, '4.15.9');
     assert.equal(functionManifest.overrides['jwks-rsa'].jose, '4.15.9');
 });
@@ -204,8 +205,8 @@ test('audit retention validates supported units and calculates expiry duration',
 });
 
 test('RBAC sign-in has no trusted-device bypass', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const otpSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'verify-login-otp.js'), 'utf8');
+    const appSource = readSource('app.js');
+    const otpSource = readSource('api/verify-login-otp.js');
     assert.doesNotMatch(appSource, /checkTrustedDevice|trustDevice|revokeTrustedDeviceAccess|forgetTrustedDevice/);
     assert.doesNotMatch(otpSource, /trusted_login_devices|trustedUntil|trustDevice/);
     assert.equal(fs.existsSync(path.join(__dirname, '..', 'api', '_trustedDevice.js')), false);
@@ -220,8 +221,8 @@ test('API rate-limit identifiers are deterministic and do not expose user identi
 });
 
 test('Client accounts cannot subscribe to or read the internal user directory', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const appSource = readSource('app.js');
+    const rulesSource = readSource('firestore.rules');
     assert.match(appSource, /const canReadUserDirectory = role !== 'Client'/);
     // The own-record clause is granted on identity rather than on role, so that a
     // Staff Portal LOCK - which strips the role for as long as it lasts - still
@@ -241,8 +242,8 @@ test('staff identity requires an exact approved Authentication email domain', ()
 });
 
 test('Staff domains are enforced while registered Client email access remains available', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const appSource = readSource('app.js');
+    const rulesSource = readSource('firestore.rules');
     assert.match(appSource, /allowedStaffDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
     assert.match(appSource, /this\.allowedStaffDomains\.includes\(emailDomain\)/);
     assert.match(appSource, /this\.authView === 'staff' && !this\.isStaffEmail\(this\.loginForm\.email\)/);
@@ -271,7 +272,7 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(rulesSource, /data\.role == 'Client'/);
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenq0r\[\.\]com\$'\)/);
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenqor\[\.\]com\[\.\]my\$'\)/);
-    const claimsSource = fs.readFileSync(path.join(__dirname, '..', 'api', 'sync-user-claims.js'), 'utf8');
+    const claimsSource = readSource('api/sync-user-claims.js');
     // The seed administrator is no longer a string copied into five files; it is
     // one set in api/_security.js that every caller shares. Assert the behaviour
     // rather than the spelling: both the new address and the legacy one count
@@ -293,9 +294,9 @@ test('Staff domains are enforced while registered Client email access remains av
 });
 
 test('every account runs on its role alone, with no per-user permission override', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const appSource = readSource('app.js');
+    const html = readSource('index.html');
+    const rulesSource = readSource('firestore.rules');
     // Custom page access was removed. It could hide a page but could not truly
     // grant one: neither the data subscriptions nor firestore.rules ever read
     // the override, so a granted page opened empty and the admin was told
@@ -311,15 +312,15 @@ test('every account runs on its role alone, with no per-user permission override
 });
 
 test('Authentication deletion cascades to the matching Firestore portal profile', () => {
-    const functionsSource = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
-    const firebaseConfig = fs.readFileSync(path.join(__dirname, '..', 'firebase.json'), 'utf8');
+    const functionsSource = readSource('functions/index.js');
+    const firebaseConfig = readSource('firebase.json');
     assert.match(functionsSource, /functions\.auth\.user\(\)\.onDelete/);
     assert.match(functionsSource, /collection\('users'\)\.doc\(user\.uid\)\.delete\(\)/);
     assert.match(firebaseConfig, /"source": "functions"/);
 });
 
 test('deleting a Client Task cascades its projects but preserves its Client Directory record', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const appSource = readSource('app.js');
     const taskMenuStart = appSource.indexOf('clientTaskMenuItems(cust)');
     const taskMenu = appSource.slice(taskMenuStart, appSource.indexOf('// Shared by the board card', taskMenuStart));
     const removeTaskStart = appSource.indexOf('async deleteClientTask(cust)');
@@ -336,8 +337,8 @@ test('deleting a Client Task cascades its projects but preserves its Client Dire
 });
 
 test('each new project creates or uses a mandatory Client Task parent atomically', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const rulesSource = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const appSource = readSource('app.js');
+    const rulesSource = readSource('firestore.rules');
     assert.match(appSource, /creationBatch\.set\(doc\(db, 'customers', payload\.clientDirectoryId\)/);
     assert.match(appSource, /creationBatch\.set\(doc\(db, 'projects', projectId\), payload\)/);
     assert.match(appSource, /ensureClientTasksForExistingProjects/);
@@ -346,7 +347,7 @@ test('each new project creates or uses a mandatory Client Task parent atomically
 });
 
 test('Project Activities only display projects under a registered Client Task', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const appSource = readSource('app.js');
     const filterStart = appSource.indexOf('registeredClientTaskIds()');
     const filterEnd = appSource.indexOf('projectClientAccessUsers()', filterStart);
     const projectFilter = appSource.slice(filterStart, filterEnd);
@@ -362,7 +363,7 @@ test('Project Activities only display projects under a registered Client Task', 
 });
 
 test('legacy Project Activities can only be re-linked to one matching registered Client Task', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const appSource = readSource('app.js');
     const repairStart = appSource.indexOf('async repairLegacyProjectClientLinks()');
     const repairEnd = appSource.indexOf('async saveClientTask()', repairStart);
     const repair = appSource.slice(repairStart, repairEnd);
@@ -376,7 +377,7 @@ test('legacy Project Activities can only be re-linked to one matching registered
 });
 
 test('Client Portal does not render obsolete dashboard layers', () => {
-    const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const source = readSource('index.html');
 
     // The staff dashboard never renders for a Client, and the Client Portal is
     // its own single-route workspace rather than a branch inside that dashboard.
@@ -395,9 +396,9 @@ test('Client Portal does not render obsolete dashboard layers', () => {
 });
 
 test('incoming portal notifications are recipient-scoped and protected from client-side creation', () => {
-    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    const notifier = fs.readFileSync(path.join(__dirname, '..', 'api', 'notify.js'), 'utf8');
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const rules = readSource('firestore.rules');
+    const notifier = readSource('api/notify.js');
+    const app = readSource('app.js');
 
     assert.match(rules, /match \/portal_notifications\/\{notificationId\}/);
     assert.match(rules, /resource\.data\.recipientUid == request\.auth\.uid/);
@@ -408,9 +409,9 @@ test('incoming portal notifications are recipient-scoped and protected from clie
 });
 
 test('only the current project PIC can load or manage project activity details', () => {
-    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const rules = readSource('firestore.rules');
+    const app = readSource('app.js');
+    const html = readSource('index.html');
 
     assert.match(rules, /resource\.data\.projectOwnerEmail == request\.auth\.token\.email/);
     assert.match(rules, /request\.resource\.data\.projectOwnerEmail == get\(\/databases\/\$\(database\)\/documents\/projects\/\$\(request\.resource\.data\.projectId\)\)\.data\.ownerEmail/);
@@ -423,9 +424,9 @@ test('only the current project PIC can load or manage project activity details',
 });
 
 test('only Directors and Superadmins can view all Project Activities', () => {
-    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const rules = readSource('firestore.rules');
+    const app = readSource('app.js');
+    const html = readSource('index.html');
 
     assert.match(rules, /isProjectManager\(\) \|\| \(\s*isApprovedStaffSession\(\) &&\s*resource\.data\.ownerEmail is string/);
     assert.match(app, /const mustUseAssignedScope = this\.userProfile\.role !== 'Client' && !this\.canManageProjects/);
@@ -450,9 +451,9 @@ test('only Directors and Superadmins can view all Project Activities', () => {
 });
 
 test('a staff activity assignee can open the project activities they are assigned to', () => {
-    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const rules = readSource('firestore.rules');
+    const app = readSource('app.js');
+    const html = readSource('index.html');
 
     // The assignee reads their own activity, and the project card it opens from
     // via the denormalized activityAssigneeEmails index on the project.
@@ -491,8 +492,8 @@ test('a staff activity assignee can open the project activities they are assigne
 });
 
 test('Staff and IT keep their project board without read access to the Client Directory', () => {
-    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const rules = readSource('firestore.rules');
+    const app = readSource('app.js');
 
     // customers stays closed to Staff/IT, so this.customers is empty for them and
     // the Client Task parent gate has to be skipped rather than hiding every
@@ -509,7 +510,7 @@ test('Staff and IT keep their project board without read access to the Client Di
 });
 
 test('a valid portal session is never revoked on an unconfirmed signal', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const app = readSource('app.js');
 
     // updatePassword() bumps the account's validSince, invalidating every token
     // issued before it. Both password-change paths must re-mint before touching
@@ -535,16 +536,15 @@ test('a valid portal session is never revoked on an unconfirmed signal', () => {
 });
 
 test('an unreachable Firestore is never reported as removed portal access', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const config = fs.readFileSync(path.join(__dirname, '..', 'firebase-config.js'), 'utf8');
+    const app = readSource('app.js');
+    const config = readSource('firebase-config.js');
 
     // getDoc() answers from the local cache once Firestore's transport is down, and
     // a document that was never cached comes back missing rather than as an error.
     // Both callers of this loader turn a null return into a sign-out that tells the
     // account an administrator revoked it, so the users/{uid} read that decides it
     // has to be server-confirmed.
-    const loader = app.slice(app.indexOf('async loadOrMigrateUserMetadata(firebaseUser)'), app.indexOf('sendWelcomeEmail(userForm)'));
-    assert.ok(loader.length > 0, 'loadOrMigrateUserMetadata not found in app.js');
+    const loader = methodSource('loadOrMigrateUserMetadata');
     assert.match(loader, /const userSnapshot = await getDocFromServer\(userRef\);/);
     assert.doesNotMatch(loader, /getDoc\(userRef\)/);
 
@@ -569,15 +569,17 @@ test('an unreachable Firestore is never reported as removed portal access', () =
     // pulled straight from the CDN would be handed a DocumentReference it does not
     // recognise, and it would fail on exactly the reads that decide whether a
     // session ends.
-    assert.match(app, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "\.\/firebase-config\.js";/);
+    // The module that holds the loader imports it from the shared config —
+    // the relative depth depends on which app/ module that is.
+    assert.match(app, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "(?:\.\.\/)+firebase-config\.js";/);
     assert.doesNotMatch(app, /await import\("https:\/\/www\.gstatic\.com\/firebasejs\//);
     assert.match(config, /import \{[\s\S]{0,1200}?\s+getDocFromServer,[\s\S]{0,1200}?\} from "https:\/\/www\.gstatic\.com\/firebasejs\/[\d.]+\/firebase-firestore\.js";/);
     assert.equal((config.match(/^\s+getDocFromServer,\s*$/gm) || []).length, 2);
 });
 
 test('a normal logout cannot be labelled as removed portal access', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const normalLogout = app.slice(app.indexOf('async handleLogout()'), app.indexOf('stayOnPortal()'));
+    const app = readSource('app.js');
+    const normalLogout = methodSource('handleLogout');
     const authObserver = app.indexOf('onAuthStateChanged(auth');
     const signedOutStart = app.indexOf('            } else {', authObserver);
     const signedOutObserver = app.slice(signedOutStart, app.indexOf('            this.authLoading = false;', signedOutStart));
@@ -602,7 +604,7 @@ function liftAppMethod(appSource, name) {
 }
 
 test('website content shows the newest work first, whatever shape its dates are in', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const app = readSource('app.js');
 
     const ctx = {};
     ctx.toComparableIsoDate = liftAppMethod(app, 'toComparableIsoDate');
@@ -667,16 +669,16 @@ test('the public licensing page orders by event date without dropping older reco
 });
 
 test('audit retention form fields have stable identifiers for browser autofill', () => {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const html = readSource('index.html');
 
     assert.match(html, /id="audit-retention-value" name="auditRetentionValue"/);
     assert.match(html, /id="audit-retention-unit" name="auditRetentionUnit"/);
 });
 
 test('dynamic status colors include their dark-mode counterparts in the built stylesheet', () => {
-    const config = fs.readFileSync(path.join(__dirname, '..', 'tailwind.config.js'), 'utf8');
-    const css = fs.readFileSync(path.join(__dirname, '..', 'tailwind.css'), 'utf8');
-    const theme = fs.readFileSync(path.join(__dirname, '..', 'custom.css'), 'utf8');
+    const config = readSource('tailwind.config.js');
+    const css = readSource('tailwind.css');
+    const theme = readSource('custom.css');
 
     assert.match(config, /'\.\/app\.js'/);
     ['.dark\\:bg-blue-900\\/50', '.dark\\:bg-amber-900\\/50', '.dark\\:bg-emerald-900\\/50', '.dark\\:bg-purple-900\\/50'].forEach(selector => {
@@ -687,8 +689,8 @@ test('dynamic status colors include their dark-mode counterparts in the built st
 });
 
 test('quotation and invoice workspace uses explicit paired light and dark theme surfaces', () => {
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-    const theme = fs.readFileSync(path.join(__dirname, '..', 'custom.css'), 'utf8');
+    const html = readSource('index.html');
+    const theme = readSource('custom.css');
 
     ['zq-document-editor', 'zq-party-selector', 'zq-party-selector-summary', 'zq-payment-details', 'zq-document-section-heading'].forEach(className => {
         assert.match(html, new RegExp(className));
@@ -699,7 +701,7 @@ test('quotation and invoice workspace uses explicit paired light and dark theme 
 });
 
 test('dark mode cannot override the light print palette', () => {
-    const theme = fs.readFileSync(path.join(__dirname, '..', 'custom.css'), 'utf8');
+    const theme = readSource('custom.css');
     const printGuard = theme.lastIndexOf('Print is always a light document');
     const darkCompatibility = theme.indexOf('Theme compatibility layer');
 
@@ -712,8 +714,8 @@ test('dark mode cannot override the light print palette', () => {
 });
 
 test('every portal button has a safe right-click and long-press quick-action menu', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const app = readSource('app.js');
+    const html = readSource('index.html');
 
     assert.match(app, /installUniversalButtonContextMenu\(\)/);
     assert.match(app, /closest\('button, \[role="button"\]'\)/);
@@ -726,8 +728,8 @@ test('every portal button has a safe right-click and long-press quick-action men
 });
 
 test('workspace navigation stays hidden throughout sign-in and session restoration', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const app = readSource('app.js');
+    const html = readSource('index.html');
 
     assert.match(html, /<aside v-show="isLoggedIn && !authLoading && !loginLoading"/);
     assert.match(app, /async handleLogin\(\) \{[\s\S]{0,500}?this\.desktopSidebarOpen = false;/);
@@ -736,8 +738,8 @@ test('workspace navigation stays hidden throughout sign-in and session restorati
 });
 
 test('Client Workspace always has a manual portal refresh control', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const app = readSource('app.js');
+    const page = readSource('index.html');
 
     assert.match(page, /Refresh Portal/);
     assert.match(page, /@click="refreshApp"/);
@@ -746,10 +748,10 @@ test('Client Workspace always has a manual portal refresh control', () => {
 });
 
 test('Firebase email action URLs are handled safely alongside legacy reset links', () => {
-    const app = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const config = fs.readFileSync(path.join(__dirname, '..', 'firebase-config.js'), 'utf8');
-    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-    const resetApi = fs.readFileSync(path.join(__dirname, '..', 'api', 'request-password-reset.js'), 'utf8');
+    const app = readSource('app.js');
+    const config = readSource('firebase-config.js');
+    const html = readSource('index.html');
+    const resetApi = readSource('api/request-password-reset.js');
 
     assert.match(config, /verifyPasswordResetCode/);
     assert.match(config, /confirmPasswordReset/);
@@ -769,8 +771,8 @@ test('Firebase email action URLs are handled safely alongside legacy reset links
 });
 
 test('Firebase email action route is served by the portal application', () => {
-    const config = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'), 'utf8'));
-    const actionPage = fs.readFileSync(path.join(__dirname, '..', 'auth', 'action.html'), 'utf8');
+    const config = JSON.parse(readSource('vercel.json'));
+    const actionPage = readSource('auth/action.html');
 
     assert.deepEqual(
         config.rewrites.find((rule) => rule.source === '/auth/action'),
@@ -789,7 +791,7 @@ test('every outbound email sends from one address, and it is not the retired mai
 
     const senders = ['notify.js', 'request-login-otp.js', '_resetEmail.js'];
     for (const file of senders) {
-        const source = fs.readFileSync(path.join(__dirname, '..', 'api', file), 'utf8');
+        const source = readSource('api', file);
         assert.match(source, /from: MAIL_FROM,/, `${file} must send from the shared constant`);
         assert.match(source, /MAIL_FROM.*=\s*require\('\.\/_security'\)|MAIL_FROM \} = require\('\.\/_security'\)/, `${file} must import it`);
         // A literal address here is how the old value survived in three places.
@@ -803,16 +805,16 @@ test('every link the portal emails out points at the live host', () => {
     // A link must satisfy the same allowlist the server checks on the way back.
     assert.equal(isAllowedPortalUrl(`${PORTAL_URL}auth/action?resetToken=x`), true);
 
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+    const appSource = readSource('app.js');
     assert.match(appSource, /const PORTAL_URL = 'https:\/\/www\.hrconnect\.zenqor\.com\.my\/';/);
 
     // The retired hosts stay in the allowlist so links already sent keep
     // working, but nothing may build a new link with them — that gap is how
     // the reset email kept pointing at a dead address after the portal moved.
     for (const file of ['request-password-reset.js', 'notify.js', '_resetEmail.js']) {
-        const source = fs.readFileSync(path.join(__dirname, '..', 'api', file), 'utf8');
+        const source = readSource('api', file);
         assert.doesNotMatch(source, /hrct\.portal\.zenqor|hrct\.zenq0r/, `${file} must not build a retired-host link`);
     }
-    assert.match(fs.readFileSync(path.join(__dirname, '..', 'api', 'request-password-reset.js'), 'utf8'),
+    assert.match(readSource('api/request-password-reset.js'),
         /const resetLink = `\$\{PORTAL_URL\}auth\/action\?resetToken=\$\{token\}`;/);
 });

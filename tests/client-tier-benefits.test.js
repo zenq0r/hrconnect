@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource, methodSource, constantSource } = require('./helpers/sources');
 
-const read = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
+const read = name => readSource(name);
 const appSource = () => read('app.js');
 const markup = () => read('index.html');
 const rules = () => read('firestore.rules');
@@ -11,26 +12,18 @@ const styles = () => read('custom.css');
 
 // Pull the tier constants out of app.js and evaluate them, so these tests move
 // with the shipped list instead of a copy that can drift away from it.
+const TIER_CONSTANTS = () => constantSource('CLIENT_TIER_ORDER', 'CLIENT_TIER_FEATURES', 'CLIENT_SUPPORT_CHANNELS');
+
 function tierModel() {
-    const src = appSource();
-    const start = src.indexOf('const CLIENT_TIER_ORDER =');
-    const end = src.indexOf('const CLIENT_PANELS =');
-    assert.ok(start > -1 && end > start, 'the client tier constants must remain in app.js');
-    return new Function(`${src.slice(start, end)}
+    return new Function(`${TIER_CONSTANTS()}
         return { CLIENT_TIER_ORDER, CLIENT_TIER_FEATURES, CLIENT_SUPPORT_CHANNELS };`)();
 }
 
 // Rebuild the real gate with a stub `this`, the same way the presence tests do.
 function buildGate(clientTier) {
-    const src = appSource();
-    const constStart = src.indexOf('const CLIENT_TIER_ORDER =');
-    const constEnd = src.indexOf('const CLIENT_PANELS =');
-    const gateStart = src.indexOf('        clientTierAllows(featureKey) {');
-    const gateEnd = src.indexOf('        canReplyAsClient(project) {');
-    assert.ok(gateStart > -1 && gateEnd > gateStart, 'clientTierAllows must remain in app.js');
-
-    const gate = new Function(`${src.slice(constStart, constEnd)}
-        return { ${src.slice(gateStart, gateEnd)} };`)();
+    const gate = new Function(`${TIER_CONSTANTS()}
+        ${constantSource('canonicalClientTier')}
+        return { ${methodSource('clientTierAllows', 'clientTierLockMessage')} };`)();
     gate.clientPortalIdentity = { clientTier };
     return gate;
 }
@@ -166,7 +159,7 @@ test('a client is matched to its record by Client ID or any authorized email', (
 });
 
 test('sign-in resolves the directory record from Additional Authorized Emails', () => {
-    const claims = fs.readFileSync(path.join(__dirname, '..', 'api', '_portalClaims.js'), 'utf8');
+    const claims = readSource('api/_portalClaims.js');
 
     // Staff add a contact under Additional Authorized Emails; that address must
     // then reach the same customers/{id} the primary contact reaches, or the
@@ -177,7 +170,7 @@ test('sign-in resolves the directory record from Additional Authorized Emails', 
 });
 
 test('Client Directory email matches are unique and missing matches fail clearly', () => {
-    const claims = fs.readFileSync(path.join(__dirname, '..', 'api', '_portalClaims.js'), 'utf8');
+    const claims = readSource('api/_portalClaims.js');
     const app = appSource();
 
     assert.match(claims, /const primarySnap = .*where\('clientEmail', '==', email\)/s);

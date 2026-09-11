@@ -2,22 +2,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource, methodSource, constantSource } = require('./helpers/sources');
 
-const appSource = () => fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+const appSource = () => readSource('app.js');
 
 // Rebuild the access gates out of app.js with a stub `this`, so these exercise
 // the shipped logic rather than a paraphrase of it.
 function buildGates(role) {
-    const src = appSource();
-    const mapStart = src.indexOf('const RBAC_ROLES = {');
-    const mapEnd = src.indexOf('};', mapStart) + 2;
-    const gateStart = src.indexOf('        hasAccess(moduleName) {');
-    const gateEnd = src.indexOf('        formatCurrency(val) {', gateStart);
-    assert.ok(mapStart > -1 && gateStart > -1 && gateEnd > gateStart, 'gates must remain in app.js');
-
     const gates = new Function(`
-        ${src.slice(mapStart, mapEnd)}
-        return { ${src.slice(gateStart, gateEnd)} };
+        ${constantSource('RBAC_ROLES')}
+        return { ${methodSource('hasAccess', 'hasModulePermission')} };
     `)();
     gates.userProfile = { role };
     return gates;
@@ -76,7 +70,7 @@ test('the Director-only gates admit Superadmin', () => {
 });
 
 test('the Firestore approval branch matches the client gate', () => {
-    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    const rules = readSource('firestore.rules');
     const branches = rules.match(/isAdmin\(\) && resource\.data\.status in \['Pending HR', 'Pending Account', 'Pending Director'\]/g) || [];
     assert.equal(branches.length, 2, 'both claims and vouchers must admit Superadmin');
     // A UI that permits what the rules refuse is worse than one that refuses first.

@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource } = require('./helpers/sources');
 
-const config = () => fs.readFileSync(path.join(__dirname, '..', 'firebase-config.js'), 'utf8');
+const config = () => readSource('firebase-config.js');
 
 test('Firestore falls back to long polling only where the stream actually fails', () => {
     const src = config();

@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource } = require('./helpers/sources');
 
-const read = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
+const read = name => readSource(name);
 const docsRule = () => {
     const rules = read('firestore.rules');
     const start = rules.indexOf('match /docs/{docId}');

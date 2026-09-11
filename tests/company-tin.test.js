@@ -2,17 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource, methodSource, constantSource } = require('./helpers/sources');
 
 // The TIN rules come from LHDN's published format, not from anything the
 // codebase can derive, so they are pinned here: an entity-type prefix, then
 // digits, 11-12 characters in total. Lift the real methods out of app.js so
 // this exercises the shipped validator rather than a copy of it.
 function loadTinHelpers() {
-    const source = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const start = source.indexOf('        normalizeTin(value) {');
-    const end = source.indexOf('        getRoleDisplayName(code) {', start);
-    assert.ok(start > -1 && end > start, 'TIN helpers must remain in app.js');
-    return new Function(`return { ${source.slice(start, end)} };`)();
+    return new Function(`return { ${methodSource('normalizeTin', 'tinFormatState')} };`)();
 }
 
 test('documented LHDN TIN examples are accepted', () => {
@@ -68,8 +65,8 @@ test('malformed numbers are reported, including a business registration number p
 });
 
 test('company TIN reaches storage and the official document header', () => {
-    const appSource = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
-    const pageSource = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const appSource = readSource('app.js');
+    const pageSource = readSource('index.html');
     // Part of the company profile, so saveSettings persists it with the rest.
     assert.match(appSource, /company:\s*\{[\s\S]*?\btin:\s*""/);
     assert.match(pageSource, /id="setting-comp-tin"/);

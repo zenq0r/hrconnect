@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource } = require('./helpers/sources');
 
-const read = (f) => fs.readFileSync(path.join(__dirname, '..', f), 'utf8');
+const read = (f) => readSource(f);
 const page = () => read('index.html');
 const styles = () => read('custom.css');
 

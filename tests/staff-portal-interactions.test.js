@@ -2,8 +2,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { readSource, methodSource, constantSource } = require('./helpers/sources');
 
-const read = name => fs.readFileSync(path.join(__dirname, '..', name), 'utf8');
+const read = name => readSource(name);
 const appSource = () => read('app.js');
 const markup = () => read('index.html');
 const rules = () => read('firestore.rules');
@@ -12,22 +13,9 @@ const rules = () => read('firestore.rules');
 // exercise the shipped logic rather than a paraphrase of it - the same
 // technique tests/admin-full-access.test.js uses for the module gates.
 function buildStaffPortal(role, { uid = 'viewer-uid' } = {}) {
-    const src = appSource();
-    const rbacStart = src.indexOf('const RBAC_ROLES = {');
-    const rbacEnd = src.indexOf('};', rbacStart) + 2;
-    const labelsStart = src.indexOf('const MODULE_LABELS = {');
-    const labelsEnd = src.indexOf('};', labelsStart) + 2;
-    const constantsStart = src.indexOf('const FULL_ACCESS_ROLES = [');
-    const constantsEnd = src.indexOf('// The decision pair on a pending access request.');
-    const gateStart = src.indexOf('        isAccountLocked(user) {');
-    const gateEnd = src.indexOf('        async toggleStaffPortalLock(usr) {');
-    assert.ok(constantsStart > -1 && gateStart > -1 && gateEnd > gateStart, 'the Staff Portal gates must remain in app.js');
-
     const portal = new Function(`
-        ${src.slice(rbacStart, rbacEnd)}
-        ${src.slice(labelsStart, labelsEnd)}
-        ${src.slice(constantsStart, constantsEnd)}
-        return { ${src.slice(gateStart, gateEnd)} };
+        ${constantSource('RBAC_ROLES', 'MODULE_LABELS', 'FULL_ACCESS_ROLES', 'STAFF_PORTAL_OBSERVER_ROLES', 'STAFF_PORTAL_ACTIONS')}
+        return { ${methodSource('isAccountLocked', 'staffPortalStatusBadge', 'isStaffPortalActionAvailable', 'staffPortalActionsFor')} };
     `)();
     portal.userProfile = { role, uid };
     portal.canManageStaffPortal = FULL_ACCESS.includes(role);
@@ -46,13 +34,13 @@ const WRITING_ACTIONS = ['edit', 'lock', 'reset', 'delete'];
 
 test('the Staff Portal offers every named interaction, and the row buttons are built from that one list', () => {
     const src = appSource();
-    const list = src.slice(src.indexOf('const STAFF_PORTAL_ACTIONS = ['), src.indexOf('// The decision pair on a pending access request.'));
+    const list = constantSource('STAFF_PORTAL_ACTIONS');
     for (const key of [...READ_ONLY_ACTIONS, ...WRITING_ACTIONS]) {
         assert.match(list, new RegExp(`key: '${key}'`), `the ${key} interaction must exist`);
     }
     // Accept and Reject act on a request rather than on an account, so they are
     // a separate list - but they must exist just the same.
-    const decisions = src.slice(src.indexOf('const STAFF_PORTAL_REQUEST_ACTIONS = ['), src.indexOf('const WELCOME_GREETING_HOLD_MS'));
+    const decisions = constantSource('STAFF_PORTAL_REQUEST_ACTIONS');
     assert.match(decisions, /key: 'accept'/);
     assert.match(decisions, /key: 'reject'/);
 
