@@ -99,6 +99,33 @@ and no call site changed. The same applies to `computed/`. Imports in those
 files are a deliberate superset — an unused import is inert, a missing one
 would be a `ReferenceError` on some screen nobody opens often.
 
+## Where each rule is actually enforced
+
+The browser is where things are *shown*, never where they are decided. Four
+kinds of rule and the place each one holds:
+
+| rule | enforced in | notes |
+| --- | --- | --- |
+| who may read or write a record | `firestore.rules` | roles come from `users/{uid}`, and a locked account holds no role |
+| derived money figures | `firestore.rules` | SST, EPF, SOCSO, EIS and totals are recomputed against their own inputs |
+| a document's line items add up | `functions/` `verifyBillingDocumentTotals` | rules cannot iterate a list; the trigger corrects and audits instead |
+| password policy | `api/_security.js` | the copy in `app/constants/password-policy.js` is the hint shown while typing |
+| attachment access | `storage.rules` | the uploader and the staff who approve, capped at one type and size |
+
+Two things are deliberately **not** enforced server-side, and should be read as
+known gaps rather than oversights:
+
+- **The second factor** (`SECOND_FACTOR_ROLES`) decides whether the portal
+  opens, not whether the session exists — the password has already been
+  accepted by Firebase when the code is asked for. Someone driving the Firebase
+  SDK by hand is not stopped by it. Closing that means having
+  `api/verify-login-otp.js` set a custom claim that `firestore.rules` then
+  requires, which signs out every open session the day it ships. That is an
+  operational decision.
+- **A commercial figure** — a price, a salary, a claim amount — is whatever the
+  authorised role says it is. The rules only hold the *derived* figures to the
+  inputs they claim to come from.
+
 ## Tests read source, not a browser
 
 `tests/helpers/sources.js` serves `app.js` plus every `app/` module as one blob,
@@ -112,3 +139,27 @@ modules would swallow the module boundary and fail as a syntax error.
 npm run check   # node --check on every .js, plus tag nesting on every template
 npm test        # the suite
 ```
+
+## Deploying a change
+
+The portal itself is static and ships with the Vercel deployment, `/api`
+included. Three things do not, and are deployed separately with the Firebase
+CLI — a change to any of them has no effect until it is:
+
+```bash
+firebase deploy --only firestore:rules,storage:rules,functions
+```
+
+`firestore.rules` and `storage.rules` are the enforcement above; `functions/`
+holds the auth-lifecycle cleanup and the billing totals check.
+
+**Order matters, and it is portal first, rules second.** The money rules check
+figures the portal only started filing recently — a quotation's `subtotal` and
+`sst`, and a receipt's Storage path. Deploying the rules while the previous
+portal is still live would refuse every new invoice and every attachment,
+because the old code does not send what the new rule asks for. The reverse gap
+is harmless: for the few minutes between the two, a consistent set of figures is
+written and simply not yet re-checked.
+
+A browser tab left open on the old code across the rules deploy will be refused
+until it is reloaded. The portal's update banner is what tells that tab to.

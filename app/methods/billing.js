@@ -146,6 +146,13 @@ export const billingMethods = {
             try {
                 if (this.attachmentUploadState.payment) { this.showNotify('Wait for the payment attachment upload to finish.'); return false; }
                 if (!this.canManageDocuments) { this.showNotify('You do not have permission to save documents.'); return false; }
+                // firestore.rules refuses these too, but a rule can only answer
+                // "denied" — say which figure is wrong while the person is still
+                // looking at it.
+                const discount = Number(this.docForm.discount) || 0;
+                if (this.docSubtotal < 0) { this.showNotify('The line items add up to a negative amount. Check the unit prices.'); return false; }
+                if (discount < 0) { this.showNotify('A discount cannot be a negative amount.'); return false; }
+                if (discount > this.docSubtotal) { this.showNotify('The discount is larger than the subtotal it is taken off.'); return false; }
                 if (['Paid', 'Partial'].includes(this.docForm.status) && (!this.docForm.paymentRefNo || this.docForm.paymentRefNo.trim() === '')) { this.showNotify("Payment Reference No. is REQUIRED."); return false; }
                 const normalizedDocForm = this.normalizeOfficialRecord(this.docForm);
                 normalizedDocForm.clientEmail = String(this.docForm.clientEmail || '').trim().toLowerCase();

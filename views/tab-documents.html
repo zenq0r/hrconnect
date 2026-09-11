@@ -148,7 +148,7 @@
                                     <tr v-for="(item, idx) in docForm.items" :key="idx" class="border-b dark:border-slate-700">
                                         <td class="p-2 border dark:border-slate-600"><label :for="'item-desc-' + idx" class="sr-only">Description</label><input :id="'item-desc-' + idx" :name="'itemDesc_' + idx" type="text" v-model="item.desc" placeholder="Service description / payment phase..." class="zq-input font-medium"></td>
                                         <td class="p-2 border dark:border-slate-600"><label :for="'item-qty-' + idx" class="sr-only">Quantity</label><input :id="'item-qty-' + idx" :name="'itemQty_' + idx" type="number" v-model="item.qty" min="1" class="zq-input text-center font-bold"></td>
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-price-' + idx" class="sr-only">Unit Price</label><input :id="'item-price-' + idx" :name="'itemPrice_' + idx" type="number" v-model="item.price" step="0.01" class="zq-input text-right font-semibold"></td>
+                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-price-' + idx" class="sr-only">Unit Price</label><input :id="'item-price-' + idx" :name="'itemPrice_' + idx" type="number" v-model="item.price" step="0.01" min="0" class="zq-input text-right font-semibold"></td>
                                         <td class="p-2 border dark:border-slate-600 text-right font-extrabold text-xs bg-slate-50 dark:bg-slate-700/50 dark:text-white">{{ formatCurrency(item.qty * item.price) }}</td>
                                         <td class="p-2 border dark:border-slate-600 text-center"><button type="button" @click="removeDocItem(idx)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Remove item"><i class="fa-solid fa-trash text-xs"></i></button></td>
                                     </tr>
@@ -172,7 +172,7 @@
 
                             <div class="w-full sm:w-72 space-y-1.5 text-xs font-semibold">
                                 <div class="flex justify-between text-slate-600 dark:text-slate-300"><span>Subtotal:</span><span class="font-bold">RM {{ docSubtotal.toFixed(2) }}</span></div>
-                                <div class="flex justify-between items-center text-slate-600 dark:text-slate-300"><label for="doc-discount" class="cursor-pointer">Discount (-):</label><input id="doc-discount" name="docDiscount" type="number" v-model="docForm.discount" step="0.01" class="zq-input w-20 text-right"></div>
+                                <div class="flex justify-between items-center text-slate-600 dark:text-slate-300"><label for="doc-discount" class="cursor-pointer">Discount (-):</label><input id="doc-discount" name="docDiscount" type="number" v-model="docForm.discount" step="0.01" min="0" class="zq-input w-20 text-right"></div>
                                 <div class="flex justify-between text-slate-600 dark:text-slate-300"><span>SST (8%):</span><span class="font-bold">RM {{ docSST.toFixed(2) }}</span></div>
                                 <div class="flex justify-between text-sm font-extrabold text-brand-dark dark:text-white border-t border-slate-300 dark:border-slate-600 pt-2"><span>Grand Total:</span><span class="text-brand-gold">RM {{ docGrandTotal.toFixed(2) }}</span></div>
                             </div>

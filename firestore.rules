@@ -304,12 +304,14 @@ service cloud.firestore {
         centsMatch(cents(figure(raw, 'dedEis')), cents(payslipCappedWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.002)));
     }
 
+    // Net pay is deliberately NOT required to be positive. It is already pinned
+    // to gross minus its own deductions, and a month where a repayment or an
+    // advance swallows the salary is a real thing a payroll has to record.
     function payslipFiguresConsistent(data) {
       return data.raw is map &&
         payslipStatutoryCorrect(data.raw) &&
         centsMatch(cents(figure(data, 'amount')), cents(payslipGross(data.raw) - payslipDeductions(data.raw))) &&
-        figure(data.raw, 'basic') >= 0 &&
-        figure(data, 'amount') >= 0;
+        figure(data.raw, 'basic') >= 0;
     }
 
     // Same easing as billing: a payslip filed before this rule existed keeps

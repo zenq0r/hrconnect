@@ -84,6 +84,21 @@ test('a payslip is saved from the inputs, not from whatever was last calculated'
     assert.ok(calcAt > -1 && calcAt < payloadAt, 'savePayslipRecord must recalculate before it builds the payload');
 });
 
+test('a refused figure is explained before the rule refuses it', () => {
+    // A rule can only answer "denied", and the portal reports that as a
+    // permission error — which says nothing about a discount larger than the
+    // subtotal it is taken off. The same conditions are checked in the form.
+    const save = methodSource('saveDocRecord');
+    assert.match(save, /if \(this\.docSubtotal < 0\)/);
+    assert.match(save, /if \(discount < 0\)/);
+    assert.match(save, /if \(discount > this\.docSubtotal\)/);
+
+    // And the inputs themselves do not invite a negative number.
+    const form = readSource('views/tab-documents.html');
+    assert.match(form, /v-model="item\.price" step="0\.01" min="0"/);
+    assert.match(form, /v-model="docForm\.discount" step="0\.01" min="0"/);
+});
+
 test('a billing document files the figures its total is made of', () => {
     // The rule can only check subtotal - discount + SST against the total if the
     // document carries all three. Before this, only the total was stored, and a
