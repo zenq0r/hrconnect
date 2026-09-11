@@ -1,0 +1,328 @@
+<!-- =====================================================================
+     CLIENT WORKSPACE
+     ===================================================================== -->
+                <!-- CLIENT PORTAL MODULE — one route, six panels.
+                     Documents, Updates and Support used to be separate tabs; they are
+                     panels now, so nothing here changes currentTab. The palette is
+                     smoke grey and black-grey only, scoped by .zq-cp so it cannot leak
+                     into the staff modules, which keep the blue/teal identity. -->
+                <div v-show="currentTab === 'client-portal'" class="zq-cp p-4 md:p-8 max-w-7xl mx-auto w-full">
+
+                    <!-- FILE COVER — who this account is, stamped once at the top -->
+                    <section class="zq-cp-cover">
+                        <div class="zq-cp-cover-main">
+                            <p class="zq-cp-eyebrow">Client Workspace</p>
+                            <h2 class="zq-cp-title">{{ clientPortalIdentity.clientName }}</h2>
+                            <div class="zq-cp-regs">
+                                <p class="zq-cp-reg">Client ID<span class="zq-cp-mono">{{ myClientId || 'Pending registration' }}</span></p>
+                                <p class="zq-cp-reg">SSM<span class="zq-cp-mono">{{ clientPortalIdentity.clientSSM || 'Pending' }}</span></p>
+                                <p class="zq-cp-reg">Sign-in email<span class="zq-cp-lower">{{ clientPortalIdentity.clientEmail }}</span></p>
+                            </div>
+                        </div>
+                        <div class="zq-cp-cover-side">
+                            <span class="zq-cp-stamp">{{ myClientTier }}</span>
+                            <p class="zq-cp-stamp-note">{{ clientSupportChannel.promise }}</p>
+                            <button type="button" @click="refreshApp" class="zq-cp-ghost-btn"><i class="fa-solid fa-rotate-right"></i><span>Refresh Portal</span></button>
+                        </div>
+                    </section>
+
+                    <!-- PANEL RAIL — switches the section below without leaving the page -->
+                    <div class="zq-cp-rail" role="tablist" aria-label="Client workspace sections">
+                        <button v-for="panel in clientPanelList()" :key="`cp-rail-${panel.key}`" type="button" role="tab"
+                                :aria-selected="clientPanel === panel.key" :class="{ 'is-active': clientPanel === panel.key }"
+                                @click="clientPanel = panel.key" class="zq-cp-rail-btn">
+                            <i class="fa-solid" :class="panel.icon" aria-hidden="true"></i><span>{{ panel.label }}</span>
+                            <span v-if="panel.key === 'dc' && clientPortalDocs.length" class="zq-cp-count">{{ clientPortalDocs.length }}</span>
+                            <span v-else-if="panel.key === 'up' && clientUpdatesTimeline.length" class="zq-cp-count">{{ clientUpdatesTimeline.length }}</span>
+                            <span v-else-if="panel.key === 'tb'" class="zq-cp-count">{{ clientUnlockedFeatureCount }}/{{ clientTierFeatureList.length }}</span>
+                        </button>
+                    </div>
+
+                    <!-- ============================ OVERVIEW ============================ -->
+                    <section v-show="clientPanel === 'ov'" class="zq-cp-panel" role="tabpanel" aria-label="Overview">
+                        <div class="zq-cp-figs">
+                            <div class="zq-cp-fig"><p class="zq-cp-eyebrow">Documents</p><p class="zq-cp-fig-n">{{ clientPortalDocs.length }}</p><p class="zq-cp-fig-l">Official files you can open</p></div>
+                            <div class="zq-cp-fig is-done"><p class="zq-cp-eyebrow">Settled</p><p class="zq-cp-fig-n">{{ myClientPaidCount }}</p><p class="zq-cp-fig-l">Invoices paid in full</p></div>
+                            <div class="zq-cp-fig" :class="myClientUnpaidCount > 0 ? 'is-act' : ''"><p class="zq-cp-eyebrow">Needs action</p><p class="zq-cp-fig-n">{{ myClientUnpaidCount }}</p><p class="zq-cp-fig-l">Invoices still outstanding</p></div>
+                            <div class="zq-cp-fig is-wait"><p class="zq-cp-eyebrow">Active projects</p><p class="zq-cp-fig-n">{{ clientActiveProjectsCount }}</p><p class="zq-cp-fig-l">Currently in progress</p></div>
+                        </div>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Your project progress</h3><p class="zq-cp-sub">Each bar shows how far a project has moved through the five stages.</p></div>
+                                <button type="button" @click="switchTab('project-activities')" class="zq-cp-link">Full tracker <i class="fa-solid fa-arrow-right"></i></button>
+                            </div>
+                            <div v-if="projects.length" class="zq-cp-cases">
+                                <button type="button" v-for="project in projects.slice(0, 5)" :key="`cp-project-${project.id}`" @click="openProjectDetails(project)" class="zq-cp-case">
+                                    <div class="zq-cp-case-top">
+                                        <div class="min-w-0">
+                                            <p class="zq-cp-ref">{{ project.projectRef }}</p>
+                                            <p class="zq-cp-case-title">{{ project.title }}</p>
+                                        </div>
+                                        <span class="zq-cp-pill">{{ project.status }}</span>
+                                    </div>
+                                    <div class="zq-cp-stages" role="img" :aria-label="`Stage ${projectStages.indexOf(project.status) + 1} of ${projectStages.length}`">
+                                        <span v-for="(stage, stageIndex) in projectStages" :key="`cp-stage-${project.id}-${stage}`" class="zq-cp-stage" :class="{ 'is-reached': stageIndex <= projectStages.indexOf(project.status) }"></span>
+                                    </div>
+                                </button>
+                            </div>
+                            <div v-else class="zq-empty-state">
+                                <i class="fa-solid fa-rocket zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">Your next project will appear here</p>
+                                <p class="zq-empty-state-text">Once our team assigns a project to your account, every milestone shows up on this page.</p>
+                            </div>
+                        </div>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Latest from your team</h3><p class="zq-cp-sub">The most recent messages on your projects.</p></div>
+                                <button type="button" @click="clientPanel = 'up'" class="zq-cp-link">All updates <i class="fa-solid fa-arrow-right"></i></button>
+                            </div>
+                            <div v-if="clientRecentUpdates.length" class="zq-cp-msgs">
+                                <article v-for="update in clientRecentUpdates" :key="`cp-recent-${update.id}`" class="zq-cp-msg" :class="update.senderRole === 'Client' ? 'is-mine' : ''">
+                                    <p class="zq-cp-msg-meta">{{ update.senderRole === 'Client' ? 'You' : (update.senderName || 'Project team') }} · {{ formatDateTime(update.createdAt || update.updateDate) }}</p>
+                                    <p class="zq-cp-msg-body">{{ update.message }}</p>
+                                    <p class="zq-cp-msg-ref">{{ update.projectRef || 'Project activity' }}</p>
+                                </article>
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No messages yet</p>
+                                <p class="zq-empty-state-text">Updates from your project team will appear here.</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ======================= DOCUMENTS & BILLING ======================= -->
+                    <section v-show="clientPanel === 'dc'" class="zq-cp-panel" role="tabpanel" aria-label="Documents and billing">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Documents &amp; billing</h3><p class="zq-cp-sub">Showing {{ filteredClientPortalDocs.length }} of {{ clientPortalDocs.length }} document(s).</p></div>
+                                <div class="zq-cp-actions">
+                                    <button v-if="filteredClientPortalDocs.length" type="button" @click="printAllClientDocuments" :disabled="bulkPrintPreparing" class="zq-btn zq-btn-outline zq-btn-sm">
+                                        <i class="fa-solid" :class="bulkPrintPreparing ? 'fa-spinner fa-spin' : 'fa-print'"></i><span>{{ bulkPrintPreparing ? 'Preparing' : 'Print All' }}</span>
+                                    </button>
+                                    <button v-if="filteredClientPortalDocs.length && clientTierAllows('account-statement')" type="button" @click="exportClientStatement" class="zq-btn zq-btn-outline zq-btn-sm">
+                                        <i class="fa-solid fa-file-csv"></i><span>Statement (CSV)</span>
+                                    </button>
+                                    <button v-else-if="filteredClientPortalDocs.length" type="button" @click="clientPanel = 'tb'" class="zq-cp-locked-btn" :title="clientTierLockMessage('account-statement')">
+                                        <i class="fa-solid fa-lock"></i><span>Statement (CSV)</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Every record ever filed against this Client ID, on every tier. -->
+                            <p class="zq-cp-note">
+                                <i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i>
+                                <span>This is your complete history — every quotation and invoice filed against Client ID {{ myClientId || 'your account' }}, with no cut-off date.</span>
+                            </p>
+
+                            <div class="zq-cp-filters">
+                                <div class="zq-filter-chip-group" role="group" aria-label="Filter by document type">
+                                    <button type="button" @click="clientPortalFilter.type = 'all'" :class="{ 'is-active': clientPortalFilter.type === 'all' }" :aria-pressed="clientPortalFilter.type === 'all'" class="zq-filter-chip">All</button>
+                                    <button type="button" @click="clientPortalFilter.type = 'Quotation'" :class="{ 'is-active': clientPortalFilter.type === 'Quotation' }" :aria-pressed="clientPortalFilter.type === 'Quotation'" class="zq-filter-chip">Quotations</button>
+                                    <button type="button" @click="clientPortalFilter.type = 'Invoice'" :class="{ 'is-active': clientPortalFilter.type === 'Invoice' }" :aria-pressed="clientPortalFilter.type === 'Invoice'" class="zq-filter-chip">Invoices</button>
+                                </div>
+                                <div class="zq-filter-chip-group" role="group" aria-label="Filter by payment status">
+                                    <button type="button" @click="clientPortalFilter.status = 'all'" :class="{ 'is-active': clientPortalFilter.status === 'all' }" :aria-pressed="clientPortalFilter.status === 'all'" class="zq-filter-chip">All</button>
+                                    <button type="button" @click="clientPortalFilter.status = 'Paid'" :class="{ 'is-active': clientPortalFilter.status === 'Paid' }" :aria-pressed="clientPortalFilter.status === 'Paid'" class="zq-filter-chip">Paid</button>
+                                    <button type="button" @click="clientPortalFilter.status = 'Unpaid'" :class="{ 'is-active': clientPortalFilter.status === 'Unpaid' }" :aria-pressed="clientPortalFilter.status === 'Unpaid'" class="zq-filter-chip">Unpaid</button>
+                                </div>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="zq-table zq-cp-table">
+                                    <thead>
+                                        <tr><th>Type</th><th>Document No.</th><th>Date</th><th class="text-right">Amount (RM)</th><th class="text-center">Status</th><th class="text-center">Actions</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-if="!filteredClientPortalDocs.length" class="zq-table-empty">
+                                            <td colspan="6">
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-solid fa-file-circle-plus zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">{{ clientPortalDocs.length ? 'No documents match this filter' : 'Your document centre is ready' }}</p>
+                                                    <p class="zq-empty-state-text">{{ clientPortalDocs.length ? 'Choose another type or payment status to see more records.' : 'Official quotations and invoices appear here automatically when our team issues them.' }}</p>
+                                                    <div v-if="clientPortalDocs.length && (clientPortalFilter.type !== 'all' || clientPortalFilter.status !== 'all')" class="zq-empty-state-action"><button type="button" @click="clientPortalFilter.type = 'all'; clientPortalFilter.status = 'all'" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr v-for="d in filteredClientPortalDocs" :key="d.id">
+                                            <td><span class="zq-cp-type"><i class="fa-solid" :class="d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-pen'"></i>{{ d.type }}</span></td>
+                                            <td class="zq-cp-mono zq-cp-strong">{{ d.docNo }}</td>
+                                            <td class="zq-cp-mono">{{ d.date }}</td>
+                                            <td class="text-right zq-cp-mono zq-cp-strong">{{ formatCurrency(d.amount) }}</td>
+                                            <td class="text-center">
+                                                <span class="zq-cp-pill" :class="['Paid', 'Accepted'].includes(d.status) ? 'is-done' : ['Open', 'Payment Under Review'].includes(clientBillingStatus(d)) ? 'is-wait' : 'is-act'">{{ clientBillingStatus(d) }}</span>
+                                            </td>
+                                            <td class="text-center">
+                                                <div class="flex flex-wrap items-center justify-center gap-1.5">
+                                                    <button @click="viewRecord(d)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-print"></i><span>Print PDF</span></button>
+                                                    <template v-if="canDecideQuotation(d)">
+                                                        <button type="button" @click="decideQuotation(d, 'Accepted')" class="zq-btn zq-btn-sm zq-cp-accept"><i class="fa-solid fa-check"></i><span>Accept</span></button>
+                                                        <button type="button" @click="decideQuotation(d, 'Rejected')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-xmark"></i><span>Decline</span></button>
+                                                    </template>
+                                                    <label v-if="canAttachPaymentProof(d)" class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer" :class="{ 'opacity-60 pointer-events-none': paymentProofUploadingFor === d.id }">
+                                                        <i class="fa-solid" :class="paymentProofUploadingFor === d.id ? 'fa-spinner fa-spin' : 'fa-receipt'"></i>
+                                                        <span>{{ paymentProofUploadingFor === d.id ? 'Uploading' : (d.paymentProofReviewStatus === 'Rejected' ? 'Upload Corrected Proof' : (d.paymentProofUrl ? 'Replace Proof' : 'Payment Proof')) }}</span>
+                                                        <input type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" @change="handlePaymentProofUpload($event, d)">
+                                                    </label>
+                                                    <button v-if="d.paymentProofUrl" type="button" @click="openAttachment(d.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View submitted payment proof" aria-label="View submitted payment proof"><i class="fa-solid fa-eye"></i></button>
+                                                </div>
+                                                <p v-if="d.clientDecisionAt" class="zq-cp-cell-note">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
+                                                <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="zq-cp-cell-note is-act">Proof needs attention{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>
+                                                <p v-else-if="d.paymentProofAt" class="zq-cp-cell-note is-done">Proof submitted — awaiting Finance verification</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- ========================= PROJECT UPDATES ========================= -->
+                    <section v-show="clientPanel === 'up'" class="zq-cp-panel" role="tabpanel" aria-label="Project updates">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Current project status</h3><p class="zq-cp-sub">Live status for every project linked to your account.</p></div>
+                            </div>
+                            <div v-if="clientProjectStatusCards.length" class="zq-cp-status-grid">
+                                <article v-for="project in clientProjectStatusCards" :key="`cp-status-${project.id}`" class="zq-cp-status">
+                                    <div class="zq-cp-case-top">
+                                        <div class="min-w-0"><p class="zq-cp-ref">{{ project.projectRef || 'Project' }}</p><p class="zq-cp-case-title">{{ project.title || 'Project activity' }}</p></div>
+                                        <span class="zq-cp-pill">{{ project.status || 'Project Planning' }}</span>
+                                    </div>
+                                    <div class="zq-cp-status-foot">
+                                        <p class="zq-cp-eyebrow">Latest update</p>
+                                        <p class="zq-cp-msg-body">{{ project.latestProjectEvent?.message || 'Current project status is shown above.' }}</p>
+                                        <p class="zq-cp-msg-ref">{{ formatDateTime(project.latestProjectEvent?.createdAt || project.updatedAt || project.createdAt) }}</p>
+                                    </div>
+                                </article>
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-diagram-project zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No project status yet</p>
+                                <p class="zq-empty-state-text">A live status appears as soon as a project is linked to your account.</p>
+                            </div>
+                        </div>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Conversation history</h3><p class="zq-cp-sub">Messages written by your project team, and your own replies.</p></div>
+                            </div>
+                            <!-- full-timeline is a Premium feature: below it the client sees the
+                                 recent conversation but not the complete recorded trail. -->
+                            <div v-if="clientConversationHistory.length" class="zq-cp-msgs">
+                                <article v-for="update in clientVisibleConversation" :key="`cp-convo-${update.id}`" class="zq-cp-msg" :class="update.senderRole === 'Client' ? 'is-mine' : ''">
+                                    <p class="zq-cp-msg-meta">{{ update.senderRole === 'Client' ? 'You' : (update.senderName || 'Project team') }} · {{ formatDateTime(update.createdAt || update.updateDate) }}</p>
+                                    <p class="zq-cp-msg-body">{{ update.message || 'A new message is available for your project.' }}</p>
+                                    <p class="zq-cp-msg-ref">{{ update.projectRef || 'Project activity' }} · {{ update.updateType || 'Project Update' }}</p>
+                                </article>
+                                <div v-if="clientHiddenConversationCount" class="zq-cp-lock">
+                                    <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                    <p>{{ clientHiddenConversationCount }} earlier {{ clientHiddenConversationCount === 1 ? 'entry is' : 'entries are' }} part of the full activity timeline.</p>
+                                    <button type="button" @click="clientPanel = 'tb'" class="zq-cp-link">See tier benefits <i class="fa-solid fa-arrow-right"></i></button>
+                                </div>
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-regular fa-comments zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No conversation yet</p>
+                                <p class="zq-empty-state-text">Project messages and your replies will appear here.</p>
+                            </div>
+                            <p v-if="!clientTierAllows('client-reply')" class="zq-cp-note">
+                                <i class="fa-solid fa-lock" aria-hidden="true"></i>
+                                <span>{{ clientTierLockMessage('client-reply') }} These updates are read-only on {{ myClientTier }}. <button type="button" @click="clientPanel = 'tb'" class="zq-cp-note-link">See tier benefits</button></span>
+                            </p>
+                            <p v-else class="zq-cp-note">
+                                <i class="fa-solid fa-reply" aria-hidden="true"></i>
+                                <span>Open a project from <button type="button" @click="switchTab('project-activities')" class="zq-cp-note-link">My Projects</button> to reply inside its activity history.</span>
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- ========================== TIER BENEFITS ========================== -->
+                    <section v-show="clientPanel === 'tb'" class="zq-cp-panel" role="tabpanel" aria-label="Tier benefits">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div>
+                                    <h3 class="zq-cp-h3">What your tier opens</h3>
+                                    <p class="zq-cp-sub">Your account is on <strong>{{ myClientTier }}</strong>, which opens {{ clientUnlockedFeatureCount }} of {{ clientTierFeatureList.length }} features.<template v-if="clientNextTier"> {{ clientNextTier }} opens more.</template></p>
+                                </div>
+                            </div>
+                            <ul class="zq-cp-bens">
+                                <li v-for="feature in clientTierFeatureList" :key="`cp-ben-${feature.key}`" class="zq-cp-ben" :class="feature.unlocked ? 'is-open' : 'is-shut'">
+                                    <i class="fa-solid zq-cp-ben-icon" :class="feature.unlocked ? 'fa-circle-check' : 'fa-lock'" aria-hidden="true"></i>
+                                    <div class="min-w-0">
+                                        <p class="zq-cp-ben-t">{{ feature.label }}</p>
+                                        <p class="zq-cp-ben-d">{{ feature.detail }}</p>
+                                    </div>
+                                    <span class="zq-cp-ben-tier">{{ feature.unlocked ? 'Included' : feature.tierLabel }}</span>
+                                </li>
+                            </ul>
+                            <p class="zq-cp-note">
+                                <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+                                <span>To change your tier, speak to your account officer through <button type="button" @click="clientPanel = 'sp'" class="zq-cp-note-link">Help &amp; Support</button>.</span>
+                            </p>
+                        </div>
+                    </section>
+
+                    <!-- ========================== HELP &amp; SUPPORT ====================== -->
+                    <section v-show="clientPanel === 'sp'" class="zq-cp-panel" role="tabpanel" aria-label="Help and support">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">How can we help?</h3><p class="zq-cp-sub">Your tier sets the response commitment below.</p></div>
+                            </div>
+                            <div class="zq-cp-figs zq-cp-figs-2">
+                                <div class="zq-cp-fig is-done">
+                                    <p class="zq-cp-eyebrow">Your channel</p>
+                                    <p class="zq-cp-fig-name">{{ clientSupportChannel.name }}</p>
+                                    <p class="zq-cp-fig-l">{{ clientSupportChannel.promise }}</p>
+                                </div>
+                                <div class="zq-cp-fig">
+                                    <p class="zq-cp-eyebrow">Reach us</p>
+                                    <p class="zq-cp-fig-name">{{ company.name || 'ZENQOR Technologies' }}</p>
+                                    <p class="zq-cp-fig-l zq-cp-mono zq-cp-lower">{{ company.email || supportEmail }}</p>
+                                    <p v-if="company.phone" class="zq-cp-fig-l zq-cp-mono">{{ company.phone }}</p>
+                                </div>
+                            </div>
+                            <div class="zq-cp-actions zq-cp-actions-wide">
+                                <a :href="`mailto:${company.email || supportEmail}`" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-envelope"></i><span>Email support</span></a>
+                                <a v-if="company.phone" :href="`tel:${company.phone}`" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-phone"></i><span>Call our team</span></a>
+                                <button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-comments"></i><span>Ask about a project</span></button>
+                            </div>
+                        </div>
+
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head"><div><h3 class="zq-cp-h3">Before you write to us</h3><p class="zq-cp-sub">Three things that get your enquiry answered on the first reply.</p></div></div>
+                            <ol class="zq-cp-steps">
+                                <li><span class="zq-cp-step-n">1</span><div><p class="zq-cp-ben-t">Quote the reference</p><p class="zq-cp-ben-d">The project or document number, exactly as it appears on this page.</p></div></li>
+                                <li><span class="zq-cp-step-n">2</span><div><p class="zq-cp-ben-t">Say what you expected</p><p class="zq-cp-ben-d">What happened, and what should have happened instead.</p></div></li>
+                                <li><span class="zq-cp-step-n">3</span><div><p class="zq-cp-ben-t">Attach the evidence</p><p class="zq-cp-ben-d">A screenshot, or the document itself where it is relevant.</p></div></li>
+                            </ol>
+                        </div>
+                    </section>
+
+                    <!-- ============================= ACCOUNT ============================= -->
+                    <section v-show="clientPanel === 'ac'" class="zq-cp-panel" role="tabpanel" aria-label="Account">
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Account</h3><p class="zq-cp-sub">Who this sign-in belongs to, and what it is linked to.</p></div>
+                                <button type="button" @click="switchTab('profile')" class="zq-cp-link">Security settings <i class="fa-solid fa-arrow-right"></i></button>
+                            </div>
+                            <div class="zq-cp-ident">
+                                <span class="zq-cp-avatar">{{ getInitials(userProfile.name || clientPortalIdentity.clientName) }}</span>
+                                <div class="min-w-0">
+                                    <p class="zq-cp-case-title">{{ userProfile.name || clientPortalIdentity.clientName }}</p>
+                                    <p class="zq-cp-msg-ref zq-cp-lower">{{ userProfile.email }}</p>
+                                </div>
+                            </div>
+                            <dl class="zq-cp-defs">
+                                <div><dt>Company</dt><dd>{{ clientPortalIdentity.clientName }}</dd></div>
+                                <div><dt>Client ID</dt><dd class="zq-cp-mono">{{ myClientId || 'Pending registration' }}</dd></div>
+                                <div><dt>SSM</dt><dd class="zq-cp-mono">{{ clientPortalIdentity.clientSSM || 'Pending' }}</dd></div>
+                                <div><dt>Tier</dt><dd>{{ myClientTier }}</dd></div>
+                                <div><dt>Profile completeness</dt><dd>{{ clientProfileCompletion }}%</dd></div>
+                                <div><dt>Document archive</dt><dd>Complete history</dd></div>
+                            </dl>
+                        </div>
+                    </section>
+                </div>

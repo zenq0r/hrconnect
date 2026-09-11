@@ -591,6 +591,10 @@ export const authMethods = {
             this.startIdleTimeoutWatch();
             await this.syncUserClaims();
 
+            // Fetch the portal's own markup before the portal is shown, so the
+            // first frame after sign-in is the workspace and not an empty page.
+            await this.ensurePortalViews(role);
+
             this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = false; this.mobileMenuOpen = false;
             await this.logAudit('LOGIN', `User logged in with role ${this.getRoleDisplayName(role)}`);
             this.showNotify(`Welcome back (${this.getRoleDisplayName(role)}): ${name}`);
@@ -626,6 +630,7 @@ export const authMethods = {
             } finally {
                 this.destroyDashboardCharts();
                 this.isLoggedIn = false; this.loginLoading = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false; this.portalDataReady = false; this.portalDataReadyPromise = null; this.userProfile = { name: '', email: '', role: '', photo: '' };
+                this.mountedViews = []; this.viewError = '';
                 this.resetAllForms(); this.currentTab = 'dashboard'; this.loginForm = { email: '', password: '' }; this.searchQuery = ''; this.authView = 'landing';
                 this.postLogoutChoice = true;
             }

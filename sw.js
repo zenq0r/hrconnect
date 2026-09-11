@@ -3,8 +3,14 @@
 // so we never want a stale cached response to shadow real data. Caching only speeds up the
 // static shell (HTML/CSS/JS/logo) on repeat visits and satisfies PWA "installable" criteria.
 
-const SHELL_CACHE = 'zenqor-shell-v18';
+const SHELL_CACHE = 'zenqor-shell-v19';
 const SHELL_ASSETS = ['/', '/index.html', '/app.js', '/custom.css', '/tailwind.css', '/logo.png', '/icon-192.png'];
+
+// The signed-in portal is split across app/ and views/ and fetched on demand.
+// Those requests get the same network-first treatment as the shell: always the
+// live file, with the last copy kept only as a fallback for a dropped
+// connection — a half-loaded screen is worse than a slow one.
+const LAZY_PREFIXES = ['/app/', '/views/'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
@@ -25,8 +31,10 @@ self.addEventListener('fetch', (event) => {
     if (request.method !== 'GET') return;
 
     const url = new URL(request.url);
-    const isShellAsset = url.origin === self.location.origin && SHELL_ASSETS.includes(url.pathname);
-    if (!isShellAsset) return; // let Firebase/API/everything else hit the network normally
+    const isOwnOrigin = url.origin === self.location.origin;
+    const isShellAsset = isOwnOrigin && SHELL_ASSETS.includes(url.pathname);
+    const isLazyPortalAsset = isOwnOrigin && LAZY_PREFIXES.some(prefix => url.pathname.startsWith(prefix));
+    if (!isShellAsset && !isLazyPortalAsset) return; // let Firebase/API/everything else hit the network normally
 
     event.respondWith(
         fetch(request, { cache: 'no-store' })

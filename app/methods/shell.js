@@ -7,7 +7,55 @@ import {
 } from "../../firebase-config.js";
 import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS } from "../config.js";
 import { CLIENT_PANELS, CLIENT_LEGACY_TABS } from "../constants/client-tiers.js";
+import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, homeTabFor } from "../views.js";
+
 export const shellMethods = {
+        // ---- Screen loading -------------------------------------------------
+        // The signed-in markup is fetched from views/ rather than shipped in
+        // index.html. These three are the only places that decide when.
+
+        // Called before isLoggedIn flips, so the portal never paints a frame
+        // with its own shell missing. The home screen is loaded with it, since
+        // that is the one every session lands on.
+        async ensurePortalViews(role) {
+            const home = viewForTab(homeTabFor(role));
+            const needed = [...ALWAYS_LOADED_VIEWS, home];
+            try {
+                await Promise.all(needed.map(view => loadView(view)));
+                this.viewError = '';
+                if (!this.mountedViews.includes(home)) this.mountedViews = [...this.mountedViews, home];
+            } catch (error) {
+                console.error('Portal views failed to load:', error);
+                this.viewError = 'Part of the portal could not be loaded. Check your connection and try again.';
+            }
+        },
+
+        // Every route change lands here through the currentTab watcher, so a
+        // screen reached by the sidebar, the browser Back button or a deep
+        // action all load the same way.
+        async ensureTabView(tabName) {
+            const view = viewForTab(tabName);
+            // Signing out resets currentTab, which must not start a fetch for a
+            // screen nobody is looking at.
+            if (!this.isLoggedIn || !view || this.mountedViews.includes(view)) return;
+            this.viewLoading = true;
+            try {
+                await loadView(view);
+                if (!this.mountedViews.includes(view)) this.mountedViews = [...this.mountedViews, view];
+                this.viewError = '';
+            } catch (error) {
+                console.error(`Portal screen "${tabName}" failed to load:`, error);
+                this.viewError = 'This screen could not be loaded. Check your connection and try again.';
+            } finally {
+                this.viewLoading = false;
+            }
+        },
+
+        async retryPortalViews() {
+            this.viewError = '';
+            await this.ensurePortalViews(this.userProfile.role);
+            await this.ensureTabView(this.currentTab);
+        },
 
         toggleSidebar() {
             if (window.innerWidth < 768) this.mobileMenuOpen = !this.mobileMenuOpen;
@@ -42,20 +90,21 @@ export const shellMethods = {
         async checkForAppUpdate() {
             try {
                 // Watches every file a deploy can change on its own: the page,
-                // the application logic, and the stylesheet. Any one of them
-                // shipping alone is a real release, and a check that missed it
-                // left the banner silent for that release.
-                const [pageResponse, scriptResponse, styleResponse] = await Promise.all([
-                    fetch(`${window.location.pathname}?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' }),
-                    fetch(`/app.js?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' }),
-                    fetch(`/custom.css?_v=${Date.now()}`, { method: 'HEAD', cache: 'no-store' })
-                ]);
+                // the application logic, the stylesheet, and the portal shell
+                // now that the signed-in markup ships from views/. Any one of
+                // them shipping alone is a real release, and a check that
+                // missed it left the banner silent for that release.
+                const watched = [
+                    `${window.location.pathname}?_v=${Date.now()}`,
+                    `/app.js?_v=${Date.now()}`,
+                    `/custom.css?_v=${Date.now()}`,
+                    `/views/portal-shell.html?_v=${Date.now()}`
+                ];
+                const responses = await Promise.all(watched.map(url => fetch(url, { method: 'HEAD', cache: 'no-store' })));
                 const markerOf = response => response.headers.get('etag') || response.headers.get('last-modified') || '';
-                const pageMarker = markerOf(pageResponse);
-                const scriptMarker = markerOf(scriptResponse);
-                const styleMarker = markerOf(styleResponse);
-                if (!pageMarker && !scriptMarker && !styleMarker) return;
-                const marker = `${pageMarker}|${scriptMarker}|${styleMarker}`;
+                const markers = responses.map(markerOf);
+                if (markers.every(value => !value)) return;
+                const marker = markers.join('|');
                 if (!this.appVersionMarker) { this.appVersionMarker = marker; return; }
                 if (marker !== this.appVersionMarker) this.appUpdateAvailable = true;
             } catch (error) { /* offline or blocked request, ignore and retry next interval */ }

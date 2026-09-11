@@ -16,6 +16,7 @@ import {
 // Vercel Web Analytics
 import { inject } from "https://unpkg.com/@vercel/analytics@2.0.1/dist/index.mjs";
 import { longpressDirective } from "./app/directives/longpress.js";
+import { ZqView } from "./app/views.js";
 import { createInitialState } from "./app/state.js";
 import { accessComputed } from "./app/computed/access.js";
 import { directoryComputed } from "./app/computed/directory.js";
@@ -55,6 +56,12 @@ createApp({
     data() {
         return createInitialState();
     },
+    // Every view rendered out of views/ runs in this component's scope, so the
+    // markup in those files reads the same state and calls the same methods it
+    // did when it all lived in index.html. See app/views.js.
+    provide() {
+        return { zqPortalHost: this };
+    },
     computed: {
         ...accessComputed,
         ...directoryComputed,
@@ -66,6 +73,10 @@ createApp({
     },
     watch: {
         currentTab(nextTab, previousTab) {
+            // A screen's markup is fetched the first time it is opened, from
+            // wherever the route change came from — sidebar, Back button or a
+            // method that switches tab on its own.
+            this.ensureTabView(nextTab);
             if (previousTab === 'dashboard' && nextTab !== 'dashboard') this.destroyDashboardCharts();
             if (nextTab === 'dashboard' && previousTab !== 'dashboard') this.refreshDashboardCharts();
             if (nextTab === 'audit-logs' && previousTab !== 'audit-logs') this.loadAuditRetention();
@@ -219,6 +230,9 @@ createApp({
                     this.startIdleTimeoutWatch();
                     await this.syncUserClaims();
                     this.resetAllForms();
+                    // Same as an interactive sign-in: the portal's markup is
+                    // fetched before the portal is shown.
+                    await this.ensurePortalViews(role);
                     this.isLoggedIn = true;
                     // The sidebar stays closed after a restored session too;
                     // it only opens when the user presses the menu control.
@@ -259,6 +273,10 @@ createApp({
                 this.portalDataReady = false;
                 this.portalDataReadyPromise = null;
                 this.userProfile = { name: '', email: '', role: '', photo: '' };
+                // Screens are remounted on the next sign-in, for whichever
+                // role that turns out to be.
+                this.mountedViews = [];
+                this.viewError = '';
                 this.unsubscribers.forEach(unsub => unsub && unsub());
                 this.unsubscribers = [];
                 if (this.clientDocumentsUnsubscribe) { this.clientDocumentsUnsubscribe(); this.clientDocumentsUnsubscribe = null; }
@@ -305,4 +323,4 @@ createApp({
         this.removeUniversalButtonContextMenu();
         this.stopIdleTimeoutWatch();
     }
-}).directive('longpress', longpressDirective).mount('#app');
+}).component('zq-view', ZqView).directive('longpress', longpressDirective).mount('#app');

@@ -1,0 +1,474 @@
+<!-- =====================================================================
+     EXPENSE CLAIMS AND PAYMENT VOUCHERS
+     ===================================================================== -->
+                <!-- MODULE 3: CLAIMS MANAGEMENT -->
+                <div v-show="currentTab === 'claims'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Claims &amp; Payment Vouchers</h2>
+                                <p class="zq-page-header-desc">Submit and track expense claims and payment vouchers through the approval workflow.</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button v-if="claimFormMode === 'Claim' && editingClaimId" type="button" @click="cancelEditClaim" class="zq-btn zq-btn-ghost">Cancel Edit</button>
+                            <button v-if="claimFormMode === 'Payment Voucher' && editingVoucherId" type="button" @click="cancelEditVoucher" class="zq-btn zq-btn-ghost">Cancel Edit</button>
+                            <button v-if="claimFormMode === 'Claim'" type="button" @click="saveExpenseClaim" class="zq-btn zq-btn-primary"><i class="fa-solid fa-floppy-disk"></i><span>Submit Expense Claim</span></button>
+                            <button v-else type="button" @click="savePaymentVoucher" class="zq-btn zq-btn-primary"><i class="fa-solid fa-floppy-disk"></i><span>Submit Payment Voucher</span></button>
+                            <button v-if="claimFormMode === 'Claim'" type="button" @click="resetClaimForm" class="zq-btn zq-btn-destructive zq-btn-icon" title="Clear Form"><i class="fa-solid fa-rotate-left"></i></button>
+                            <button v-else type="button" @click="resetVoucherForm" class="zq-btn zq-btn-destructive zq-btn-icon" title="Clear Form"><i class="fa-solid fa-rotate-left"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- MODULE TOGGLE — selects which independent flow is active: Expense Claim or Payment Voucher -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/30 p-3" role="group" aria-label="Claim type">
+                        <button type="button" @click="claimFormMode = 'Claim'" :class="claimFormMode === 'Claim' ? 'bg-brand-dark text-white shadow' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" :aria-pressed="claimFormMode === 'Claim'" class="rounded-xl px-4 py-3 text-left transition"><span class="block text-xs font-extrabold uppercase"><i class="fa-solid fa-receipt mr-2"></i>Expense Claim</span><span class="mt-1 block text-[10px] opacity-75">Employee reimbursement for expenses already incurred.</span></button>
+                        <button type="button" @click="claimFormMode = 'Payment Voucher'" :class="claimFormMode === 'Payment Voucher' ? 'bg-brand-dark text-white shadow' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" :aria-pressed="claimFormMode === 'Payment Voucher'" class="rounded-xl px-4 py-3 text-left transition"><span class="block text-xs font-extrabold uppercase"><i class="fa-solid fa-money-check-dollar mr-2"></i>Payment Voucher</span><span class="mt-1 block text-[10px] opacity-75">Company payment to an individual or vendor for wages and services.</span></button>
+                    </div>
+
+                    <div v-if="['Superadmin','Director'].includes(userProfile.role) && legacyPaymentVouchersCount" class="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+                        <span><i class="fa-solid fa-triangle-exclamation mr-2"></i><strong>{{ legacyPaymentVouchersCount }} legacy Payment Voucher record(s)</strong> are still filed under Claims. Move them into Payment Vouchers so they appear on the right list.</span>
+                        <button type="button" @click="migrateLegacyPaymentVouchers" class="zq-btn zq-btn-secondary zq-btn-sm shrink-0">Migrate Now</button>
+                    </div>
+
+                    <!-- ===================== EXPENSE CLAIM FORM ===================== -->
+                    <div v-if="claimFormMode === 'Claim'" class="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-md p-4 md:p-6 space-y-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+                            <h3 class="text-xs font-extrabold text-brand-dark dark:text-white tracking-wider uppercase flex items-center">
+                                <i class="fa-solid fa-file-circle-plus text-brand-gold mr-2 text-base"></i>
+                                NEW EXPENSE CLAIM APPLICATION
+                            </h3>
+                            <div>
+                                <label for="claim-emp-select" class="sr-only">Select Employee</label>
+                                <select id="claim-emp-select" name="claimEmpSelect" v-model="selectedClaimEmployeeId" @change="selectEmployeeForClaim($event)" class="p-2 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white w-full sm:w-64 focus:ring-2 focus:ring-brand-gold">
+                                    <option value="">-- Auto-Fill HR Employee --</option>
+                                    <option v-for="emp in employees" :key="`claim-emp-${emp.empNo}`" :value="emp.empNo">{{ emp.empNo }} - {{ emp.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
+                            <div class="flex lg:flex-col items-center lg:items-stretch gap-4 lg:gap-3 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                                <div class="w-16 h-16 lg:w-20 lg:h-20 lg:mx-auto rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-xl lg:text-2xl font-extrabold shrink-0 overflow-hidden">
+                                    <img v-if="claimEmployeePhoto()" :src="claimEmployeePhoto()" alt="" class="w-full h-full object-cover">
+                                    <span v-else>{{ getInitials(claimForm.name) }}</span>
+                                </div>
+                                <div class="min-w-0 lg:text-center">
+                                    <p class="font-extrabold text-sm text-brand-dark dark:text-white truncate">{{ claimForm.name || 'Untitled Applicant' }}</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{{ claimForm.dept || 'No department set' }}</p>
+                                    <span class="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-[10px] font-bold" :class="selectedClaimEmployeeId ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'">
+                                        <i class="fa-solid" :class="selectedClaimEmployeeId ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
+                                        <span>{{ selectedClaimEmployeeId ? 'From HR Directory' : 'Manual Entry' }}</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Applicant Information</span></p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div><label for="claim-name" class="zq-label">Applicant Name *</label><input id="claim-name" name="claimName" type="text" v-model="claimForm.name" required placeholder="Employee Name" class="zq-input font-bold"></div>
+                                    <div><label for="claim-emp-no" class="zq-label">Employee ID *</label><input id="claim-emp-no" name="claimEmpNo" type="text" v-model="claimForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
+                                    <div><label for="claim-dept" class="zq-label">Department</label><input id="claim-dept" name="claimDept" type="text" v-model="claimForm.dept" placeholder="" class="zq-input"></div>
+                                    <div><label for="claim-date" class="zq-label">Expense Date *</label><input id="claim-date" name="claimDate" type="date" v-model="claimForm.expenseDate" class="zq-input"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
+                            <div>
+                                <label for="claim-category" class="zq-label">CLAIM CATEGORY *</label>
+                                <select id="claim-category" name="claimCategory" v-model="claimForm.category" @change="claimForm.subCategory = claimSubCategories[claimForm.category][0]" class="zq-input font-bold">
+                                    <option v-for="(subList, catName) in claimSubCategories" :key="catName" :value="catName">{{ catName }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="claim-sub-category" class="zq-label">SUB-CATEGORY *</label>
+                                <select id="claim-sub-category" name="claimSubCategory" v-model="claimForm.subCategory" class="zq-input font-bold">
+                                    <option v-for="(sub, sIdx) in claimSubCategories[claimForm.category]" :key="sIdx" :value="sub">{{ sub }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="claim-amount" class="zq-label">CLAIM AMOUNT (RM) *</label>
+                                <input id="claim-amount" name="claimAmount" type="number" v-model="claimForm.amount" step="0.01" min="1" placeholder="0.00" class="zq-input font-extrabold">
+                            </div>
+                            <div>
+                                <label for="claim-receipt-no" class="zq-label">RECEIPT / REF NO. *</label>
+                                <input id="claim-receipt-no" name="claimReceiptNo" type="text" v-model="claimForm.receiptNo" placeholder="REC-8823901" class="zq-input font-bold">
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100 dark:border-slate-700 pt-4">
+                            <p class="zq-label">ASSIGN TO HR APPROVER *</p>
+                            <div class="w-full sm:w-96 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-700/60">
+                                Human Resource Management
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">The claim is assigned to the HR role group. All registered HR users can review it; it then moves to Account and Director for final approval.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4 items-center">
+                            <div class="md:col-span-2">
+                                <label for="claim-description" class="zq-label">EXPENSE DESCRIPTION <span class="text-red-500">*</span></label>
+                                <input id="claim-description" name="claimDescription" type="text" v-model="claimForm.description" required placeholder="e.g. client meeting refreshments" class="zq-input font-medium">
+                            </div>
+
+                            <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
+                                <div class="overflow-hidden">
+                                    <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight truncate">RECEIPT ATTACHMENT (MAX 2MB) <span class="text-red-500">*</span></p>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ claimForm.receiptAttachment ? `${claimForm.receiptAttachmentName || 'Receipt Attached'} · stored ${formatFileSize(getDataUrlSize(claimForm.receiptAttachment))}` : 'PNG, JPG or JPEG · total application files max 2MB' }}</p>
+                                </div>
+                                <div class="flex items-center space-x-1 shrink-0">
+                                    <label for="claim-attachment" :class="attachmentUploadState.receipt ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer">
+                                        <span>{{ attachmentUploadState.receipt ? 'Uploading...' : 'Select' }}</span>
+                                    <input id="claim-attachment" name="claimAttachment" type="file" @change="handleClaimAttachmentUpload" :disabled="attachmentUploadState.receipt" accept=".png,.jpeg,.jpg,image/png,image/jpeg" class="hidden">
+                                    </label>
+                                    <button v-if="claimForm.receiptAttachment" type="button" @click="openAttachment(claimForm.receiptAttachment, 'Receipt attachment')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View attachment">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================== PAYMENT VOUCHER FORM ===================== -->
+                    <div v-else class="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-md p-4 md:p-6 space-y-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+                            <h3 class="text-xs font-extrabold text-brand-dark dark:text-white tracking-wider uppercase flex items-center">
+                                <i class="fa-solid fa-file-circle-plus text-brand-gold mr-2 text-base"></i>
+                                NEW PAYMENT VOUCHER APPLICATION
+                            </h3>
+                            <div>
+                                <label for="voucher-emp-select" class="sr-only">Select Requesting Staff</label>
+                                <select id="voucher-emp-select" name="voucherEmpSelect" v-model="selectedVoucherEmployeeId" @change="selectEmployeeForVoucher($event)" class="p-2 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white w-full sm:w-64 focus:ring-2 focus:ring-brand-gold">
+                                    <option value="">-- Auto-Fill HR Employee --</option>
+                                    <option v-for="emp in employees" :key="`voucher-emp-${emp.empNo}`" :value="emp.empNo">{{ emp.empNo }} - {{ emp.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
+                            <div class="flex lg:flex-col items-center lg:items-stretch gap-4 lg:gap-3 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                                <div class="w-16 h-16 lg:w-20 lg:h-20 lg:mx-auto rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-xl lg:text-2xl font-extrabold shrink-0 overflow-hidden">
+                                    <img v-if="voucherEmployeePhoto()" :src="voucherEmployeePhoto()" alt="" class="w-full h-full object-cover">
+                                    <span v-else>{{ getInitials(voucherForm.name) }}</span>
+                                </div>
+                                <div class="min-w-0 lg:text-center">
+                                    <p class="font-extrabold text-sm text-brand-dark dark:text-white truncate">{{ voucherForm.name || 'Untitled Requester' }}</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{{ voucherForm.dept || 'No department set' }}</p>
+                                    <span class="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-[10px] font-bold" :class="selectedVoucherEmployeeId ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'">
+                                        <i class="fa-solid" :class="selectedVoucherEmployeeId ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
+                                        <span>{{ selectedVoucherEmployeeId ? 'From HR Directory' : 'Manual Entry' }}</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-brand-gold"></i><span class="ml-1.5">Requester Information</span></p>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                                    <div><label for="voucher-name" class="zq-label">Requested By *</label><input id="voucher-name" name="voucherName" type="text" v-model="voucherForm.name" required placeholder="Staff preparing this voucher" class="zq-input font-bold"></div>
+                                    <div><label for="voucher-emp-no" class="zq-label">Employee ID *</label><input id="voucher-emp-no" name="voucherEmpNo" type="text" v-model="voucherForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
+                                    <div><label for="voucher-dept" class="zq-label">Department</label><input id="voucher-dept" name="voucherDept" type="text" v-model="voucherForm.dept" placeholder="" class="zq-input"></div>
+                                    <div><label for="voucher-date" class="zq-label">Payment Date *</label><input id="voucher-date" name="voucherDate" type="date" v-model="voucherForm.paymentDate" class="zq-input"><p class="text-[10px] text-slate-400 mt-1">The actual date the money will be used/paid out — editable, not locked to today.</p></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-4">
+                            <div><label for="voucher-payee" class="zq-label">PAYEE NAME *</label><input id="voucher-payee" v-model="voucherForm.payeeName" type="text" placeholder="Individual / vendor name" class="zq-input zq-input-flag"></div>
+                            <div><label for="voucher-payee-type" class="zq-label">PAYEE TYPE *</label><select id="voucher-payee-type" v-model="voucherForm.payeeType" class="zq-input zq-input-flag"><option>Individual</option><option>Employee</option><option>Freelancer</option><option>Vendor / Supplier</option><option>Contractor</option></select></div>
+                            <div><label for="voucher-payee-ref" class="zq-label">PAYEE REFERENCE</label><input id="voucher-payee-ref" v-model="voucherForm.payeeReference" type="text" placeholder="ID / invoice / contract ref" class="zq-input zq-input-flag"></div>
+                            <div><label for="voucher-purpose" class="zq-label">PAYMENT PURPOSE *</label><input id="voucher-purpose" v-model="voucherForm.paymentPurpose" type="text" placeholder="Wages / services / allowance" class="zq-input zq-input-flag"></div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4">
+                            <div>
+                                <label for="voucher-category" class="zq-label">VOUCHER CATEGORY *</label>
+                                <select id="voucher-category" name="voucherCategory" v-model="voucherForm.category" @change="voucherForm.subCategory = voucherSubCategories[voucherForm.category][0]" class="zq-input font-bold">
+                                    <option v-for="(subList, catName) in voucherSubCategories" :key="catName" :value="catName">{{ catName }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="voucher-sub-category" class="zq-label">SUB-CATEGORY *</label>
+                                <select id="voucher-sub-category" name="voucherSubCategory" v-model="voucherForm.subCategory" class="zq-input font-bold">
+                                    <option v-for="(sub, sIdx) in voucherSubCategories[voucherForm.category]" :key="sIdx" :value="sub">{{ sub }}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="voucher-amount" class="zq-label">PAYMENT AMOUNT (RM) *</label>
+                                <input id="voucher-amount" name="voucherAmount" type="number" v-model="voucherForm.amount" step="0.01" min="1" placeholder="0.00" class="zq-input font-extrabold">
+                            </div>
+                            <div>
+                                <label for="voucher-no" class="zq-label">VOUCHER / REF NO.</label>
+                                <input id="voucher-no" name="voucherNo" type="text" v-model="voucherForm.voucherNo" placeholder="Auto-generated if left blank" class="zq-input font-bold">
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-100 dark:border-slate-700 pt-4">
+                            <p class="zq-label">ASSIGN TO HR APPROVER *</p>
+                            <div class="w-full sm:w-96 p-2 border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white rounded-xl text-xs font-bold bg-slate-50 dark:bg-slate-700/60">
+                                Human Resource Management
+                            </div>
+                            <p class="text-[10px] text-slate-400 mt-1">The voucher is assigned to the HR role group. All registered HR users can review it; it then moves to Account and Director for final approval.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-slate-100 dark:border-slate-700 pt-4 items-center">
+                            <div class="md:col-span-2">
+                                <label for="voucher-description" class="zq-label">PAYMENT DESCRIPTION <span class="text-red-500">*</span></label>
+                                <input id="voucher-description" name="voucherDescription" type="text" v-model="voucherForm.description" required placeholder="Example: Monthly vendor invoice settlement" class="zq-input font-medium">
+                            </div>
+
+                            <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
+                                <div class="overflow-hidden">
+                                    <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight truncate">SUPPORTING DOCUMENT (MAX 2MB) <span class="text-red-500">*</span></p>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ voucherForm.receiptAttachment ? `${voucherForm.receiptAttachmentName || 'Document Attached'} · stored ${formatFileSize(getDataUrlSize(voucherForm.receiptAttachment))}` : 'PNG, JPG or JPEG · total application files max 2MB' }}</p>
+                                </div>
+                                <div class="flex items-center space-x-1 shrink-0">
+                                    <label for="voucher-attachment" :class="attachmentUploadState.receipt ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer">
+                                        <span>{{ attachmentUploadState.receipt ? 'Uploading...' : 'Select' }}</span>
+                                    <input id="voucher-attachment" name="voucherAttachment" type="file" @change="handleVoucherAttachmentUpload" :disabled="attachmentUploadState.receipt" accept=".png,.jpeg,.jpg,image/png,image/jpeg" class="hidden">
+                                    </label>
+                                    <button v-if="voucherForm.receiptAttachment" type="button" @click="openAttachment(voucherForm.receiptAttachment, 'Supporting document')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View attachment">
+                                        <i class="fa-solid fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================== EXPENSE CLAIM RECORDS TABLE ===================== -->
+                    <div v-if="claimFormMode === 'Claim'" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                        <div class="zq-toolbar">
+                            <h3 class="text-sm font-extrabold text-brand-dark dark:text-white tracking-wide flex items-center"><i class="fa-solid fa-list-check text-brand-blue mr-2"></i>CLAIM RECORDS &amp; APPROVAL STATUS</h3>
+
+                            <div class="zq-toolbar-actions">
+                                <div class="flex items-center gap-1.5">
+                                    <label for="claims-sort" class="text-xs font-semibold text-slate-400">Sort By:</label>
+                                    <select id="claims-sort" name="claimsSort" v-model="claimsSortOption" class="zq-select zq-filter-select">
+                                        <option value="latest">Latest Date (Default)</option>
+                                        <option value="oldest">Oldest Date</option>
+                                        <option value="category">Category</option>
+                                        <option value="amount_high">Highest Amount</option>
+                                        <option value="amount_low">Lowest Amount</option>
+                                    </select>
+                                </div>
+                                <span class="text-xs text-slate-400 hidden sm:inline">Showing: {{ filteredSortedClaims.length }} records</span>
+                            </div>
+                        </div>
+
+                        <div v-if="!isFullAccessRole && selectedClaimIds.length" class="mb-4 flex items-center justify-between rounded-xl border border-brand-gold/40 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5">
+                            <span class="text-xs font-bold text-brand-dark dark:text-amber-200">{{ selectedClaimIds.length }} claim(s) selected</span>
+                            <div class="flex gap-2">
+                                <button type="button" @click="selectedClaimIds = []" class="zq-btn zq-btn-outline zq-btn-sm">Clear</button>
+                                <button type="button" @click="bulkApproveSelectedClaims" class="zq-btn zq-btn-success zq-btn-sm"><i class="fa-solid fa-check-double"></i>Approve Selected</button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th v-if="!isFullAccessRole" class="w-8"></th>
+                                        <th>Date &amp; Receipt No.</th>
+                                        <th>Employee</th>
+                                        <th>Category &amp; Sub-Category</th>
+                                         <th class="text-right">Amount (RM)</th>
+                                         <th class="text-center">Status</th>
+                                         <th>Assigned To</th>
+                                         <th class="text-center w-36">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="clm in paginatedClaims" :key="clm.id" @contextmenu.prevent="openContextMenu($event, claimRowMenuItems(clm))" v-longpress="(touch) => openContextMenu(touch, claimRowMenuItems(clm))">
+                                        <td v-if="!isFullAccessRole">
+                                            <input v-if="canApproveClaim(clm)" type="checkbox" :checked="selectedClaimIds.includes(clm.id)" @change="toggleClaimSelection(clm.id)" class="h-4 w-4 rounded border-slate-300 text-brand-gold focus:ring-brand-gold">
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-slate-800 dark:text-slate-200 block">{{ clm.expenseDate }}</span>
+                                            <span class="inline-block mt-1 rounded bg-slate-100 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-slate-600">Claim</span>
+                                            <span class="text-slate-400 font-mono text-[10px] block">REF: {{ clm.receiptNo }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-brand-dark dark:text-white block">{{ requesterNameLive(clm.empNo, clm.name) }}</span>
+                                            <span class="text-slate-400 text-[10px] block">{{ clm.empNo }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-brand-blue dark:text-blue-400 block">{{ clm.category }}</span>
+                                            <span class="text-slate-500 dark:text-slate-300 block">{{ clm.subCategory }}</span>
+                                        </td>
+                                        <td class="text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">
+                                            {{ formatCurrency(clm.amount) }}
+                                        </td>
+                                         <td class="text-center">
+                                            <span :class="{
+                                                'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': clm.status && clm.status.startsWith('Pending'),
+                                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': clm.status === 'Approved',
+                                                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300': clm.status === 'Rejected'
+                                            }" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase">{{ clm.status }}</span>
+                                            <p v-if="clm.approvedByName" class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Approved by {{ approverNameLive(clm.approvedByUid, clm.approvedByName) }} ({{ clm.approvedByRole }})</p>
+                                            <p v-if="clm.approvedAt" class="text-[10px] text-slate-400">{{ formatDateTime(clm.approvedAt) }}</p>
+                                         </td>
+                                         <td>
+                                             <span class="font-bold text-slate-700 dark:text-slate-200 block">{{ clm.assignedToName || '-' }}</span>
+                                             <span class="text-slate-400 text-[10px] block">{{ clm.assignedToRole || '-' }}</span>
+                                         </td>
+                                         <td class="text-center">
+                                             <div class="zq-table-actions">
+                                             <button type="button" @click="viewClaimRecord(clm)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Claim Record">
+                                                 <i class="fa-solid fa-eye"></i>
+                                             </button>
+                                             <button v-if="canEditClaim(clm)" type="button" @click="editClaimRecord(clm)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Claim Record">
+                                                 <i class="fa-solid fa-pen"></i>
+                                             </button>
+                                             </div>
+                                         </td>
+                                    </tr>
+                                    <tr v-if="filteredSortedClaims.length === 0" class="zq-table-empty">
+                                        <td colspan="8">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-receipt zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ claimsHistory.length ? 'No matching claim records' : 'No expense claims yet' }}</p>
+                                                <p class="zq-empty-state-text">{{ claimsHistory.length ? 'No claims match your current search.' : 'Submitted expense claims will appear here for review and approval.' }}</p>
+                                                <div v-if="claimsHistory.length && searchQuery" class="zq-empty-state-action"><button type="button" @click="searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear search</button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- PAGINATION CONTROLS UNTUK CLAIMS -->
+                        <div v-if="claimsTotalPages > 1" class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-4 mt-4">
+                            <span class="text-xs font-semibold text-slate-400">
+                                Page {{ claimsCurrentPage }} of {{ claimsTotalPages }}
+                            </span>
+                            <div class="flex items-center space-x-1">
+                                <button type="button" @click="claimsCurrentPage > 1 && claimsCurrentPage--" :disabled="claimsCurrentPage === 1" title="Previous page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </button>
+                                <button v-for="page in claimsTotalPages" :key="page" type="button" @click="claimsCurrentPage = page" :aria-label="'Page ' + page" :aria-current="claimsCurrentPage === page ? 'page' : null" :class="claimsCurrentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                                    {{ page }}
+                                </button>
+                                <button type="button" @click="claimsCurrentPage < claimsTotalPages && claimsCurrentPage++" :disabled="claimsCurrentPage === claimsTotalPages" title="Next page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ===================== PAYMENT VOUCHER RECORDS TABLE ===================== -->
+                    <div v-else class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                        <div class="zq-toolbar">
+                            <h3 class="text-sm font-extrabold text-brand-dark dark:text-white tracking-wide flex items-center"><i class="fa-solid fa-list-check text-brand-blue mr-2"></i>PAYMENT VOUCHER RECORDS &amp; APPROVAL STATUS</h3>
+
+                            <div class="zq-toolbar-actions">
+                                <div class="flex items-center gap-1.5">
+                                    <label for="vouchers-sort" class="text-xs font-semibold text-slate-400">Sort By:</label>
+                                    <select id="vouchers-sort" name="vouchersSort" v-model="vouchersSortOption" class="zq-select zq-filter-select">
+                                        <option value="latest">Latest Date (Default)</option>
+                                        <option value="oldest">Oldest Date</option>
+                                        <option value="category">Category</option>
+                                        <option value="amount_high">Highest Amount</option>
+                                        <option value="amount_low">Lowest Amount</option>
+                                    </select>
+                                </div>
+                                <span class="text-xs text-slate-400 hidden sm:inline">Showing: {{ filteredSortedVouchers.length }} records</span>
+                            </div>
+                        </div>
+
+                        <div v-if="!isFullAccessRole && selectedVoucherIds.length" class="mb-4 flex items-center justify-between rounded-xl border border-brand-gold/40 bg-amber-50 dark:bg-amber-950/20 px-4 py-2.5">
+                            <span class="text-xs font-bold text-brand-dark dark:text-amber-200">{{ selectedVoucherIds.length }} voucher(s) selected</span>
+                            <div class="flex gap-2">
+                                <button type="button" @click="selectedVoucherIds = []" class="zq-btn zq-btn-outline zq-btn-sm">Clear</button>
+                                <button type="button" @click="bulkApproveSelectedVouchers" class="zq-btn zq-btn-success zq-btn-sm"><i class="fa-solid fa-check-double"></i>Approve Selected</button>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th v-if="!isFullAccessRole" class="w-8"></th>
+                                        <th>Date &amp; Voucher No.</th>
+                                        <th>Payee</th>
+                                        <th>Category &amp; Sub-Category</th>
+                                         <th class="text-right">Amount (RM)</th>
+                                         <th class="text-center">Status</th>
+                                         <th>Assigned To</th>
+                                         <th class="text-center w-36">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="pv in paginatedVouchers" :key="pv.id" @contextmenu.prevent="openContextMenu($event, voucherRowMenuItems(pv))" v-longpress="(touch) => openContextMenu(touch, voucherRowMenuItems(pv))">
+                                        <td v-if="!isFullAccessRole">
+                                            <input v-if="canApprovePaymentVoucher(pv)" type="checkbox" :checked="selectedVoucherIds.includes(pv.id)" @change="toggleVoucherSelection(pv.id)" class="h-4 w-4 rounded border-slate-300 text-brand-gold focus:ring-brand-gold">
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-slate-800 dark:text-slate-200 block">{{ pv.paymentDate }}</span>
+                                            <span class="inline-block mt-1 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-extrabold uppercase text-amber-700">Voucher</span>
+                                            <span class="text-slate-400 font-mono text-[10px] block">REF: {{ pv.voucherNo }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-brand-dark dark:text-white block">{{ pv.payeeName }}</span>
+                                            <span class="text-slate-400 text-[10px] block">{{ pv.payeeType }} · Requested by {{ requesterNameLive(pv.empNo, pv.name) }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-brand-blue dark:text-blue-400 block">{{ pv.category }}</span>
+                                            <span class="text-slate-500 dark:text-slate-300 block">{{ pv.subCategory }}</span>
+                                        </td>
+                                        <td class="text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">
+                                            {{ formatCurrency(pv.amount) }}
+                                        </td>
+                                         <td class="text-center">
+                                            <span :class="{
+                                                'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': pv.status && pv.status.startsWith('Pending'),
+                                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': pv.status === 'Approved',
+                                                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300': pv.status === 'Rejected'
+                                            }" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase">{{ pv.status }}</span>
+                                            <p v-if="pv.approvedByName" class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Approved by {{ approverNameLive(pv.approvedByUid, pv.approvedByName) }} ({{ pv.approvedByRole }})</p>
+                                            <p v-if="pv.approvedAt" class="text-[10px] text-slate-400">{{ formatDateTime(pv.approvedAt) }}</p>
+                                         </td>
+                                         <td>
+                                             <span class="font-bold text-slate-700 dark:text-slate-200 block">{{ pv.assignedToName || '-' }}</span>
+                                             <span class="text-slate-400 text-[10px] block">{{ pv.assignedToRole || '-' }}</span>
+                                         </td>
+                                         <td class="text-center">
+                                             <div class="zq-table-actions">
+                                             <button type="button" @click="viewClaimRecord(pv)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Voucher Record">
+                                                 <i class="fa-solid fa-eye"></i>
+                                             </button>
+                                             <button v-if="canEditPaymentVoucher(pv)" type="button" @click="editPaymentVoucher(pv)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Voucher Record">
+                                                 <i class="fa-solid fa-pen"></i>
+                                             </button>
+                                             </div>
+                                         </td>
+                                    </tr>
+                                    <tr v-if="filteredSortedVouchers.length === 0" class="zq-table-empty">
+                                        <td colspan="8">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-money-check-dollar zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ paymentVouchers.length ? 'No matching voucher records' : 'No payment vouchers yet' }}</p>
+                                                <p class="zq-empty-state-text">{{ paymentVouchers.length ? 'No payment vouchers match your current search.' : 'Payment vouchers will appear here for review and approval.' }}</p>
+                                                <div v-if="paymentVouchers.length && searchQuery" class="zq-empty-state-action"><button type="button" @click="searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear search</button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- PAGINATION CONTROLS UNTUK PAYMENT VOUCHERS -->
+                        <div v-if="vouchersTotalPages > 1" class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-4 mt-4">
+                            <span class="text-xs font-semibold text-slate-400">
+                                Page {{ vouchersCurrentPage }} of {{ vouchersTotalPages }}
+                            </span>
+                            <div class="flex items-center space-x-1">
+                                <button type="button" @click="vouchersCurrentPage > 1 && vouchersCurrentPage--" :disabled="vouchersCurrentPage === 1" title="Previous page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </button>
+                                <button v-for="page in vouchersTotalPages" :key="page" type="button" @click="vouchersCurrentPage = page" :aria-label="'Page ' + page" :aria-current="vouchersCurrentPage === page ? 'page' : null" :class="vouchersCurrentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                                    {{ page }}
+                                </button>
+                                <button type="button" @click="vouchersCurrentPage < vouchersTotalPages && vouchersCurrentPage++" :disabled="vouchersCurrentPage === vouchersTotalPages" title="Next page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>

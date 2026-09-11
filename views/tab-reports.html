@@ -1,0 +1,169 @@
+<!-- =====================================================================
+     REPORTS AND EXPORTS
+     ===================================================================== -->
+                <!-- REPORTS MODULE -->
+                <div v-show="currentTab === 'reports'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Enterprise Reports &amp; Data Export</h2>
+                                <p class="zq-page-header-desc">Export financial, employee, and document reports to CSV/Excel.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EXPORT SCOPE — the four cards below follow this selection. -->
+                    <div class="zq-card p-4 md:p-5">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <div class="min-w-0">
+                                <label for="report-period" class="zq-label">Reporting Period</label>
+                                <select id="report-period" v-model="reportPeriod" class="zq-input mt-1 max-w-xs">
+                                    <option value="">All periods (everything on record)</option>
+                                    <option v-for="key in availablePeriods" :key="`period-${key}`" :value="key">{{ periodLabel(key) }}{{ key === currentPeriod ? ' — current month' : '' }}</option>
+                                </select>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 sm:text-right">
+                                Exports below cover <span class="font-bold text-brand-dark dark:text-white">{{ reportPeriod ? periodLabel(reportPeriod) : 'all periods' }}</span>.<br>
+                                <span class="text-[11px]">Employee Directory always exports the full directory.</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-blue-50 text-brand-blue flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-file-excel"></i></div>
+                            <h3 class="text-base font-bold text-brand-dark dark:text-white">Payroll Report</h3>
+                            <button type="button" @click="exportCSV('payroll')" class="zq-btn zq-btn-outline w-full">
+                                <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
+                            </button>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-users"></i></div>
+                            <h3 class="text-base font-bold text-brand-dark dark:text-white">Employee Directory</h3>
+                            <button type="button" @click="exportCSV('employees')" class="zq-btn zq-btn-outline w-full">
+                                <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
+                            </button>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-file-invoice"></i></div>
+                            <h3 class="text-base font-bold text-brand-dark dark:text-white">Invoice &amp; Quotation Report</h3>
+                            <button type="button" @click="exportCSV('docs')" class="zq-btn zq-btn-outline w-full">
+                                <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
+                            </button>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-receipt"></i></div>
+                            <h3 class="text-base font-bold text-brand-dark dark:text-white">Claims &amp; Payment Vouchers</h3>
+                            <button type="button" @click="exportCSV('claims')" class="zq-btn zq-btn-outline w-full">
+                                <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- MONTHLY PACKAGES — every completed month is frozen on the first
+                         sign-in of the new month, so each period keeps the figures it
+                         closed with even if an old record is edited later. -->
+                    <div class="zq-card p-6">
+                        <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <h3 class="zq-text-section-title"><i class="fa-solid fa-box-archive text-brand-blue mr-2"></i>Monthly Packages</h3>
+                                <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Each completed month is packaged automatically. Records are never deleted — only summarised.</p>
+                            </div>
+                            <span class="zq-text-small font-bold shrink-0">{{ monthlyArchivesSorted.length }} closed period(s)</span>
+                        </div>
+
+                        <!-- Running month: still open, so its figures can still move. -->
+                        <div class="mt-4 rounded-xl border border-dashed border-brand-blue/40 bg-brand-blue/5 p-4">
+                            <div class="flex flex-wrap items-center justify-between gap-3">
+                                <div class="min-w-0">
+                                    <p class="text-[10px] font-extrabold uppercase tracking-wider text-brand-blue">Current period — still open</p>
+                                    <p class="mt-0.5 text-sm font-extrabold text-brand-dark dark:text-white">{{ currentPeriodLabel }}</p>
+                                </div>
+                                <button type="button" @click="exportPeriodSummary(currentPeriod)" class="zq-btn zq-btn-outline zq-btn-sm">
+                                    <i class="fa-solid fa-file-arrow-down"></i><span>Export Statement</span>
+                                </button>
+                            </div>
+                            <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Collected</dt><dd class="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">{{ formatCurrency(periodRevenuePaid) }}</dd></div>
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Payroll (Net)</dt><dd class="text-sm font-extrabold text-brand-dark dark:text-white">{{ formatCurrency(periodPayrollNet) }}</dd></div>
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Claims Approved</dt><dd class="text-sm font-extrabold text-rose-600 dark:text-rose-400">{{ formatCurrency(periodApprovedClaimsAmount) }}</dd></div>
+                                <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Invoices Issued</dt><dd class="text-sm font-extrabold text-brand-dark dark:text-white">{{ periodInvoiceCount }}</dd></div>
+                            </dl>
+                        </div>
+
+                        <div v-if="monthlyArchivesSorted.length" class="mt-4 overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th class="text-right">Collected</th>
+                                        <th class="text-right">Payroll (Net)</th>
+                                        <th class="text-right">Claims &amp; Vouchers</th>
+                                        <th class="text-center w-20">Records</th>
+                                        <th class="text-center w-36">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="pkg in monthlyArchivesSorted" :key="`pkg-${pkg.period || pkg.id}`">
+                                        <td>
+                                            <span class="font-bold text-slate-900 dark:text-slate-100">{{ pkg.label || periodLabel(pkg.period || pkg.id) }}</span>
+                                            <span v-if="pkg.closedAt" class="mt-0.5 block text-[10px] text-slate-500 dark:text-slate-400">Closed {{ String(pkg.closedAt).slice(0, 10) }}</span>
+                                        </td>
+                                        <td class="text-right font-bold text-emerald-700 dark:text-emerald-300">{{ formatCurrency(pkg.revenueCollected || 0) }}</td>
+                                        <td class="text-right font-bold text-slate-700 dark:text-slate-200">{{ formatCurrency(pkg.payrollNet || 0) }}</td>
+                                        <td class="text-right font-bold text-rose-600 dark:text-rose-400">{{ formatCurrency((pkg.claimApprovedTotal || 0) + (pkg.voucherApprovedTotal || 0)) }}</td>
+                                        <td class="text-center font-bold text-slate-700 dark:text-slate-200">{{ pkg.recordCount || 0 }}</td>
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                                <button type="button" @click="exportPeriodSummary(pkg.period || pkg.id)" class="zq-btn zq-btn-info zq-btn-icon" title="Export monthly statement"><i class="fa-solid fa-file-arrow-down"></i></button>
+                                                <button v-if="canCloseAccountingPeriod" type="button" @click="rebuildMonthlyArchive(pkg.period || pkg.id)" class="zq-btn zq-btn-ghost zq-btn-icon" title="Rebuild from current records"><i class="fa-solid fa-rotate"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="zq-empty-state zq-empty-state-compact mt-4">
+                            <p class="zq-empty-state-text">No month has closed yet. The first completed month is packaged automatically once someone signs in during the following month.</p>
+                        </div>
+                    </div>
+
+                    <!-- CROSS-DOMAIN INSIGHTS — reports only possible because HR and Client data share one system -->
+                    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6">
+                        <div class="mb-1 flex items-center gap-2"><i class="fa-solid fa-diagram-project text-brand-blue"></i><h3 class="text-sm font-extrabold text-brand-dark dark:text-white">Cross-Domain Insights</h3></div>
+                        <p class="text-[10px] text-slate-400 dark:text-slate-400 mb-4">Combined HR + Client analytics — unique to a unified HRMS/CDTS platform.</p>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                            <div>
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Top Clients by Revenue</p>
+                                <div class="space-y-1.5">
+                                    <div v-for="r in revenuePerClientTop" :key="`rev-${r.clientName}`" class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-2.5 py-1.5">
+                                        <span class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">{{ r.clientName }}</span>
+                                        <span class="shrink-0 text-xs font-extrabold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(r.revenue) }}</span>
+                                    </div>
+                                    <p v-if="!revenuePerClientTop.length" class="zq-empty-state-text">No paid invoices yet — client revenue will rank here once invoices are paid.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Staff Engaged per Client</p>
+                                <div class="space-y-1.5">
+                                    <div v-for="s in staffPerClientTop" :key="`staff-${s.clientName}`" class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-2.5 py-1.5">
+                                        <span class="min-w-0 truncate text-xs font-bold text-slate-700 dark:text-slate-200">{{ s.clientName }}</span>
+                                        <span class="shrink-0 text-xs font-extrabold text-brand-blue">{{ s.staffCount }} staff</span>
+                                    </div>
+                                    <p v-if="!staffPerClientTop.length" class="zq-empty-state-text">No project assignments yet — staff engagement will rank here once projects are assigned.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400 mb-2">Delivery Velocity</p>
+                                <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 p-4">
+                                    <h4 class="text-2xl font-black text-brand-dark dark:text-white">{{ avgActiveProjectAgeDays }}<span class="text-xs font-bold text-slate-400 ml-1">days</span></h4>
+                                    <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Average age of active projects still in progress.</p>
+                                </div>
+                                <div class="mt-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 p-4">
+                                    <h4 class="text-2xl font-black text-brand-dark dark:text-white">{{ overloadedEmployeeCount }}<span class="text-xs font-bold text-slate-400 ml-1">staff</span></h4>
+                                    <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Currently overloaded across client work (4+ active items).</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>

@@ -1,0 +1,132 @@
+<!-- =====================================================================
+     PAYSLIP GENERATOR
+     ===================================================================== -->
+                <!-- MODULE 2: PAYSLIP GENERATOR -->
+                <div v-show="currentTab === 'payslip-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Payroll Management</h2>
+                                <p class="zq-page-header-desc">Automated statutory contribution engine for EPF, SOCSO, EIS and PCB, with MTD/YTD tracking.</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button type="button" @click="printPayslipModule" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
+                                <i class="fa-solid fa-file-pdf"></i><span>Preview / Print PDF</span>
+                            </button>
+                            <button type="button" @click="resetPayForm" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition" title="Clear Form">
+                                <i class="fa-solid fa-rotate-left"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-md p-4 md:p-6 space-y-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+                            <div>
+                                <h3 class="text-xs font-extrabold text-brand-dark dark:text-white tracking-wider uppercase flex items-center">
+                                    <i class="fa-solid fa-user-check text-emerald-500 mr-2 text-base"></i>
+                                    EMPLOYEE &amp; BANKING INFORMATION
+                                </h3>
+                            </div>
+                            <div>
+                                <label for="pay-emp-select" class="sr-only">Select Employee</label>
+                                <select id="pay-emp-select" name="payEmpSelect" v-model="selectedPayEmployeeId" @change="selectEmployeeForPayslip($event)" class="p-2 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white w-full sm:w-64 focus:ring-2 focus:ring-brand-gold">
+                                    <option value="">-- Auto-Fill HR Employee --</option>
+                                    <option v-for="emp in employees" :key="`payslip-emp-${emp.empNo}`" :value="emp.empNo">{{ emp.empNo }} - {{ emp.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-5">
+                            <div class="flex lg:flex-col items-center lg:items-stretch gap-4 lg:gap-3 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600 rounded-xl p-4">
+                                <div class="w-16 h-16 lg:w-20 lg:h-20 lg:mx-auto rounded-2xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-xl lg:text-2xl font-extrabold shrink-0 overflow-hidden">
+                                    <img v-if="payEmployeePhoto()" :src="payEmployeePhoto()" alt="" class="w-full h-full object-cover">
+                                    <span v-else>{{ getInitials(payForm.name) }}</span>
+                                </div>
+                                <div class="min-w-0 lg:text-center">
+                                    <p class="font-extrabold text-sm text-brand-dark dark:text-white truncate">{{ payForm.name || 'Untitled Employee' }}</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{{ payForm.position || 'No position set' }}</p>
+                                    <p v-if="payForm.dept" class="text-[11px] text-slate-400 dark:text-slate-400 leading-snug">{{ payForm.dept }}</p>
+                                    <span class="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full text-[10px] font-bold" :class="selectedPayEmployeeId ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300' : 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'">
+                                        <i class="fa-solid" :class="selectedPayEmployeeId ? 'fa-circle-check' : 'fa-triangle-exclamation'"></i>
+                                        <span>{{ selectedPayEmployeeId ? 'From HR Directory' : 'Manual Entry' }}</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-id-card w-4 text-center text-emerald-500"></i><span class="ml-1.5">Identity</span></p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div><label for="pay-name" class="zq-label">Employee Name *</label><input id="pay-name" name="payName" type="text" v-model="payForm.name" required placeholder="" class="zq-input font-bold"></div>
+                                        <div><label for="pay-ic" class="zq-label">National ID / Passport *</label><input id="pay-ic" name="payIc" type="text" :value="maskSensitive(payForm.ic)" readonly aria-label="Masked national ID or passport" class="zq-input"></div>
+                                        <div><label for="pay-emp-no" class="zq-label">Employee ID *</label><input id="pay-emp-no" name="payEmpNo" type="text" v-model="payForm.empNo" placeholder="" class="zq-input font-extrabold"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-briefcase w-4 text-center text-emerald-500"></i><span class="ml-1.5">Employment</span></p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        <div><label for="pay-position" class="zq-label">Position</label><input id="pay-position" name="payPosition" type="text" v-model="payForm.position" placeholder="" class="zq-input"></div>
+                                        <div><label for="pay-dept" class="zq-label">Department</label><input id="pay-dept" name="payDept" type="text" v-model="payForm.dept" placeholder="" class="zq-input"></div>
+                                        <div><label for="pay-join-date" class="zq-label">Join Date</label><input id="pay-join-date" name="payJoinDate" type="date" v-model="payForm.joinDate" class="zq-input"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p class="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 uppercase tracking-wider mb-2 flex items-center"><i class="fa-solid fa-building-columns w-4 text-center text-emerald-500"></i><span class="ml-1.5">Banking &amp; Statutory</span></p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div><label for="pay-bank-acc" class="zq-label">Bank / Account No.</label><input id="pay-bank-acc" name="payBankAcc" type="text" :value="maskBank(payForm.bankAcc)" readonly aria-label="Masked bank account number" class="zq-input"></div>
+                                        <div><label for="pay-epf-socso" class="zq-label">EPF / SOCSO No.</label><input id="pay-epf-socso" name="payEpfSocso" type="text" :value="maskEpfSocso(payForm.epfSocso)" readonly aria-label="Masked EPF and SOCSO numbers" class="zq-input"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 border-t border-slate-100 dark:border-slate-700 pt-5">
+                            <div class="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                                <h4 class="text-xs font-extrabold uppercase tracking-wider text-brand-blue dark:text-blue-400 border-b border-slate-200 dark:border-slate-600 pb-2">EARNINGS - RM</h4>
+                                <div class="grid grid-cols-2 gap-3 text-xs">
+                                    <div><label for="pay-month" class="zq-label">Payroll Month</label><input id="pay-month" name="payMonth" type="month" v-model="payForm.month" class="zq-input"></div>
+                                    <div><label for="pay-date" class="zq-label">Payment Date</label><input id="pay-date" name="payDate" type="date" v-model="payForm.payDate" class="zq-input"></div>
+                                    <div><label for="pay-basic" class="zq-label">Basic Salary (RM) *</label><input id="pay-basic" name="payBasic" type="number" v-model="payForm.basic" @input="autoCalculatePayroll" step="0.01" class="zq-input font-bold"></div>
+                                    <div><label for="pay-ot" class="zq-label">OT (Overtime)</label><input id="pay-ot" name="payOt" type="number" v-model="payForm.ot" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-phone" class="zq-label">Phone Allowance</label><input id="pay-phone" name="payPhone" type="number" v-model="payForm.phone" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-transport" class="zq-label">Transport Allowance</label><input id="pay-transport" name="payTransport" type="number" v-model="payForm.transport" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-meal" class="zq-label">Meal Allowance</label><input id="pay-meal" name="payMeal" type="number" v-model="payForm.meal" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-bonus" class="zq-label">Bonus &amp; Commission</label><input id="pay-bonus" name="payBonus" type="number" v-model="payForm.bonus" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-slate-50 dark:bg-slate-700/30 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
+                                <h4 class="text-xs font-extrabold uppercase tracking-wider text-red-600 border-b border-slate-200 dark:border-slate-600 pb-2">STATUTORY DEDUCTIONS - RM</h4>
+                                <div class="grid grid-cols-2 gap-3 text-xs">
+                                    <div><label for="pay-ded-epf" class="zq-label">Employee EPF (11%)</label><input id="pay-ded-epf" name="payDedEpf" type="number" v-model="payForm.dedEpf" readonly class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-socso" class="zq-label">SOCSO (0.5%)</label><input id="pay-ded-socso" name="payDedSocso" type="number" v-model="payForm.dedSocso" readonly class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-eis" class="zq-label">Employee EIS (0.2%)</label><input id="pay-ded-eis" name="payDedEis" type="number" v-model="payForm.dedEis" readonly class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-pcb" class="zq-label">MTD / PCB (Tax)</label><input id="pay-ded-pcb" name="payDedPcb" type="number" v-model="payForm.dedPcb" @input="autoCalculatePayroll" step="0.01" class="zq-input font-bold"></div>
+                                    <div><label for="pay-ded-advance" class="zq-label">Advance / Loan</label><input id="pay-ded-advance" name="payDedAdvance" type="number" v-model="payForm.dedAdvance" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                    <div><label for="pay-ded-other" class="zq-label">Other Deductions</label><input id="pay-ded-other" name="payDedOther" type="number" v-model="payForm.dedOther" @input="autoCalculatePayroll" step="0.01" class="zq-input"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-5 gap-4">
+                            <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                                <button type="button" @click="printPayslipModule" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-5 py-2.5 rounded-xl shadow transition text-xs flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-print"></i><span>Print Payslip (A4 Landscape)</span>
+                                </button>
+                                <button v-if="canManagePayroll" type="button" @click="savePayslipRecord" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl shadow transition text-xs flex items-center space-x-1.5">
+                                    <i class="fa-solid fa-floppy-disk"></i><span>Save Payslip</span>
+                                </button>
+                            </div>
+
+                            <div class="bg-brand-dark text-white p-4 rounded-xl w-full sm:w-72 space-y-1 text-xs">
+                                <div class="flex justify-between"><span>Gross Salary:</span><strong class="font-bold">RM {{ payCalc.gross.toFixed(2) }}</strong></div>
+                                <div class="flex justify-between text-red-400"><span>Total Deductions:</span><strong class="font-bold">RM {{ payCalc.deduct.toFixed(2) }}</strong></div>
+                                <div class="flex justify-between text-sm font-extrabold border-t border-slate-700 pt-1.5 mt-1 text-brand-gold"><span>Net Salary:</span><span>RM {{ payCalc.net.toFixed(2) }}</span></div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>

@@ -1,0 +1,89 @@
+<!-- =====================================================================
+     CLIENT DIRECTORY
+     ===================================================================== -->
+                <!-- CLIENT DIRECTORY MODULE -->
+                <div v-show="currentTab === 'client-directory'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Client Registration</h2>
+                                <p class="zq-page-header-desc">Register and maintain client company records used across projects, quotations and invoices.</p>
+                            </div>
+                        </div>
+                        <button v-if="canManageClients" type="button" @click="openClientInformation()" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-building-circle-check"></i><span>Client Information</span>
+                        </button>
+                    </div>
+
+                    <div class="zq-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-users text-brand-blue mr-2"></i>Registered Client Directory</h3>
+                            <span class="zq-text-small font-bold">Total Clients: {{ customers.length }}</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th class="w-32">Reg No. / TIN</th>
+                                        <th>Client / Company Name</th>
+                                        <th>Contact &amp; Email</th>
+                                        <th>Address &amp; Location</th>
+                                        <th class="text-center w-36">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="(cust, idx) in customers" :key="idx" @contextmenu.prevent="openContextMenu($event, clientDirectoryRowMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientDirectoryRowMenuItems(cust))">
+                                        <td class="font-bold">{{ cust.clientSSM || '-' }}</td>
+                                        <td>
+                                            <div class="flex items-start gap-2.5">
+                                                <div class="w-9 h-9 rounded-xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[11px] font-extrabold shrink-0">{{ getInitials(cust.clientName) }}</div>
+                                                <div class="min-w-0">
+                                                    <span class="font-bold text-slate-900 dark:text-slate-100 block text-sm truncate">{{ cust.clientName }}</span>
+                                                    <span v-if="cust.clientId" class="block font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ cust.clientId }}</span>
+                                                    <span v-if="cust.companyType" class="block text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ cust.companyType }}</span>
+                                                    <span v-if="cust.clientPosition" class="text-xs text-slate-500 dark:text-slate-400">{{ cust.clientPosition }}</span>
+                                                    <div class="mt-1.5 flex flex-wrap items-center gap-1">
+                                                        <span v-if="isNewClient(cust.id)" class="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-extrabold uppercase text-emerald-700">New</span>
+                                                        <span :class="clientTierMeta(cust.clientTier).badgeClass" class="rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase">{{ clientTierMeta(cust.clientTier).label }}</span>
+                                                        <span :class="clientHealthScore(cust).className" class="rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase" :title="'Health Score: ' + clientHealthScore(cust).score + '/100'">{{ clientHealthScore(cust).label }}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-slate-700 dark:text-slate-300 block">{{ cust.clientContactPerson || '-' }}</span>
+                                            <span class="text-slate-500 dark:text-slate-400 block"><i class="fa-solid fa-phone text-[10px] mr-1"></i>{{ cust.clientPhone }}</span>
+                                            <span v-if="cust.clientEmail" class="text-slate-500 dark:text-slate-400 block"><i class="fa-solid fa-envelope text-[10px] mr-1"></i>{{ cust.clientEmail }}</span>
+                                        </td>
+                                        <td class="text-slate-600 dark:text-slate-300">
+                                            <span class="whitespace-pre-line">{{ formattedClientAddress(cust) || '—' }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                            <button @click="openClientView(cust)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Client Information">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                            <button v-if="canManageClients" @click="requestClientAction('edit', cust)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Client">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                            <button v-if="canDeleteClients" @click="requestClientAction('delete', cust)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Client">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="customers.length === 0" class="zq-table-empty">
+                                        <td colspan="5">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-users zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No clients yet</p>
+                                                <p class="zq-empty-state-text">Register your first client here before creating projects, quotations or invoices.</p>
+                                                <div v-if="canManageClients" class="zq-empty-state-action"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Client Information</span></button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>

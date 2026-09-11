@@ -1,0 +1,90 @@
+<!-- =====================================================================
+     CLIENT INFORMATION
+     ===================================================================== -->
+            <!-- CLIENT INFORMATION PAGE -->
+            <div v-show="currentTab === 'doc-generator'" class="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6 no-print">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="flex items-center space-x-3">
+                        <div><h2 class="zq-text-page-title">Client Information</h2><p class="zq-page-header-desc">Register new client records or update one selected client without affecting other records.</p></div>
+                    </div>
+                    <div class="flex items-center gap-2"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-outline"><i class="fa-solid fa-plus"></i><span>New Client</span></button><button type="button" @click="closeClientInformation()" class="zq-btn zq-btn-ghost"><i class="fa-solid fa-list"></i><span>Client Directory</span></button></div>
+                </div>
+                <form @submit.prevent="saveClientInformation" class="zq-card p-4 md:p-5 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-slate-200 dark:border-slate-700 pb-3">
+                        <div>
+                            <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Registration</p>
+                            <h3 class="zq-text-section-title mt-1">{{ clientInformationModal.isEdit ? 'Update Client Information' : 'Client Information' }}</h3>
+                            <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ clientInformationModal.isEdit ? 'Only this selected client record will be updated.' : 'Save to create the client’s permanent Client ID.' }}</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2"><span v-if="clientInformationModal.form.clientId && isNewClient(clientInformationModal.form)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2.5 py-1 text-[10px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New</span><span v-if="clientInformationModal.form.clientId" class="inline-flex items-center gap-2 rounded-lg border border-brand-blue/20 bg-brand-blue/5 px-3 py-2 font-mono text-xs font-extrabold text-brand-blue dark:bg-brand-blue/10 dark:text-teal-300"><i class="fa-solid fa-fingerprint"></i>{{ clientInformationModal.form.clientId }}</span></div>
+                    </div>
+                    <div class="space-y-4">
+                        <section class="zq-form-section">
+                            <h4 class="zq-form-section-title">Company profile</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                <div><label for="client-info-name" class="zq-label">Client / Company Name *</label><input id="client-info-name" v-model="clientInformationModal.form.clientName" required autocomplete="organization" placeholder="Registered company name" class="zq-input font-semibold"></div>
+                                <div>
+                                    <label for="client-info-brn-new" class="zq-label">Business Reg. No. &mdash; new SSM format</label>
+                                    <input id="client-info-brn-new" v-model="clientInformationModal.form.clientBrnNew" inputmode="numeric" maxlength="12" placeholder="200901029271" class="zq-input" aria-describedby="client-info-brn-new-hint">
+                                    <p id="client-info-brn-new-hint" class="mt-1 text-[10px]" :class="brnNewFormatState(clientInformationModal.form.clientBrnNew) === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">
+                                        <span v-if="brnNewFormatState(clientInformationModal.form.clientBrnNew) === 'invalid'">Expected exactly 12 digits.</span>
+                                        <span v-else>12 digits: year, entity code, sequence. Issued to every entity since 11 Oct 2019.</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <label for="client-info-brn-old" class="zq-label">Business Reg. No. &mdash; old format</label>
+                                    <input id="client-info-brn-old" v-model="clientInformationModal.form.clientBrnOld" maxlength="16" placeholder="872376-W" class="zq-input uppercase" aria-describedby="client-info-brn-old-hint">
+                                    <p id="client-info-brn-old-hint" class="mt-1 text-[10px]" :class="brnOldFormatState(clientInformationModal.form.clientBrnOld) === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">
+                                        <span v-if="brnOldFormatState(clientInformationModal.form.clientBrnOld) === 'invalid'">Expected digits then a dash and a check letter, e.g. 872376&#8209;W.</span>
+                                        <span v-else>Pre&#8209;2019 number, kept for documents still bearing it. State prefix allowed, e.g. JM1045730&#8209;D.</span>
+                                    </p>
+                                </div>
+                                <div>
+                                    <label for="client-info-tin" class="zq-label">Tax Identification No. (TIN) &mdash; LHDN</label>
+                                    <input id="client-info-tin" v-model="clientInformationModal.form.clientTin" @blur="clientInformationModal.form.clientTin = normalizeTin(clientInformationModal.form.clientTin)" maxlength="12" class="zq-input uppercase" placeholder="C20880050010" aria-describedby="client-info-tin-hint">
+                                    <p id="client-info-tin-hint" class="mt-1 text-[10px]" :class="tinFormatState(clientInformationModal.form.clientTin) === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">
+                                        <span v-if="tinFormatState(clientInformationModal.form.clientTin) === 'invalid'">Does not match an LHDN TIN &mdash; entity prefix then digits, 11&ndash;12 characters.</span>
+                                        <span v-else>Separate from the SSM number. C company, D partnership, IG sole proprietor.</span>
+                                    </p>
+                                </div>
+                                <div><label for="client-info-type" class="zq-label">Company Type</label><select id="client-info-type" v-model="clientInformationModal.form.companyType" class="zq-input"><option value="">Select company type</option><option>Sole Proprietorship / Enterprise</option><option>Partnership</option><option>Private Limited (Sdn. Bhd.)</option><option>Public Limited (Berhad)</option><option>Limited Liability Partnership (LLP)</option><option>Government / GLC</option><option>Association / NGO</option><option>Other</option></select></div>
+                                <div><label for="client-info-industry" class="zq-label">Industry / Business Category</label><input id="client-info-industry" v-model="clientInformationModal.form.industry" placeholder="e.g. Retail, Construction, Professional Services" class="zq-input"></div>
+                                <div><label for="client-info-tier" class="zq-label">Client Tier</label><select id="client-info-tier" v-model="clientInformationModal.form.clientTier" class="zq-input"><option>Standard</option><option>Premium</option><option>Priority</option></select></div>
+                            </div>
+                        </section>
+    
+                        <section class="zq-form-section">
+                            <h4 class="zq-form-section-title">Primary contact</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                                <div><label for="client-info-contact" class="zq-label">Contact Person</label><input id="client-info-contact" v-model="clientInformationModal.form.clientContactPerson" autocomplete="name" placeholder="Officer or director name" class="zq-input"></div>
+                                <div><label for="client-info-position" class="zq-label">Position</label><input id="client-info-position" v-model="clientInformationModal.form.clientPosition" placeholder="Director / Executive" class="zq-input"></div>
+                                <div><label for="client-info-phone" class="zq-label">Phone Number *</label><input id="client-info-phone" v-model="clientInformationModal.form.clientPhone" required autocomplete="tel" placeholder="+60 13-XXXX XXX" class="zq-input"></div>
+                                <div><label for="client-info-email" class="zq-label">Email Address</label><input id="client-info-email" v-model="clientInformationModal.form.clientEmail" type="email" autocomplete="email" placeholder="email@company.com" class="zq-input"></div>
+                                <div class="md:col-span-2 xl:col-span-4"><label for="client-info-additional-email" class="zq-label">Additional Authorized Emails <span class="font-normal normal-case">(optional, separated by commas)</span></label><input id="client-info-additional-email" v-model="clientInformationModal.form.additionalClientEmailsText" placeholder="finance@example.com, authorised@example.com" class="zq-input"></div>
+                            </div>
+                        </section>
+    
+                        <section class="zq-form-section">
+                            <h4 class="zq-form-section-title">Registered address</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                                <div class="md:col-span-2 xl:col-span-4"><label for="client-info-address1" class="zq-label">Address Line 1 *</label><input id="client-info-address1" v-model="clientInformationModal.form.clientAddress1" required autocomplete="street-address" placeholder="Building / Lot No. and Street" class="zq-input"></div>
+                                <div><label for="client-info-address2" class="zq-label">Address Line 2</label><input id="client-info-address2" v-model="clientInformationModal.form.clientAddress2" placeholder="Building / area / industrial park" class="zq-input"></div>
+                                <div><label for="client-info-address3" class="zq-label">Address Line 3</label><input id="client-info-address3" v-model="clientInformationModal.form.clientAddress3" placeholder="Optional locality / district" class="zq-input"></div>
+                                <div><label for="client-info-postcode" class="zq-label">Postcode *</label><input id="client-info-postcode" v-model="clientInformationModal.form.clientPostcode" @input="detectClientInformationPostcode" required inputmode="numeric" maxlength="5" pattern="[0-9]{5}" placeholder="43000" class="zq-input"></div>
+                                <div><label for="client-info-city" class="zq-label">City *</label><input id="client-info-city" v-model="clientInformationModal.form.clientCity" required autocomplete="address-level2" placeholder="Kajang" class="zq-input"></div>
+                                <div><label for="client-info-state" class="zq-label">State *</label><input id="client-info-state" v-model="clientInformationModal.form.clientState" required autocomplete="address-level1" placeholder="Selangor" class="zq-input"></div>
+                                <div><label for="client-info-country" class="zq-label">Country *</label><input id="client-info-country" v-model="clientInformationModal.form.clientCountry" required autocomplete="country-name" class="zq-input"></div>
+                            </div>
+                        </section>
+    
+                        <section class="zq-form-section">
+                            <h4 class="zq-form-section-title">Internal notes <span class="font-normal normal-case text-slate-400 dark:text-slate-400">(optional)</span></h4>
+                            <label for="client-info-notes" class="sr-only">Internal notes</label><textarea id="client-info-notes" v-model="clientInformationModal.form.clientNotes" rows="3" placeholder="Useful registration or account notes for staff" class="zq-input resize-y"></textarea>
+                        </section>
+                    </div>
+                    <div class="flex flex-wrap justify-end gap-2 border-t border-slate-200 dark:border-slate-700 pt-5">
+                        <button type="button" @click="openClientInformation()" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-outline"><i class="fa-solid fa-rotate-left"></i>Clear Form</button>
+                        <button type="submit" :disabled="clientInformationModal.saving" class="zq-btn zq-btn-primary"><i :class="clientInformationModal.saving ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-floppy-disk'"></i>{{ clientInformationModal.saving ? 'Saving…' : (clientInformationModal.isEdit ? 'Save Client Information' : 'Register Client') }}</button>
+                    </div>
+                </form>
+            </div>

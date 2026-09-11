@@ -1,0 +1,168 @@
+<!-- =====================================================================
+     WEBSITE CONTENT (PUBLIC SITE CMS)
+     ===================================================================== -->
+                <!-- WEBSITE CONTENT MODULE (zenqor-tech Portfolio, Services, Page Text) -->
+                <div v-show="currentTab === 'website-content'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Website Content</h2>
+                                <p class="zq-page-header-desc">Manage what's shown on zenqor-tech / www.zenqor.com.my — changes go live immediately. Restricted to Superadmin, Director and IT.</p>
+                            </div>
+                        </div>
+                        <button v-if="websiteContentTab !== 'site_text' && hasModulePermission('website-content', 'edit')" type="button" @click="openWebsiteContentModal(websiteContentTab)" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-plus"></i><span>Add Item</span>
+                        </button>
+                    </div>
+
+                    <div class="flex gap-2 border-b border-slate-200 dark:border-slate-700 overflow-x-auto">
+                        <button type="button" @click="websiteContentTab = 'portfolio_gaming'" :class="websiteContentTab === 'portfolio_gaming' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Licensing &amp; Permits <span class="ml-1 text-slate-400">({{ websiteContent.portfolio_gaming.length }})</span></button>
+                        <button type="button" @click="websiteContentTab = 'services'" :class="websiteContentTab === 'services' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Services <span class="ml-1 text-slate-400">({{ websiteContent.services.length }})</span></button>
+                        <button type="button" @click="websiteContentTab = 'site_text'" :class="websiteContentTab === 'site_text' ? 'border-brand-blue text-brand-blue' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'" class="px-4 py-2.5 text-xs font-bold border-b-2 transition shrink-0">Page Text <span class="ml-1 text-slate-400">({{ Object.keys(siteTextOverrides).length }} overridden)</span></button>
+                    </div>
+
+                    <!-- Portfolio / Services galleries -->
+                    <template v-if="websiteContentTab !== 'site_text'">
+                        <p class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>Once this list has at least one item, the public page shows ONLY these items — its built-in sample content is fully replaced, not merged.</p>
+
+                        <div v-if="!websiteContent[websiteContentTab].length" class="zq-empty-state">
+                            <i class="fa-solid fa-photo-film zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">No items published yet</p>
+                            <p class="zq-empty-state-text">The public page is currently showing its built-in sample content for {{ websiteContentLabel(websiteContentTab) }}.</p>
+                            <div v-if="hasModulePermission('website-content', 'edit')" class="zq-empty-state-action"><button type="button" @click="openWebsiteContentModal(websiteContentTab)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Item</span></button></div>
+                        </div>
+                        <div v-else class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <div v-for="item in websiteContent[websiteContentTab]" :key="item.id" @contextmenu.prevent="openContextMenu($event, websiteContentMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, websiteContentMenuItems(item))" class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col">
+                                <div v-if="websiteContentTab === 'services'" class="h-20 flex items-center justify-center bg-slate-50 dark:bg-slate-900"><i :class="item.icon" class="text-3xl text-brand-blue dark:text-teal-300"></i></div>
+                                <div v-else class="h-36 bg-slate-100 dark:bg-slate-900 bg-cover bg-center" :style="{ backgroundImage: 'url(\'' + item.imgUrl + '\')' }"></div>
+                                <div class="p-4 flex flex-col flex-1">
+                                    <span v-if="item.tag" class="inline-block w-fit rounded-full bg-teal-50 dark:bg-teal-900/30 text-brand-blue dark:text-teal-300 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wide">{{ item.tag }}</span>
+                                    <h4 class="mt-2 text-sm font-extrabold text-brand-dark dark:text-white">{{ item.title || item.name }}</h4>
+                                    <p v-if="item.companyName || item.eventDate" class="mt-0.5 text-[11px] font-bold text-brand-blue dark:text-teal-300">{{ [item.companyName, item.eventDate].filter(Boolean).join(' · ') }}</p>
+                                    <p v-else-if="websiteContentTab !== 'services'" class="mt-0.5 text-[10px] font-semibold text-amber-600 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>No Company Name set yet</p>
+                                    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400 flex-1 line-clamp-3">{{ item.desc }}</p>
+                                    <div class="mt-3 flex items-center justify-end gap-1.5 border-t border-slate-100 dark:border-slate-700 pt-3">
+                                        <button v-if="hasModulePermission('website-content', 'edit')" @click="openWebsiteContentModal(websiteContentTab, item)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                        <button v-if="hasModulePermission('website-content', 'delete')" @click="deleteWebsiteContentItem(websiteContentTab, item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Page Text overrides (content/site_text) -->
+                    <template v-else>
+                        <p class="rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-triangle-exclamation mr-1.5"></i>This overrides copy on ANY zenqor-tech page (Home, About, Contact, Legal, FAQ, etc). Leave a field un-overridden and the site keeps its built-in default text.</p>
+                        <div class="zq-toolbar">
+                            <div class="zq-toolbar-main">
+                                <label for="site-text-group-filter" class="sr-only">Filter by section</label>
+                                <select id="site-text-group-filter" v-model="siteTextFilter.group" class="zq-select zq-filter-select">
+                                    <option v-for="g in siteTextGroups()" :key="g" :value="g">{{ g === 'all' ? 'All Sections' : g }}</option>
+                                </select>
+                                <div class="zq-search">
+                                    <i class="fa-solid fa-magnifying-glass zq-search-icon"></i>
+                                    <label for="site-text-search" class="sr-only">Search by key or label</label>
+                                    <input id="site-text-search" v-model="siteTextFilter.search" type="text" placeholder="Search by key or label..." class="zq-input zq-search-input">
+                                    <button v-if="siteTextFilter.search" type="button" @click="siteTextFilter.search = ''" class="zq-search-clear !flex" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <button v-if="siteTextFilter.group !== 'all' || siteTextFilter.search" type="button" @click="siteTextFilter.group = 'all'; siteTextFilter.search = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm divide-y divide-slate-100 dark:divide-slate-700">
+                            <div v-for="row in filteredSiteTextRows()" :key="row.key" @contextmenu.prevent="openContextMenu($event, siteTextRowMenuItems(row))" v-longpress="(touch) => openContextMenu(touch, siteTextRowMenuItems(row))" class="p-4 flex items-start justify-between gap-4">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-[9px] font-extrabold uppercase text-slate-400">{{ row.group }}</span>
+                                        <span v-if="row.override" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 text-[9px] font-extrabold uppercase">Overridden</span>
+                                    </div>
+                                    <h4 class="mt-1 text-sm font-extrabold text-brand-dark dark:text-white">{{ row.label }}</h4>
+                                    <p class="mt-0.5 text-[10px] font-mono text-slate-400">{{ row.key }}</p>
+                                    <p v-if="row.override" class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-2">EN: {{ row.override.en || '—' }}</p>
+                                    <p v-if="row.override" class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">MS: {{ row.override.ms || '—' }}</p>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    <button v-if="hasModulePermission('website-content', 'edit')" @click="openSiteTextModal(row)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                    <button v-if="row.override && hasModulePermission('website-content', 'delete')" @click="resetSiteTextOverride(row.key)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Reset to default"><i class="fa-solid fa-rotate-left"></i></button>
+                                </div>
+                            </div>
+                            <div v-if="!filteredSiteTextRows().length" class="zq-empty-state">
+                                <i class="fa-solid fa-magnifying-glass zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No matching text fields</p>
+                                <p class="zq-empty-state-text">Try a different section or search term.</p>
+                                <div class="zq-empty-state-action"><button type="button" @click="siteTextFilter.group = 'all'; siteTextFilter.search = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Reset</button></div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <div v-if="websiteContentModal.show" class="zq-modal-overlay z-[104]" role="dialog" aria-modal="true" :aria-label="websiteContentModal.isEdit ? 'Edit Item' : 'Add New Item'" @click.self="closeWebsiteContentModal">
+                        <form @submit.prevent="saveWebsiteContentItem" class="zq-modal">
+                            <header class="zq-modal-header zq-modal-header-brand">
+                                <div>
+                                    <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ websiteContentLabel(websiteContentModal.collectionName) }}</p>
+                                    <h3 class="zq-modal-title mt-1">{{ websiteContentModal.isEdit ? 'Edit Item' : 'Add New Item' }}</h3>
+                                    <p class="zq-modal-description !text-slate-300">Publishes live on zenqor-tech / www.zenqor.com.my immediately on save.</p>
+                                </div>
+                                <button type="button" @click="closeWebsiteContentModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                            </header>
+                            <div class="zq-modal-body grid grid-cols-1 gap-4">
+                                <template v-if="websiteContentModal.collectionName === 'services'">
+                                    <label class="zq-label">Icon (Font Awesome class) *<input v-model="websiteContentModal.form.icon" required placeholder="e.g. fas fa-building" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Browse icons at fontawesome.com — copy the class, e.g. "fas fa-stamp".</span></label>
+                                    <div v-if="websiteContentModal.form.icon" class="flex h-16 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900"><i :class="websiteContentModal.form.icon" class="text-2xl text-brand-blue dark:text-teal-300"></i></div>
+                                    <label class="zq-label">Service Name *<input v-model="websiteContentModal.form.name" required maxlength="120" placeholder="e.g. Business Registration & Company Setup" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
+                                </template>
+                                <template v-else>
+                                    <label class="zq-label">Tag / Category *<input v-model="websiteContentModal.form.tag" required maxlength="60" placeholder="e.g. BUSINESS AUTOMATION" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Company Name *<input v-model="websiteContentModal.form.companyName" required maxlength="120" placeholder="e.g. client company name" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Client / company this engagement was for — shown on the card.</span></label>
+                                    <label class="zq-label">Activity Title *<input v-model="websiteContentModal.form.title" required maxlength="120" placeholder="e.g. Ruang Legar Permit Approval" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Date Conducted<input v-model="websiteContentModal.form.eventDate" type="date" class="zq-input mt-1.5"><span class="mt-1.5 block text-[9px] font-medium text-slate-400 dark:text-slate-400">Optional — when this activity took place. Shown next to the company name on the card.</span></label>
+                                    <label class="zq-label">Description *<textarea v-model="websiteContentModal.form.desc" required rows="4" maxlength="500" placeholder="Short description shown on the card." class="zq-input mt-1.5"></textarea></label>
+                                        <div>
+                                            <label class="zq-label">Photos &amp; Videos * <span class="font-normal text-slate-400">({{ websiteContentModal.mediaItems.length }}/6)</span></label>
+                                            <p class="mt-1 text-[9px] font-medium text-slate-400 dark:text-slate-400">Up to 6 files. Images: PNG/JPG, max 8 MB each. Video: MP4, max 40 MB each. The first item is the card's cover photo — visitors can browse the rest in a gallery.</p>
+                                            <div class="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                                <div v-for="(media, mediaIdx) in websiteContentModal.mediaItems" :key="mediaIdx" class="group relative aspect-square overflow-hidden rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
+                                                    <img v-if="media.type === 'image'" :src="media.previewUrl" class="h-full w-full object-cover">
+                                                    <video v-else :src="media.previewUrl" class="h-full w-full object-cover" muted playsinline preload="metadata"></video>
+                                                    <span v-if="media.type === 'video'" class="pointer-events-none absolute inset-0 flex items-center justify-center bg-slate-950/25"><i class="fa-solid fa-circle-play text-lg text-white"></i></span>
+                                                    <span v-if="mediaIdx === 0" class="absolute left-1 top-1 rounded bg-brand-blue px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-white">Cover</span>
+                                                    <button type="button" @click="removeWebsiteContentMedia(mediaIdx)" title="Remove" class="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] text-white opacity-0 transition group-hover:opacity-100"><i class="fa-solid fa-xmark"></i></button>
+                                                </div>
+                                                <label v-if="websiteContentModal.mediaItems.length < 6" class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-slate-300 text-slate-400 transition hover:border-brand-blue hover:text-brand-blue dark:border-slate-600">
+                                                    <i class="fa-solid fa-plus"></i>
+                                                    <span class="text-[9px] font-bold">Add</span>
+                                                    <input type="file" accept="image/png,image/jpeg,video/mp4" multiple @change="handleWebsiteContentMediaSelect" class="hidden">
+                                                </label>
+                                            </div>
+                                        </div>
+                                </template>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="closeWebsiteContentModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                <button type="submit" :disabled="websiteContentModal.uploading" :class="{ 'is-loading': websiteContentModal.uploading }" class="zq-btn zq-btn-secondary"><i class="fa-solid fa-floppy-disk"></i><span>{{ websiteContentModal.isEdit ? 'Save Changes' : 'Publish' }}</span></button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div v-if="siteTextModal.show" class="zq-modal-overlay z-[105]" role="dialog" aria-modal="true" :aria-label="siteTextModal.label" @click.self="closeSiteTextModal">
+                        <form @submit.prevent="saveSiteTextOverride" class="zq-modal">
+                            <header class="zq-modal-header zq-modal-header-brand">
+                                <div>
+                                    <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">Page Text</p>
+                                    <h3 class="zq-modal-title mt-1">{{ siteTextModal.label }}</h3>
+                                    <p class="zq-modal-description font-mono !text-slate-300">{{ siteTextModal.key }}</p>
+                                </div>
+                                <button type="button" @click="closeSiteTextModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                            </header>
+                            <div class="zq-modal-body grid grid-cols-1 gap-4">
+                                <p class="text-[10px] text-slate-500 dark:text-slate-400">Leave both blank to keep the site's built-in default text for this field. This overrides the live site immediately — HTML tags (e.g. &lt;br&gt;, &lt;strong&gt;) are preserved if the default text uses them.</p>
+                                <label class="zq-label">English<textarea v-model="siteTextModal.form.en" rows="5" class="zq-input mt-1.5"></textarea></label>
+                                <label class="zq-label">Bahasa Malaysia<textarea v-model="siteTextModal.form.ms" rows="5" class="zq-input mt-1.5"></textarea></label>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="closeSiteTextModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                <button type="submit" class="zq-btn zq-btn-secondary"><i class="fa-solid fa-floppy-disk mr-1.5"></i>Save</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>

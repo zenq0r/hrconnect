@@ -15,6 +15,7 @@ scripts/
 functions/
 .claude/
 .firebaserc
+ARCHITECTURE.md
 MIGRATION_GUIDE.md
 firebase.json
 firestore.rules

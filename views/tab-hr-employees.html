@@ -1,0 +1,102 @@
+<!-- =====================================================================
+     EMPLOYEE RECORDS
+     ===================================================================== -->
+                <!-- HR EMPLOYEES MODULE -->
+                <div v-show="currentTab === 'hr-employees'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Employee Management</h2>
+                                <p class="zq-page-header-desc">Maintain employee profiles, statutory contributions, and employment records.</p>
+                            </div>
+                        </div>
+                        <button v-if="canManageEmployees" type="button" @click="openEmployeeModal()" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-user-plus"></i><span>Add New Employee</span>
+                        </button>
+                    </div>
+
+                    <div class="zq-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-users-gear text-brand-blue mr-2"></i>Registered Employee Directory</h3>
+                            <span class="zq-text-small font-bold">Total Employees: {{ employees.length }}</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th class="w-40">Employee ID &amp; Presence</th>
+                                        <th>Name &amp; Position</th>
+                                        <th>ID / Passport &amp; Bank Account (PDPA Masked)</th>
+                                        <th>Contributions (EPF/SOCSO/PCB)</th>
+                                        <th class="text-right">Basic Salary (RM)</th>
+                                        <th class="text-center w-40">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="emp in employees" :key="emp.empNo" @contextmenu.prevent="openContextMenu($event, employeeRowMenuItems(emp))" v-longpress="(touch) => openContextMenu(touch, employeeRowMenuItems(emp))">
+                                        <td>
+                                            <span class="font-bold text-brand-dark dark:text-slate-200 block text-sm">{{ emp.empNo }}</span>
+                                            <span :class="isEmployeeOnline(emp) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-100'" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-1">
+                                                <span :class="isEmployeeOnline(emp) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(emp) }}
+                                            </span>
+                                            <span class="text-slate-400 block text-[9px] mt-1">{{ employeeLastSeen(emp) }}</span>
+                                             <span :class="emp.status === 'Aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold mt-1">{{ emp.status === 'Aktif' ? 'Active' : emp.status }}</span>
+                                             <span class="text-slate-400 block text-[10px] mt-1">{{ emp.employmentType || 'Not set' }} · Joined {{ emp.joinDate || '-' }}</span>
+                                            <span v-if="emp.isSenior" class="inline-block ml-1 bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full text-[9px] font-bold">60+ Senior</span>
+                                        </td>
+                                        <td>
+                                            <div class="flex items-start gap-2.5">
+                                                <div class="w-9 h-9 rounded-xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[11px] font-extrabold shrink-0 overflow-hidden">
+                                                    <img v-if="employeePhotoByEmail(emp.email)" :src="employeePhotoByEmail(emp.email)" alt="" class="w-full h-full object-cover">
+                                                    <span v-else>{{ getInitials(emp.name) }}</span>
+                                                </div>
+                                                <div class="min-w-0">
+                                                    <span class="font-bold text-slate-900 dark:text-slate-100 block text-sm truncate">{{ emp.name }}</span>
+                                                    <span class="font-semibold text-slate-600 dark:text-slate-400 block">{{ emp.position }}</span>
+                                                    <span class="text-slate-400 block"><i class="fa-solid fa-building mr-1 text-[10px]"></i>{{ emp.dept }}</span>
+                                                    <span v-if="emp.email" class="text-brand-blue dark:text-blue-400 block font-medium mt-0.5"><i class="fa-solid fa-envelope mr-1 text-[10px]"></i>{{ emp.email }}</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="font-bold text-slate-700 dark:text-slate-300 block"><i class="fa-solid fa-id-card text-[10px] mr-1"></i>{{ maskIC(emp.ic) }}</span>
+                                            <span class="text-slate-500 dark:text-slate-400 block"><i class="fa-solid fa-building-columns text-[10px] mr-1"></i>{{ maskBank(emp.bankAcc) }}</span>
+                                        </td>
+                                        <td class="font-mono text-slate-600 dark:text-slate-300">
+                                            <span>EPF: {{ maskSensitive(emp.epfNo) }}</span><br>
+                                            <span>SOCSO: {{ maskSensitive(emp.socsoNo) }}</span><br>
+                                            <span>PCB: {{ maskSensitive(emp.taxNo) }}</span>
+                                        </td>
+                                        <td class="text-right font-extrabold text-sm text-brand-dark dark:text-slate-100">{{ formatCurrency(emp.basicSalary) }}</td>
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                            <button @click="openEmployeeView(emp)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Employee Information">
+                                                <i class="fa-solid fa-eye"></i>
+                                            </button>
+                                            <button v-if="employeeHasActiveProjectWork(emp.empNo)" @click="viewEmployeeProjectAssignments(emp)" class="zq-btn zq-btn-info zq-btn-icon" title="View Active Project Assignments">
+                                                <i class="fa-solid fa-diagram-project"></i>
+                                            </button>
+                                            <button v-if="canManageEmployees" @click="requestEmployeeAction('edit', emp)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Employee">
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                            <button v-if="canDeleteEmployees" @click="requestEmployeeAction('delete', emp)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Employee">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="employees.length === 0" class="zq-table-empty">
+                                        <td colspan="6">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-users-gear zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No employees yet</p>
+                                                <p class="zq-empty-state-text">Add your first employee to begin managing profiles, statutory contributions and payroll.</p>
+                                                <div v-if="canManageEmployees" class="zq-empty-state-action"><button type="button" @click="openEmployeeModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-user-plus"></i><span>Add New Employee</span></button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>

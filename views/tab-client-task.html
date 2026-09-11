@@ -1,0 +1,76 @@
+<!-- =====================================================================
+     CLIENT TASK
+     ===================================================================== -->
+                <!-- CLIENT TASK MODULE -->
+                <div v-show="currentTab === 'client-task'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6" @click="closeContextMenu">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">Client Task</h2>
+                                <p class="zq-page-header-desc">{{ canManageProjects ? 'Client Task is the parent of every Project Activity and is grouped live by project status. Registering a client alone does not add it here; the first project creates its Client Task automatically. Click a company to view its projects; deleting a Client Task also deletes all of its projects.' : 'Click a company to open its Project Activities. You see the projects you run as Person In Charge and those with an activity assigned to you.' }}</p>
+                            </div>
+                        </div>
+                        <button v-if="canCreateClientTask" type="button" @click="openClientTaskModal" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-plus"></i><span>New Client Task</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <section v-for="group in clientTaskGroups" :key="group.key" class="min-w-0 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40 p-3 shadow-sm">
+                            <header class="mb-3 flex items-center justify-between rounded-xl bg-white dark:bg-slate-800 px-3 py-3 border border-slate-200 dark:border-slate-700">
+                                <div class="flex items-center gap-2">
+                                    <span :class="clientTaskStatusMeta(group.key).badgeClass" class="h-2.5 w-2.5 rounded-full"></span>
+                                    <h3 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">{{ clientTaskStatusMeta(group.key).label }}</h3>
+                                </div>
+                                <span class="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300">{{ group.clients.length }}</span>
+                            </header>
+                            <div class="space-y-2 min-h-[120px]">
+                                <div v-for="cust in group.clients" :key="cust.id" :tabindex="canOpenClientTaskBoard ? 0 : -1" :role="canOpenClientTaskBoard ? 'button' : undefined" @click="viewClientBoard(cust)" @keydown.enter="viewClientBoard(cust)" @contextmenu.prevent.stop="openContextMenu($event, clientTaskMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientTaskMenuItems(cust))" :class="canManageProjects ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-brand-blue' : 'cursor-default'" class="flex w-full flex-col gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-2.5 text-left shadow-sm transition">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <span class="min-w-0 flex-1 truncate text-xs font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ cust.clientName }}</span>
+                                        <span :class="clientTaskStatusMeta(clientTaskStatus(cust.id)).badgeClass" class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTaskStatusMeta(clientTaskStatus(cust.id)).label }}</span>
+                                    </div>
+                                    <p v-if="cust.clientId" class="truncate font-mono text-[9px] font-bold text-brand-blue dark:text-teal-300">{{ cust.clientId }}</p>
+                                    <p v-if="cust.clientSSM" class="truncate text-[9px] font-semibold text-slate-400 dark:text-slate-400">SSM: {{ cust.clientSSM }}</p>
+                                    <p v-if="cust.clientContactPerson" class="truncate text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ cust.clientContactPerson }}</p>
+                                    <p v-if="cust.clientEmail" class="truncate text-[10px] lowercase text-slate-500 dark:text-slate-400"><i class="fa-solid fa-envelope mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ cust.clientEmail }}</p>
+                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-regular fa-clock mr-1.5"></i>{{ clientTaskDateLabel(cust) }}</p>
+                                    <div class="mt-1 flex items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700 pt-1.5">
+                                        <span class="min-w-0 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300">PIC: {{ clientLatestProjectPic(cust.id) || 'Not assigned yet' }}</span>
+                                        <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-300">{{ clientProjectCount(cust.id) }} proj</span>
+                                    </div>
+                                    <button type="button" @click.stop="openClientView(cust)" class="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/60 px-3 py-3 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-600"><i class="fa-solid fa-circle-info text-[10px]"></i>View Client Information</button>
+                                </div>
+                                <div v-if="!group.clients.length" class="zq-empty-state zq-empty-state-compact" style="min-height: 100px;">
+                                    <i class="fa-regular fa-building zq-empty-state-icon" aria-hidden="true"></i>
+                                    <p class="zq-empty-state-title">No {{ group.key }} clients yet</p>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <!-- SHARED CONTEXT MENU — right-click (desktop) / long-press (mobile & tablet).
+                     Rows/cards provide their own contextual actions; every button provides a safe quick-action menu. -->
+                <div v-if="contextMenu.show" class="fixed inset-0 z-[96]" @click="closeContextMenu" @contextmenu.prevent="closeContextMenu"></div>
+                <div v-if="contextMenu.show" class="zq-context-menu fixed z-[97] w-52 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl py-1.5" :style="{ top: contextMenu.y + 'px', left: contextMenu.x + 'px' }">
+                    <button v-for="(item, idx) in contextMenu.items" :key="idx" type="button" @click="runContextMenuAction(item)" class="flex w-full items-center gap-2 px-3 py-3.5 text-left text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60" :class="item.danger ? 'text-red-600 dark:text-red-400' : 'text-slate-700 dark:text-slate-200'"><i :class="'fa-solid ' + item.icon" class="w-4 text-center"></i>{{ item.label }}</button>
+                </div>
+
+                <!-- NEW CLIENT TASK MODAL -->
+                <div v-if="clientTaskModal.show" class="zq-modal-overlay z-[97]" role="dialog" aria-modal="true" aria-label="New Client Task" @click.self="closeClientTaskModal">
+                    <div class="zq-modal zq-modal-sm">
+                        <div class="zq-modal-header">
+                            <h3 class="zq-modal-title">New Client Task</h3>
+                            <button type="button" @click="closeClientTaskModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div class="zq-modal-body space-y-4">
+                            <label class="zq-label">Client<select v-model="clientTaskModal.clientDirectoryId" required class="zq-input mt-1.5 normal-case"><option value="">-- Select from Client Directory --</option><option v-for="cust in [...customers].sort((a,b) => String(a.clientName||'').localeCompare(String(b.clientName||'')))" :key="cust.id" :value="cust.id">{{ cust.clientName }}<template v-if="cust.clientSSM"> · {{ cust.clientSSM }}</template></option></select></label>
+                            <p class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">Adds this client to Client Task (if not already added), then opens its board directly.</p>
+                        </div>
+                        <div class="zq-modal-footer">
+                            <button type="button" @click="closeClientTaskModal" class="zq-btn zq-btn-outline">Cancel</button>
+                            <button type="button" @click="saveClientTask" :disabled="clientTaskModal.saving || !clientTaskModal.clientDirectoryId" class="zq-btn zq-btn-primary">{{ clientTaskModal.saving ? 'Saving…' : 'View Board' }}</button>
+                        </div>
+                    </div>
+                </div>

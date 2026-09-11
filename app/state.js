@@ -36,6 +36,13 @@ export function createInitialState() {
             loginOtpCooldownTimer: null,
             pendingLoginContext: null,
             currentTab: 'dashboard',
+            // Screens whose markup has been fetched and mounted. A screen stays
+            // mounted once it has been opened, so a half-filled form survives a
+            // trip to another tab exactly as it did when every screen was in
+            // index.html. See app/views.js.
+            mountedViews: [],
+            viewLoading: false,
+            viewError: '',
             mobileMenuOpen: false,
             // The navigation stays hidden until the user opens it deliberately
             // from the single menu control, on desktop as well as on mobile.

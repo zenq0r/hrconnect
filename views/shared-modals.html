@@ -1,0 +1,488 @@
+<!-- =====================================================================
+     SHARED MODALS AND DRAWERS
+
+     Overlays that more than one screen opens. They load with the shell so
+     that whichever screen raises one always has its markup mounted.
+     ===================================================================== -->
+
+        <!-- CLAIM RECORD PREVIEW -->
+        <div v-if="claimPreview.show && claimPreview.claim" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 no-print" role="dialog" aria-modal="true" aria-label="Claim Record Preview">
+            <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 z-10 flex items-center justify-between bg-brand-dark text-white px-6 py-4 rounded-t-2xl">
+                    <div><p class="text-[10px] font-bold tracking-widest text-brand-gold uppercase">Read-only</p><h3 class="text-base font-extrabold"><i class="fa-solid fa-receipt mr-2 text-brand-gold"></i>{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Claim' }} Record Preview</h3></div>
+                    <button type="button" @click="claimPreview.show = false" class="bg-white/10 hover:bg-white/20 p-2 rounded-lg" title="Close preview"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="p-5 md:p-7 space-y-6 text-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <div><p class="text-slate-400 font-bold uppercase tracking-wide">{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Voucher / Reference No.' : 'Receipt / Reference No.' }}</p><p class="text-lg font-extrabold text-brand-dark dark:text-white mt-1">{{ claimPreview.claim.documentType === 'Payment Voucher' ? claimPreview.claim.voucherNo : claimPreview.claim.receiptNo }}</p><p class="text-slate-500 mt-1">{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Payment Date' : 'Expense Date' }}: {{ formatDateWithDay(claimPreview.claim.documentType === 'Payment Voucher' ? claimPreview.claim.paymentDate : claimPreview.claim.expenseDate) }}</p><p class="text-slate-400 mt-1">Submitted: {{ formatDateTimeWithDay(claimPreview.claim.createdAt) }}</p></div>
+                        <span :class="{
+                            'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': claimPreview.claim.status && claimPreview.claim.status.startsWith('Pending'),
+                            'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': claimPreview.claim.status === 'Approved',
+                            'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300': claimPreview.claim.status === 'Rejected'
+                        }" class="px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase">{{ claimPreview.claim.status }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700"><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide mb-3"><i class="fa-solid fa-user mr-2 text-brand-blue"></i>{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Requested By' : 'Applicant' }}</h4><p class="font-bold text-slate-800 dark:text-slate-100">{{ requesterNameLive(claimPreview.claim.empNo, claimPreview.claim.name) }}</p><p class="text-slate-500 mt-1">{{ claimPreview.claim.empNo }} · {{ requesterDeptLive(claimPreview.claim.empNo, claimPreview.claim.dept) || '-' }}</p><p class="text-slate-500 mt-1">{{ claimPreview.claim.empEmail }}</p></section>
+                        <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700"><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide mb-3"><i class="fa-solid fa-money-bill-wave mr-2 text-emerald-600"></i>{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Payment Details' : 'Expense Details' }}</h4><p class="font-bold text-slate-800 dark:text-slate-100">{{ claimPreview.claim.category }}</p><p class="text-slate-500 mt-1">{{ claimPreview.claim.subCategory }}</p><p class="text-xl font-extrabold text-brand-dark dark:text-white mt-3">{{ formatCurrency(claimPreview.claim.amount) }}</p></section>
+                    </div>
+
+                    <section v-if="claimPreview.claim.documentType === 'Payment Voucher'" class="bg-amber-50 dark:bg-amber-950/20 p-5 rounded-xl border border-amber-200 dark:border-amber-800"><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide mb-3"><i class="fa-solid fa-money-check-dollar mr-2 text-brand-gold"></i>Payment Recipient</h4><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-amber-900 dark:text-amber-100"><p><strong>Payee:</strong> {{ claimPreview.claim.payeeName }}</p><p><strong>Payee type:</strong> {{ claimPreview.claim.payeeType }}</p><p><strong>Reference:</strong> {{ claimPreview.claim.payeeReference || '-' }}</p><p><strong>Purpose:</strong> {{ claimPreview.claim.paymentPurpose }}</p></div></section>
+                    <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700"><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide mb-2"><i class="fa-solid fa-align-left mr-2 text-brand-gold"></i>{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Payment Description' : 'Expense Description' }}</h4><p class="text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{{ claimPreview.claim.description }}</p></section>
+
+                    <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
+                        <h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide mb-4"><i class="fa-solid fa-route mr-2 text-brand-blue"></i>Approval Workflow</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div v-for="step in [{ role: 'HR', label: 'Human Resource' }, { role: 'Account', label: 'Finance Account' }, { role: 'Director', label: 'Director (Final)' }]" :key="step.role"
+                                 :class="claimStageStamp(claimPreview.claim, step.role) && !claimStageStamp(claimPreview.claim, step.role).bypassed ? 'border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20' : claimPreview.claim.assignedToRole === step.role ? 'border-brand-gold bg-amber-50 dark:bg-amber-950/20' : 'border-slate-200 dark:border-slate-700'"
+                                 class="border rounded-xl p-3">
+                                <p class="font-extrabold text-brand-dark dark:text-white flex items-center gap-1.5">
+                                    <i v-if="claimStageStamp(claimPreview.claim, step.role) && !claimStageStamp(claimPreview.claim, step.role).bypassed" class="fa-solid fa-circle-check text-emerald-600 text-[11px]"></i>
+                                    {{ step.label }}
+                                </p>
+                                <template v-if="claimStageStamp(claimPreview.claim, step.role) && !claimStageStamp(claimPreview.claim, step.role).bypassed">
+                                    <p class="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold mt-1">Approved by {{ approverNameLive(claimStageStamp(claimPreview.claim, step.role).approvedByUid, claimStageStamp(claimPreview.claim, step.role).approvedByName) }}</p>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">{{ formatDateTime(claimStageStamp(claimPreview.claim, step.role).approvedAt) }}</p>
+                                </template>
+                                <template v-else-if="claimStageStamp(claimPreview.claim, step.role) && claimStageStamp(claimPreview.claim, step.role).bypassed">
+                                    <p class="text-[10px] text-slate-400 italic mt-1">Bypassed — skipped by Director</p>
+                                </template>
+                                <p v-else class="text-[10px] text-slate-400 mt-1">{{ claimPreview.claim.assignedToRole === step.role ? 'Current approver' : 'Workflow stage' }}</p>
+                            </div>
+                        </div>
+                        <div v-if="claimPreview.claim.approvedByName" class="mt-4 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg p-3 text-emerald-800 dark:text-emerald-200">
+                            <p class="font-bold">Approved by {{ approverNameLive(claimPreview.claim.approvedByUid, claimPreview.claim.approvedByName) }} ({{ claimPreview.claim.approvedByRole }}).</p>
+                            <p v-if="claimPreview.claim.approvalPath" class="mt-1 font-extrabold">{{ claimPreview.claim.approvalPath }}</p>
+                            <p v-if="claimPreview.claim.bypassedReviews && claimPreview.claim.bypassedReviews.length" class="mt-1 text-[10px]">HR/Finance stages bypassed: {{ claimPreview.claim.bypassedReviews.join(', ') }}. No further review required.</p>
+                            <p class="text-[10px] mt-1">{{ formatDateTime(claimPreview.claim.approvedAt) }}</p>
+                        </div>
+                        <p v-if="claimPreview.claim.rejectedByName" class="mt-4 text-red-600 dark:text-red-300 font-bold">Rejected by {{ approverNameLive(claimPreview.claim.rejectedByUid, claimPreview.claim.rejectedByName) }} ({{ claimPreview.claim.rejectedByRole }}) on {{ formatDateTime(claimPreview.claim.rejectedAt) }}.</p>
+                    </section>
+
+                    <section class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700"><div class="flex items-center justify-between gap-3"><div><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide"><i class="fa-solid fa-paperclip mr-2 text-brand-gold"></i>{{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Supporting Document' : 'Receipt Attachment' }}</h4><p class="text-slate-400 mt-1">{{ claimPreview.claim.receiptAttachmentName || 'Attached receipt' }}</p></div><button v-if="claimPreview.claim.receiptAttachment" type="button" @click="openAttachment(claimPreview.claim.receiptAttachment, 'Receipt attachment')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-eye"></i><span>View Attachment</span></button></div><img v-if="isSupportedImageAttachment(claimPreview.claim.receiptAttachment)" :src="claimPreview.claim.receiptAttachment" alt="Claim receipt preview" class="mt-4 max-h-72 rounded-lg border border-slate-200 mx-auto"></section>
+                    <section v-if="claimPreview.claim.directorApprovalAttachment" class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700"><div class="flex items-center justify-between gap-3"><div><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide"><i class="fa-solid fa-file-signature mr-2 text-brand-gold"></i>Director Approval Document</h4><p class="text-slate-400 mt-1">{{ claimPreview.claim.directorApprovalAttachmentName || 'Supporting document attached' }}</p></div><button type="button" @click="openAttachment(claimPreview.claim.directorApprovalAttachment, 'Director approval document')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-eye"></i><span>View Attachment</span></button></div><img v-if="isSupportedImageAttachment(claimPreview.claim.directorApprovalAttachment)" :src="claimPreview.claim.directorApprovalAttachment" alt="Director approval document preview" class="mt-4 max-h-72 rounded-lg border border-slate-200 mx-auto"></section>
+                    <div v-if="claimPreview.claim.status === 'Approved'" class="flex justify-end"><button type="button" @click="claimPreview.claim.documentType === 'Payment Voucher' ? printApprovedVoucher(claimPreview.claim) : printApprovedClaim(claimPreview.claim)" class="zq-btn zq-btn-outline"><i class="fa-solid fa-print"></i><span>Print Approved {{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Voucher' : 'Claim' }} PDF</span></button></div>
+                    <section v-if="isFullAccessRole && (claimPreview.claim.documentType === 'Payment Voucher' ? canApprovePaymentVoucher(claimPreview.claim) : canApproveClaim(claimPreview.claim))" class="bg-amber-50 dark:bg-amber-950/20 p-5 rounded-xl border border-amber-200 dark:border-amber-800"><h4 class="font-extrabold text-brand-dark dark:text-white uppercase tracking-wide"><i class="fa-solid fa-file-signature mr-2 text-brand-gold"></i>Director Approval Document <span class="text-red-500">*</span></h4><p class="text-slate-600 dark:text-slate-300 mt-1">A supporting document is required before final approval. PNG, JPG or JPEG only; maximum 2MB.</p><div class="flex flex-wrap items-center gap-2 mt-4"><label for="director-approval-attachment" :class="attachmentUploadState.director ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer"><i class="fa-solid fa-upload"></i><span>{{ attachmentUploadState.director ? 'Uploading...' : 'Select Document' }}</span><input id="director-approval-attachment" type="file" @change="handleDirectorApprovalAttachmentUpload" :disabled="attachmentUploadState.director" accept=".png,.jpeg,.jpg,image/png,image/jpeg" class="hidden"></label><span class="text-xs font-semibold text-slate-500 dark:text-slate-300">{{ claimPreview.directorApprovalAttachmentName || 'No document selected' }}</span><button v-if="claimPreview.directorApprovalAttachment" type="button" @click="openAttachment(claimPreview.directorApprovalAttachment, 'Director approval document')" class="text-brand-blue font-bold text-xs">View selected document</button></div></section>
+                    <div v-if="claimPreview.claim.documentType === 'Payment Voucher' ? canApprovePaymentVoucher(claimPreview.claim) : canApproveClaim(claimPreview.claim)" class="flex flex-col sm:flex-row justify-end gap-3 border-t border-slate-200 dark:border-slate-700 pt-5">
+                        <button type="button" @click="(claimPreview.claim.documentType === 'Payment Voucher' ? rejectPaymentVoucher(claimPreview.claim) : rejectClaim(claimPreview.claim)); claimPreview.show = false" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-xmark"></i><span>Reject {{ claimPreview.claim.documentType === 'Payment Voucher' ? 'Voucher' : 'Claim' }}</span></button>
+                        <button type="button" @click="claimPreview.claim.documentType === 'Payment Voucher' ? approvePaymentVoucherFromPreview() : approveClaimFromPreview()" class="zq-btn zq-btn-success"><i class="fa-solid fa-check"></i><span>{{ claimPreview.claim.status === 'Pending Director' ? 'Final Approve' : 'Approve & Forward' }}</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- IMAGE ATTACHMENT PREVIEW -->
+        <div v-if="attachmentPreview.show" class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 no-print" role="dialog" aria-modal="true" :aria-label="attachmentPreview.label" @click.self="attachmentPreview.show = false">
+            <div class="w-full max-w-5xl overflow-hidden rounded-xl bg-white dark:bg-slate-800 shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-4 py-3">
+                    <div class="flex items-center gap-2 text-sm font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-image text-brand-blue"></i>{{ attachmentPreview.label }}</div>
+                    <button type="button" @click="attachmentPreview.show = false" class="rounded-lg bg-slate-200 dark:bg-slate-700 px-3 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600"><i class="fa-solid fa-xmark mr-1"></i>Close</button>
+                </div>
+                <div class="max-h-[78vh] overflow-auto bg-slate-100 dark:bg-slate-900/60 p-4 md:p-6">
+                    <img :src="attachmentPreview.url" :alt="attachmentPreview.label" class="mx-auto h-auto max-w-full rounded-lg bg-white shadow-lg">
+                </div>
+            </div>
+        </div>
+
+        <!-- READ-ONLY RECORD PREVIEW -->
+        <div v-if="recordPreview.show" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex flex-col p-3 md:p-6 no-print" role="dialog" aria-modal="true" aria-label="Read-only PDF Preview">
+            <div class="flex items-center justify-between bg-slate-800 text-white px-4 py-3 rounded-t-xl max-w-5xl w-full mx-auto">
+                <div class="flex items-center gap-2 text-sm font-bold"><i class="fa-solid fa-file-pdf text-red-400"></i> Read-only PDF Preview</div>
+                <button type="button" @click="recordPreview.show = false" class="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-bold"><i class="fa-solid fa-xmark mr-1"></i>Close</button>
+            </div>
+            <div class="bg-slate-700 overflow-auto flex-1 max-w-5xl w-full mx-auto rounded-b-xl p-4 md:p-8">
+                <div v-html="recordPreview.html" class="bg-white text-slate-900 shadow-2xl mx-auto max-w-4xl w-full min-h-[900px]"></div>
+            </div>
+        </div>
+
+
+        <!-- CLIENT INFORMATION VIEW -->
+        <div v-if="clientView.show" class="zq-drawer-overlay z-[102] no-print" role="dialog" aria-modal="true" aria-label="Client Information" @click.self="closeClientView()">
+            <div class="zq-drawer zq-drawer-lg">
+                <div class="zq-modal-header">
+                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="zq-modal-title mt-1">Client Information</h3><p class="zq-modal-description">Registered company and contact information.</p></div>
+                    <button type="button" @click="closeClientView()" aria-label="Close client information" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
+                        <div class="flex flex-wrap items-start justify-between gap-2">
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p><p v-if="clientView.client.companyType || clientView.client.industry" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ [clientView.client.companyType, clientView.client.industry].filter(Boolean).join(' · ') }}</p></div>
+                            <div class="flex shrink-0 items-center gap-1.5">
+                                <span v-if="clientView.client.id && isNewClient(clientView.client.id)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 text-[9px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
+                                <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning · {{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }}</span>
+                                <span :class="clientTierMeta(clientView.client.clientTier).badgeClass" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ clientTierMeta(clientView.client.clientTier).label }}</span>
+                                <span :class="clientHealthScore(clientView.client).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase" :title="'Health Score: ' + clientHealthScore(clientView.client).score + '/100'">{{ clientHealthScore(clientView.client).label }} · {{ clientHealthScore(clientView.client).score }}</span>
+                            </div>
+                        </div>
+                        <div v-if="canManageClients && clientView.client.id" class="mt-3 flex items-center gap-1.5 border-t border-slate-200 dark:border-slate-700 pt-3">
+                            <span class="text-[10px] font-bold text-slate-400 dark:text-slate-400">Set Tier:</span>
+                            <button type="button" v-for="tier in ['Standard','Premium','Priority']" :key="`tier-${tier}`" @click="updateClientTier(clientView.client, tier); clientView.client.clientTier = tier" :class="clientView.client.clientTier === tier ? clientTierMeta(tier).badgeClass + ' ring-2 ring-offset-1 ring-brand-blue' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" class="rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase transition">{{ tier }}</button>
+                        </div>
+                    </div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Contact Person</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Position</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
+                    <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
+                    <div v-if="clientView.client.clientNotes" class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Internal Notes</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p></div>
+                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <div class="mb-3"><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Documents & Billing History</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Every quotation and invoice created for this client.</p></div>
+                        <div v-if="!clientDocHistory(clientView.client).length" class="zq-empty-state zq-empty-state-compact">
+                            <i class="fa-regular fa-file-invoice zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">No documents yet</p>
+                            <p class="zq-empty-state-text">Quotations and invoices created for this client will appear here.</p>
+                        </div>
+                        <div v-else class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead><tr><th>Date</th><th>Module</th><th>Ref No.</th><th class="text-right">Amount (RM)</th><th>Status</th><th class="text-center w-16">View</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="item in clientDocHistory(clientView.client)" :key="item.id">
+                                        <td class="text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
+                                        <td><span :class="item.tagClass" class="px-2.5 py-1 rounded-full text-[11px] font-bold">{{ item.type }}</span></td>
+                                        <td class="font-bold text-brand-dark dark:text-slate-100">{{ item.docNo }}</td>
+                                        <td class="text-right font-extrabold text-brand-dark dark:text-slate-100">{{ formatCurrency(item.amount) }}</td>
+                                        <td><span :class="getActivityStatus(item).className" class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase">{{ getActivityStatus(item).label }}</span></td>
+                                        <td class="text-center"><button type="button" @click="viewRecord(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Record"><i class="fa-solid fa-eye"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <div class="mb-3 flex items-center justify-between gap-3">
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Documents</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">All JPG, PNG and PDF files collected for this client, viewable by their Client Portal too.</p></div>
+                            <label v-if="canUploadClientDocuments" class="shrink-0 cursor-pointer rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
+                                <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>{{ clientDocuments.uploading ? 'Uploading…' : 'Upload Document' }}
+                                <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
+                            </label>
+                        </div>
+                        <div v-if="clientDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
+                        <div v-else-if="clientDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-8 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ clientDocuments.error }}</p><button type="button" @click="loadClientDocuments(clientDocuments.clientDirectoryId, clientDocuments.clientName, clientDocuments.clientEmail)" class="mt-3 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"><i class="fa-solid fa-rotate-right mr-1.5"></i>Try Again</button></div>
+                        <div v-else-if="!clientDocuments.items.length" class="zq-empty-state zq-empty-state-compact">
+                        <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                        <p class="zq-empty-state-title">No documents uploaded yet</p>
+                        <p class="zq-empty-state-text">{{ canUploadClientDocuments ? 'Use Upload Document above to add the first one.' : 'Documents shared with this client will appear here.' }}</p>
+                    </div>
+                        <div v-else class="space-y-2">
+                            <div v-for="item in clientDocuments.items" :key="item.id" @contextmenu.prevent="openContextMenu($event, clientDocumentMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, clientDocumentMenuItems(item))" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                                <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
+                                <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}</p></div>
+                                <div class="flex shrink-0 gap-1.5">
+                                    <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                                    <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
+                                    <button v-if="canManageDocuments" type="button" @click="requestDeleteClientDocument(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Remove"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="closeClientView()" class="zq-btn zq-btn-primary">Close</button></div>
+            </div>
+        </div>
+
+        <!-- CLIENT ACTION CONFIRMATION -->
+        <div v-if="clientActionConfirm.show" class="zq-modal-overlay" role="dialog" aria-modal="true" @click.self="clientActionConfirm.show = false">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <div class="flex items-center gap-3"><span :class="clientActionConfirm.action === 'delete' ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i :class="clientActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="zq-modal-title">{{ clientActionConfirm.action === 'delete' ? 'Delete client record?' : 'Edit client record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ clientActionConfirm.client?.clientName }}</p></div></div>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ clientActionConfirm.action === 'delete' ? 'This action removes the client record. Please confirm before continuing.' : 'You will open the dedicated Client Information form. Only this selected client record changes when you save.' }}</p>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="clientActionConfirm.show = false" class="zq-btn zq-btn-outline">No</button><button type="button" @click="confirmClientAction" :class="clientActionConfirm.action === 'delete' ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">Yes, Continue</button></div>
+            </div>
+        </div>
+
+        <!-- GENERIC APP CONFIRMATION -->
+        <div v-if="appConfirm.show" class="zq-modal-overlay z-[110]" role="dialog" aria-modal="true" :aria-label="appConfirm.title" @click.self="resolveAppConfirm(false)">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <div class="flex items-center gap-3">
+                        <span :class="appConfirm.danger ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                        <h3 class="zq-modal-title">{{ appConfirm.title }}</h3>
+                    </div>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ appConfirm.message }}</p>
+                    <label v-if="appConfirm.noteLabel" class="mt-4 block">
+                        <span class="zq-label">{{ appConfirm.noteLabel }}</span>
+                        <textarea v-model="appConfirm.note" :placeholder="appConfirm.notePlaceholder" rows="3" class="zq-input mt-1.5 normal-case"></textarea>
+                    </label>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="resolveAppConfirm(false)" class="zq-btn zq-btn-outline">Cancel</button>
+                    <button type="button" @click="resolveAppConfirm(true)" :class="appConfirm.danger ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">{{ appConfirm.confirmLabel }}</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMPLOYEE INFORMATION VIEW -->
+        <div v-if="employeeView.show" class="zq-drawer-overlay z-[102]" role="dialog" aria-modal="true" aria-label="Employee Information" @click.self="employeeView.show = false">
+            <div class="zq-drawer zq-drawer-lg">
+                <div class="zq-modal-header">
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">HR Employee Management</p>
+                        <h3 class="zq-modal-title mt-1">Employee Information</h3>
+                        <p class="zq-modal-description">Sensitive identifiers are protected and shown only as the final four digits.</p>
+                    </div>
+                    <button type="button" @click="employeeView.show = false" aria-label="Close employee information" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-wrap items-start justify-between gap-3"><div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Employee</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ employeeView.employee.name }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">{{ employeeView.employee.empNo }} · {{ employeeView.employee.position }}</p></div><div class="text-right"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'" class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-extrabold"><span :class="isEmployeeOnline(employeeViewLiveRecord) ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'" class="h-2 w-2 rounded-full"></span>{{ employeePresenceLabel(employeeViewLiveRecord) }}</span><p class="mt-1 text-[9px] text-slate-400 dark:text-slate-400">{{ employeeLastSeen(employeeViewLiveRecord) }}</p></div></div></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Department</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.dept }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Employment</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.employmentType }} · {{ employeeView.employee.status }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Work Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ employeeView.employee.email }}</p></div>
+                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Join Date</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ employeeView.employee.joinDate }}</p></div>
+                </div>
+                <div class="zq-form-section"><h4 class="zq-form-section-title">Protected information</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">ID / Passport</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.ic }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">Bank Account</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.bankAcc }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">EPF / SOCSO</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.epfNo }} · {{ employeeView.employee.socsoNo }}</span></p>
+                        <p class="rounded-lg border border-slate-200 dark:border-slate-700 p-3"><span class="block text-slate-400 dark:text-slate-400 font-bold">EIS / Tax PCB</span><span class="mt-1 block font-mono font-bold text-slate-700 dark:text-slate-200">{{ employeeView.employee.eisNo }} · {{ employeeView.employee.taxNo }}</span></p>
+                    </div>
+                </div>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="employeeView.show = false" class="zq-btn zq-btn-primary">Close</button></div>
+            </div>
+        </div>
+
+        <!-- EMPLOYEE ACTION CONFIRMATION -->
+        <div v-if="employeeActionConfirm.show" class="zq-modal-overlay" role="dialog" aria-modal="true" @click.self="employeeActionConfirm.show = false">
+            <div class="zq-modal zq-modal-sm">
+                <div class="zq-modal-body">
+                    <div class="flex items-center gap-3"><span :class="employeeActionConfirm.action === 'delete' ? 'is-danger' : 'is-warning'" class="zq-confirm-icon"><i :class="employeeActionConfirm.action === 'delete' ? 'fa-solid fa-trash' : 'fa-solid fa-pen'"></i></span><div><h3 class="zq-modal-title">{{ employeeActionConfirm.action === 'delete' ? 'Delete employee record?' : 'Edit employee record?' }}</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ employeeActionConfirm.employee?.name }} · {{ employeeActionConfirm.employee?.empNo }}</p></div></div>
+                    <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{{ employeeActionConfirm.action === 'delete' ? 'This action removes the employee record. Please confirm before continuing.' : 'Sensitive fields remain protected and require a full value when changed.' }}</p>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="employeeActionConfirm.show = false" class="zq-btn zq-btn-outline">No</button><button type="button" @click="confirmEmployeeAction" :class="employeeActionConfirm.action === 'delete' ? 'zq-btn-destructive' : 'zq-btn-primary'" class="zq-btn">Yes, Continue</button></div>
+            </div>
+        </div>
+
+        <!-- MODAL PEKERJA & AKSES -->
+        <div v-if="employeeModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="employeeModal.isEdit ? 'Update Employee' : 'Add New Employee'">
+            <form @submit.prevent="saveEmployee" class="zq-modal zq-modal-lg">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">{{ employeeModal.isEdit ? 'Update Employee: ' + employeeModal.form.empNo : 'Add New Employee' }}</h3>
+                    <button type="button" @click="employeeModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                    <div class="md:col-span-2 zq-form-section">
+                        <h4 class="zq-form-section-title">Basic Information</h4>
+                        <p class="text-slate-400 -mt-2">Core employment and department details.</p>
+                    </div>
+                    <div><label for="emp-modal-id" class="zq-label">Employee ID * (ZEN-XXXXXXX)</label><input id="emp-modal-id" name="empModalId" v-model="employeeModal.form.empNo" :disabled="employeeModal.isEdit" required class="zq-input font-bold"></div>
+                    <div><label for="emp-modal-name" class="zq-label">Full Name *</label><input id="emp-modal-name" name="empModalName" v-model="employeeModal.form.name" required class="zq-input font-semibold"></div>
+                    <div><label for="emp-modal-email" class="zq-label">Work Email</label><input id="emp-modal-email" name="empModalEmail" type="email" v-model="employeeModal.form.email" class="zq-input"></div>
+                    <div><label for="emp-modal-position" class="zq-label">Position</label><input id="emp-modal-position" name="empModalPosition" v-model="employeeModal.form.position" class="zq-input"></div>
+                    <div><label for="emp-modal-dept" class="zq-label">Department *</label><input id="emp-modal-dept" name="empModalDept" v-model="employeeModal.form.dept" required placeholder="e.g. Human Resource" class="zq-input"></div>
+                    <div><label for="emp-modal-type" class="zq-label">Employment Type *</label><select id="emp-modal-type" name="empModalType" v-model="employeeModal.form.employmentType" required class="zq-input font-semibold"><option value="Probation">Probation</option><option value="Permanent">Permanent</option><option value="Part-time">Part-time</option><option value="Intern">Intern</option></select></div>
+                    <div><label for="emp-modal-join-date" class="zq-label">Join Date *</label><input id="emp-modal-join-date" name="empModalJoinDate" type="date" v-model="employeeModal.form.joinDate" required class="zq-input"></div>
+                    <div class="md:col-span-2 zq-form-section">
+                        <h4 class="zq-form-section-title">Advanced Information</h4>
+                        <p class="text-slate-400 -mt-2">Identity, statutory, banking and payroll details.</p>
+                        <p v-if="employeeModal.isEdit && canEditLockedIdentityFields" class="mt-2 text-amber-700 font-semibold">Sensitive values are masked. Leave a field blank to keep it unchanged, or enter the complete new value to replace it.</p>
+                        <p v-else-if="employeeModal.isEdit" class="mt-2 text-red-700 dark:text-red-400 font-semibold"><i class="fa-solid fa-lock mr-1"></i>National ID/Passport, Bank Account and EPF/SOCSO are locked once an employee record exists — only Superadmin/Director may change them.</p>
+                    </div>
+                    <div><label for="emp-modal-ic" class="zq-label">National ID / Passport *</label><input id="emp-modal-ic" name="empModalIc" v-model="employeeModal.form.ic" :required="!employeeModal.isEdit" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.ic) : 'Enter complete ID / passport'" class="zq-input"></div>
+                    <div><label for="emp-modal-bank" class="zq-label">Bank Account</label><input id="emp-modal-bank" name="empModalBank" v-model="employeeModal.form.bankAcc" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.bankAcc) : 'Enter complete account number'" class="zq-input"></div>
+                    <div><label for="emp-modal-epf" class="zq-label">EPF No.</label><input id="emp-modal-epf" name="empModalEpf" v-model="employeeModal.form.epfNo" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.epfNo) : 'Enter complete EPF number'" class="zq-input"></div>
+                    <div><label for="emp-modal-socso" class="zq-label">SOCSO No.</label><input id="emp-modal-socso" name="empModalSocso" v-model="employeeModal.form.socsoNo" :disabled="employeeModal.isEdit && !canEditLockedIdentityFields" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.socsoNo) : 'Enter complete SOCSO number'" class="zq-input"></div>
+                    <div><label for="emp-modal-eis" class="zq-label">EIS No.</label><input id="emp-modal-eis" name="empModalEis" v-model="employeeModal.form.eisNo" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.eisNo) : 'Enter complete EIS number'" class="zq-input"></div>
+                    <div><label for="emp-modal-tax" class="zq-label">Tax / PCB No.</label><input id="emp-modal-tax" name="empModalTax" v-model="employeeModal.form.taxNo" :placeholder="employeeModal.isEdit ? 'Current: ' + maskSensitive(employeeModal.originalSensitive.taxNo) : 'Enter complete tax / PCB number'" class="zq-input"></div>
+                    <div><label for="emp-modal-salary" class="zq-label">Basic Salary (RM)</label><input id="emp-modal-salary" name="empModalSalary" type="number" v-model="employeeModal.form.basicSalary" min="0" step="0.01" class="zq-input font-bold"></div>
+                    <div><label for="emp-modal-allowance" class="zq-label">Monthly Allowance (RM)</label><input id="emp-modal-allowance" name="empModalAllowance" type="number" v-model="employeeModal.form.allowance" min="0" step="0.01" class="zq-input"></div>
+                    <div><label for="emp-modal-deduction" class="zq-label">Fixed Deduction (RM)</label><input id="emp-modal-deduction" name="empModalDeduction" type="number" v-model="employeeModal.form.deduction" min="0" step="0.01" class="zq-input"></div>
+                    <div class="flex items-center space-x-2 pt-2">
+                        <input type="checkbox" id="isSenior" name="empModalSenior" v-model="employeeModal.form.isSenior" class="zq-checkbox">
+                        <label for="isSenior" class="font-bold text-slate-700 dark:text-slate-300">Senior Citizen (60+ Years - EPF/SOCSO Exemption)</label>
+                    </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="employeeModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Data</button>
+                </div>
+            </form>
+        </div>
+
+        <div v-if="userModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access'">
+            <form @submit.prevent="savePortalUser" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">{{ userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access' }}</h3>
+                    <button type="button" @click="userModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div><label for="usr-modal-name" class="zq-label">Username *</label><input id="usr-modal-name" name="usrModalName" v-model="userModal.form.name" required class="zq-input"></div>
+                    <div><label for="usr-modal-email" class="zq-label">Sign-In Email *</label><input id="usr-modal-email" name="usrModalEmail" type="email" v-model="userModal.form.email" :disabled="userModal.isEdit" required :placeholder="userModal.form.role === 'Client' ? 'client@gmail.com' : 'name@zenqor.com.my or name@zenq0r.com'" :title="userModal.form.role === 'Client' ? 'Client access uses the email registered by staff.' : 'Staff and Management must use an approved company domain.'" class="zq-input"><p v-if="userModal.form.role === 'Client'" class="text-[10px] text-emerald-600 font-semibold mt-1">Client access may use any email registered by staff.</p><p v-else class="text-[10px] text-slate-400 mt-1">Staff and Management must use @zenqor.com.my or @zenq0r.com.</p></div>
+                    <div v-if="!userModal.isEdit"><label for="usr-modal-pass" class="zq-label">Temporary Password</label><input id="usr-modal-pass" name="usrModalPass" type="text" v-model="userModal.form.password" readonly aria-readonly="true" class="zq-input"><p class="text-[10px] text-slate-400 mt-1">Generated automatically and locked. The user must change it after first sign-in.</p></div>
+                    <div>
+                        <label for="usr-modal-role" class="zq-label">Role *</label>
+                        <select id="usr-modal-role" name="usrModalRole" v-model="userModal.form.role" class="zq-input font-bold">
+                                            <option v-if="userProfile.role === 'Superadmin' || userProfile.role === 'Director'" value="Director">Director</option>
+                                            <option value="Superadmin">Super Admin</option>
+                                            <option value="HR">Human Resource Management</option>
+                                            <option value="Account">Finance Account Management</option>
+                                            <option value="IT">Intelligence Team Management</option>
+                                            <option value="Staff">Operation Team Management</option>
+                                            <option value="Client">Client Users System Terminal</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="userModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Access</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- STAFF PORTAL ACCOUNT DRAWER — the View / Read / Access interactions.
+             All three are read-only, so they share one drawer and differ only in
+             which tab it opens on. -->
+        <div v-if="staffPortalAccount.show" class="zq-drawer-overlay z-[102]" role="dialog" aria-modal="true" aria-label="Staff Portal account" @click.self="closeStaffPortalAccount()">
+            <div class="zq-drawer zq-drawer-lg">
+                <div class="zq-modal-header">
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Staff Portal</p>
+                        <h3 class="zq-modal-title mt-1">{{ staffPortalAccount.account?.name || staffPortalAccount.account?.email }}</h3>
+                        <p class="zq-modal-description">{{ staffPortalAccount.account?.email }} · {{ getRoleDisplayName(staffPortalAccount.account?.role) }}</p>
+                    </div>
+                    <button type="button" @click="closeStaffPortalAccount()" aria-label="Close Staff Portal account" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4">
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" @click="staffPortalAccount.tab = 'overview'" :class="staffPortalAccount.tab === 'overview' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition"><i class="fa-solid fa-eye mr-1.5"></i>View</button>
+                        <button type="button" @click="staffPortalAccount.tab = 'activity'" :class="staffPortalAccount.tab === 'activity' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition"><i class="fa-solid fa-file-lines mr-1.5"></i>Read</button>
+                        <button type="button" @click="staffPortalAccount.tab = 'access'" :class="staffPortalAccount.tab === 'access' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-3 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition"><i class="fa-solid fa-shield-halved mr-1.5"></i>Access</button>
+                    </div>
+
+                    <div v-if="staffPortalAccount.tab === 'overview'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
+                            <p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Account status</p>
+                            <span :class="['zq-badge', 'mt-2', staffPortalStatusBadge(staffPortalAccount.account).className]"><i :class="['fa-solid', staffPortalStatusBadge(staffPortalAccount.account).icon]"></i>{{ staffPortalStatusBadge(staffPortalAccount.account).label }}</span>
+                        </div>
+                        <div><p class="font-bold text-slate-400">Username</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ staffPortalAccount.account?.name || '-' }}</p></div>
+                        <div><p class="font-bold text-slate-400">Sign-In Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ staffPortalAccount.account?.email || '-' }}</p></div>
+                        <div><p class="font-bold text-slate-400">Role (RBAC)</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ getRoleDisplayName(staffPortalAccount.account?.role) }}</p></div>
+                        <div><p class="font-bold text-slate-400">Password change required</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ staffPortalAccount.account?.mustChangePassword === true ? 'Yes — at next sign-in' : 'No' }}</p></div>
+                        <div v-if="isAccountLocked(staffPortalAccount.account)" class="sm:col-span-2 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-900 p-4">
+                            <p class="font-bold text-rose-700 dark:text-rose-300"><i class="fa-solid fa-lock mr-1.5"></i>Locked out of the portal</p>
+                            <p class="mt-1 text-rose-700 dark:text-rose-300">{{ staffPortalAccount.account?.accessLockReason || 'No reason recorded.' }}</p>
+                            <p class="mt-1 text-[10px] text-rose-700 dark:text-rose-300">Locked by {{ staffPortalAccount.account?.accessLockedBy || 'an administrator' }} · {{ formatDateTime(staffPortalAccount.account?.accessLockedAt) }}</p>
+                        </div>
+                    </div>
+
+                    <div v-else-if="staffPortalAccount.tab === 'activity'" class="space-y-2">
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">The last 100 audited events recorded for this account.</p>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead><tr><th>When</th><th>Action</th><th>Detail</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="log in staffPortalAccountActivity(staffPortalAccount.account)" :key="log.id">
+                                        <td class="whitespace-nowrap text-slate-500 dark:text-slate-400">{{ formatDateTime(log.timestamp) }}</td>
+                                        <td><span class="zq-badge zq-badge-neutral">{{ log.action }}</span></td>
+                                        <td class="text-slate-600 dark:text-slate-300">{{ log.details }}</td>
+                                    </tr>
+                                    <tr v-if="!staffPortalAccountActivity(staffPortalAccount.account).length" class="zq-table-empty">
+                                        <td colspan="3">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-file-lines zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">Nothing recorded yet</p>
+                                                <p class="zq-empty-state-text">Audited events for this account will appear here.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div v-else class="space-y-2">
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">What the {{ getRoleDisplayName(staffPortalAccount.account?.role) }} role reaches, straight from the portal's own access rules.</p>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead><tr><th>Module</th><th class="text-center">Open</th><th class="text-center">Edit</th><th class="text-center">Delete</th></tr></thead>
+                                <tbody>
+                                    <tr v-for="entry in staffPortalAccessMatrix(staffPortalAccount.account?.role)" :key="entry.module">
+                                        <td class="font-bold text-slate-800 dark:text-slate-200">{{ entry.label }}</td>
+                                        <td class="text-center"><i :class="entry.view ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                        <td class="text-center"><i :class="entry.edit ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                        <td class="text-center"><i :class="entry.remove ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                    </tr>
+                                    <tr v-if="!staffPortalAccessMatrix(staffPortalAccount.account?.role).length" class="zq-table-empty">
+                                        <td colspan="4">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-shield-halved zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No modules for this role</p>
+                                                <p class="zq-empty-state-text">This account holds no workspace beyond the sign-in screen.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="closeStaffPortalAccount()" class="zq-btn zq-btn-primary">Close</button></div>
+            </div>
+        </div>
+
+        <!-- STAFF PORTAL ACCESS REQUEST — raised by the account holder, decided by Super Admin/Director -->
+        <div v-if="accessRequestModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Request a portal access change">
+            <form @submit.prevent="submitAccessRequest" class="zq-modal zq-modal-sm">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Request a Portal Access Change</h3>
+                    <button type="button" @click="accessRequestModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div>
+                        <label for="req-role" class="zq-label">Role you are requesting *</label>
+                        <select id="req-role" name="reqRole" v-model="accessRequestModal.requestedRole" required class="zq-input font-bold">
+                            <option v-for="role in requestableRoles" :key="role" :value="role">{{ getRoleDisplayName(role) }}</option>
+                        </select>
+                        <p class="mt-1 text-[10px] text-slate-400">You currently hold {{ getRoleDisplayName(userProfile.role) }}.</p>
+                    </div>
+                    <div>
+                        <label for="req-reason" class="zq-label">Reason *</label>
+                        <textarea id="req-reason" name="reqReason" v-model="accessRequestModal.reason" rows="3" required class="zq-input" placeholder="Why this account needs the different role"></textarea>
+                    </div>
+                    <p v-if="accessRequestModal.error" class="zq-alert zq-alert-error">{{ accessRequestModal.error }}</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="accessRequestModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" :disabled="accessRequestModal.saving" :class="{ 'is-loading': accessRequestModal.saving }" class="zq-btn zq-btn-primary">Send Request</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MODAL TUKAR KATA LALUAN -->
+        <div v-if="changePasswordModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Kemaskini Kata Laluan Akaun">
+            <form @submit.prevent="handleChangePassword" class="zq-modal zq-modal-sm" style="border-top: 3px solid var(--zq-gold);">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title flex items-center">
+                        <i class="fa-solid fa-shield-halved text-brand-gold mr-2 text-base"></i>
+                        Kemaskini Kata Laluan Akaun
+                    </h3>
+                    <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div>
+                        <label for="pwd-current" class="zq-label">Kata Laluan Semasa *</label>
+                        <input id="pwd-current" type="password" v-model="changePasswordModal.currentPassword" required class="zq-input">
+                    </div>
+                    <div>
+                        <label for="pwd-new" class="zq-label">Kata Laluan Baharu (Min 8 Karakter) *</label>
+                        <input id="pwd-new" type="password" v-model="changePasswordModal.newPassword" required minlength="8" class="zq-input">
+                    </div>
+                    <div>
+                        <label for="pwd-confirm" class="zq-label">Sahkan Kata Laluan Baharu *</label>
+                        <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required minlength="8" class="zq-input">
+                    </div>
+
+                    <p v-if="changePasswordModal.error" class="zq-alert zq-alert-error">{{ changePasswordModal.error }}</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button v-if="!changePasswordModal.required" type="button" @click="changePasswordModal.show = false; changePasswordModal.error = ''" class="zq-btn zq-btn-ghost">Batal</button>
+                    <button type="submit" :disabled="changePasswordModal.loading" :class="{ 'is-loading': changePasswordModal.loading }" class="zq-btn zq-btn-primary">
+                        Simpan Kata Laluan
+                    </button>
+                </div>
+            </form>
+        </div>

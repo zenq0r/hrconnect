@@ -1,0 +1,336 @@
+<!-- =====================================================================
+     PRINT TEMPLATES
+
+     Quotation, invoice, payslip and approved-claim layouts. Only ever
+     visible to a print stylesheet, but loaded with the shell because a
+     print is triggered synchronously from several screens.
+     ===================================================================== -->
+        <!-- TEMPLATES CETAKAN                                                   -->
+        <!-- =================================================================== -->
+
+        <!-- TEMPLATE CETAKAN 1: QUOTATION (A4 PORTRAIT) -->
+        <div v-if="activePrintModule === 'QUOTATION'" id="print-template-quotation" class="print-only p-8 text-sm print-container">
+            <div class="flex justify-between items-start print-header-border pb-4 mb-6">
+                <div class="flex items-start gap-4 min-w-0">
+                    <div class="print-logo-container shrink-0">
+                        <img src="./logo.png" onerror="this.style.display='none'" class="print-logo">
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl font-extrabold text-brand-dark tracking-tight leading-tight">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1>
+                        <p class="mt-1.5 whitespace-pre-line text-[11px] leading-snug text-slate-600">{{ formattedCompanyAddress() }}</p>
+                        <p class="mt-1.5 text-[11px] leading-snug text-slate-600"><span class="whitespace-nowrap">Tel {{ company.phone }}</span><span class="px-1.5 text-slate-300">|</span><span class="whitespace-nowrap">{{ company.email }}</span><span class="px-1.5 text-slate-300">|</span><span class="whitespace-nowrap">{{ company.website || 'www.zenqor.com.my' }}</span></p>
+                        <p class="mt-1.5 text-[11px] font-bold leading-snug text-slate-700"><span class="whitespace-nowrap">Reg. No. {{ company.ssm }}</span><template v-if="company.tin"><span class="px-1.5 text-slate-300">|</span><span class="whitespace-nowrap">TIN {{ company.tin }}</span></template></p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span :class="{
+                              'bg-brand-gold text-brand-dark': ['Open'].includes(docForm.status),
+                              'bg-emerald-600 text-white': docForm.status === 'Accepted',
+                              'bg-red-600 text-white': docForm.status === 'Rejected',
+                              'bg-blue-600 text-white': docForm.status === 'Invoiced'
+                          }"
+                          class="inline-block font-extrabold px-3 py-1 rounded text-xs uppercase tracking-wider mb-2">
+                        STATUS: {{ docForm.status || 'OPEN' }}
+                    </span>
+                    <h2 class="text-3xl font-extrabold text-brand-gold uppercase tracking-wider">QUOTATION</h2>
+                    <table class="ml-auto mt-2 text-[11px]">
+                        <tr><td class="py-0.5 pr-4 text-left text-slate-500">Ref No.</td><td class="py-0.5 text-right font-extrabold text-slate-800 whitespace-nowrap">{{ docForm.docNo }}</td></tr>
+                        <tr><td class="py-0.5 pr-4 text-left text-slate-500">Issue Date</td><td class="py-0.5 text-right font-semibold text-slate-700 whitespace-nowrap">{{ docForm.date }}</td></tr>
+                        <tr><td class="py-0.5 pr-4 text-left text-slate-500">Valid Until</td><td class="py-0.5 text-right font-semibold text-slate-700 whitespace-nowrap">{{ docForm.dueDate }}</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6 border-b border-slate-200 pb-4">
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-brand-gold border-b-2 border-brand-dark inline-block mb-2">QUOTATION FOR (BILL TO):</h3>
+                    <p class="font-extrabold text-base text-brand-dark">{{ docForm.clientName }}</p>
+                    <p class="text-xs font-semibold text-slate-700">{{ docForm.clientSSM }} | Tel: {{ docForm.clientPhone }}</p>
+                    <p class="text-xs text-slate-600 mt-1 whitespace-pre-line">{{ formattedClientAddress(docForm) }}</p>
+                    <p v-if="docForm.clientEmail" class="text-xs text-slate-600">Email: {{ docForm.clientEmail }}</p>
+                </div>
+                <div class="text-right">
+                    <h3 class="text-xs font-bold uppercase text-brand-gold border-b-2 border-brand-dark inline-block mb-2">ATTENTION:</h3>
+                    <p class="font-extrabold text-sm text-brand-dark">{{ docForm.clientContactPerson || 'Procurement / Purchasing Dept.' }}</p>
+                    <p v-if="docForm.clientPosition" class="text-xs text-slate-600">{{ docForm.clientPosition }}</p>
+                    <p class="text-xs text-slate-600 mt-1">Please quote this reference number when issuing an official Purchase Order (PO).</p>
+                </div>
+            </div>
+
+            <table class="w-full mb-6 border-collapse print-table text-xs">
+                <thead>
+                    <tr>
+                        <th class="p-2.5 border border-slate-300 text-center w-10">No.</th>
+                        <th class="p-2.5 border border-slate-300 text-left">Description / Service</th>
+                        <th class="p-2.5 border border-slate-300 text-center w-20">Qty</th>
+                        <th class="p-2.5 border border-slate-300 text-right w-32">Unit Price (RM)</th>
+                        <th class="p-2.5 border border-slate-300 text-right w-36">Total (RM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(it, i) in docForm.items" :key="i">
+                        <td class="p-2.5 border border-slate-300 text-center">{{ i + 1 }}</td>
+                        <td class="p-2.5 border border-slate-300 font-bold text-slate-800">{{ it.desc }}</td>
+                        <td class="p-2.5 border border-slate-300 text-center font-semibold">{{ it.qty }}</td>
+                        <td class="p-2.5 border border-slate-300 text-right">{{ Number(it.price).toFixed(2) }}</td>
+                        <td class="p-2.5 border border-slate-300 text-right font-extrabold text-slate-900">{{ (it.qty * it.price).toFixed(2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="flex justify-between items-start text-xs mt-4">
+                <div class="w-3/5 pr-8 space-y-3">
+                    <div>
+                        <h3 class="font-bold text-brand-dark mb-1">Quotation Terms &amp; Conditions:</h3>
+                        <p class="text-slate-600 leading-relaxed">
+                            1. This quotation is valid for the duration stated above.<br>
+                            2. Prices are subject to change if additional specifications are requested.<br>
+                            3. Please cite the Quotation reference number when placing an official order.
+                        </p>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded border border-slate-200">
+                        <h3 class="mb-2 font-bold uppercase tracking-wide text-brand-gold">Payment Instructions</h3>
+                        <table class="w-full text-xs">
+                            <tr><td class="w-36 py-0.5 pr-4 align-top font-bold text-slate-700">Bank Name</td><td class="py-0.5 text-slate-800">{{ company.bankName }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Account Name</td><td class="py-0.5 text-slate-800">{{ company.name }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Account No.</td><td class="py-0.5 font-bold text-slate-900">{{ company.bankAccount }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Payment Method</td><td class="py-0.5 text-slate-800">{{ docForm.paymentMethod || 'Bank Transfer' }}</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <div class="w-72 text-sm space-y-1.5">
+                    <div class="flex justify-between text-slate-700"><span>Subtotal:</span><strong class="font-bold">RM {{ docSubtotal.toFixed(2) }}</strong></div>
+                    <div class="flex justify-between text-slate-700"><span>Discount:</span><strong class="font-bold">RM {{ docForm.discount.toFixed(2) }}</strong></div>
+                    <div class="flex justify-between text-slate-700"><span>SST (8%):</span><strong class="font-bold">RM {{ docSST.toFixed(2) }}</strong></div>
+                    <div class="flex justify-between font-extrabold text-base print-total-box p-3 mt-2 rounded"><span>GRAND TOTAL:</span><span>RM {{ docGrandTotal.toFixed(2) }}</span></div>
+                </div>
+            </div>
+
+            <div class="mt-14 grid grid-cols-3 gap-6 text-xs text-center">
+                <div class="border-t border-slate-400 pt-2"><p class="font-bold text-brand-dark">Prepared By</p><p class="text-slate-500 mt-1">Sales / Admin Dept.</p></div>
+                <div class="border-t border-slate-400 pt-2"><p class="font-bold text-brand-dark">Reviewed / Approved By</p><p class="text-slate-500 mt-1">Company Stamp &amp; Signature</p></div>
+                <div class="border-t border-slate-400 pt-2"><p class="font-bold text-brand-dark">Client Acceptance</p><p class="text-slate-500 mt-1">Signature &amp; Stamp</p></div>
+            </div>
+        </div>
+
+        <!-- TEMPLATE CETAKAN 2: INVOICE (A4 PORTRAIT) -->
+        <div v-if="activePrintModule === 'INVOICE'" id="print-template-invoice" class="print-only p-8 text-sm print-container">
+            <div class="flex justify-between items-start print-header-border pb-4 mb-6">
+                <div class="flex items-start gap-4 min-w-0">
+                    <div class="print-logo-container shrink-0">
+                        <img src="./logo.png" onerror="this.style.display='none'" class="print-logo">
+                    </div>
+                    <div class="min-w-0">
+                        <h1 class="text-xl font-extrabold text-brand-dark tracking-tight leading-tight">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1>
+                        <p class="mt-1.5 whitespace-pre-line text-[11px] leading-snug text-slate-600">{{ formattedCompanyAddress() }}</p>
+                        <p class="mt-1.5 text-[11px] leading-snug text-slate-600"><span class="whitespace-nowrap">Tel {{ company.phone }}</span><span class="px-1.5 text-slate-300">|</span><span class="whitespace-nowrap">{{ company.email }}</span><span class="px-1.5 text-slate-300">|</span><span class="whitespace-nowrap">{{ company.website || 'www.zenqor.com.my' }}</span></p>
+                        <p class="mt-1.5 text-[11px] font-bold leading-snug text-slate-700"><span class="whitespace-nowrap">Reg. No. {{ company.ssm }}</span><template v-if="company.tin"><span class="px-1.5 text-slate-300">|</span><span class="whitespace-nowrap">TIN {{ company.tin }}</span></template></p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span :class="{
+                              'bg-emerald-600': ['Paid'].includes(docForm.status),
+                              'bg-red-600': ['Unpaid'].includes(docForm.status),
+                              'bg-amber-500': ['Partial'].includes(docForm.status),
+                              'bg-slate-600': ['Cancelled'].includes(docForm.status)
+                          }" 
+                          class="inline-block text-white font-extrabold px-3 py-1 rounded text-xs uppercase tracking-wider mb-2">
+                        STATUS: {{ docForm.status || 'UNPAID' }}
+                    </span>
+                    <h2 class="text-3xl font-extrabold text-brand-blue uppercase tracking-wider">INVOICE</h2>
+                    <table class="ml-auto mt-2 text-[11px]">
+                        <tr><td class="py-0.5 pr-4 text-left text-slate-500">Invoice No.</td><td class="py-0.5 text-right font-extrabold text-slate-800 whitespace-nowrap">{{ docForm.docNo }}</td></tr>
+                        <tr><td class="py-0.5 pr-4 text-left text-slate-500">Invoice Date</td><td class="py-0.5 text-right font-semibold text-slate-700 whitespace-nowrap">{{ docForm.date }}</td></tr>
+                        <tr><td class="py-0.5 pr-4 text-left text-slate-500">Due Date</td><td class="py-0.5 text-right font-semibold text-slate-700 whitespace-nowrap">{{ docForm.dueDate }}</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-6 border-b border-slate-200 pb-4">
+                <div>
+                    <h3 class="text-xs font-bold uppercase text-brand-blue border-b-2 border-brand-dark inline-block mb-2">INVOICE TO (BILL TO):</h3>
+                    <p class="font-extrabold text-base text-brand-dark">{{ docForm.clientName }}</p>
+                    <p class="text-xs font-semibold text-slate-700">{{ docForm.clientSSM }} | Tel: {{ docForm.clientPhone }}</p>
+                    <p class="text-xs text-slate-600 mt-1 whitespace-pre-line">{{ formattedClientAddress(docForm) }}</p>
+                    <p v-if="docForm.clientEmail" class="text-xs text-slate-600">Email: {{ docForm.clientEmail }}</p>
+                </div>
+                <div class="text-right">
+                    <h3 class="text-xs font-bold uppercase text-brand-blue border-b-2 border-brand-dark inline-block mb-2">PAYMENT REFERENCE NOTE:</h3>
+                    <p class="font-extrabold text-sm text-brand-dark">{{ docForm.clientContactPerson || 'Accounts & Finance Dept.' }}</p>
+                    <p class="text-xs text-slate-600 mt-1">Please state the invoice number (<strong>{{ docForm.docNo }}</strong>) on the payment transaction slip as proof of payment.</p>
+                </div>
+            </div>
+
+            <table class="w-full mb-6 border-collapse print-table text-xs">
+                <thead>
+                    <tr>
+                        <th class="p-2.5 border border-slate-300 text-center w-10">No.</th>
+                        <th class="p-2.5 border border-slate-300 text-left">Description / Product</th>
+                        <th class="p-2.5 border border-slate-300 text-center w-20">Qty</th>
+                        <th class="p-2.5 border border-slate-300 text-right w-32">Unit Price (RM)</th>
+                        <th class="p-2.5 border border-slate-300 text-right w-36">Total (RM)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(it, i) in docForm.items" :key="i">
+                        <td class="p-2.5 border border-slate-300 text-center">{{ i + 1 }}</td>
+                        <td class="p-2.5 border border-slate-300 font-bold text-slate-800">{{ it.desc }}</td>
+                        <td class="p-2.5 border border-slate-300 text-center font-semibold">{{ it.qty }}</td>
+                        <td class="p-2.5 border border-slate-300 text-right">{{ Number(it.price).toFixed(2) }}</td>
+                        <td class="p-2.5 border border-slate-300 text-right font-extrabold text-slate-900">{{ (it.qty * it.price).toFixed(2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="flex justify-between items-start text-xs mt-4">
+                <div class="w-3/5 pr-8 space-y-3">
+                    <div class="bg-slate-50 p-3 rounded border border-slate-200">
+                        <h3 class="mb-2 font-bold uppercase tracking-wide text-brand-gold">Payment Instructions</h3>
+                        <table class="w-full text-xs">
+                            <tr><td class="w-36 py-0.5 pr-4 align-top font-bold text-slate-700">Bank Name</td><td class="py-0.5 text-slate-800">{{ company.bankName }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Account Name</td><td class="py-0.5 text-slate-800">{{ company.name }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Account No.</td><td class="py-0.5 font-bold text-slate-900">{{ company.bankAccount }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">DuitNow QR / UEN</td><td class="py-0.5 font-bold text-slate-900">{{ company.ssm }}</td></tr>
+                            <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Payment Method</td><td class="py-0.5 text-slate-800">{{ docForm.paymentMethod || 'Bank Transfer' }}<span v-if="docForm.paymentBank"> &middot; {{ docForm.paymentBank }}</span></td></tr>
+                            <tr v-if="docForm.paymentReceiver"><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Receiver Account</td><td class="py-0.5 text-slate-800">{{ docForm.paymentReceiver }}</td></tr>
+                            <tr v-if="docForm.paymentRefNo"><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Payment Ref. No.</td><td class="py-0.5 font-extrabold text-emerald-700">{{ docForm.paymentRefNo }}</td></tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-brand-dark mb-1">Sales Notes &amp; Terms:</h3>
+                        <p class="text-slate-600 leading-relaxed">
+                            1. Goods or services sold are non-refundable.<br>
+                            2. Official receipts will be issued once payment clears.
+                        </p>
+                    </div>
+                </div>
+                <div class="w-72 text-sm space-y-1.5">
+                    <div class="flex justify-between text-slate-700"><span>Subtotal:</span><strong class="font-bold">RM {{ docSubtotal.toFixed(2) }}</strong></div>
+                    <div class="flex justify-between text-slate-700"><span>Discount:</span><strong class="font-bold">RM {{ docForm.discount.toFixed(2) }}</strong></div>
+                    <div class="flex justify-between text-slate-700"><span>SST (8%):</span><strong class="font-bold">RM {{ docSST.toFixed(2) }}</strong></div>
+                    <div class="flex justify-between font-extrabold text-base print-total-box p-3 mt-2 rounded"><span>GRAND TOTAL:</span><span>RM {{ docGrandTotal.toFixed(2) }}</span></div>
+                </div>
+            </div>
+
+            <div class="mt-14 grid grid-cols-3 gap-6 text-xs text-center">
+                <div class="border-t border-slate-400 pt-2"><p class="font-bold text-brand-dark">Prepared By</p><p class="text-slate-500 mt-1">Accounts &amp; Finance Dept.</p></div>
+                <div class="border-t border-slate-400 pt-2"><p class="font-bold text-brand-dark">Approved By</p><p class="text-slate-500 mt-1">Company Stamp &amp; Signature</p></div>
+                <div class="border-t border-slate-400 pt-2"><p class="font-bold text-brand-dark">Client Acceptance</p><p class="text-slate-500 mt-1">Signature &amp; Stamp</p></div>
+            </div>
+        </div>
+
+        <!-- TEMPLATE CETAKAN 3: PAYSLIP (A4 LANDSCAPE) -->
+        <div v-if="activePrintModule === 'PAYSLIP'" id="print-template-payslip" class="print-only print-container">
+            <div class="payslip-paper">
+                <div class="payslip-header">
+                    <div class="company-brand">
+                        <img src="./logo.png" onerror="this.style.display='none'" alt="Logo Syarikat">
+                        <div class="company-brand-text">
+                            <h1>{{ company.name }}</h1>
+                            <p>Business Registration No.: {{ company.ssm }}</p><p v-if="company.tin">TIN: {{ company.tin }}</p>
+                            <p class="whitespace-pre-line">{{ formattedCompanyAddress() }}<br>Tel: {{ company.phone }} | Web: {{ company.website || 'www.zenqor.com.my' }}</p>
+                        </div>
+                    </div>
+                    <div class="payslip-title">
+                        <h2>PAYSLIP</h2>
+                        <p>Month: <strong>{{ payForm.month }}</strong></p>
+                        <p>Payslip No.: <strong>PS-{{ currentYear }}-{{ payForm.empNo || 'ZEN-0000000' }}</strong></p>
+                        <p>Payment Date: <strong>{{ payForm.payDate }}</strong></p>
+                    </div>
+                </div>
+
+                <div class="info-table-container">
+                    <table class="info-table">
+                        <tr>
+                            <th>Employee Name</th><td>{{ payForm.name }}</td>
+                            <th>ID / Passport</th><td>{{ maskIC(payForm.ic) }}</td>
+                            <th>Employee ID</th><td>{{ payForm.empNo }}</td>
+                        </tr>
+                        <tr>
+                            <th>Position</th><td>{{ payForm.position }}</td>
+                            <th>Department</th><td>{{ payForm.dept }}</td>
+                            <th>Join Date</th><td>{{ payForm.joinDate }}</td>
+                        </tr>
+                        <tr>
+                            <th>Bank / Account No.</th><td>{{ maskBank(payForm.bankAcc) }}</td>
+                            <th>EPF / SOCSO No.</th><td colspan="3">{{ maskEpfSocso(payForm.epfSocso) }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="salary-breakdown">
+                    <div class="salary-col">
+                        <table class="calc-table">
+                            <thead><tr><th colspan="2">EARNINGS</th></tr></thead>
+                            <tbody>
+                                <tr v-if="payForm.basic"><td>Basic Salary</td><td class="amount">{{ formatCurrency(payForm.basic) }}</td></tr>
+                                <tr v-if="payForm.ot"><td>OT (Overtime)</td><td class="amount">{{ formatCurrency(payForm.ot) }}</td></tr>
+                                <tr v-if="payForm.phone"><td>Phone Allowance</td><td class="amount">{{ formatCurrency(payForm.phone) }}</td></tr>
+                                <tr v-if="payForm.transport"><td>Transport Allowance</td><td class="amount">{{ formatCurrency(payForm.transport) }}</td></tr>
+                                <tr v-if="payForm.meal"><td>Meal Allowance</td><td class="amount">{{ formatCurrency(payForm.meal) }}</td></tr>
+                                <tr v-if="payForm.bonus"><td>Bonus / Commission</td><td class="amount">{{ formatCurrency(payForm.bonus) }}</td></tr>
+                            </tbody>
+                            <tfoot><tr><th>GROSS SALARY</th><td class="amount">{{ formatCurrency(payCalc.gross) }}</td></tr></tfoot>
+                        </table>
+                    </div>
+                    <div class="salary-col">
+                        <table class="calc-table">
+                            <thead><tr><th colspan="2">EMPLOYEE DEDUCTIONS</th></tr></thead>
+                            <tbody>
+                                <tr><td>Employee EPF {{ payForm.isSenior ? '(0%)' : '(11%)' }}</td><td class="amount">{{ formatCurrency(payForm.dedEpf) }}</td></tr>
+                                <tr><td>Employee SOCSO</td><td class="amount">{{ formatCurrency(payForm.dedSocso) }}</td></tr>
+                                <tr><td>Employee EIS</td><td class="amount">{{ formatCurrency(payForm.dedEis) }}</td></tr>
+                                <tr v-if="payForm.dedPcb"><td>MTD / PCB (Tax)</td><td class="amount">{{ formatCurrency(payForm.dedPcb) }}</td></tr>
+                                <tr v-if="payForm.dedAdvance"><td>Advance / Loan</td><td class="amount">{{ formatCurrency(payForm.dedAdvance) }}</td></tr>
+                            </tbody>
+                            <tfoot><tr><th>TOTAL DEDUCTION</th><td class="amount">{{ formatCurrency(payCalc.deduct) }}</td></tr></tfoot>
+                        </table>
+                        <div class="net-pay-section">
+                            <table class="net-pay-table"><tr class="final-net"><td>NET SALARY</td><td class="amount">{{ formatCurrency(payCalc.net) }}</td></tr></table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="contributions-section">
+                    <div class="contrib-grid">
+                        <div class="contrib-col">
+                            <h3>MONTH TO DATE (MTD)</h3>
+                            <table class="contrib-table">
+                                <thead><tr><th>Contribution Type</th><th class="amount">Employee</th><th class="amount">Employer</th></tr></thead>
+                                <tbody>
+                                    <tr><td>EPF</td><td class="amount">{{ formatCurrency(payForm.dedEpf) }}</td><td class="amount">{{ formatCurrency(payCalc.epfEmpr) }}</td></tr>
+                                    <tr><td>SOCSO</td><td class="amount">{{ formatCurrency(payForm.dedSocso) }}</td><td class="amount">{{ formatCurrency(payCalc.socsoEmpr) }}</td></tr>
+                                    <tr><td>EIS</td><td class="amount">{{ formatCurrency(payForm.dedEis) }}</td><td class="amount">{{ formatCurrency(payCalc.eisEmpr) }}</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="contrib-col">
+                            <h3>YEAR TO DATE (YTD - Estimations)</h3>
+                            <table class="contrib-table">
+                                <thead><tr><th>Contribution Type</th><th class="amount">Employee</th><th class="amount">Employer</th></tr></thead>
+                                <tbody>
+                                    <tr><td>EPF</td><td class="amount">{{ formatCurrency(payForm.dedEpf * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(payCalc.epfEmpr * payslipYtdMultiplier) }}</td></tr>
+                                    <tr><td>SOCSO</td><td class="amount">{{ formatCurrency(payForm.dedSocso * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(payCalc.socsoEmpr * payslipYtdMultiplier) }}</td></tr>
+                                    <tr><td>EIS</td><td class="amount">{{ formatCurrency(payForm.dedEis * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(payCalc.eisEmpr * payslipYtdMultiplier) }}</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="electronic-footer">This payslip is computer-generated by {{ company.name || 'ZENQOR TECHNOLOGIES' }} and requires no signature or company stamp.</div>
+            </div>
+        </div>
+
+        <!-- TEMPLATE: APPROVED CLAIM (A4 PORTRAIT) -->
+        <div v-if="activePrintModule === 'CLAIM' && claimPrint" id="print-template-claim" class="print-only claim-print p-8 text-sm print-container">
+            <div class="flex justify-between items-start print-header-border pb-4 mb-6">
+                <div class="claim-print-brand flex items-center space-x-4"><img src="./logo.png" onerror="this.style.display='none'" alt="" class="claim-print-logo"><div><h1 class="text-2xl font-extrabold text-brand-dark">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1><p class="text-xs text-slate-600">Approved {{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Expense Claim' }} Record</p></div></div>
+                <div class="text-right"><span class="inline-block bg-emerald-600 text-white font-extrabold px-3 py-1 rounded text-xs uppercase">Approved</span><p class="font-bold mt-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Voucher' : 'Receipt' }} Ref: {{ claimPrint.documentType === 'Payment Voucher' ? claimPrint.voucherNo : claimPrint.receiptNo }}</p><p class="text-xs text-slate-600">Printed: {{ formatDateTime(new Date().toISOString()) }}</p></div>
+            </div>
+            <div class="grid grid-cols-2 gap-5 border-b border-slate-200 pb-5 mb-5"><div><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Requested By' : 'Applicant' }}</h3><p class="font-extrabold">{{ claimPrint.name }}</p><p>{{ claimPrint.empNo }} · {{ claimPrint.dept }}</p><p class="text-xs text-slate-600">{{ claimPrint.empEmail }}</p></div><div><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Details' : 'Expense Details' }}</h3><p><strong>Category:</strong> {{ claimPrint.category }}</p><p><strong>Sub-category:</strong> {{ claimPrint.subCategory }}</p><p><strong>{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment date' : 'Expense date' }}:</strong> {{ formatDateWithDay(claimPrint.documentType === 'Payment Voucher' ? claimPrint.paymentDate : claimPrint.expenseDate) }}</p><p><strong>Submitted:</strong> {{ formatDateTimeWithDay(claimPrint.createdAt) }}</p><p class="text-lg font-extrabold mt-2">{{ formatCurrency(claimPrint.amount) }}</p></div></div>
+            <div v-if="claimPrint.documentType === 'Payment Voucher'" class="border border-amber-300 bg-amber-50 rounded p-4 mb-5"><h3 class="font-bold text-brand-dark mb-2">Payment Recipient</h3><div class="grid grid-cols-2 gap-2"><p><strong>Payee:</strong> {{ claimPrint.payeeName }}</p><p><strong>Type:</strong> {{ claimPrint.payeeType }}</p><p><strong>Reference:</strong> {{ claimPrint.payeeReference || '-' }}</p><p><strong>Purpose:</strong> {{ claimPrint.paymentPurpose }}</p></div></div>
+            <div class="border border-slate-200 rounded p-4 mb-5"><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Description' : 'Expense Description' }}</h3><p class="whitespace-pre-wrap">{{ claimPrint.description }}</p></div>
+            <div class="border border-slate-200 rounded p-4 mb-5"><h3 class="font-bold text-brand-dark mb-2">Approval Details</h3><p><strong>Approved by:</strong> {{ claimPrint.approvedByName }} ({{ claimPrint.approvedByRole }})</p><p><strong>Approval path:</strong> {{ claimPrint.approvalPath || 'Director Final Approval' }}</p><p v-if="claimPrint.bypassedReviews && claimPrint.bypassedReviews.length"><strong>Bypassed review:</strong> {{ claimPrint.bypassedReviews.join(', ') }}</p><p><strong>Approval date &amp; time:</strong> {{ formatDateTime(claimPrint.approvedAt) }}</p></div>
+            <div class="grid grid-cols-2 gap-5"><div class="border border-slate-200 rounded p-4"><h3 class="font-bold text-brand-dark mb-2">Receipt Attachment</h3><p class="text-xs mb-2">{{ claimPrint.receiptAttachmentName || 'Attachment included' }}</p><img v-if="isSupportedImageAttachment(claimPrint.receiptAttachment)" :src="claimPrint.receiptAttachment" alt="Receipt attachment" class="max-h-56 mx-auto border"><p v-else class="text-xs text-slate-500">No supported image attachment is available.</p></div><div class="border border-slate-200 rounded p-4"><h3 class="font-bold text-brand-dark mb-2">Director Approval Document</h3><p class="text-xs mb-2">{{ claimPrint.directorApprovalAttachmentName || 'Attachment included' }}</p><img v-if="isSupportedImageAttachment(claimPrint.directorApprovalAttachment)" :src="claimPrint.directorApprovalAttachment" alt="Director approval document" class="max-h-56 mx-auto border"><p v-else class="text-xs text-slate-500">No supported image attachment is available.</p></div></div>
+            <p class="mt-8 text-center text-xs text-slate-500">This is a computer-generated approved {{ claimPrint.documentType === 'Payment Voucher' ? 'payment voucher' : 'claim' }} record.</p>
+        </div>

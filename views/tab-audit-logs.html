@@ -1,0 +1,80 @@
+<!-- =====================================================================
+     AUDIT AND SECURITY LOG
+     ===================================================================== -->
+                <!-- AUDIT LOGS MODULE -->
+                <div v-show="currentTab === 'audit-logs'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">System Audit &amp; Security Logs</h2>
+                                <p class="zq-page-header-desc">Real-time user security and activity logs from Firebase.</p>
+                            </div>
+                        </div>
+                        <button type="button" @click="exportComplianceReport" class="zq-btn zq-btn-primary">
+                            <i class="fa-solid fa-shield-halved"></i><span>Export Compliance Report</span>
+                        </button>
+                    </div>
+
+                    <div class="rounded-2xl border border-brand-gold/30 bg-brand-gold/5 p-5 shadow-sm">
+                        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                            <div>
+                                <h3 class="text-sm font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-clock-rotate-left mr-2 text-brand-gold"></i>Automatic Audit Log Retention</h3>
+                                <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Available only to Director, Superadmin and IT. Expired records are removed automatically by Firestore TTL.</p>
+                            </div>
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+                                <label class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Keep records for
+                                    <input id="audit-retention-value" name="auditRetentionValue" v-model.number="auditRetention.value" type="number" min="1" max="999" class="zq-input mt-1 w-full sm:w-28">
+                                </label>
+                                <label class="text-[10px] font-bold uppercase tracking-wide text-slate-500">Unit
+                                    <select id="audit-retention-unit" name="auditRetentionUnit" v-model="auditRetention.unit" class="zq-select mt-1 w-full sm:w-36">
+                                        <option value="hour">Hour(s)</option><option value="day">Day(s)</option><option value="week">Week(s)</option><option value="month">Month(s)</option><option value="year">Year(s)</option>
+                                    </select>
+                                </label>
+                                <button type="button" @click="saveAuditRetention" :disabled="auditRetention.saving || auditRetention.loading" :class="{ 'is-loading': auditRetention.saving }" class="zq-btn zq-btn-secondary">Save Retention</button>
+                            </div>
+                        </div>
+                        <p v-if="auditRetention.message" class="zq-success-text mt-3">{{ auditRetention.message }}</p>
+                        <p v-if="auditRetention.error" class="zq-error-text mt-3">{{ auditRetention.error }}</p>
+                    </div>
+
+                    <div class="zq-card p-6">
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Action</th>
+                                        <th>Activity / Target</th>
+                                        <th>IP &amp; Browser</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="font-mono">
+                                    <tr v-for="log in auditLogs" :key="log.id">
+                                        <td class="text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString('en-MY') }}</td>
+                                        <td class="text-brand-dark dark:text-slate-200"><span class="block font-bold">{{ log.userName || log.user }}</span><span v-if="log.userName" class="block text-[10px] text-slate-400">{{ log.user }}</span><span v-if="log.role" class="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[9px]">{{ log.role }}</span></td>
+                                        <td>
+                                            <span :class="{
+                                                'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300': log.action === 'LOGIN',
+                                                'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300': log.action === 'CREATE',
+                                                'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300': log.action === 'UPDATE',
+                                                'bg-red-100 dark:bg-red-950/40 text-red-800 dark:text-red-300': log.action === 'DELETE'
+                                            }" class="px-2 py-0.5 rounded text-[10px] font-bold">{{ log.action }}</span>
+                                        </td>
+                                        <td class="text-slate-700 dark:text-slate-300"><span class="block">{{ log.details }}</span><span v-if="log.module" class="mt-1 block text-[9px] uppercase tracking-wide text-slate-400">Module: {{ log.module }}</span><span v-if="log.uid" class="block text-[9px] text-slate-400">UID: {{ log.uid }}</span></td>
+                                        <td class="text-slate-500 dark:text-slate-400 min-w-[220px]"><span class="block font-bold text-slate-700 dark:text-slate-300">{{ log.ip || 'Unavailable' }}</span><span class="block">{{ log.browser || 'Unknown Browser' }}</span><span v-if="log.os || log.device" class="block text-[10px]">{{ log.os || 'Unknown OS' }} · {{ log.device || 'Unknown Device' }}</span><span class="block max-w-xs truncate text-[9px] text-slate-400" :title="log.userAgent || log.browser">{{ log.userAgent || log.browser }}</span></td>
+                                    </tr>
+                                    <tr v-if="!auditLogs.length" class="zq-table-empty">
+                                        <td colspan="5">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-solid fa-shield-halved zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">No audit events yet</p>
+                                                <p class="zq-empty-state-text">Security and compliance events will be recorded here automatically as they happen.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>

@@ -1,0 +1,413 @@
+<!-- =====================================================================
+     STAFF DASHBOARD
+     ===================================================================== -->
+
+                <!-- DASHBOARD MODULE -->
+                <!-- Client accounts have one home only: the current Client Workspace below.
+                     Rejecting the retired dashboard route here also protects an already-open
+                     browser tab whose history/cache still names `dashboard`. -->
+                <div v-if="currentTab === 'dashboard' && userProfile.role !== 'Client'" class="zq-dashboard p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+
+                    <section v-if="userProfile.role !== 'Client'" class="zq-card p-5">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 class="zq-text-section-title">Project Progress</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Live project workflow overview.</p></div><button type="button" @click="switchTab('project-activities')" class="zq-btn zq-btn-primary zq-btn-sm">View All Projects <i class="fa-solid fa-arrow-right ml-1"></i></button></div>
+                        <div class="project-summary-grid"><button v-for="(stage, stageIndex) in projectStages" :key="`internal-dashboard-${stage}`" type="button" @click="switchTab('project-activities')" class="project-summary-card rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-4 py-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-brand-blue hover:shadow-md"><div class="flex items-center justify-between gap-3"><span :class="['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][stageIndex]" class="h-2.5 w-2.5 rounded-full"></span><span class="text-2xl font-black leading-none text-brand-dark dark:text-white">{{ getProjectsByStage(stage).length }}</span></div><p class="mt-3 text-[10px] font-extrabold uppercase leading-snug tracking-wider text-slate-500 dark:text-slate-400">{{ stage }}</p><p class="mt-2 text-[9px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Step {{ stageIndex + 1 }} of 5</p></button></div>
+                    </section>
+
+                    <section v-if="myPendingProjectActivities.length" class="zq-card p-5">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 class="zq-text-section-title"><i class="fa-solid fa-bell mr-2 text-amber-500"></i>My Assigned Project Activities</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Activities requiring your action, ordered by due date.</p></div><div class="flex flex-wrap items-center gap-2 text-[9px] font-bold"><span class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-1 text-red-700 dark:text-red-300">Overdue</span><span class="rounded-full bg-amber-100 dark:bg-amber-950/40 px-2 py-1 text-amber-700 dark:text-amber-300">Today</span><span class="rounded-full bg-emerald-100 dark:bg-emerald-950/40 px-2 py-1 text-emerald-700 dark:text-emerald-300">Next 3 Days</span><span class="rounded-full bg-blue-100 dark:bg-blue-950/40 px-2 py-1 text-blue-700 dark:text-blue-300">Scheduled</span><span class="rounded-full bg-slate-900 dark:bg-slate-700 px-2.5 py-1 text-white">{{ myPendingProjectActivities.length }} Open</span></div></div>
+                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2"><article v-for="activity in myPendingProjectActivities.slice(0, 6)" :key="`dashboard-activity-${activity.id}`" :class="projectActivityDueState(activity).borderClass" class="rounded-xl border-l-4 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ activity.projectRef }} · {{ activity.activityType }}</p><p class="mt-1 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p class="mt-2 flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400"><span :class="projectActivityDueState(activity).dotClass" class="h-2 w-2 rounded-full"></span>Due {{ activity.dueDate }}</p></div><span :class="projectActivityDueState(activity).className" class="shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><div class="mt-3 flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-3"><p class="truncate text-[9px] text-slate-400 dark:text-slate-400">{{ activity.projectTitle }}</p><button v-if="canCompleteProjectActivity(activity)" type="button" @click="markProjectActivityDone(activity)" class="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700"><i class="fa-solid fa-check mr-1"></i>Mark Done</button></div></article></div>
+                    </section>
+
+                    <section v-if="canViewBillingWorkflow" class="zq-card border border-teal-200 p-5 dark:border-teal-900/60">
+                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><h2 class="zq-text-section-title"><i class="fa-solid fa-money-bill-transfer mr-2 text-teal-600"></i>Client Billing Workflow</h2><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ canManageBillingWorkflow ? 'Full access: view proof, verify or reject payment, edit and delete invoices.' : 'View proof, verify paid or reject payment for assigned Client billing work.' }}</p></div><span class="w-fit rounded-full bg-teal-100 px-2.5 py-1 text-[9px] font-extrabold uppercase text-teal-800 dark:bg-teal-950/40 dark:text-teal-200">{{ canManageBillingWorkflow ? 'Full access' : 'Payment review' }}</span></div>
+                        <div v-if="billingWorkflowQueue.length" class="grid grid-cols-1 gap-3 lg:grid-cols-2"><article v-for="item in billingWorkflowQueue.slice(0, 8)" :key="`billing-${item.id}`" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800"><div class="flex items-start justify-between gap-3"><div class="min-w-0"><p class="text-[9px] font-extrabold uppercase tracking-wider text-brand-blue">{{ item.workflowAction === 'issue-invoice' ? 'Accepted quotation' : item.workflowAction === 'edit-draft' ? 'Invoice draft' : 'Payment proof review' }}</p><p class="mt-1 truncate text-sm font-extrabold text-brand-dark dark:text-white">{{ item.docNo }} · {{ item.name }}</p><p class="mt-1 text-xs font-bold text-slate-600 dark:text-slate-300">{{ formatCurrency(item.amount) }}</p><p v-if="item.raw?.projectRef" class="mt-2 text-[10px] text-slate-500 dark:text-slate-400">Project: {{ item.raw.projectRef }}{{ item.raw.projectTitle ? ` · ${item.raw.projectTitle}` : '' }}</p></div><span :class="item.workflowAction === 'issue-invoice' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' : item.workflowAction === 'edit-draft' ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' : 'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'" class="shrink-0 rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ item.workflowLabel }}</span></div><div class="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3 dark:border-slate-700"><template v-if="item.workflowAction === 'issue-invoice'"><button type="button" @click="createInvoiceFromQuotation(item)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-file-circle-plus"></i><span>Prepare Invoice</span></button><button type="button" @click="viewRecord(item)" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-eye"></i><span>View Quote</span></button></template><template v-else-if="item.workflowAction === 'edit-draft'"><button type="button" @click="editRecord({ ...item, isDoc: true })" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-pen"></i><span>Edit / Send</span></button><button type="button" @click="discardInvoiceDraft(item)" class="zq-btn zq-btn-destructive zq-btn-sm"><i class="fa-solid fa-trash"></i><span>Discard Draft</span></button></template><template v-else><button type="button" @click="openAttachment(item.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-eye"></i><span>View Proof</span></button><template v-if="item.paymentProofReviewStatus !== 'Verified'"><button type="button" @click="reviewPaymentProof(item, true)" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-check"></i><span>Verify Paid</span></button><button type="button" @click="reviewPaymentProof(item, false)" class="zq-btn zq-btn-destructive zq-btn-sm"><i class="fa-solid fa-xmark"></i><span>Reject</span></button></template><template v-if="canManageBillingWorkflow"><button type="button" @click="editRecord({ ...item, isDoc: true })" class="zq-btn zq-btn-info zq-btn-sm"><i class="fa-solid fa-pen"></i><span>Edit Invoice</span></button><button type="button" @click="deleteInvoiceFromWorkflow(item)" class="zq-btn zq-btn-destructive zq-btn-sm"><i class="fa-solid fa-trash"></i><span>Delete Invoice</span></button></template></template></div></article></div>
+                        <div v-else class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-center dark:border-slate-700 dark:bg-slate-900/30"><i class="fa-solid fa-shield-halved text-lg text-teal-600"></i><p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">No submitted payment proof</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Only PIC Project Activities, HR, Finance, Director and Superadmin can access this workflow.</p></div>
+                    </section>
+                    
+                    <!-- 1. VIEW PEKERJA (STAFF DASHBOARD) -->
+                    <div v-if="userProfile.role === 'Staff'" class="zq-staff-dashboard space-y-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 class="zq-text-page-title">Staff Employee Dashboard</h2>
+                                <p class="zq-page-header-desc">Welcome, {{ userProfile.name }}. View your latest payslips and expense claim status.</p>
+                            </div>
+                            <button @click="switchTab('claims')" class="zq-btn zq-btn-primary">
+                                <i class="fa-solid fa-file-circle-plus"></i><span>Submit New Claim</span>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(myLatestNetSalary) }}</p>
+                                <p class="zq-kpi-card-label truncate">Latest Net Salary</p>
+                                <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Last Generated Payslip</p>
+                            </div>
+
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-clock-rotate-left text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-xl text-amber-700 dark:text-amber-300 truncate">{{ myPendingClaimsCount }}</p>
+                                <p class="zq-kpi-card-label truncate">Pending Claims</p>
+                                <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">Status: Pending</p>
+                            </div>
+
+                            <div class="zq-kpi-card">
+                                <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(myApprovedClaimsAmount) }}</p>
+                                <p class="zq-kpi-card-label truncate">Approved Claims (YTD)</p>
+                                <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">Status: Approved</p>
+                            </div>
+                        </div>
+
+                        <div class="zq-card p-6">
+                            <h2 class="zq-text-section-title mb-4">My Claims &amp; Payslip History</h2>
+                            <div class="overflow-x-auto">
+                                <table class="zq-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Reference / Description</th>
+                                            <th class="text-right">Amount (RM)</th>
+                                            <th class="text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="c in myClaims" :key="c.id">
+                                            <td>{{ c.expenseDate }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold bg-purple-100 text-purple-800">Claim</span></td>
+                                            <td class="font-bold">{{ c.category }} - {{ c.receiptNo }}</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(c.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': c.status==='Pending', 'bg-emerald-100 text-emerald-800': c.status==='Approved', 'bg-red-100 text-red-800': c.status==='Rejected'}">{{ c.status }}</span></td>
+                                        </tr>
+                                        <tr v-for="v in myPaymentVouchers" :key="v.id">
+                                            <td>{{ v.paymentDate }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold bg-amber-100 text-amber-800">Voucher</span></td>
+                                            <td class="font-bold">{{ v.category }} - {{ v.voucherNo }}</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(v.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold uppercase" :class="{'bg-amber-100 text-amber-800': v.status && v.status.startsWith('Pending'), 'bg-emerald-100 text-emerald-800': v.status==='Approved', 'bg-red-100 text-red-800': v.status==='Rejected'}">{{ v.status }}</span></td>
+                                        </tr>
+                                        <tr v-for="p in myPayslips" :key="p.id">
+                                            <td>{{ p.date }}</td>
+                                            <td><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">Payslip</span></td>
+                                            <td class="font-bold">{{ p.docNo }} ({{ p.raw?.month || 'Monthly Salary' }})</td>
+                                            <td class="text-right font-extrabold">{{ formatCurrency(p.amount) }}</td>
+                                            <td class="text-center"><span class="px-2 py-0.5 rounded font-bold bg-emerald-100 text-emerald-800">PAID</span></td>
+                                        </tr>
+                                        <tr v-if="!myClaims.length && !myPaymentVouchers.length && !myPayslips.length" class="zq-table-empty">
+                                            <td colspan="5">
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-solid fa-receipt zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">No records yet</p>
+                                                    <p class="zq-empty-state-text">Your claims, payment vouchers and payslips will appear here once submitted or issued.</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. VIEW PELANGGAN (CLIENT DASHBOARD) -->
+
+                    <!-- 3. VIEW EKSEKUTIF (SUPERADMIN / HR / ACCOUNT / IT / OWNER) -->
+                    <div v-else class="space-y-6">
+                        <!-- KAD KPI EKSEKUTIF — satu bekas seragam dengan Project Progress & Priority Clients -->
+                        <section class="zq-card p-5">
+                            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <h2 class="zq-text-section-title">Executive Command Center</h2>
+                                    <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Real-time monitoring of financial KPIs, HR, corporate documents, and system activities.</p>
+                                </div>
+                                <!-- Accounting period stepper — one control moves every KPI card below.
+                                     Forward is capped at the live month; there is nothing later to report. -->
+                                <div class="flex flex-wrap items-center gap-2 sm:shrink-0">
+                                    <div class="flex items-center gap-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 p-1">
+                                        <button type="button" @click="shiftDashboardPeriod(-1)" :disabled="!canViewOlderDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-icon zq-btn-sm" title="Previous month" aria-label="Previous month">
+                                            <i class="fa-solid fa-chevron-left"></i>
+                                        </button>
+                                        <div class="px-2 text-center leading-tight">
+                                            <p class="text-[9px] font-extrabold uppercase tracking-widest text-slate-500 dark:text-slate-400">Accounting Period</p>
+                                            <p class="text-xs font-extrabold text-brand-dark dark:text-white whitespace-nowrap">{{ dashboardPeriodLabel }}</p>
+                                        </div>
+                                        <button type="button" @click="shiftDashboardPeriod(1)" :disabled="isCurrentDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-icon zq-btn-sm" title="Next month" aria-label="Next month">
+                                            <i class="fa-solid fa-chevron-right"></i>
+                                        </button>
+                                    </div>
+                                    <button type="button" v-if="!isCurrentDashboardPeriod" @click="resetDashboardPeriod" class="zq-btn zq-btn-outline zq-btn-sm shrink-0">This month</button>
+                                    <span class="zq-badge shrink-0" :class="isCurrentDashboardPeriod ? 'zq-badge-success' : 'zq-badge-neutral'">{{ isCurrentDashboardPeriod ? 'Live data' : 'Closed period' }}</span>
+                                </div>
+                            </div>
+                            <!-- One column below sm: two columns on a phone leave ~88px of
+                                 text, too narrow for a two-word label to survive uncut. -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                <!-- 1. Total Employees -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-users text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ employees.length }}</p>
+                                    <p class="zq-kpi-card-label truncate">Total Employees</p>
+                                    <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ activeEmployeesCount }} Active</p>
+                                </div>
+                                <!-- 2. Total Clients -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ customers.length }}</p>
+                                    <p class="zq-kpi-card-label truncate">Total Clients</p>
+                                    <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ priorityClients.length }} Priority</p>
+                                </div>
+                                <!-- 3. Total Quotations -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodQuotationCount }}</p>
+                                    <p class="zq-kpi-card-label truncate">Quotations</p>
+                                    <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ formatCurrency(totalQuotationValue) }}</p>
+                                </div>
+                                <!-- 4. Total Invoices -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-indigo-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ periodInvoiceCount }}</p>
+                                    <p class="zq-kpi-card-label truncate">Invoices</p>
+                                    <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }} Paid / {{ unpaidInvoicesCount }} Unpaid</p>
+                                </div>
+                                <!-- 5. Revenue (Paid) -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-sack-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-emerald-700 dark:text-emerald-300 truncate">{{ formatCurrency(periodRevenuePaid) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Revenue Collected</p>
+                                    <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
+                                </div>
+                                <!-- 6. Pending Receivables -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-orange-500"></span><i class="fa-solid fa-hand-holding-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-orange-700 dark:text-orange-300 truncate">{{ formatCurrency(totalRevenuePending) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Pending Receivables</p>
+                                    <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">All periods · {{ unpaidInvoicesCount }} Invoices Unpaid</p>
+                                </div>
+                                <!-- 7. Total Payroll (Net) -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span><i class="fa-solid fa-money-bill-transfer text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-brand-dark dark:text-white truncate">{{ formatCurrency(periodPayrollNet) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Payroll Net</p>
+                                    <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips Generated</p>
+                                </div>
+                                <!-- 8. Total Claims (Approved) -->
+                                <div class="zq-kpi-card">
+                                    <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-rose-500"></span><i class="fa-solid fa-receipt text-[10px] text-slate-300 dark:text-slate-400"></i></div>
+                                    <p class="zq-kpi-card-value text-lg text-rose-600 dark:text-rose-400 truncate">{{ formatCurrency(periodApprovedClaimsAmount) }}</p>
+                                    <p class="zq-kpi-card-label truncate">Claims Approved</p>
+                                    <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending Approval</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- PRIORITY CLIENTS WIDGET -->
+                        <div v-if="priorityClients.length" class="zq-card p-5">
+                            <div class="mb-3 flex items-center justify-between gap-3">
+                                <h2 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients<span class="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700">{{ priorityClients.length }}</span></h2>
+                                <button type="button" @click="switchTab('client-directory')" v-if="hasAccess('client-directory')" class="text-[10px] font-bold text-brand-blue hover:underline">View Client Directory</button>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <button type="button" v-for="cust in priorityClients" :key="cust.id" @click="openClientView(cust)" class="flex items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3 py-2.5 text-left transition hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20">
+                                    <span class="min-w-0 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ cust.clientName }}</span>
+                                    <span class="shrink-0 rounded-full bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-200">{{ clientProjectCount(cust.id) }} proj</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div v-else class="zq-card p-5">
+                            <h2 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-star text-rose-500"></i>Priority Clients</h2>
+                            <div class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-star zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No Priority-tier clients yet</p>
+                                <p class="zq-empty-state-text">Clients set to the Priority tier in the Client Directory will appear here.</p>
+                                <div v-if="hasAccess('client-directory')" class="zq-empty-state-action"><button type="button" @click="switchTab('client-directory')" class="zq-btn zq-btn-outline zq-btn-sm">View Client Directory</button></div>
+                            </div>
+                        </div>
+
+                        <!-- EMPLOYEE WORKLOAD WIDGET — cross-system insight: HR staff load measured against live Client project/activity assignments -->
+                        <div v-if="employeeWorkload.length" class="zq-card p-5">
+                            <div class="mb-3 flex items-center justify-between gap-3">
+                                <h2 class="zq-text-section-title flex items-center gap-2"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients<span v-if="overloadedEmployeeCount" class="rounded-full bg-red-100 dark:bg-red-950/40 px-2 py-0.5 text-[10px] font-black text-red-700 dark:text-red-300">{{ overloadedEmployeeCount }} Overloaded</span></h2>
+                                <button type="button" @click="switchTab('hr-employees')" v-if="hasAccess('hr-employees')" class="text-[10px] font-bold text-brand-blue hover:underline">View Employee Management</button>
+                            </div>
+                            <p class="text-[10px] text-slate-500 dark:text-slate-400 mb-3">Active project and activity assignments per staff member — a view only possible because HR and Client records share one system.</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <button type="button" v-for="w in employeeWorkload.slice(0, 6)" :key="`workload-${w.emp.empNo}`" @click="viewEmployeeProjectAssignments(w.emp)" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-3 py-2.5 text-left transition hover:border-brand-blue hover:bg-blue-50 dark:hover:bg-blue-950/20">
+                                    <div class="w-9 h-9 rounded-xl bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[11px] font-extrabold shrink-0 overflow-hidden">
+                                        <img v-if="employeePhotoByEmail(w.emp.email)" :src="employeePhotoByEmail(w.emp.email)" alt="" class="w-full h-full object-cover">
+                                        <span v-else>{{ getInitials(w.emp.name) }}</span>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ w.emp.name }}</p>
+                                        <p class="text-[10px] text-slate-500 dark:text-slate-400">{{ w.projectCount }} project{{ w.projectCount === 1 ? '' : 's' }} · {{ w.clientCount }} client{{ w.clientCount === 1 ? '' : 's' }}</p>
+                                    </div>
+                                    <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black" :class="w.total >= 4 ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200'">{{ w.total }}</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div v-else class="zq-card p-5">
+                            <h2 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients</h2>
+                            <div class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-gauge-high zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No active workload right now</p>
+                                <p class="zq-empty-state-text">Staff members with active project or activity assignments will appear here.</p>
+                                <div v-if="hasAccess('hr-employees')" class="zq-empty-state-action"><button type="button" @click="switchTab('hr-employees')" class="zq-btn zq-btn-outline zq-btn-sm">View Employee Management</button></div>
+                            </div>
+                        </div>
+
+                        <!-- REAL DATA CHARTS -->
+                        <div v-if="portalDataReady && !['Staff', 'Client'].includes(userProfile.role)" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="zq-card p-6">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                                    <h2 class="zq-text-section-title">
+                                        <i class="fa-solid fa-chart-line text-brand-blue mr-2"></i>Financial &amp; Revenue Trend
+                                    </h2>
+                                    <div class="zq-segmented-control shrink-0" role="group" aria-label="Chart time period">
+                                        <button type="button" @click="setChartFilter('daily')" :class="{ 'is-active': chartTimeFilter === 'daily' }" :aria-pressed="chartTimeFilter === 'daily'">Daily</button>
+                                        <button type="button" @click="setChartFilter('weekly')" :class="{ 'is-active': chartTimeFilter === 'weekly' }" :aria-pressed="chartTimeFilter === 'weekly'">Weekly</button>
+                                        <button type="button" @click="setChartFilter('monthly')" :class="{ 'is-active': chartTimeFilter === 'monthly' }" :aria-pressed="chartTimeFilter === 'monthly'">Monthly</button>
+                                        <button type="button" @click="setChartFilter('yearly')" :class="{ 'is-active': chartTimeFilter === 'yearly' }" :aria-pressed="chartTimeFilter === 'yearly'">Yearly</button>
+                                    </div>
+                                </div>
+                                <div class="h-64 relative">
+                                    <canvas id="revenueChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="zq-card p-6">
+                                <h2 class="zq-text-section-title mb-4"><i class="fa-solid fa-chart-pie text-brand-gold mr-2"></i>Document &amp; Invoice Status Distribution</h2>
+                                <div class="h-64 relative flex items-center justify-center">
+                                    <canvas id="statusChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="lg:col-span-2 zq-card p-6">
+                                <div class="flex items-center justify-between mb-3">
+                                    <h2 class="zq-text-section-title"><i class="fa-solid fa-bars-progress text-rose-500 mr-2"></i>Claims &amp; Payment Voucher Pipeline</h2>
+                                    <span class="text-[11px] font-bold text-slate-400">{{ claimsPipelineTotal }} total record{{ claimsPipelineTotal === 1 ? '' : 's' }}</span>
+                                </div>
+                                <div class="h-8 relative">
+                                    <canvas id="claimsChart"></canvas>
+                                </div>
+                                <div class="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                    <div v-for="stage in claimsPipelineStats" :key="stage.key" class="rounded-lg border border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 px-2.5 py-2">
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="h-2 w-2 rounded-full shrink-0" :style="{ backgroundColor: stage.color }"></span>
+                                            <span class="text-[10px] font-bold text-slate-500 dark:text-slate-300 truncate">{{ stage.label }}</span>
+                                        </div>
+                                        <div class="mt-1 flex items-baseline gap-1">
+                                            <span class="text-base font-black text-brand-dark dark:text-white">{{ stage.count }}</span>
+                                            <span class="text-[10px] font-semibold text-slate-400">{{ stage.pct }}%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else-if="!portalDataReady" class="grid grid-cols-1 lg:grid-cols-2 gap-6" aria-live="polite">
+                            <div class="h-80 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm"><div class="h-4 w-52 rounded bg-slate-200 dark:bg-slate-700 animate-pulse"></div><div class="mt-6 h-52 rounded-xl bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div></div>
+                            <div class="h-80 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm"><div class="h-4 w-64 rounded bg-slate-200 dark:bg-slate-700 animate-pulse"></div><div class="mx-auto mt-6 h-48 w-48 rounded-full border-[24px] border-slate-100 dark:border-slate-700 animate-pulse"></div></div>
+                            <div class="lg:col-span-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 shadow-sm"><div class="h-4 w-56 rounded bg-slate-200 dark:bg-slate-700 animate-pulse"></div><div class="mt-4 h-8 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div><div class="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-2"><div class="h-12 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div><div class="h-12 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div><div class="h-12 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div><div class="h-12 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div><div class="h-12 rounded-lg bg-slate-100 dark:bg-slate-700/60 animate-pulse"></div></div></div>
+                        </div>
+
+                        <!-- RECENT ACTIVITIES TABLE WITH SORT OPTIONS -->
+                        <div class="zq-card p-6">
+                            <div v-if="userProfile.role === 'Account' && financePendingClaims.length" class="mb-4 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-200"><i class="fa-solid fa-bell text-base"></i><span><strong>Finance notification:</strong> {{ financePendingClaims.length }} claim(s) and/or payment voucher(s) are pending Finance approval.</span></div>
+                            <div class="zq-toolbar">
+                                <h2 class="zq-text-section-title">Recent Activities &amp; Document List</h2>
+
+                                <div class="zq-toolbar-actions">
+                                    <!-- DROPDOWN POKOK PILIHAN SORT -->
+                                    <div class="flex items-center gap-1.5">
+                                        <label for="table-sort" class="text-xs font-semibold text-slate-400">Sort By:</label>
+                                        <select id="table-sort" name="tableSort" v-model="sortOption" class="zq-select zq-filter-select">
+                                            <option value="latest">Latest Date (Default)</option>
+                                            <option value="oldest">Oldest Date</option>
+                                            <option value="module">Category (Payslip > Quotation > Invoice)</option>
+                                            <option value="amount_high">Highest Amount</option>
+                                            <option value="amount_low">Lowest Amount</option>
+                                        </select>
+                                    </div>
+                                    <span class="text-xs text-slate-400 hidden sm:inline">Showing: {{ filteredRecentActivities.length }} records</span>
+                                </div>
+                            </div>
+
+                            <div class="mb-4 flex flex-wrap items-center gap-2">
+                                <div class="zq-filter-chip-group" role="group" aria-label="Filter by module">
+                                    <button type="button" @click="recentActivityFilter = 'all'" :class="{ 'is-active': recentActivityFilter === 'all' }" :aria-pressed="recentActivityFilter === 'all'" class="zq-filter-chip">All</button>
+                                    <button type="button" @click="recentActivityFilter = 'Invoice'" :class="{ 'is-active': recentActivityFilter === 'Invoice' }" :aria-pressed="recentActivityFilter === 'Invoice'" class="zq-filter-chip">Invoices</button>
+                                    <button type="button" @click="recentActivityFilter = 'Quotation'" :class="{ 'is-active': recentActivityFilter === 'Quotation' }" :aria-pressed="recentActivityFilter === 'Quotation'" class="zq-filter-chip">Quotations</button>
+                                    <button type="button" @click="recentActivityFilter = 'Payslip'" :class="{ 'is-active': recentActivityFilter === 'Payslip' }" :aria-pressed="recentActivityFilter === 'Payslip'" class="zq-filter-chip">Payslips</button>
+                                    <button type="button" @click="recentActivityFilter = 'Claim'" :class="{ 'is-active': recentActivityFilter === 'Claim' }" :aria-pressed="recentActivityFilter === 'Claim'" class="zq-filter-chip">Claims</button>
+                                    <button type="button" @click="recentActivityFilter = 'Payment Voucher'" :class="{ 'is-active': recentActivityFilter === 'Payment Voucher' }" :aria-pressed="recentActivityFilter === 'Payment Voucher'" class="zq-filter-chip">Vouchers</button>
+                                </div>
+                                <button type="button" @click="recentActivityAttentionOnly = !recentActivityAttentionOnly" :class="{ 'is-active': recentActivityAttentionOnly }" :aria-pressed="recentActivityAttentionOnly" class="zq-filter-button"><i class="fa-solid fa-triangle-exclamation"></i>Needs Attention Only</button>
+                            </div>
+
+                            <div class="overflow-x-auto">
+                                <table class="zq-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Module</th>
+                                            <th>Ref No.</th>
+                                             <th>Recipient / Employee</th>
+                                             <th class="text-right">Amount (RM)</th>
+                                             <th>Status</th>
+                                             <th class="text-center w-36">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="item in paginatedActivities" :key="item.id" @contextmenu.prevent="openContextMenu($event, recentActivityMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, recentActivityMenuItems(item))">
+                                            <td class="text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
+                                             <td>
+                                                 <span :class="item.tagClass" class="px-2.5 py-1 rounded-full text-[11px] font-bold">{{ item.type }}</span>
+                                             </td>
+                                            <td class="font-bold text-brand-dark dark:text-slate-100">{{ item.docNo }}</td>
+                                            <td class="font-medium text-slate-700 dark:text-slate-200">{{ item.name }}</td>
+                                             <td class="text-right font-extrabold text-brand-dark dark:text-slate-100">{{ formatCurrency(item.amount) }}</td>
+                                             <td><span :class="getActivityStatus(item).className" class="inline-block px-2 py-0.5 rounded text-[10px] font-extrabold uppercase">{{ getActivityStatus(item).label }}</span><p class="text-[10px] text-slate-400 mt-1">{{ getActivityStatus(item).detail }}</p></td>
+                                             <td class="text-center">
+                                                 <div class="zq-table-actions">
+                                                 <button type="button" @click="(item.isClaim || item.isVoucher) ? viewClaimRecord(item) : viewRecord(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Record"><i class="fa-solid fa-eye"></i></button>
+                                                <button v-if="(item.isDoc && canManageDocuments) || (item.isPay && canManagePayroll)" type="button" @click="editRecord(item)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Record"><i class="fa-solid fa-pen"></i></button>
+                                                <button v-if="(item.isDoc && canDeleteBillingDocument(item)) || (item.isPay && canDeletePayroll)" type="button" @click="confirmDeleteRecord(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Record"><i class="fa-solid fa-trash"></i></button>
+                                                 </div>
+                                            </td>
+                                        </tr>
+                                        <tr v-if="filteredRecentActivities.length === 0" class="zq-table-empty">
+                                            <td colspan="7">
+                                                <div class="zq-empty-state zq-empty-state-compact">
+                                                    <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                                    <p class="zq-empty-state-title">{{ (recentActivityFilter !== 'all' || recentActivityAttentionOnly || searchQuery) ? 'No matching activities' : 'No activity yet' }}</p>
+                                                    <p class="zq-empty-state-text">
+                                                        <template v-if="(recentActivityFilter !== 'all' || recentActivityAttentionOnly) && searchQuery">No records match your activity filters and your search for "{{ searchQuery }}".</template>
+                                                        <template v-else-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly">No records match your current activity filters.</template>
+                                                        <template v-else-if="searchQuery">No records match your search for "{{ searchQuery }}". Clear it from the search bar above.</template>
+                                                        <template v-else>Activity across documents, payroll, claims and vouchers will appear here.</template>
+                                                    </p>
+                                                    <div v-if="recentActivityFilter !== 'all' || recentActivityAttentionOnly" class="zq-empty-state-action"><button type="button" @click="recentActivityFilter = 'all'; recentActivityAttentionOnly = false" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear activity filters</button></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- PAGINATION CONTROLS (< 1 2 3 ... >) -->
+                            <div v-if="totalPages > 1" class="flex items-center justify-between border-t border-slate-100 dark:border-slate-700 pt-4 mt-4">
+                                <span class="text-xs font-semibold text-slate-400">
+                                    Page {{ currentPage }} of {{ totalPages }}
+                                </span>
+                                <div class="flex items-center space-x-1">
+                                    <button type="button" @click="currentPage > 1 && currentPage--" :disabled="currentPage === 1" title="Previous page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <button v-for="page in totalPages" :key="page" type="button" @click="currentPage = page" :aria-label="'Page ' + page" :aria-current="currentPage === page ? 'page' : null" :class="currentPage === page ? 'bg-brand-dark text-white dark:bg-brand-gold dark:text-brand-dark font-extrabold shadow' : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300'" class="px-3 py-1 rounded-lg text-xs font-bold transition">
+                                        {{ page }}
+                                    </button>
+                                    <button type="button" @click="currentPage < totalPages && currentPage++" :disabled="currentPage === totalPages" title="Next page" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>

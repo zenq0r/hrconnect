@@ -142,7 +142,9 @@ export const hrMethods = {
             if (!legacyVouchers.length) { this.showNotify('No legacy Payment Voucher records found inside the Claims collection.'); return; }
             if (!await this.askConfirm({
                 title: 'Migrate legacy payment vouchers?',
-                message: `${legacyVouchers.length} Payment Voucher record(s) move out of the Claims collection into the dedicated Payment Vouchers collection. This requires the updated firestore.rules to already be deployed. Each record is copied first, then removed from Claims — if anything fails, no data is lost.`,
+                // Deployment prerequisites are an operator's concern, not the
+                // approver's: a failure is reported as one, and nothing is lost.
+                message: `${legacyVouchers.length} Payment Voucher record(s) move out of Claims and onto the Payment Vouchers list. Each record is copied first, then removed from Claims — if anything fails, no data is lost.`,
                 confirmLabel: 'Yes, Migrate'
             })) return;
             try {

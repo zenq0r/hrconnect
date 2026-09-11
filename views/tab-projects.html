@@ -1,0 +1,521 @@
+<!-- =====================================================================
+     PROJECT BOARD AND ACTIVITIES
+     ===================================================================== -->
+                <!-- PROJECT ACTIVITIES MODULE -->
+                <div v-show="currentTab === 'project-activities'" class="p-4 md:p-8 max-w-[1800px] mx-auto w-full space-y-6">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <h2 class="zq-text-page-title">{{ userProfile.role === 'Client' ? 'My Project Tracker' : (canManageProjects ? 'Project Activities' : 'My Assigned Project Activities') }}</h2>
+                                <p class="zq-page-header-desc">{{ userProfile.role === 'Client' ? 'Follow your project progress across five workflow stages, in real time.' : (canManageProjects ? 'Real-time project progress across five controlled workflow stages.' : 'Projects you run as Person In Charge, plus projects with an activity assigned to you.') }}</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <div v-if="canManageProjects && userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project scope selection">
+                                <button type="button" @click="projectScopeFilter = 'all'" :class="{ 'is-active': projectScopeFilter === 'all' }" :aria-pressed="projectScopeFilter === 'all'">All Projects</button>
+                                <button type="button" @click="projectScopeFilter = 'mine'" :class="{ 'is-active': projectScopeFilter === 'mine' }" :aria-pressed="projectScopeFilter === 'mine'"><i class="fa-solid fa-user mr-1.5"></i>My Projects</button>
+                            </div>
+                            <span v-else-if="userProfile.role !== 'Client'" class="inline-flex items-center rounded-lg border border-teal-500/30 bg-teal-500/10 px-3 py-2 text-[10px] font-extrabold text-teal-700 dark:text-teal-300"><i class="fa-solid fa-user-check mr-1.5"></i>PIC &amp; Assigned To Me</span>
+                            <div v-if="userProfile.role !== 'Client'" class="zq-segmented-control" role="group" aria-label="Project view selection">
+                                <button type="button" @click="projectViewMode = 'board'" :class="{ 'is-active': projectViewMode === 'board' }" :aria-pressed="projectViewMode === 'board'"><i class="fa-solid fa-table-columns mr-1.5"></i>Board</button>
+                                <button type="button" @click="projectViewMode = 'list'" :class="{ 'is-active': projectViewMode === 'list' }" :aria-pressed="projectViewMode === 'list'"><i class="fa-solid fa-list mr-1.5"></i>List</button>
+                            </div>
+                            <button v-if="canManageProjects" type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary">
+                                <i class="fa-solid fa-plus"></i><span>Add Project</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Breadcrumb: only meaningful for roles that have a Client Task hub to
+                         come from (Director/Superadmin/HR/Account). Staff/IT/Client reach this
+                         page directly via their own sidebar button and see no trail. -->
+                    <div v-if="hasAccess('client-task')" class="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        <button type="button" @click="boardClientFilter = null; switchTab('client-task')" class="text-brand-blue hover:underline">Client Task</button>
+                        <i class="fa-solid fa-chevron-right text-[8px]"></i>
+                        <span>{{ boardClientFilter ? boardClientFilter.name : 'All Projects' }}</span>
+                        <i class="fa-solid fa-chevron-right text-[8px]"></i>
+                        <span class="text-brand-dark dark:text-white">Project Activities</span>
+                    </div>
+
+                    <!-- CLIENT-FACING PROJECT TRACKER (compact) -->
+                    <div v-if="userProfile.role === 'Client'" class="space-y-3">
+                        <div v-for="project in projects" :key="`track-${project.id}`" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4 shadow-sm transition hover:shadow-md">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <span class="shrink-0 rounded-md bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 text-[9px] font-extrabold text-brand-blue dark:text-blue-300 border border-blue-100 dark:border-blue-900">{{ project.projectRef }}</span>
+                                    <h3 class="truncate text-sm font-extrabold text-brand-dark dark:text-white">{{ project.title }}</h3>
+                                </div>
+                                <div class="shrink-0 flex items-center gap-3 text-[10px] text-slate-500 dark:text-slate-400">
+                                    <span><i class="fa-solid fa-calendar-check mr-1 text-slate-400 dark:text-slate-400"></i>{{ project.targetDate || 'Not scheduled' }}</span>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 flex items-center">
+                                <template v-for="(stage, stageIndex) in projectStages" :key="stage">
+                                    <div class="flex flex-1 flex-col items-center text-center">
+                                        <div class="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black"
+                                             :class="stageIndex < projectStages.indexOf(project.status) ? 'bg-emerald-500 text-white' : stageIndex === projectStages.indexOf(project.status) ? 'bg-brand-blue text-white ring-2 ring-blue-100 dark:ring-blue-900' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-400'">
+                                            <i v-if="stageIndex < projectStages.indexOf(project.status)" class="fa-solid fa-check text-[9px]"></i>
+                                            <span v-else>{{ stageIndex + 1 }}</span>
+                                        </div>
+                                        <p class="mt-1 hidden max-w-[80px] text-[8px] font-bold uppercase leading-tight sm:block" :class="stageIndex <= projectStages.indexOf(project.status) ? 'text-brand-dark dark:text-white' : 'text-slate-400 dark:text-slate-400'">{{ stage }}</p>
+                                    </div>
+                                    <div v-if="stageIndex < projectStages.length - 1" class="mb-3 sm:mb-4 h-0.5 flex-1 rounded" :class="stageIndex < projectStages.indexOf(project.status) ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'"></div>
+                                </template>
+                            </div>
+
+                            <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 dark:border-slate-700 pt-2.5">
+                                <div class="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                                    <span :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 rounded-full" :title="projectPicPresenceDetail(project)"></span>
+                                    <span>{{ project.ownerName || 'ZENQOR Team' }}</span>
+                                </div>
+                                <button type="button" @click="openProjectDetails(project)" class="rounded-lg bg-brand-dark px-3 py-1.5 text-[10px] font-bold text-white hover:bg-brand-blue"><i class="fa-regular fa-eye mr-1"></i>View Details</button>
+                            </div>
+                        </div>
+                        <div v-if="!projects.length" class="zq-empty-state" style="padding: var(--zq-space-16) var(--zq-space-4);">
+                            <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                            <p class="zq-empty-state-title">No projects assigned yet</p>
+                            <p class="zq-empty-state-text">Projects assigned to your account will appear here with real-time progress.</p>
+                        </div>
+                    </div>
+
+                    <div v-else-if="projectViewMode === 'board'" class="project-board-grid">
+                            <section v-for="(stage, stageIndex) in projectStages" :key="stage" class="min-w-0 rounded-2xl border p-3 shadow-sm transition" :class="dragOverStage === stage ? 'border-brand-blue bg-blue-50/70 dark:bg-blue-950/20 ring-2 ring-brand-blue/40' : 'border-slate-200 dark:border-slate-700 bg-slate-100/70 dark:bg-slate-900/40'" @dragover.prevent="onStageDragOver(stage)" @dragleave="onStageDragLeave(stage)" @drop.prevent="onStageDrop(stage)">
+                                <header class="mb-3 flex items-center justify-between rounded-xl bg-white dark:bg-slate-800 px-3 py-3 border border-slate-200 dark:border-slate-700">
+                                    <div class="flex items-center gap-2">
+                                        <span :class="['bg-blue-500','bg-amber-500','bg-orange-500','bg-violet-500','bg-emerald-500'][stageIndex]" class="h-2.5 w-2.5 rounded-full"></span>
+                                        <h3 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">{{ stage }}</h3>
+                                    </div>
+                                    <span class="rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[10px] font-black text-slate-600 dark:text-slate-300">{{ getProjectsByStage(stage).length }}</span>
+                                </header>
+
+                                <div class="space-y-2.5 min-h-[180px]">
+                                    <template v-if="!boardClientFilter">
+                                    <article v-for="group in getClientGroupsByStage(stage)" :key="group.key" :draggable="canDragClientGroup(group)" @dragstart="startGroupDrag($event, group, stage)" @dragend="endDrag" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm transition hover:shadow-md" :class="canDragClientGroup(group) ? 'cursor-grab active:cursor-grabbing' : ''">
+                                        <div class="flex w-full items-start gap-2 rounded-xl p-3">
+                                            <button type="button" @click="toggleClientGroup(`${stage}::${group.key}`)" class="flex min-w-0 flex-1 items-start gap-2 text-left" :title="isClientGroupExpanded(`${stage}::${group.key}`) ? 'Collapse tasks' : 'Expand tasks'">
+                                                <i class="fa-solid text-[10px] text-slate-400 dark:text-slate-400 shrink-0 mt-0.5" :class="isClientGroupExpanded(`${stage}::${group.key}`) ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                                                <div class="min-w-0 flex-1">
+                                                    <div class="flex min-w-0 items-center gap-2">
+                                                        <span class="min-w-0 truncate text-[12px] font-extrabold text-brand-dark dark:text-white"><i class="fa-solid fa-building mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ clientNameForId(group.clientDirectoryId, group.clientName) }}</span>
+                                                        <span :class="isClientOnline(group.clientDirectoryId) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-1.5 w-1.5 shrink-0 rounded-full" :title="clientPresenceDetail(group.clientDirectoryId)"></span>
+                                                        <span class="shrink-0 rounded-full bg-slate-100 dark:bg-slate-700 px-2 py-0.5 text-[9px] font-black text-slate-600 dark:text-slate-300">{{ group.projects.length }}</span>
+                                                    </div>
+                                                    <p v-if="group.projects.length === 1" class="mt-0.5 truncate text-[10px] font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-diagram-project mr-1 text-slate-400 dark:text-slate-400"></i>{{ group.projects[0].title }}</p>
+                                                    <p class="mt-1 truncate text-[9px] font-semibold text-slate-400 dark:text-slate-400">SSM: {{ clientSsmForId(group.clientDirectoryId) || '—' }}</p>
+                                                    <p v-if="isNewProjectGroup(group)" class="mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-sparkles mr-1"></i>New project · Added {{ formatDateTime(clientGroupNewestCreatedAt(group)) }}</p>
+                                                </div>
+                                            </button>
+                                            <div class="flex shrink-0 items-center gap-1">
+                                                <span v-if="isNewClient(group.clientDirectoryId)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
+                                                <span :class="clientTierMeta(clientTierForId(group.clientDirectoryId)).badgeClass" class="rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTierMeta(clientTierForId(group.clientDirectoryId)).label }}</span>
+                                                <button type="button" @click="openClientQuickViewForProject(group.projects[0])" class="h-6 w-6 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600" title="View client information"><i class="fa-solid fa-circle-info text-[10px]"></i></button>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="isClientGroupExpanded(`${stage}::${group.key}`)" class="space-y-2 border-t border-slate-100 dark:border-slate-700 p-2.5">
+                                            <div v-for="project in group.projects" :key="project.id" :draggable="canEditProject(project)" @dragstart="startProjectDrag($event, project, stage)" @dragend="endDrag" @contextmenu.prevent="openContextMenu($event, projectCardMenuItems(project, stageIndex))" v-longpress="(touch) => openContextMenu(touch, projectCardMenuItems(project, stageIndex))" class="overflow-hidden rounded-lg border border-l-4 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800" :class="[projectTargetDateState(project).borderClass, canEditProject(project) ? 'cursor-grab active:cursor-grabbing' : '']">
+                                                <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-3 py-1.5">
+                                                    <div class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                                                        <span :title="project.projectRef" class="zq-badge zq-badge-neutral min-w-0 truncate">{{ project.projectRef }}</span>
+                                                        <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase" :class="projectTargetDateState(project).className">{{ projectTargetDateState(project).label }}</span>
+                                                    </div>
+                                                    <div class="flex items-center gap-1 shrink-0">
+                                                        <button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="View details"><i class="fa-regular fa-eye text-[10px]"></i></button>
+                                                        <template v-if="canEditProject(project)">
+                                                            <button type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon zq-btn-sm" title="Edit project"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                                            <button type="button" @click="moveProject(project, -1)" :disabled="stageIndex === 0" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to previous stage"><i class="fa-solid fa-arrow-left text-[10px]"></i></button>
+                                                            <button type="button" @click="moveProject(project, 1)" :disabled="stageIndex === projectStages.length - 1" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to next stage"><i class="fa-solid fa-arrow-right text-[10px]"></i></button>
+                                                            <button v-if="project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(project)" class="zq-btn zq-btn-success zq-btn-icon zq-btn-sm" title="Assign / Mark Done"><i class="fa-solid fa-check text-[10px]"></i></button>
+                                                        </template>
+                                                        <button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Delete project"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                                    </div>
+                                                </div>
+                                                <button type="button" @click="openProjectDetails(project)" class="block w-full p-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                                    <h4 class="text-sm font-extrabold leading-snug text-brand-dark dark:text-white">{{ project.title }}</h4>
+                                                    <div class="mt-2.5 flex items-center gap-2">
+                                                        <img v-if="projectOwnerPhoto(project)" :src="projectOwnerPhoto(project)" :alt="project.ownerName" class="h-7 w-7 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
+                                                        <div v-else class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[9px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(project.ownerName) }}</div>
+                                                        <div class="min-w-0 flex-1">
+                                                            <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-400"> · {{ project.ownerEmpNo }}</span></p>
+                                                            <p class="truncate text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
+                                                        </div>
+                                                        <span v-if="project.ownerEmpNo" :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(project)"></span>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </article>
+                                    </template>
+                                    <!-- Drilled into one client from Client Task: same per-project card as an
+                                         expanded group above, but flat (no client wrapper) since only one
+                                         client is in view. -->
+                                    <template v-else>
+                                    <div v-for="project in getProjectsByStage(stage)" :key="project.id" :draggable="canEditProject(project)" @dragstart="startProjectDrag($event, project, stage)" @dragend="endDrag" @contextmenu.prevent="openContextMenu($event, projectCardMenuItems(project, stageIndex))" v-longpress="(touch) => openContextMenu(touch, projectCardMenuItems(project, stageIndex))" class="overflow-hidden rounded-lg border border-l-4 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm" :class="[projectTargetDateState(project).borderClass, canEditProject(project) ? 'cursor-grab active:cursor-grabbing' : '']">
+                                        <div class="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 px-3 py-1.5">
+                                            <div class="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                                                <span :title="project.projectRef" class="zq-badge zq-badge-neutral min-w-0 truncate">{{ project.projectRef }}</span>
+                                                <span class="shrink-0 rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase" :class="projectTargetDateState(project).className">{{ projectTargetDateState(project).label }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-1 shrink-0">
+                                                <button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="View details"><i class="fa-regular fa-eye text-[10px]"></i></button>
+                                                <template v-if="canEditProject(project)">
+                                                    <button type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon zq-btn-sm" title="Edit project"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                                    <button type="button" @click="moveProject(project, -1)" :disabled="stageIndex === 0" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to previous stage"><i class="fa-solid fa-arrow-left text-[10px]"></i></button>
+                                                    <button type="button" @click="moveProject(project, 1)" :disabled="stageIndex === projectStages.length - 1" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="Move to next stage"><i class="fa-solid fa-arrow-right text-[10px]"></i></button>
+                                                    <button v-if="project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(project)" class="zq-btn zq-btn-success zq-btn-icon zq-btn-sm" title="Assign / Mark Done"><i class="fa-solid fa-check text-[10px]"></i></button>
+                                                </template>
+                                                <button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Delete project"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                                            </div>
+                                        </div>
+                                        <button type="button" @click="openProjectDetails(project)" class="block w-full p-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                            <h4 class="text-sm font-extrabold leading-snug text-brand-dark dark:text-white">{{ project.title }}</h4>
+                                            <div class="mt-2.5 flex items-center gap-2">
+                                                <img v-if="projectOwnerPhoto(project)" :src="projectOwnerPhoto(project)" :alt="project.ownerName" class="h-7 w-7 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
+                                                <div v-else class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[9px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(project.ownerName) }}</div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || 'Unassigned' }}<span v-if="project.ownerEmpNo" class="font-normal text-slate-400 dark:text-slate-400"> · {{ project.ownerEmpNo }}</span></p>
+                                                    <p class="truncate text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-solid fa-calendar-check mr-1"></i>Target: {{ project.targetDate || 'Not scheduled' }}</p>
+                                                </div>
+                                                <span v-if="project.ownerEmpNo" :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(project)"></span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                    </template>
+                                    <div v-if="!getProjectsByStage(stage).length" class="zq-empty-state zq-empty-state-compact" style="min-height: 150px;">
+                                        <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                        <p class="zq-empty-state-title">No projects here</p>
+                                    </div>
+                                </div>
+                            </section>
+                    </div>
+
+                    <div v-else class="zq-card overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="zq-table min-w-[1000px]">
+                                <thead>
+                                    <tr><th>Reference / Project</th><th>Client</th><th>Person In Charge</th><th>Target Date</th><th>Workflow Status</th><th class="text-center">Actions</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="project in filteredProjects" :key="`list-${project.id}`" @contextmenu.prevent="openContextMenu($event, projectCardMenuItems(project))" v-longpress="(touch) => openContextMenu(touch, projectCardMenuItems(project))">
+                                        <td><p class="text-[10px] font-extrabold text-brand-blue">{{ project.projectRef }}</p><p class="mt-1 max-w-sm font-extrabold text-brand-dark dark:text-white">{{ project.title }}</p><p v-if="project.description" class="mt-1 max-w-sm truncate text-[10px] text-slate-500 dark:text-slate-400">{{ project.description }}</p></td>
+                                        <td><button v-if="project.clientName" type="button" @click="openClientQuickViewForProject(project)" class="text-left font-bold text-slate-700 dark:text-slate-200 hover:text-brand-blue hover:underline">{{ project.clientName }}</button><span v-else class="font-bold text-slate-700 dark:text-slate-200">—</span><p v-if="project.clientEmail" class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ project.clientEmail }}</p><div v-if="project.clientName" class="mt-1 flex flex-wrap gap-1"><span v-if="isNewClient(project.clientDirectoryId)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New</span><span :class="clientTierMeta(clientTierForId(project.clientDirectoryId)).badgeClass" class="rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTierMeta(clientTierForId(project.clientDirectoryId)).label }}</span></div></td>
+                                        <td><p class="font-bold text-slate-700 dark:text-slate-200">{{ project.ownerName || '—' }}</p><p v-if="project.ownerPosition" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ project.ownerPosition }}</p><p v-if="project.ownerEmail" class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ project.ownerEmail }}</p><p v-if="project.ownerAssignedAt" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Assigned {{ formatDateTime(project.ownerAssignedAt) }}</p><p v-if="project.ownerEmpNo" class="mt-2 flex items-center gap-1.5 text-[10px]"><span :class="isProjectPicOnline(project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 rounded-full"></span><span :class="isProjectPicOnline(project) ? 'font-bold text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'">{{ projectPicPresenceDetail(project) }}</span></p></td>
+                                        <td class="font-bold text-slate-700 dark:text-slate-200">{{ project.targetDate || '—' }}</td>
+                                        <td><span :class="['bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300','bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300','bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300','bg-violet-50 text-violet-700 dark:bg-violet-950/40 dark:text-violet-300','bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'][projectStages.indexOf(project.status)] || 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200'" class="inline-flex rounded-full px-3 py-1.5 text-[10px] font-extrabold uppercase whitespace-nowrap">{{ project.status }}</span></td>
+                                        <td><div class="zq-table-actions"><button type="button" @click="openProjectDetails(project)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View details"><i class="fa-regular fa-eye"></i></button><button v-if="canEditProject(project)" type="button" @click="openProjectModal(project)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit project"><i class="fa-solid fa-pen"></i></button><button v-if="canEditProject(project) && project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(project)" class="zq-btn zq-btn-success zq-btn-icon" title="Assign / Mark Done"><i class="fa-solid fa-check"></i></button><button v-if="canManageProjects" type="button" @click="deleteProject(project)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete project"><i class="fa-solid fa-trash"></i></button></div></td>
+                                    </tr>
+                                    <tr v-if="!filteredProjects.length" class="zq-table-empty">
+                                        <td colspan="6">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                                <p class="zq-empty-state-title">{{ projects.length ? 'No matching projects' : 'No projects yet' }}</p>
+                                                <p class="zq-empty-state-text">{{ projects.length ? 'No projects match your current scope or search.' : 'Projects will appear here once they are created.' }}</p>
+                                                <div v-if="projects.length && (projectScopeFilter !== 'all' || searchQuery)" class="zq-empty-state-action"><button type="button" @click="projectScopeFilter = 'all'; searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear filters</button></div>
+                                                <div v-else-if="!projects.length && canManageProjects" class="zq-empty-state-action"><button type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Project</span></button></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div v-if="projectPreview.show && projectPreview.project" class="zq-modal-overlay z-[96]" role="dialog" aria-modal="true" :aria-label="projectPreview.project.title" @click.self="closeProjectDetails">
+                        <div class="zq-modal zq-modal-xl">
+                            <header class="zq-modal-header zq-modal-header-brand !flex-col !items-stretch">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ projectPreview.project.projectRef }}</p>
+                                            <span class="rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase" :class="projectTargetDateState(projectPreview.project).className">{{ projectTargetDateState(projectPreview.project).label }}</span>
+                                        </div>
+                                        <h3 class="zq-modal-title mt-1">{{ projectPreview.project.title }}</h3>
+                                    </div>
+                                    <button type="button" @click="closeProjectDetails" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div class="mt-5 flex items-center">
+                                    <template v-for="(stage, stageIndex) in projectStages" :key="stage">
+                                        <div class="flex flex-1 flex-col items-center text-center">
+                                            <div class="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black"
+                                                 :class="stageIndex < projectStages.indexOf(projectPreview.project.status) ? 'bg-emerald-500 text-white' : stageIndex === projectStages.indexOf(projectPreview.project.status) ? 'bg-white text-brand-dark ring-4 ring-white/25' : 'bg-white/10 text-white/50'">
+                                                <i v-if="stageIndex < projectStages.indexOf(projectPreview.project.status)" class="fa-solid fa-check text-[9px]"></i>
+                                                <span v-else>{{ stageIndex + 1 }}</span>
+                                            </div>
+                                            <p class="mt-1.5 hidden max-w-[80px] text-[8px] font-bold uppercase leading-tight sm:block" :class="stageIndex <= projectStages.indexOf(projectPreview.project.status) ? 'text-white' : 'text-white/40'">{{ stage }}</p>
+                                        </div>
+                                        <div v-if="stageIndex < projectStages.length - 1" class="mb-4 sm:mb-5 h-0.5 flex-1" :class="stageIndex < projectStages.indexOf(projectPreview.project.status) ? 'bg-emerald-500' : 'bg-white/15'"></div>
+                                    </template>
+                                </div>
+                            </header>
+                            <div class="zq-modal-body space-y-5 text-slate-700 dark:text-slate-200">
+                                <section>
+                                    <h4 class="mb-3 text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Information</h4>
+                                    <button v-if="projectPreview.project.clientName" type="button" @click="openClientQuickViewForProject(projectPreview.project)" class="block w-full rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-left transition hover:border-brand-blue hover:bg-blue-50 dark:hover:bg-blue-950/30">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Client <i class="fa-solid fa-arrow-up-right-from-square ml-1 text-[8px]"></i></p>
+                                            <div class="flex shrink-0 gap-1">
+                                                <span v-if="isNewClient(projectPreview.project.clientDirectoryId)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-1.5 py-0.5 text-[8px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New</span>
+                                                <span :class="clientTierMeta(clientTierForId(projectPreview.project.clientDirectoryId, projectPreview.project.clientTier)).badgeClass" class="rounded-full px-1.5 py-0.5 text-[8px] font-extrabold uppercase">{{ clientTierMeta(clientTierForId(projectPreview.project.clientDirectoryId, projectPreview.project.clientTier)).label }}</span>
+                                            </div>
+                                        </div>
+                                        <p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ clientNameForId(projectPreview.project.clientDirectoryId, projectPreview.project.clientName) || '—' }}</p>
+                                        <div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400">
+                                            <span><i class="fa-solid fa-hashtag mr-1"></i>SSM: {{ clientSsmForId(projectPreview.project.clientDirectoryId, projectPreview.project.clientSSM) || '—' }}</span>
+                                            <span class="lowercase"><i class="fa-solid fa-envelope mr-1"></i>{{ projectPreview.project.clientEmail || '—' }}</span>
+                                        </div>
+                                    </button>
+                                    <div v-else class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">—</p></div>
+                                    <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Schedule</p>
+                                            <p class="mt-1.5 text-xs font-bold text-slate-700 dark:text-slate-200"><i class="fa-solid fa-play mr-1.5 w-3 text-slate-400 dark:text-slate-400"></i>Start: {{ projectPreview.project.startDate ? formatDateWithDay(projectPreview.project.startDate) : '—' }}</p>
+                                            <p class="mt-1 text-xs font-bold text-slate-700 dark:text-slate-200"><i class="fa-solid fa-flag-checkered mr-1.5 w-3 text-slate-400 dark:text-slate-400"></i>Target: {{ projectPreview.project.targetDate ? formatDateWithDay(projectPreview.project.targetDate) : '—' }}</p>
+                                            <p v-if="projectPreview.project.createdAt" class="mt-1 text-[9px] text-slate-400 dark:text-slate-400"><i class="fa-solid fa-clock mr-1.5 w-3"></i>Created {{ formatDateTimeWithDay(projectPreview.project.createdAt) }}</p>
+                                        </div>
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                                            <p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Person In Charge</p>
+                                            <div class="mt-1.5 flex items-center gap-2">
+                                                <img v-if="projectOwnerPhoto(projectPreview.project)" :src="projectOwnerPhoto(projectPreview.project)" :alt="projectPreview.project.ownerName" class="h-8 w-8 shrink-0 rounded-full object-cover border border-slate-200 dark:border-slate-600">
+                                                <div v-else class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-blue/10 dark:bg-blue-950/40 text-[10px] font-extrabold text-brand-blue dark:text-blue-300">{{ getInitials(projectPreview.project.ownerName) }}</div>
+                                                <div class="min-w-0 flex-1">
+                                                    <p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ projectPreview.project.ownerName || '—' }}</p>
+                                                    <p class="truncate text-[9px] text-slate-500 dark:text-slate-400">{{ projectPreview.project.ownerPosition || 'NO POSITION' }}</p>
+                                                </div>
+                                                <span :class="isProjectPicOnline(projectPreview.project) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="h-2 w-2 shrink-0 rounded-full" :title="projectPicPresenceDetail(projectPreview.project)"></span>
+                                            </div>
+                                            <p class="mt-2 truncate text-[9px] text-slate-500 dark:text-slate-400">{{ projectPreview.project.ownerEmpNo }} · <span class="lowercase">{{ projectPreview.project.ownerEmail }}</span></p>
+                                            <p class="mt-1 text-[9px] text-slate-400 dark:text-slate-400">Assigned {{ formatDateTime(projectPreview.project.ownerAssignedAt) }} · {{ projectPicPresenceDetail(projectPreview.project) }}</p>
+                                        </div>
+                                    </div>
+                                </section>
+                                <section><h4 class="mb-3 text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Description</h4><div class="min-h-[90px] whitespace-pre-wrap rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-4 text-xs leading-relaxed text-slate-700 dark:text-slate-200">{{ projectPreview.project.description || 'No project description provided.' }}</div></section>
+                                <template v-if="projectPreview.detailsReady">
+                                <section>
+                                    <div class="mb-3 flex items-center justify-between gap-3"><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Quotation &amp; Invoice</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Only billing documents linked to this exact Client ID and project are shown.</p></div><span class="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-extrabold text-slate-600 dark:bg-slate-700 dark:text-slate-300">{{ projectBillingDocuments(projectPreview.project).length }} RECORD{{ projectBillingDocuments(projectPreview.project).length === 1 ? '' : 'S' }}</span></div>
+                                    <div v-if="!projectBillingDocuments(projectPreview.project).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-file-invoice zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No quotation or invoice for this project</p><p class="zq-empty-state-text">Documents appear here after they are issued with this Client ID and assigned project.</p></div>
+                                    <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2"><article v-for="item in projectBillingDocuments(projectPreview.project)" :key="`project-billing-${item.id}`" class="rounded-xl border border-slate-200 dark:border-slate-700 p-3"><div class="flex items-start justify-between gap-2"><div class="min-w-0"><span :class="item.tagClass" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ item.type }}</span><p class="mt-2 truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.docNo }}</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ formatDateWithDay(item.date) }} · {{ formatCurrency(item.amount) }}</p></div><button type="button" @click="viewRecord(item)" class="zq-btn zq-btn-outline zq-btn-icon shrink-0" title="View document"><i class="fa-solid fa-eye text-[11px]"></i></button></div><p class="mt-2 text-[9px] font-bold uppercase text-slate-500 dark:text-slate-400">{{ item.status || 'Open' }}</p></article></div>
+                                </section>
+                                <section>
+                                    <div class="mb-3 flex items-center justify-between gap-3">
+                                        <div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Documents</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Centralized repository — JPG, PNG and PDF files shared between your team and the client.</p></div>
+                                        <label v-if="canUploadClientDocuments" class="shrink-0 cursor-pointer rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
+                                            <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>{{ clientDocuments.uploading ? 'Uploading…' : 'Upload Document' }}
+                                            <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
+                                        </label>
+                                    </div>
+                                    <div v-if="!canViewClientDocuments" class="zq-empty-state zq-empty-state-compact"><i class="fa-solid fa-lock zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">Documents not available for your role</p><p class="zq-empty-state-text">The client document repository is handled by Director, Superadmin, HR, Account and IT. Your project activities are unaffected.</p></div>
+                                    <div v-else-if="clientDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
+                                    <div v-else-if="clientDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-8 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ clientDocuments.error }}</p><button type="button" @click="loadClientDocuments(clientDocuments.clientDirectoryId, clientDocuments.clientName, clientDocuments.clientEmail)" class="mt-3 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"><i class="fa-solid fa-rotate-right mr-1.5"></i>Try Again</button></div>
+                                    <div v-else-if="!clientDocuments.items.length" class="zq-empty-state zq-empty-state-compact">
+                        <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                        <p class="zq-empty-state-title">No documents uploaded yet</p>
+                        <p class="zq-empty-state-text">{{ canUploadClientDocuments ? 'Use Upload Document above to add the first one.' : 'Documents shared with this client will appear here.' }}</p>
+                    </div>
+                                    <div v-else class="space-y-2">
+                                        <div v-for="item in clientDocuments.items" :key="item.id" @contextmenu.prevent="openContextMenu($event, clientDocumentMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, clientDocumentMenuItems(item))" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                                            <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
+                                            <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}</p></div>
+                                            <div class="flex shrink-0 gap-1.5">
+                                                <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                                                <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
+                                                <button v-if="canManageDocuments" type="button" @click="requestDeleteClientDocument(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Remove"><i class="fa-solid fa-trash text-[11px]"></i></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </section>
+                                <section v-if="canViewProjectActivityDetails(projectPreview.project)">
+                                    <div class="mb-3 flex items-center justify-between gap-3"><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Activity Issues</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ canManageProjectActivities(projectPreview.project) ? 'Scheduled actions, assignees and due dates for this project.' : 'The scheduled actions assigned to you in this project.' }}</p></div><button v-if="canManageProjectActivities(projectPreview.project)" type="button" @click="openActivityModal(projectPreview.project)" class="rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-calendar-plus mr-1.5"></i>Schedule Activity</button></div>
+                                    <div class="space-y-2"><article v-for="activity in visibleProjectActivitiesFor(projectPreview.project.id)" :key="activity.id" @contextmenu.prevent="openContextMenu($event, projectActivityMenuItems(activity))" v-longpress="(touch) => openContextMenu(touch, projectActivityMenuItems(activity))" class="rounded-xl border border-slate-200 dark:border-slate-700 p-4"><div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="rounded-md bg-slate-100 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">{{ activity.activityType }}</span><span :class="projectActivityDueState(activity).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ projectActivityDueState(activity).label }}</span></div><p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">{{ activity.summary }}</p><p v-if="activity.details" class="mt-1 whitespace-pre-wrap text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{{ activity.details }}</p><p class="mt-2 text-[10px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-user-check mr-1.5 text-slate-400 dark:text-slate-400"></i>{{ activity.assignedName }} · {{ activity.assignedPosition || 'NO POSITION' }}</p></div><div class="shrink-0 text-left sm:text-right"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Due Date</p><p class="mt-1 text-xs font-extrabold text-slate-700 dark:text-slate-200">{{ activity.dueDate }}</p><div class="mt-3 flex flex-wrap gap-1.5 sm:justify-end"><button v-if="activity.status !== 'Done' && canCompleteProjectActivity(activity)" type="button" @click="markProjectActivityDone(activity)" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-emerald-700" title="Complete activity"><i class="fa-solid fa-check mr-1"></i>Mark Done</button><button v-if="canEditProjectActivity(activity)" type="button" @click="openActivityModal(projectPreview.project, activity)" class="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60" title="Edit activity"><i class="fa-solid fa-pen text-[10px]"></i></button><button v-if="canDeleteProjectActivity(activity)" type="button" @click="deleteProjectActivity(activity)" class="h-7 w-7 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/60" title="Delete activity"><i class="fa-solid fa-trash text-[10px]"></i></button></div></div></div></article><div v-if="!visibleProjectActivitiesFor(projectPreview.project.id).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-calendar-xmark zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No activity issues scheduled</p><p class="zq-empty-state-text">{{ canManageProjectActivities(projectPreview.project) ? 'Scheduled actions for this project will appear here.' : 'Activities assigned to you in this project will appear here.' }}</p></div></div>
+                                </section>
+                                <section v-else-if="userProfile.role !== 'Client'" class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/70 dark:bg-amber-950/20">
+                                    <div class="flex gap-3"><i class="fa-solid fa-lock mt-0.5 text-amber-700 dark:text-amber-300"></i><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-amber-800 dark:text-amber-200">Activity Access Restricted</h4><p class="mt-1 text-[10px] leading-relaxed text-amber-800/80 dark:text-amber-200/80">Only this project's Person In Charge, Director or Superadmin — or a staff member with an activity assigned to them here — can view Activity Type and Assigned To. An assignee can complete their own activity; only the Person In Charge, Director or Superadmin can schedule, edit or delete them. You can view the Status History below.</p></div></div>
+                                </section>
+                                <section>
+                                    <div class="mb-3 flex items-center justify-between gap-3"><div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Activity History</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Two-way conversation between your team and the client for this project.</p></div><button v-if="canSendClientUpdate(projectPreview.project)" type="button" @click="openClientUpdateModal(projectPreview.project)" class="rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-paper-plane mr-1.5"></i>Send Client Update</button></div>
+
+                                    <div class="max-h-80 space-y-2.5 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3">
+                                        <article v-for="update in clientUpdatesFor(projectPreview.project.id)" :key="update.id" @contextmenu.prevent="openContextMenu($event, clientUpdateMenuItems(update))" v-longpress="(touch) => openContextMenu(touch, clientUpdateMenuItems(update))" class="flex" :class="update.senderRole === 'Client' ? 'justify-end' : 'justify-start'">
+                                            <div class="max-w-[85%] rounded-xl px-3.5 py-2.5 text-xs shadow-sm" :class="update.senderRole === 'Client' ? 'bg-brand-blue text-white' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'">
+                                                <div class="flex items-center gap-1.5 text-[9px] font-extrabold uppercase" :class="update.senderRole === 'Client' ? 'text-teal-100' : 'text-teal-700 dark:text-teal-400'"><i class="fa-solid" :class="update.senderRole === 'Client' ? 'fa-user' : 'fa-user-tie'"></i><span>{{ update.senderName }} · {{ update.senderPosition || 'STAFF' }}</span></div>
+
+                                                <template v-if="editingReplyId === update.id">
+                                                    <textarea v-model="editingReplyMessage" rows="3" class="mt-2 w-full rounded-lg border border-white/30 bg-white/95 dark:bg-slate-900/80 px-2.5 py-2 text-xs text-slate-800 dark:text-slate-100 outline-none"></textarea>
+                                                    <div class="mt-1.5 flex justify-end gap-1.5"><button type="button" @click="cancelEditReply" class="rounded-lg bg-black/10 px-2.5 py-1 text-[10px] font-bold" :class="update.senderRole === 'Client' ? 'text-white' : 'text-slate-600 dark:text-slate-300'">Cancel</button><button type="button" @click="saveReplyEdit(update)" class="rounded-lg bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white">Save</button></div>
+                                                </template>
+                                                <template v-else>
+                                                    <p class="mt-1.5 whitespace-pre-wrap leading-relaxed">{{ update.message }}</p>
+                                                </template>
+
+                                                <div class="mt-1.5 flex items-center gap-1.5 text-[9px]" :class="update.senderRole === 'Client' ? 'text-teal-100' : 'text-slate-400 dark:text-slate-400'">
+                                                    <span>{{ formatDateTime(update.createdAt) }}</span><span v-if="update.updatedAt">· edited</span>
+                                                    <span v-if="canEditClientUpdate(update) || canDeleteClientUpdate(update)" class="ml-auto flex gap-0.5"><button v-if="canEditClientUpdate(update) && editingReplyId !== update.id" type="button" @click="update.senderRole === 'Client' ? startEditReply(update) : openClientUpdateModal(projectPreview.project, update)" title="Edit" class="rounded px-1.5 py-0.5 hover:bg-black/10"><i class="fa-solid fa-pen"></i></button><button v-if="canDeleteClientUpdate(update)" type="button" @click="deleteClientUpdate(update)" title="Delete" class="rounded px-1.5 py-0.5 hover:bg-black/10"><i class="fa-solid fa-trash"></i></button></span>
+                                                </div>
+                                            </div>
+                                        </article>
+                                        <div v-if="!clientUpdatesFor(projectPreview.project.id).length" class="zq-empty-state zq-empty-state-compact"><i class="fa-regular fa-message zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">No updates shared yet</p><p class="zq-empty-state-text">Messages between your team and the client will appear here.</p></div>
+                                    </div>
+
+                                    <div v-if="canReplyAsClient(projectPreview.project)" class="mt-2.5 flex items-end gap-2">
+                                        <textarea v-model="clientReplyMessage" rows="2" placeholder="Write a reply to your project team…" class="w-full rounded-xl border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white px-3 py-2.5 text-xs outline-none focus:border-brand-blue"></textarea>
+                                        <button type="button" @click="sendClientReply" class="shrink-0 rounded-xl bg-brand-blue px-4 py-2.5 text-xs font-bold text-white hover:bg-teal-800"><i class="fa-solid fa-paper-plane"></i></button>
+                                    </div>
+                                </section>
+                                </template>
+                                <div v-else class="zq-loading-state" role="status" aria-live="polite">
+                                    <i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i>
+                                    <p class="zq-loading-state-text">Preparing project details…</p>
+                                </div>
+                            </div>
+                            <div class="zq-modal-footer"><button v-if="canManageProjects" type="button" @click="deleteProjectFromPreview" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button><button v-if="canEditProject(projectPreview.project)" type="button" @click="editProjectFromPreview" class="zq-btn zq-btn-info"><i class="fa-solid fa-pen mr-1.5"></i>Edit Project</button><button v-if="canEditProject(projectPreview.project) && projectPreview.project.status !== 'Completed &amp; Done'" type="button" @click="openMarkProjectDoneModal(projectPreview.project)" class="zq-btn zq-btn-success"><i class="fa-solid fa-check mr-1.5"></i>Assign / Mark Done</button><button type="button" @click="closeProjectDetails" class="zq-btn zq-btn-primary">Close</button></div>
+                        </div>
+                    </div>
+
+                    <div v-if="activityModal.show && activityModal.project" class="zq-modal-overlay z-[98]" role="dialog" aria-modal="true" :aria-label="activityModal.isEdit ? 'Edit Project Activity' : 'Schedule Project Activity'" @click.self="closeActivityModal">
+                        <form @submit.prevent="saveProjectActivity" class="zq-modal zq-modal-lg">
+                            <header class="zq-modal-header zq-modal-header-brand"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ activityModal.project.projectRef }}</p><h3 class="zq-modal-title mt-1">{{ activityModal.isEdit ? 'Edit Project Activity' : 'Schedule Project Activity' }}</h3><p class="zq-modal-description !text-slate-300">{{ activityModal.project.title }}</p></div><button type="button" @click="closeActivityModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+                            <div class="zq-modal-body grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <label class="zq-label">Activity Type *<select v-model="activityModal.form.activityType" required class="zq-input mt-1.5"><option v-for="type in activityTypes" :key="type" :value="type">{{ type }}</option></select></label>
+                                <label class="zq-label">Due Date *<input v-model="activityModal.form.dueDate" type="date" required class="zq-input mt-1.5"></label>
+                                <label class="zq-label md:col-span-2">Summary *<input v-model="activityModal.form.summary" type="text" required placeholder="SHORT ACTION OR ISSUE SUMMARY" class="zq-input mt-1.5"></label>
+                                <label class="zq-label md:col-span-2">Assigned To *<select v-model="activityModal.form.assignedEmpNo" @change="selectActivityAssignee" required class="zq-input mt-1.5"><option value="">-- Select Employee --</option><option v-for="employee in projectStaffOptions" :key="`activity-${employee.empNo}`" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="activityModal.form.assignedEmpNo" class="mt-2 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><b>{{ activityModal.form.assignedName }}</b> · {{ activityModal.form.assignedPosition || 'NO POSITION' }} · <span class="lowercase">{{ activityModal.form.assignedEmail }}</span></div></label>
+                                <label class="zq-label md:col-span-2">Activity Details<textarea v-model="activityModal.form.details" rows="5" placeholder="DOCUMENTS REQUIRED, FOLLOW-UP INSTRUCTIONS OR ISSUE DETAILS" class="zq-input mt-1.5"></textarea></label>
+                            </div>
+                            <div class="zq-modal-footer"><button type="button" @click="closeActivityModal" class="zq-btn zq-btn-ghost">Cancel</button><button type="submit" class="zq-btn zq-btn-secondary"><i :class="activityModal.isEdit ? 'fa-pen-to-square' : 'fa-calendar-check'" class="fa-solid mr-1.5"></i>{{ activityModal.isEdit ? 'Save Changes' : 'Schedule Activity' }}</button></div>
+                        </form>
+                    </div>
+
+                    <div v-if="clientUpdateModal.show && clientUpdateModal.project" class="zq-modal-overlay z-[99]" role="dialog" aria-modal="true" :aria-label="clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update'" @click.self="closeClientUpdateModal">
+                        <form @submit.prevent="saveClientUpdate" class="zq-modal zq-modal-lg">
+                            <header class="zq-modal-header zq-modal-header-brand"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.2em] text-teal-300">{{ clientUpdateModal.project.projectRef }}</p><h3 class="zq-modal-title mt-1">{{ clientUpdateModal.isEdit ? 'Edit Client Update' : 'Send Client Update' }}</h3><p class="zq-modal-description !text-slate-300">This message will appear in the Client Activity History and notify every authorized client contact by email and in the portal.</p></div><button type="button" @click="closeClientUpdateModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></header>
+                            <div class="zq-modal-body grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <label class="zq-label">Update Type *<select v-model="clientUpdateModal.form.updateType" required class="zq-input mt-1.5"><option v-for="type in clientUpdateTypes" :key="type" :value="type">{{ type }}</option></select></label>
+                                <label class="zq-label">Update Date *<input v-model="clientUpdateModal.form.updateDate" type="date" required class="zq-input mt-1.5"></label>
+                                <label class="zq-label md:col-span-2">Client Message *<textarea v-model="clientUpdateModal.form.message" rows="6" required placeholder="WRITE ONLY INFORMATION APPROVED FOR CLIENT VIEW" class="zq-input mt-1.5"></textarea><span class="mt-1.5 block text-[9px] font-semibold text-amber-700 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Do not include internal notes, passwords or confidential employee information.</span></label>
+                            </div>
+                            <div class="zq-modal-footer"><button type="button" @click="closeClientUpdateModal" class="zq-btn zq-btn-ghost">Cancel</button><button type="submit" class="zq-btn zq-btn-secondary"><i :class="clientUpdateModal.isEdit ? 'fa-floppy-disk' : 'fa-paper-plane'" class="fa-solid mr-1.5"></i>{{ clientUpdateModal.isEdit ? 'Save Changes' : 'Send to Client' }}</button></div>
+                        </form>
+                    </div>
+
+                    <div v-if="projectModal.show" class="zq-modal-overlay z-[95]" role="dialog" aria-modal="true" :aria-label="projectModal.isEdit ? 'Update Project' : 'Add New Project'" @click.self="closeProjectModal">
+                        <form @submit.prevent="saveProject" class="zq-modal zq-modal-lg">
+                            <div class="zq-modal-header">
+                                <div><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Project Activities</p><h3 class="zq-modal-title mt-1">{{ projectModal.isEdit ? 'Update Project' : 'Add New Project' }}</h3></div>
+                                <button type="button" @click="closeProjectModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                            <div class="zq-modal-body">
+                            <p v-if="projectModal.isEdit && !canManageProjects" class="mb-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-[10px] font-semibold text-amber-800 dark:text-amber-300"><i class="fa-solid fa-circle-info mr-1.5"></i>As the assigned Person In Charge, you can update the workflow stage, schedule and description below. Reference, title, client and PIC linkage can only be changed by Director or Superadmin.</p>
+
+                            <section class="mt-5">
+                                <h4 class="zq-form-section-title">Project Identity</h4>
+                                <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <label class="zq-label">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="zq-input mt-1.5 uppercase"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-400">Locked after creation to keep linked activities and client updates consistent.</span></label>
+                                    <label class="zq-label">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" class="zq-input mt-1.5 uppercase"></label>
+                                </div>
+                            </section>
+
+                            <section class="mt-5">
+                                <h4 class="zq-form-section-title">Client &amp; Person In Charge</h4>
+                                <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <template v-if="canManageProjects">
+                                        <label class="zq-label">Client Name — Client Directory *<select v-model="projectModal.form.clientDirectoryId" @change="selectProjectClientDirectory" required class="zq-input mt-1.5"><option value="">-- Select Client Directory --</option><option v-for="client in customers" :key="client.id" :value="client.id">{{ client.clientName }}{{ client.clientSSM ? ` · ${client.clientSSM}` : '' }}</option></select><span v-if="projectModal.form.clientName" class="mt-1.5 block text-[10px] font-semibold text-brand-blue">Linked: {{ projectModal.form.clientName }}</span></label>
+                                        <div>
+                                            <label class="zq-label">Client Portal Access *<select v-model="projectModal.form.clientPortalUid" @change="selectProjectClientAccess" required class="zq-input mt-1.5 normal-case"><option value="">-- Select Client Portal Account --</option><option v-for="clientUser in projectClientAccessUsers" :key="clientUser.id" :value="clientUser.id">{{ clientUser.name }} · {{ clientUser.email }}</option></select></label>
+                                            <span v-if="projectModal.form.clientEmail" class="mt-1.5 block text-[10px] font-semibold lowercase text-emerald-700 dark:text-emerald-400"><i class="fa-solid fa-link mr-1"></i>{{ projectModal.form.clientEmail }} controls client access</span>
+                                            <span v-if="projectModal.form.clientDirectoryId && !projectClientAccessUsers.length" class="mt-1.5 block text-[10px] font-semibold text-amber-600 dark:text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>No matching Client role account exists yet.</span>
+                                            <div v-if="blockedProjectClientEmails.length" class="mt-1.5 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900 px-2 py-1.5 text-[9px] font-semibold normal-case leading-relaxed text-red-700 dark:text-red-300"><i class="fa-solid fa-triangle-exclamation mr-1"></i>{{ blockedProjectClientEmails.map(b => `${b.email} (already an active ${b.role} staff account)`).join(', ') }} cannot become a Client Portal login — this email already belongs to a staff account. Use a different email in Client Information (Bill To) for this client.</div>
+                                            <div v-if="awaitingProjectClientEmails.length" class="mt-1.5 space-y-1">
+                                                <div v-for="email in awaitingProjectClientEmails" :key="email" class="flex items-center justify-between gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 px-2 py-1.5 text-[9px] font-medium normal-case leading-relaxed text-amber-700 dark:text-amber-400">
+                                                    <span class="min-w-0 truncate lowercase"><i class="fa-solid fa-circle-info mr-1"></i>{{ email }} — no Client Portal account yet</span>
+                                                    <button v-if="canManageRBAC" type="button" @click="openClientPortalAccessForEmail(email)" title="Create a Client Portal login for this email registered in Client Information." class="shrink-0 rounded-md bg-amber-600 hover:bg-amber-700 px-2 py-1 text-[9px] font-bold text-white">Create Access</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <label class="zq-label md:col-span-2">Person In Charge — HR Employee Management *<select v-model="projectModal.form.ownerEmpNo" @change="selectProjectOwner" required class="zq-input mt-1.5"><option value="">-- Select Staff PIC --</option><option v-for="employee in projectStaffOptions" :key="employee.empNo" :value="employee.empNo">{{ employee.empNo }} · {{ employee.name }} · {{ employee.position || 'NO POSITION' }}</option></select><div v-if="projectModal.form.ownerEmpNo" class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-slate-50 dark:bg-slate-900/40 px-3 py-2 text-[10px] text-slate-600 dark:text-slate-300"><span><b>{{ projectModal.form.ownerName }}</b> · {{ projectModal.form.ownerPosition || 'NO POSITION' }}</span><span class="lowercase">{{ projectModal.form.ownerEmail }}</span><span class="flex items-center gap-1.5"><i :class="projectModal.form.ownerPresenceStatus === 'Online' ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-400'" class="fa-solid fa-circle text-[7px]"></i>{{ projectModal.form.ownerPresenceStatus }}</span></div></label>
+                                    </template>
+                                    <template v-else>
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Client</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ clientNameForId(projectModal.form.clientDirectoryId, projectModal.form.clientName) || '—' }}</p><p class="mt-1 text-[10px] lowercase text-slate-500 dark:text-slate-400">{{ projectModal.form.clientEmail || '—' }}</p></div>
+                                        <div class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 p-3"><p class="text-[9px] font-bold uppercase text-slate-400 dark:text-slate-400">Person In Charge</p><p class="mt-1 text-xs font-extrabold text-brand-dark dark:text-white">{{ projectModal.form.ownerName || '—' }}</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ projectModal.form.ownerPosition || 'NO POSITION' }} · <span class="lowercase">{{ projectModal.form.ownerEmail }}</span></p></div>
+                                    </template>
+                                </div>
+                            </section>
+
+                            <section class="mt-5">
+                                <h4 class="zq-form-section-title">Workflow &amp; Schedule</h4>
+                                <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                    <label class="zq-label">Workflow Stage *<select v-model="projectModal.form.status" required class="zq-input mt-1.5"><option v-for="stage in projectStages" :key="stage" :value="stage">{{ stage }}</option></select></label>
+                                    <div></div>
+                                    <label class="zq-label">Start Date<input v-model="projectModal.form.startDate" type="date" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label">Target Date<input v-model="projectModal.form.targetDate" type="date" class="zq-input mt-1.5"></label>
+                                    <label class="zq-label md:col-span-2">Project Description<textarea v-model="projectModal.form.description" rows="4" class="zq-input mt-1.5 uppercase"></textarea></label>
+                                </div>
+                            </section>
+
+                            </div>
+                            <div class="zq-modal-footer !justify-between">
+                                <button v-if="projectModal.isEdit && canManageProjects" type="button" @click="deleteProjectFromModal" class="zq-btn zq-btn-destructive"><i class="fa-solid fa-trash mr-1.5"></i>Delete Project</button>
+                                <div v-else></div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button type="button" @click="closeProjectModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                    <button type="submit" class="zq-btn zq-btn-primary"><i class="fa-solid fa-floppy-disk mr-2"></i>Save Project</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ASSIGN / MARK DONE — project handover to a new PIC, or full completion -->
+                <div v-if="markProjectDoneModal.show && markProjectDoneModal.project" class="zq-modal-overlay z-[103]" role="dialog" aria-modal="true" aria-label="Assign / Mark Done" @click.self="closeMarkProjectDoneModal">
+                    <div class="zq-modal zq-modal-sm">
+                        <div class="zq-modal-header">
+                            <h3 class="zq-modal-title">Assign / Mark Done</h3>
+                            <button type="button" @click="closeMarkProjectDoneModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+
+                        <template v-if="markProjectDoneModal.confirmStep === null">
+                            <div class="zq-modal-body">
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">{{ markProjectDoneModal.project.projectRef }} — {{ markProjectDoneModal.project.title }}</p>
+                                <label class="zq-label">Current PIC</label>
+                                <input type="text" :value="markProjectDoneModal.project.ownerName || 'Unassigned'" readonly class="zq-input mt-1.5">
+                                <label for="handover-new-owner" class="zq-label mt-4">Hand off to (optional)</label>
+                                <select id="handover-new-owner" v-model="markProjectDoneModal.newOwnerEmpNo" class="zq-select mt-1.5">
+                                    <option value="">-- No new staff, mark this project Done --</option>
+                                    <option v-for="emp in projectStaffOptions.filter(e => e.empNo !== markProjectDoneModal.project.ownerEmpNo)" :key="emp.empNo" :value="emp.empNo">{{ emp.name }} · {{ emp.position || 'NO POSITION' }}</option>
+                                </select>
+                                <p class="zq-help-text">Choose a colleague to hand this project to, or leave blank to mark it fully Done.</p>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="closeMarkProjectDoneModal" class="zq-btn zq-btn-ghost">Cancel</button>
+                                <button type="button" @click="requestMarkProjectDone" class="zq-btn zq-btn-success"><i class="fa-solid fa-check mr-1.5"></i>Mark Done</button>
+                            </div>
+                        </template>
+
+                        <template v-else-if="markProjectDoneModal.confirmStep === 'handover'">
+                            <div class="zq-modal-body">
+                                <div class="flex items-center gap-3">
+                                    <span class="zq-confirm-icon is-info"><i class="fa-solid fa-right-left"></i></span>
+                                    <h3 class="zq-modal-title">Confirm Handover?</h3>
+                                </div>
+                                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">This project will be handed over to <strong>{{ projectStaffOptions.find(e => e.empNo === markProjectDoneModal.newOwnerEmpNo)?.name }}</strong>. It will continue at its current stage under their assignment and cannot be marked Completed until they mark it done.</p>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="markProjectDoneModal.confirmStep = null" :disabled="markProjectDoneModal.saving" class="zq-btn zq-btn-outline">Back</button>
+                                <button type="button" @click="confirmMarkProjectDone" :disabled="markProjectDoneModal.saving" :class="{ 'is-loading': markProjectDoneModal.saving }" class="zq-btn zq-btn-primary">Confirm Handover</button>
+                            </div>
+                        </template>
+
+                        <template v-else>
+                            <div class="zq-modal-body">
+                                <div class="flex items-center gap-3">
+                                    <span class="zq-confirm-icon is-warning"><i class="fa-solid fa-triangle-exclamation"></i></span>
+                                    <h3 class="zq-modal-title">Mark Done Without Assign?</h3>
+                                </div>
+                                <p class="mt-4 text-sm text-slate-600 dark:text-slate-300">No new staff has been assigned to this project. Are you sure you want to mark this project as Done without assigning it to another staff member?</p>
+                            </div>
+                            <div class="zq-modal-footer">
+                                <button type="button" @click="markProjectDoneModal.confirmStep = null" :disabled="markProjectDoneModal.saving" class="zq-btn zq-btn-outline">Cancel</button>
+                                <button type="button" @click="confirmMarkProjectDone" :disabled="markProjectDoneModal.saving" :class="{ 'is-loading': markProjectDoneModal.saving }" class="zq-btn zq-btn-primary">Confirm / Mark Done</button>
+                            </div>
+                        </template>
+                    </div>
+                </div>

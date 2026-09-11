@@ -1,0 +1,256 @@
+<!-- =====================================================================
+     PORTAL SHELL — sidebar and top bar
+
+     Loaded the moment a session is confirmed, and never before: the module
+     list in this sidebar is the map of the whole system, so it is not part
+     of what an unauthenticated visitor downloads.
+     
+     Each screen is a separate file in this folder, mounted here the first
+     time it is opened and kept mounted afterwards so a half-filled form
+     survives a trip to another tab.
+     ===================================================================== -->
+        <div class="fixed inset-0 flex overflow-hidden">
+            
+            <div v-if="mobileMenuOpen" @click="mobileMenuOpen = false" class="fixed inset-0 bg-black/50 z-40 md:hidden"></div>
+
+            <!-- SIDEBAR -->
+            <aside v-show="isLoggedIn && !authLoading && !loginLoading" :class="[
+                       mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+                       // Do not use md:block here: it overrides the sidebar's
+                       // flex layout and collapses the scrollable menu lane.
+                       desktopSidebarOpen ? 'md:w-64' : 'md:w-0 md:hidden md:overflow-hidden',
+                       userProfile.role === 'Client' ? 'client-portal-theme' : ''
+                   ]"
+                   @wheel="handleSidebarWheel"
+                   class="zq-sidebar w-64 bg-brand-dark text-white flex flex-col no-print shrink-0 shadow-2xl fixed inset-y-0 left-0 z-50 md:relative transition-all duration-300 ease-in-out border-r border-slate-800">
+                
+                <div class="zq-sidebar-brand p-4 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <div class="zq-sidebar-logo bg-white p-1 rounded-xl shrink-0 flex items-center justify-center border border-brand-gold/30">
+                            <img src="./logo.png" onerror="this.style.display='none'" alt="" class="h-6 w-auto object-contain">
+                        </div>
+                        <div class="zq-sidebar-brand-copy truncate">
+                            <h1 class="font-extrabold text-xs tracking-wide text-white truncate">{{ userProfile.role === 'Client' ? ((company.name || 'ZENQOR TECHNOLOGIES') + ' Client Portal') : (company.name || 'ZENQOR TECHNOLOGIES') }}</h1>
+                            <p class="text-[9px] text-brand-gold uppercase tracking-widest font-semibold truncate">{{ userProfile.role === 'Client' ? (userProfile.name || 'Client Access') : 'Staff Workspace' }}</p>
+                        </div>
+                    </div>
+                    <button type="button" @click="mobileMenuOpen = false" class="zq-sidebar-collapse md:hidden shrink-0" title="Close menu" aria-label="Close menu">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <nav class="zq-sidebar-nav flex-1 p-3 space-y-1 overflow-y-auto text-xs font-semibold" aria-label="Workspace navigation">
+                    <button v-if="userProfile.role !== 'Client' && hasAccess('dashboard')" type="button" @click="switchTab('dashboard')" :class="{'sidebar-item-active': currentTab === 'dashboard', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'dashboard'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-chart-pie w-5 text-center"></i><span>Dashboard</span>
+                    </button>
+                    <button v-if="userProfile.role === 'Client'" type="button" @click="openClientPanel('ov')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'ov', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'ov')}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-house-chimney w-5 text-center"></i><span>Dashboard</span>
+                    </button>
+
+                    <div class="pt-3 pb-1">
+                        <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</p>
+                    </div>
+
+                    <button v-if="hasAccess('client-task')" type="button" @click="switchTab('client-task')" :class="{'sidebar-item-active': currentTab === 'client-task', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-task'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-list-check w-5 text-center"></i><span>Client Task</span>
+                    </button>
+                    <!-- Director/Superadmin/HR/Account (anyone with Client Task access) can only
+                         ever reach the board by drilling into one client from Client Task — there
+                         is deliberately no unfiltered "every project, every client" view for them
+                         anymore, so this direct button is hidden entirely.
+                         Staff/IT/Client have no Client Task page at all, so they keep this as
+                         their only path (Client's own "My Projects" tracker included). -->
+                    <button v-if="hasAccess('project-activities') && !hasAccess('client-task')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
+                    </button>
+                    <!-- Documents, Updates, Benefits and Support are panels of the single
+                         Client Workspace page, so these deep-link into it rather than
+                         switching route. Active state follows the panel, not currentTab. -->
+                    <template v-if="userProfile.role === 'Client'">
+                        <button type="button" @click="openClientPanel('dc')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'dc', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'dc')}" class="zq-nav-item w-full"><i class="fa-solid fa-folder-open w-5 text-center"></i><span>Documents &amp; Billing</span><span v-if="clientPortalDocs.length" class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ clientPortalDocs.length }}</span></button>
+                        <button type="button" @click="openClientPanel('up')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'up', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'up')}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientUpdatesTimeline.length" class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ clientUpdatesTimeline.length }}</span></button>
+                        <button type="button" @click="openClientPanel('tb')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'tb', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'tb')}" class="zq-nav-item w-full"><i class="fa-solid fa-layer-group w-5 text-center"></i><span>Tier Benefits</span><span class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ myClientTier }}</span></button>
+                    </template>
+                    <div v-if="hasAccess('doc-generator')" class="pt-3 pb-1"><p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Billing &amp; Documents</p></div>
+                    <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-address-card w-5 text-center"></i><span>Client Information</span>
+                    </button>
+                    <button v-if="hasAccess('document-quotations')" type="button" @click="openDocumentWorkspace()" :class="{'sidebar-item-active': currentTab === 'document-quotations', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'document-quotations'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-file-invoice w-5 text-center"></i><span>Quotation &amp; Invoice</span>
+                    </button>
+                    <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="{'sidebar-item-active': currentTab === 'payslip-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'payslip-generator'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-money-check-dollar w-5 text-center"></i><span>Payroll Management</span>
+                    </button>
+                    <button v-if="hasAccess('claims')" type="button" @click="switchTab('claims')" :class="{'sidebar-item-active': currentTab === 'claims', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'claims'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-receipt w-5 text-center"></i><span>Claims &amp; Vouchers</span>
+                    </button>
+                    <button v-if="hasAccess('client-directory')" type="button" @click="switchTab('client-directory')" :class="{'sidebar-item-active': currentTab === 'client-directory', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-directory'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-address-book w-5 text-center"></i><span>Client Registration</span>
+                    </button>
+                    <button v-if="hasAccess('hr-employees')" type="button" @click="switchTab('hr-employees')" :class="{'sidebar-item-active': currentTab === 'hr-employees', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'hr-employees'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-users-gear w-5 text-center"></i><span>HR Employees</span>
+                    </button>
+                    <button v-if="hasAccess('reports')" type="button" @click="switchTab('reports')" :class="{'sidebar-item-active': currentTab === 'reports', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'reports'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-chart-line w-5 text-center"></i><span>Reports & Analytics</span>
+                    </button>
+                    <button v-if="hasAccess('website-content')" type="button" @click="switchTab('website-content')" :class="{'sidebar-item-active': currentTab === 'website-content', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'website-content'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-photo-film w-5 text-center"></i><span>Website Management</span>
+                    </button>
+
+                    <div v-if="hasAccess('settings') || hasAccess('profile') || hasAccess('audit-logs')" class="pt-3 pb-1">
+                        <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Account' : 'System & Admin' }}</p>
+                    </div>
+
+                    <button v-if="hasAccess('audit-logs')" type="button" @click="switchTab('audit-logs')" :class="{'sidebar-item-active': currentTab === 'audit-logs', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'audit-logs'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-shield-halved w-5 text-center"></i><span>Audit & Security Log</span>
+                    </button>
+                    <button v-if="hasAccess('settings')" type="button" @click="switchTab('settings')" :class="{'sidebar-item-active': currentTab === 'settings', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'settings'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-gear w-5 text-center"></i><span>Settings</span>
+                    </button>
+                    <button v-if="hasAccess('profile')" type="button" @click="switchTab('profile')" :class="{'sidebar-item-active': currentTab === 'profile', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'profile'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-user-shield w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'Account & Security' : 'Profile & RBAC' }}</span>
+                    </button>
+                    <button v-if="userProfile.role === 'Client'" type="button" @click="openClientPanel('sp')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'sp', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'sp')}" class="zq-nav-item w-full"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
+                </nav>
+
+                <div class="zq-sidebar-footer p-3 border-t border-slate-800">
+                    <button type="button" @click="requestLogout" class="zq-sidebar-signout w-full bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2">
+                        <i class="fa-solid fa-right-from-bracket"></i><span>Sign Out</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- MAIN WORKING AREA -->
+            <main id="main-content" role="main" aria-label="Portal workspace" :class="userProfile.role === 'Client' ? 'zq-client-main' : 'zq-staff-main'" class="zq-main flex-1 overflow-y-auto no-print bg-slate-50 dark:bg-brand-bg flex flex-col w-full">
+                
+                <!-- TOP NAVBAR -->
+                <header class="zq-topbar bg-white dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-30 gap-4 backdrop-blur-md">
+                    <div class="flex items-center space-x-3 flex-1">
+                        <button type="button" @click="toggleSidebar" class="text-slate-600 dark:text-slate-300 hover:text-brand-dark p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-base transition" title="Toggle Sidebar">
+                            <i class="fa-solid fa-bars"></i>
+                        </button>
+
+                        <div class="relative w-full max-w-sm">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-2.5 text-slate-400 text-xs"></i>
+                            <label for="global-search" class="sr-only">Search System</label>
+                            <input id="global-search" name="search" type="text" v-model="searchQuery" :placeholder="userProfile.role === 'Client' ? 'Search your projects, documents...' : 'Search Documents, Employees, TIN, ID...'" class="w-full pl-9 pr-8 py-1.5 bg-slate-100 dark:bg-slate-700/60 dark:text-white rounded-xl text-xs font-semibold focus:bg-white dark:focus:bg-slate-700 focus:ring-2 focus:ring-brand-gold focus:outline-none transition">
+                            <button v-if="searchQuery" type="button" @click="searchQuery = ''" class="zq-search-clear !flex !right-2" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3 shrink-0">
+                        <div class="hidden sm:flex items-center bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-600">
+                            <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="currentTab === 'doc-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Clients</button>
+                            <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="currentTab === 'payslip-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Payroll</button>
+                            <button v-if="hasAccess('claims')" type="button" @click="switchTab('claims')" :class="currentTab === 'claims' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Claims</button>
+                        </div>
+
+                        <button type="button" @click="toggleDarkMode" class="rounded-lg bg-slate-100 dark:bg-slate-700 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition" :title="darkMode ? 'Switch to light mode' : 'Switch to dark mode'">
+                            <i class="fa-solid" :class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
+                        </button>
+
+                        <div v-if="canViewStaffDirectory" class="relative">
+                            <button type="button" @click="toggleStaffDirectoryPanel" class="relative rounded-lg bg-slate-100 dark:bg-slate-700 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Staff &amp; Client Directory">
+                                <i class="fa-solid fa-users text-sm"></i>
+                            </button>
+                            <div v-if="staffDirectoryPanelOpen" class="fixed inset-0 z-40" @click="staffDirectoryPanelOpen = false"></div>
+                            <div v-if="staffDirectoryPanelOpen" class="absolute right-0 top-full z-50 mt-2 w-80 max-w-[90vw] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl">
+                                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-4 py-3">
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">Directory</h4>
+                                    <span class="text-[10px] font-bold text-slate-400">{{ staffDirectoryTab === 'staff' ? staffDirectoryList.length : clientDirectoryList.length }} {{ staffDirectoryTab === 'staff' ? 'staff' : 'clients' }}</span>
+                                </div>
+                                <div class="flex gap-1.5 border-b border-slate-100 dark:border-slate-700 px-4 py-2">
+                                    <button type="button" @click="staffDirectoryTab = 'staff'" :class="staffDirectoryTab === 'staff' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition">Staff</button>
+                                    <button type="button" @click="staffDirectoryTab = 'clients'" :class="staffDirectoryTab === 'clients' ? 'bg-brand-gold text-brand-dark' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300'" class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase transition">Clients</button>
+                                </div>
+                                <div class="max-h-80 overflow-y-auto">
+                                    <template v-if="staffDirectoryTab === 'staff'">
+                                        <div v-for="emp in staffDirectoryList" :key="emp.empNo" class="flex items-center gap-2.5 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs">
+                                            <div class="relative shrink-0">
+                                                <div class="w-8 h-8 rounded-full bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[10px] font-extrabold overflow-hidden">
+                                                    <img v-if="employeePhotoByEmail(emp.email)" :src="employeePhotoByEmail(emp.email)" alt="" class="w-full h-full object-cover">
+                                                    <span v-else>{{ getInitials(emp.name) }}</span>
+                                                </div>
+                                                <span :class="isEmployeeOnline(emp) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-800"></span>
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="truncate font-bold text-slate-700 dark:text-slate-200">{{ emp.name }}</p>
+                                                <p class="truncate text-[9px] text-slate-400">{{ emp.position || 'No position' }}<span v-if="emp.dept"> · {{ emp.dept }}</span></p>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <span :class="isEmployeeOnline(emp) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'" class="block text-[9px] font-extrabold uppercase">{{ employeePresenceLabel(emp) }}</span>
+                                                <span class="block text-[8px] text-slate-400">{{ employeeLastSeen(emp) }}</span>
+                                            </div>
+                                        </div>
+                                        <div v-if="!staffDirectoryList.length" class="zq-empty-state zq-empty-state-compact">
+                                            <i class="fa-regular fa-user zq-empty-state-icon" aria-hidden="true"></i>
+                                            <p class="zq-empty-state-title">No staff on record</p>
+                                        </div>
+                                    </template>
+                                    <template v-else>
+                                        <div v-for="cu in clientDirectoryList" :key="cu.id" class="flex items-center gap-2.5 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs">
+                                            <div class="relative shrink-0">
+                                                <div class="w-8 h-8 rounded-full bg-brand-dark dark:bg-brand-blue text-white flex items-center justify-center text-[10px] font-extrabold overflow-hidden">
+                                                    <img v-if="cu.photo" :src="cu.photo" alt="" class="w-full h-full object-cover">
+                                                    <span v-else>{{ getInitials(cu.name || cu.email) }}</span>
+                                                </div>
+                                                <span :class="isPortalUserOnline(cu) ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'" class="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-800"></span>
+                                            </div>
+                                            <div class="min-w-0 flex-1">
+                                                <p class="truncate font-bold text-slate-700 dark:text-slate-200">{{ cu.name || cu.email }}</p>
+                                                <p class="truncate text-[9px] text-slate-400">{{ cu.companyName || cu.email }}</p>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <span :class="isPortalUserOnline(cu) ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'" class="block text-[9px] font-extrabold uppercase">{{ portalUserPresenceLabel(cu) }}</span>
+                                                <span class="block text-[8px] text-slate-400">{{ portalUserLastSeen(cu) }}</span>
+                                            </div>
+                                        </div>
+                                        <div v-if="!clientDirectoryList.length" class="zq-empty-state zq-empty-state-compact">
+                                            <i class="fa-regular fa-address-book zq-empty-state-icon" aria-hidden="true"></i>
+                                            <p class="zq-empty-state-title">No client accounts on record</p>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="relative">
+                            <button type="button" @click="toggleNotificationsPanel" class="relative rounded-lg bg-slate-100 dark:bg-slate-700 p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition" title="Notifications">
+                                <i class="fa-solid fa-bell text-sm"></i>
+                                <span v-if="unreadNotificationsCount" class="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-extrabold text-white">{{ unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount }}</span>
+                            </button>
+                            <div v-if="notificationsPanelOpen" class="fixed inset-0 z-40" @click="notificationsPanelOpen = false"></div>
+                            <div v-if="notificationsPanelOpen" class="absolute right-0 top-full z-50 mt-2 w-80 max-w-[90vw] rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl">
+                                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 px-4 py-3">
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wide text-brand-dark dark:text-white">Notifications</h4>
+                                    <div class="flex gap-2">
+                                        <button v-if="unreadNotificationsCount" type="button" @click="markAllNotificationsRead" class="text-[10px] font-bold text-brand-blue hover:underline">Mark all read</button>
+                                        <button v-if="notificationsForDisplay.length" type="button" @click="clearNotificationsLog" class="text-[10px] font-bold text-red-500 hover:underline">Clear</button>
+                                    </div>
+                                </div>
+                                <div class="max-h-80 overflow-y-auto">
+                                    <div v-for="n in notificationsForDisplay" :key="n.id" class="flex items-start gap-2 border-b border-slate-50 dark:border-slate-700/50 px-4 py-2.5 text-xs" :class="!n.read ? 'bg-blue-50/50 dark:bg-slate-700/30' : ''">
+                                        <span :class="!n.read ? 'bg-brand-blue' : 'bg-slate-300'" class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full"></span>
+                                        <div class="min-w-0"><p class="text-slate-700 dark:text-slate-200">{{ n.message }}</p><p class="mt-0.5 text-[9px] text-slate-400">{{ formatDateTime(n.timestamp) }}</p></div>
+                                    </div>
+                                    <div v-if="!notificationsForDisplay.length" class="zq-empty-state zq-empty-state-compact">
+                                        <i class="fa-regular fa-bell zq-empty-state-icon" aria-hidden="true"></i>
+                                        <p class="zq-empty-state-title">No notifications yet</p>
+                                        <p class="zq-empty-state-text">You'll see updates here as they happen.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-right hidden md:block">
+                            <p class="text-xs font-bold text-slate-800 dark:text-slate-100">{{ userProfile.name }}</p>
+                            <span class="inline-block bg-brand-gold/20 text-brand-dark dark:text-amber-100 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase">{{ userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role) }}</span>
+                        </div>
+                        <img :src="userProfile.photo" :alt="userProfile.name" class="w-8 h-8 rounded-full object-cover border-2 border-brand-gold shrink-0 shadow-sm">
+                    </div>
+                </header>
+
+                <zq-view v-for="view in mountedViews" :key="view" :name="view"></zq-view>
+
+            </main>
+        </div>

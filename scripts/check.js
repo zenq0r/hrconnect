@@ -15,6 +15,15 @@ for (const file of findJavaScript(process.cwd())) {
     execFileSync(process.execPath, ['--check', file], { stdio: 'inherit' });
 }
 
-if (!reportForFile('index.html')) {
+// index.html is the sign-in shell; every signed-in screen is its own file in
+// views/. Each one has to nest correctly on its own, because each is compiled
+// on its own at runtime.
+const templates = ['index.html', ...readdirSync('views').filter(name => name.endsWith('.html')).map(name => join('views', name))];
+
+let templatesOk = true;
+for (const template of templates) {
+    if (!reportForFile(template)) templatesOk = false;
+}
+if (!templatesOk) {
     process.exit(1);
 }

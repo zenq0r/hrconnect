@@ -65,20 +65,23 @@ test('password reset renders its OTP field inline and not behind a separate popu
 });
 
 test('every workspace module page renders inside the scrollable main region', () => {
-    const html = readSource('index.html');
+    const shell = readSource('views/portal-shell.html');
 
-    const mainStart = html.indexOf('<main id="main-content"');
-    const mainEnd = html.indexOf('</main>', mainStart);
+    const mainStart = shell.indexOf('<main id="main-content"');
+    const mainEnd = shell.indexOf('</main>', mainStart);
     assert.ok(mainStart > -1 && mainEnd > mainStart);
 
-    // A module page placed outside <main> is stacked below the full-height
-    // workspace by the #app column, so the tab looks blank until the user
-    // scrolls past the viewport.
+    // Every screen is now mounted through this one element. A module page
+    // placed outside <main> is stacked below the full-height workspace by the
+    // #app column, so the tab looks blank until the user scrolls past the
+    // viewport — which is exactly what would happen if the mount point moved.
+    const mount = shell.indexOf('<zq-view v-for="view in mountedViews"');
+    assert.ok(mount > mainStart && mount < mainEnd, 'the screens must be mounted inside <main id="main-content">');
+
+    // And each screen must still be a file of its own for that to reach it.
+    const views = readSource('index.html');
     for (const tab of ['dashboard', 'client-directory', 'doc-generator', 'payslip-generator', 'claims']) {
-        const marker = `v-show="currentTab === '${tab}'"`;
-        const at = html.indexOf(marker);
-        if (at === -1) continue;
-        assert.ok(at > mainStart && at < mainEnd, `${tab} module page must live inside <main id="main-content">`);
+        assert.match(views, new RegExp(`currentTab === '${tab}'`), `the ${tab} screen must exist`);
     }
 });
 

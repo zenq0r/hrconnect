@@ -1,0 +1,283 @@
+<!-- =====================================================================
+     SETTINGS AND PROFILE
+     ===================================================================== -->
+                <!-- SETTINGS & PROFILE MODULE -->
+                <div v-show="['settings', 'profile'].includes(currentTab)" class="p-4 md:p-8 max-w-5xl mx-auto w-full space-y-6">
+                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div>
+                                <p v-if="currentTab === 'settings'" class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue dark:text-brand-gold">System Configuration</p>
+                                <h2 class="text-xl font-extrabold text-brand-dark dark:text-white capitalize">{{ currentTab === 'settings' ? 'Global Company Settings' : 'Admin Profile & Portal Access Management' }}</h2>
+                                <p v-if="currentTab === 'settings'" class="mt-1 text-xs text-slate-500 dark:text-slate-400">Manage the company details used across invoices, quotations and official records.</p>
+                            </div>
+                        </div>
+                        <div v-if="currentTab === 'settings'" class="inline-flex items-center gap-2 self-start rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-wide text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-300 sm:self-auto"><i class="fa-solid fa-cloud-arrow-up"></i><span>Live document defaults</span></div>
+                    </div>
+                    
+                    <div v-if="currentTab === 'settings' && canManageCompanySettings" class="space-y-5">
+                        <section class="zq-card overflow-hidden">
+                            <div class="border-b border-slate-200 bg-slate-50/80 px-5 py-4 dark:border-slate-700 dark:bg-slate-800/60 sm:px-6">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div class="flex items-start gap-3">
+                                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-dark text-brand-gold shadow-sm dark:bg-slate-700"><i class="fa-solid fa-building"></i></div>
+                                        <div><p class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-brand-blue dark:text-brand-gold">Company identity</p><h3 class="mt-0.5 text-base font-extrabold text-brand-dark dark:text-white">Official company profile</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">These details appear on official quotations, invoices and payment documents.</p></div>
+                                    </div>
+                                    <span class="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-blue/10 px-3 py-1 text-[10px] font-extrabold uppercase text-brand-blue dark:bg-brand-blue/20 dark:text-blue-300"><i class="fa-solid fa-file-lines"></i> Document source</span>
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 sm:p-6">
+                                <div><label for="setting-comp-name" class="zq-label">Company Name</label><input id="setting-comp-name" name="companyName" type="text" v-model="company.name" class="zq-input font-bold" placeholder="Registered company name"></div>
+                                <div><label for="setting-comp-ssm" class="zq-label">Business Registration No.</label><input id="setting-comp-ssm" name="companySSM" type="text" v-model="company.ssm" class="zq-input" placeholder="SSM / business registration no."></div>
+                                <div class="sm:col-span-2">
+                                    <label for="setting-comp-tin" class="zq-label">Tax Identification No. (TIN) — LHDN</label>
+                                    <input id="setting-comp-tin" name="companyTin" type="text" v-model="company.tin" @blur="company.tin = normalizeTin(company.tin)" maxlength="12" spellcheck="false" autocomplete="off" class="zq-input font-bold uppercase" placeholder="C20880050010" aria-describedby="setting-comp-tin-hint">
+                                    <p id="setting-comp-tin-hint" class="mt-1.5 flex items-start gap-1.5 text-[11px] leading-relaxed" :class="companyTinState === 'invalid' ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'">
+                                        <i class="fa-solid mt-0.5 shrink-0" :class="companyTinState === 'invalid' ? 'fa-triangle-exclamation' : (companyTinState === 'valid' ? 'fa-circle-check text-emerald-600 dark:text-emerald-400' : 'fa-circle-info')"></i>
+                                        <span v-if="companyTinState === 'invalid'">This does not match an LHDN TIN. Expected an entity prefix then digits, 11&ndash;12 characters in total &mdash; for example C20880050010. Saving is still allowed if you are certain the number is right.</span>
+                                        <span v-else-if="companyTinState === 'valid'">Format matches an LHDN TIN. This is a format check only &mdash; it does not confirm the number is registered.</span>
+                                        <span v-else>From your LHDN record. Prefix by entity type &mdash; C company, CS co&#8209;operative, D partnership, PT LLP, IG individual or sole proprietor &mdash; followed by digits, 11&ndash;12 characters in total.</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="zq-card p-5 sm:p-6">
+                            <div class="mb-5 flex items-start gap-3 border-b border-slate-200 pb-4 dark:border-slate-700">
+                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><i class="fa-solid fa-location-dot"></i></div>
+                                <div><p class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Registered address</p><h3 class="mt-0.5 text-sm font-extrabold text-brand-dark dark:text-white">Company address details</h3><p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Enter the registered address exactly as it should appear in documents.</p></div>
+                            </div>
+                            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                <div class="sm:col-span-2 lg:col-span-4"><label for="setting-comp-addr1" class="zq-label">Address Line 1</label><input id="setting-comp-addr1" name="companyAddress1" type="text" v-model="company.address1" class="zq-input" placeholder="Building / lot no. and street"></div>
+                                <div class="sm:col-span-2"><label for="setting-comp-addr2" class="zq-label">Address Line 2</label><input id="setting-comp-addr2" name="companyAddress2" type="text" v-model="company.address2" class="zq-input" placeholder="Area, industrial park or unit"></div>
+                                <div class="sm:col-span-2"><label for="setting-comp-addr3" class="zq-label">Address Line 3</label><input id="setting-comp-addr3" name="companyAddress3" type="text" v-model="company.address3" class="zq-input" placeholder="Optional locality or district"></div>
+                                <div><label for="setting-comp-postcode" class="zq-label">Postcode</label><input id="setting-comp-postcode" name="companyPostcode" type="text" inputmode="numeric" maxlength="5" v-model="company.postcode" @input="detectCompanyPostcode" class="zq-input" placeholder="43000"></div>
+                                <div><label for="setting-comp-city" class="zq-label">City</label><input id="setting-comp-city" name="companyCity" type="text" v-model="company.city" class="zq-input" placeholder="City"></div>
+                                <div><label for="setting-comp-state" class="zq-label">State</label><input id="setting-comp-state" name="companyState" type="text" v-model="company.state" class="zq-input" placeholder="State"></div>
+                                <div><label for="setting-comp-country" class="zq-label">Country</label><input id="setting-comp-country" name="companyCountry" type="text" v-model="company.country" class="zq-input" placeholder="Malaysia"></div>
+                            </div>
+                            <p class="mt-3 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400"><i class="fa-solid fa-wand-magic-sparkles text-brand-blue dark:text-brand-gold"></i><span>City and state are suggested automatically after a valid Malaysian postcode is entered.</span></p>
+                        </section>
+
+                        <div class="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                            <section class="zq-card p-5 sm:p-6">
+                                <div class="mb-5 flex items-start gap-3 border-b border-slate-200 pb-4 dark:border-slate-700"><div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300"><i class="fa-solid fa-address-card"></i></div><div><p class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Contact details</p><h3 class="mt-0.5 text-sm font-extrabold text-brand-dark dark:text-white">Public contact information</h3></div></div>
+                                <div class="space-y-4"><div><label for="setting-comp-phone" class="zq-label">Company Phone</label><input id="setting-comp-phone" name="companyPhone" type="tel" v-model="company.phone" class="zq-input" placeholder="+60 3-XXXX XXXX"></div><div><label for="setting-comp-email" class="zq-label">Company Email</label><input id="setting-comp-email" name="companyEmail" type="email" v-model="company.email" class="zq-input" placeholder="hello@company.com"></div><div><label for="setting-comp-web" class="zq-label">Website</label><input id="setting-comp-web" name="companyWebsite" type="url" v-model="company.website" class="zq-input" placeholder="https://www.company.com"></div></div>
+                            </section>
+                            <section class="zq-card p-5 sm:p-6">
+                                <div class="mb-5 flex items-start gap-3 border-b border-slate-200 pb-4 dark:border-slate-700"><div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"><i class="fa-solid fa-building-columns"></i></div><div><p class="text-[10px] font-extrabold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Banking &amp; payment</p><h3 class="mt-0.5 text-sm font-extrabold text-brand-dark dark:text-white">Payment destination</h3></div></div>
+                                <div class="space-y-4"><div><label for="setting-bank-name" class="zq-label">Bank Name</label><input id="setting-bank-name" name="companyBankName" type="text" v-model="company.bankName" class="zq-input" placeholder="Bank name"></div><div><label for="setting-bank-account" class="zq-label">Bank Account Number</label><input id="setting-bank-account" name="companyBankAccount" type="text" v-model="company.bankAccount" class="zq-input font-bold" placeholder="Account number"></div><p class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-relaxed text-emerald-800 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200"><i class="fa-solid fa-circle-info mr-1.5"></i>Shown on quotation and invoice payment instructions.</p></div>
+                            </section>
+                        </div>
+
+                        <div class="zq-form-actions rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
+                            <div class="text-xs text-slate-500 dark:text-slate-400"><i class="fa-solid fa-shield-halved mr-1.5 text-brand-blue dark:text-brand-gold"></i>Only authorised users can change global settings.</div>
+                            <div class="flex flex-wrap items-center gap-2"><button v-if="canBackupDatabase" type="button" @click="backupDatabase" class="zq-btn zq-btn-outline"><i class="fa-solid fa-download"></i><span>Backup Database</span></button><button type="button" @click="saveSettings" class="zq-btn zq-btn-primary"><i class="fa-solid fa-floppy-disk"></i><span>Save Global Settings</span></button></div>
+                        </div>
+                    </div>
+
+                    <div v-else class="zq-card p-6 space-y-4">
+                        <template v-if="currentTab === 'settings'">
+                            <p class="zq-empty-state-text">You do not have permission to manage Global Company Settings.</p>
+                        </template>
+
+                        <template v-else-if="currentTab === 'profile'">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-6">
+                                <div><label for="prof-name" class="zq-label">Existing Username</label><input id="prof-name" name="profName" type="text" v-model="userProfile.name" class="zq-input font-bold"></div>
+                                <div><label for="prof-email" class="zq-label">Sign-In Email</label><input id="prof-email" name="profEmail" type="email" v-model="userProfile.email" disabled class="zq-input"></div>
+                                <div>
+                                    <label for="prof-role" class="zq-label">User Role (RBAC)</label>
+                                    <input id="prof-role" name="profRole" type="text" :value="userProfile.role === 'Client' ? 'Client Portal Access' : getRoleDisplayName(userProfile.role)" disabled class="zq-input font-bold">
+                                    <p v-if="canManageRBAC" class="mt-1 text-[10px] text-slate-400">To change your own role, use Portal Access Management below (requires a second look to avoid accidental self-lockout).</p>
+                                </div>
+                                <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4">
+                                    <label for="prof-photo" class="zq-label">Avatar / Profile Photo</label>
+                                    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                                        <img :src="userProfile.photo" alt="Profile photo preview" class="h-16 w-16 rounded-full object-cover border-2 border-brand-gold bg-white shadow-sm">
+                                        <div class="flex-1">
+                                            <input id="prof-photo" name="profPhoto" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" @change="handleProfilePhotoUpload" :disabled="profilePhotoUpload.loading" class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-dark file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-brand-blue disabled:opacity-60">
+                                            <p class="mt-2 text-[10px] text-slate-500">PNG, JPEG or JPG only. Maximum file size: 2 MB. The image is saved securely in Firebase Storage.</p>
+                                            <p v-if="profilePhotoUpload.loading" class="mt-1 text-[10px] font-bold text-brand-blue">Uploading and saving photo…</p>
+                                            <p v-if="profilePhotoUpload.error" class="zq-error-text">{{ profilePhotoUpload.error }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="sm:col-span-2 zq-form-actions !border-t-0 !mt-0 !pt-0">
+                                    <button type="button" @click="showUpdateHistory = !showUpdateHistory" class="zq-btn zq-btn-ghost">
+                                        <i class="fa-solid fa-clock-rotate-left"></i><span>{{ showUpdateHistory ? 'Hide' : 'View' }} Update History</span>
+                                    </button>
+                                    <button type="button" @click="changePasswordModal.show = true" class="zq-btn zq-btn-outline">
+                                        <i class="fa-solid fa-key"></i><span>Tukar Kata Laluan</span>
+                                    </button>
+                                    <button type="button" @click="saveMyProfile" class="zq-btn zq-btn-primary">
+                                        <i class="fa-solid fa-user-check"></i><span>Save My Profile</span>
+                                    </button>
+                                </div>
+
+                                <div v-if="showUpdateHistory" class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 p-4 space-y-4">
+                                    <div v-for="entry in appChangelog" :key="entry.version">
+                                        <div class="flex items-center gap-2"><span class="rounded-full bg-brand-dark px-2 py-0.5 text-[9px] font-extrabold text-white">v{{ entry.version }}</span><h4 class="text-xs font-extrabold text-brand-dark dark:text-white">{{ entry.title }}</h4></div>
+                                        <ul class="mt-2 space-y-1.5 pl-1">
+                                            <li v-for="(note, idx) in entry.notes" :key="idx" class="flex items-start gap-2 text-[11px] text-slate-600 dark:text-slate-300"><i class="fa-solid fa-circle text-[4px] mt-1.5 text-slate-400 shrink-0"></i><span>{{ note }}</span></li>
+                                        </ul>
+                                    </div>
+                                    <p v-if="!appChangelog.length" class="zq-empty-state-text">No update history yet — new releases will be listed here as they're published.</p>
+                                </div>
+                            </div>
+
+                            <!-- STAFF PORTAL — raising an access request (everyone who is not already full access) -->
+                            <div v-if="canRequestAccessChange" class="pt-6 space-y-3 border-t border-slate-200 dark:border-slate-700">
+                                <div class="flex flex-wrap justify-between items-center gap-3">
+                                    <div>
+                                        <h3 class="zq-text-section-title"><i class="fa-solid fa-hand text-brand-blue mr-2"></i>Staff Portal Access Request</h3>
+                                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Ask Super Admin or Director to move your account to a different role. They accept or reject it from the Staff Portal.</p>
+                                    </div>
+                                    <button type="button" @click="openAccessRequestModal()" :disabled="Boolean(myPendingAccessRequest)" class="zq-btn zq-btn-outline">
+                                        <i class="fa-solid fa-paper-plane"></i><span>{{ myPendingAccessRequest ? 'Request Pending' : 'Request Access Change' }}</span>
+                                    </button>
+                                </div>
+                                <div v-if="myAccessRequests.length" class="overflow-x-auto">
+                                    <table class="zq-table">
+                                        <thead>
+                                            <tr><th>Requested Role</th><th>Reason</th><th>Raised</th><th>Status</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr v-for="request in myAccessRequests" :key="request.id">
+                                                <td class="font-bold text-slate-800 dark:text-slate-200">{{ getRoleDisplayName(request.requestedRole) }}</td>
+                                                <td class="text-slate-600 dark:text-slate-300">{{ request.reason }}</td>
+                                                <td class="text-slate-500 dark:text-slate-400">{{ formatDateTime(request.createdAt) }}</td>
+                                                <td>
+                                                    <span :class="['zq-badge', accessRequestStatusBadge(request).className]"><i :class="['fa-solid', accessRequestStatusBadge(request).icon]"></i>{{ accessRequestStatusBadge(request).label }}</span>
+                                                    <p v-if="request.decisionNote" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ request.decisionNote }}</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- STAFF PORTAL — the account roster and its interaction buttons -->
+                            <div v-if="canObserveStaffPortal" class="pt-6 space-y-5 border-t border-slate-200 dark:border-slate-700">
+                                <div class="flex flex-wrap justify-between items-center gap-3">
+                                    <div>
+                                        <h3 class="zq-text-section-title"><i class="fa-solid fa-users-viewfinder text-brand-blue mr-2"></i>Staff Portal — Portal Access Management</h3>
+                                        <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                            <span v-if="canManageStaffPortal">Full access: Super Admin and Director. Every interaction below — Lock, Read, Edit, View, Delete, Access, Accept and Reject — is theirs.</span>
+                                            <span v-else>You are viewing the Staff Portal as an observer: View, Read and Access only. Changing an account is Super Admin and Director.</span>
+                                        </p>
+                                    </div>
+                                    <button v-if="canManageStaffPortal" type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary">
+                                        <i class="fa-solid fa-user-plus"></i><span>Add Access</span>
+                                    </button>
+                                </div>
+
+                                <!-- ACCEPT / REJECT — access requests awaiting a decision -->
+                                <div v-if="canManageStaffPortal" class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Access Requests</h4>
+                                        <span v-if="pendingAccessRequests.length" class="zq-badge zq-badge-warning"><i class="fa-solid fa-hourglass-half"></i>{{ pendingAccessRequests.length }} awaiting decision</span>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="zq-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Requester</th>
+                                                    <th>Role Change</th>
+                                                    <th>Reason</th>
+                                                    <th>Status</th>
+                                                    <th class="text-right w-56">Decision</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="request in sortedAccessRequests" :key="request.id" @contextmenu.prevent="openContextMenu($event, accessRequestRowMenuItems(request))" v-longpress="(touch) => openContextMenu(touch, accessRequestRowMenuItems(request))">
+                                                    <td>
+                                                        <p class="font-bold text-slate-800 dark:text-slate-200">{{ request.requesterName || request.requesterEmail }}</p>
+                                                        <p class="text-[10px] text-slate-500 dark:text-slate-400 break-all">{{ request.requesterEmail }}</p>
+                                                    </td>
+                                                    <td class="text-slate-600 dark:text-slate-300">{{ getRoleDisplayName(request.currentRole) }} <i class="fa-solid fa-arrow-right mx-1 text-[9px] text-slate-400"></i> <span class="font-bold">{{ getRoleDisplayName(request.requestedRole) }}</span></td>
+                                                    <td class="text-slate-600 dark:text-slate-300">
+                                                        <p>{{ request.reason }}</p>
+                                                        <p class="mt-1 text-[10px] text-slate-400">Raised {{ formatDateTime(request.createdAt) }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <span :class="['zq-badge', accessRequestStatusBadge(request).className]"><i :class="['fa-solid', accessRequestStatusBadge(request).icon]"></i>{{ accessRequestStatusBadge(request).label }}</span>
+                                                        <p v-if="request.decidedBy" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ request.decidedBy }} · {{ formatDateTime(request.decidedAt) }}</p>
+                                                        <p v-if="request.decisionNote" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ request.decisionNote }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <div class="zq-table-actions-wide">
+                                                            <template v-if="(request.status || 'Pending') === 'Pending'">
+                                                                <button v-for="action in staffPortalRequestActions()" :key="action.key" type="button" @click="runAccessRequestAction(action.key, request)" :disabled="staffPortalBusyUid === request.id" :title="action.title" :class="['zq-btn', 'zq-btn-sm', action.variant]">
+                                                                    <i :class="['fa-solid', action.icon]"></i><span>{{ action.label }}</span>
+                                                                </button>
+                                                            </template>
+                                                            <span v-else class="text-[9px] font-bold uppercase text-slate-400">Decided</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr v-if="!sortedAccessRequests.length" class="zq-table-empty">
+                                                    <td colspan="5">
+                                                        <div class="zq-empty-state zq-empty-state-compact">
+                                                            <i class="fa-solid fa-inbox zq-empty-state-icon" aria-hidden="true"></i>
+                                                            <p class="zq-empty-state-title">No access requests</p>
+                                                            <p class="zq-empty-state-text">Staff raise these from their own Profile page. Accept and Reject appear here when one arrives.</p>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <!-- LOCK / READ / EDIT / VIEW / DELETE / ACCESS — one portal account per row -->
+                                <div class="space-y-2">
+                                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 dark:text-slate-400">Portal Accounts</h4>
+                                    <div class="overflow-x-auto">
+                                        <table class="zq-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Username</th>
+                                                    <th>Sign-In Email</th>
+                                                    <th>Role</th>
+                                                    <th>Status</th>
+                                                    <th class="text-right w-[26rem]">Interactions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr v-for="(usr, uIdx) in users" :key="uIdx" @contextmenu.prevent="openContextMenu($event, portalUserRowMenuItems(usr))" v-longpress="(touch) => openContextMenu(touch, portalUserRowMenuItems(usr))">
+                                                    <td class="font-bold text-slate-800 dark:text-slate-200">{{ usr.name }}</td>
+                                                    <td class="font-medium text-slate-700 dark:text-slate-300 break-all">{{ usr.email }}</td>
+                                                    <td>
+                                                        <span class="bg-brand-gold/20 text-brand-dark dark:text-amber-100 font-extrabold px-2 py-0.5 rounded text-[10px] uppercase">{{ getRoleDisplayName(usr.role) }}</span>
+                                                    </td>
+                                                    <td>
+                                                        <span :class="['zq-badge', staffPortalStatusBadge(usr).className]"><i :class="['fa-solid', staffPortalStatusBadge(usr).icon]"></i>{{ staffPortalStatusBadge(usr).label }}</span>
+                                                        <p v-if="isAccountLocked(usr) && usr.accessLockReason" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ usr.accessLockReason }}</p>
+                                                    </td>
+                                                    <td>
+                                                        <div class="zq-table-actions-wide">
+                                                            <button v-for="action in staffPortalActionsFor(usr)" :key="action.key" type="button" @click="runStaffPortalAction(action.key, usr)" :disabled="staffPortalBusyUid === usr.id" :title="action.title" :class="['zq-btn', 'zq-btn-sm', action.variant]">
+                                                                <i :class="['fa-solid', action.icon]"></i><span>{{ action.label }}</span>
+                                                            </button>
+                                                            <span v-if="isSeedAdminEmail(usr.email)" class="text-[9px] font-bold uppercase text-slate-400">Protected Seed Account</span>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                <tr v-if="!users.length" class="zq-table-empty">
+                                                    <td colspan="5">
+                                                        <div class="zq-empty-state zq-empty-state-compact">
+                                                            <i class="fa-solid fa-users-viewfinder zq-empty-state-icon" aria-hidden="true"></i>
+                                                            <p class="zq-empty-state-title">No portal accounts yet</p>
+                                                            <p class="zq-empty-state-text">Grant portal access to give someone a login for this system.</p>
+                                                            <div v-if="canManageStaffPortal" class="zq-empty-state-action"><button type="button" @click="openUserAccessModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-user-plus"></i><span>Add Access</span></button></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
