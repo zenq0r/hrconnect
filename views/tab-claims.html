@@ -113,7 +113,7 @@
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
                                 <div class="overflow-hidden">
                                     <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight truncate">RECEIPT ATTACHMENT (MAX 2MB) <span class="text-red-500">*</span></p>
-                                    <p class="text-[10px] text-slate-400 truncate">{{ claimForm.receiptAttachment ? `${claimForm.receiptAttachmentName || 'Receipt Attached'} · stored ${formatFileSize(getDataUrlSize(claimForm.receiptAttachment))}` : 'PNG, JPG or JPEG · total application files max 2MB' }}</p>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ claimForm.receiptAttachment ? `${claimForm.receiptAttachmentName || 'Receipt Attached'} · ${formatFileSize(claimForm.receiptAttachmentOriginalBytes)}` : 'PNG, JPG or JPEG · total application files max 2MB' }}</p>
                                 </div>
                                 <div class="flex items-center space-x-1 shrink-0">
                                     <label for="claim-attachment" :class="attachmentUploadState.receipt ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer">
@@ -217,7 +217,7 @@
                             <div class="p-2.5 bg-emerald-500/10 dark:bg-emerald-950/40 border border-emerald-500 rounded-xl flex items-center justify-between gap-2">
                                 <div class="overflow-hidden">
                                     <p class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-tight truncate">SUPPORTING DOCUMENT (MAX 2MB) <span class="text-red-500">*</span></p>
-                                    <p class="text-[10px] text-slate-400 truncate">{{ voucherForm.receiptAttachment ? `${voucherForm.receiptAttachmentName || 'Document Attached'} · stored ${formatFileSize(getDataUrlSize(voucherForm.receiptAttachment))}` : 'PNG, JPG or JPEG · total application files max 2MB' }}</p>
+                                    <p class="text-[10px] text-slate-400 truncate">{{ voucherForm.receiptAttachment ? `${voucherForm.receiptAttachmentName || 'Document Attached'} · ${formatFileSize(voucherForm.receiptAttachmentOriginalBytes)}` : 'PNG, JPG or JPEG · total application files max 2MB' }}</p>
                                 </div>
                                 <div class="flex items-center space-x-1 shrink-0">
                                     <label for="voucher-attachment" :class="attachmentUploadState.receipt ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-primary zq-btn-sm cursor-pointer">

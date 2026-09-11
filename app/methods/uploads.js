@@ -45,24 +45,39 @@ export const uploadMethods = {
         },
         getFirestoreWriteError(error, action = 'save this record') {
             const code = String(error?.code || '').toLowerCase();
-            if (code.includes('permission-denied')) return `Permission denied while trying to ${action}. Deploy the latest firestore.rules and sign in again.`;
+            if (code.includes('permission-denied')) return `You do not have permission to ${action}. Sign in again, and contact your administrator if it keeps happening.`;
             // Every branch here reports a write that did not happen, so each
             // one says so outright. Two of them used to open with neutral
             // prose and reached the operator wearing a success tick.
-            if (code.includes('resource-exhausted') || code.includes('invalid-argument')) return `Unable to ${action} — the record is too large. Select smaller images.`;
-            if (code.includes('unavailable') || code.includes('deadline-exceeded')) return `Unable to ${action} — Firestore is temporarily unavailable. Check the network and try again.`;
+            if (code.includes('resource-exhausted') || code.includes('invalid-argument')) return `Unable to ${action} — the record is too large. Use fewer or smaller attachments.`;
+            if (code.includes('unavailable') || code.includes('deadline-exceeded')) return `Unable to ${action} — the portal could not be reached. Check the network and try again.`;
             return `Unable to ${action}. ${error?.message || 'Please try again.'}`;
         },
         getSerializedSize(value) {
             return new Blob([JSON.stringify(value)]).size;
         },
-        getDataUrlSize(dataUrl) {
-            if (!dataUrl || !String(dataUrl).startsWith('data:')) return 0;
-            const value = String(dataUrl);
-            return Math.ceil((value.length - value.indexOf(',') - 1) * 3 / 4);
-        },
-        async prepareImageAttachment(file, maxDataUrlBytes = 220 * 1024, maxDimension = 1600) {
+        // Receipts, payment proofs and approval documents used to be written
+        // into the Firestore record itself as a base64 data URL. That put the
+        // bytes of every attachment inside the document every reader of that
+        // record downloads, pushed each one toward Firestore's 1 MB ceiling,
+        // and meant the image was squeezed to 220 KB to fit — a receipt
+        // compressed until the amount on it is hard to read is not a receipt.
+        //
+        // They go to Firebase Storage now, the same place client documents
+        // already go, and the record keeps a URL. Records written the old way
+        // still carry a data URL and still render: everything that displays an
+        // attachment accepts either (see isSupportedImageAttachment).
+        //
+        // The image is still resized and re-encoded before it leaves the
+        // browser — a 12-megapixel phone photo of an A4 receipt helps nobody —
+        // but the budget is now what is readable rather than what Firestore
+        // will accept.
+        async prepareImageAttachment(file, maxUploadBytes = 1536 * 1024, maxDimension = 2000) {
+            // Validates the bytes, not just the extension — what comes out of
+            // the canvas below is always a JPEG whatever went in.
             await this.validateImageFile(file);
+            const ownerUid = this.userProfile.uid;
+            if (!ownerUid) throw new Error('Sign in again before attaching a file.');
             const imageUrl = URL.createObjectURL(file);
             try {
                 const image = await new Promise((resolve, reject) => {
@@ -81,30 +96,60 @@ export const uploadMethods = {
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d', { alpha: false });
                 if (!context) throw new Error('This browser cannot process the selected image.');
-                let quality = 0.9;
-                let dataUrl = '';
+                let quality = 0.92;
                 for (let attempt = 0; attempt < 14; attempt++) {
                     canvas.width = width;
                     canvas.height = height;
                     context.fillStyle = '#FFFFFF';
                     context.fillRect(0, 0, width, height);
                     context.drawImage(image, 0, 0, width, height);
-                    dataUrl = canvas.toDataURL('image/jpeg', quality);
-                    const encodedBytes = Math.ceil((dataUrl.length - dataUrl.indexOf(',') - 1) * 3 / 4);
-                    if (encodedBytes <= maxDataUrlBytes) return dataUrl;
-                    if (quality > 0.5) quality -= 0.1;
+                    const blob = await new Promise((resolve, reject) => {
+                        canvas.toBlob(
+                            result => result ? resolve(result) : reject(new Error('This browser could not re-encode the selected image.')),
+                            'image/jpeg',
+                            quality
+                        );
+                    });
+                    if (blob.size <= maxUploadBytes) return await this.storeAttachment(blob, ownerUid);
+                    if (quality > 0.6) quality -= 0.08;
                     else {
                         const currentMax = Math.max(width, height);
-                        const nextMax = Math.max(480, Math.round(currentMax * 0.82));
+                        const nextMax = Math.max(900, Math.round(currentMax * 0.85));
                         const resizeScale = nextMax / currentMax;
                         width = Math.max(1, Math.round(width * resizeScale));
                         height = Math.max(1, Math.round(height * resizeScale));
-                        quality = 0.72;
+                        quality = 0.8;
                     }
                 }
-                throw new Error('The image could not be reduced to a safe Firestore size. Please use a smaller image.');
+                throw new Error('The image could not be reduced to a reasonable size. Please use a smaller image.');
             } finally {
                 URL.revokeObjectURL(imageUrl);
+            }
+        },
+        // One private file per uploader. The path carries the uid so
+        // storage.rules can say "your own" without a cross-service lookup,
+        // which does not work in this project (see the note in storage.rules).
+        //
+        // The previous file is deliberately NOT deleted when an attachment is
+        // replaced: the record still points at it until the save succeeds, and
+        // a failed save that had already destroyed the old receipt would be a
+        // worse outcome than an unreferenced file.
+        async storeAttachment(blob, ownerUid) {
+            const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.jpg`;
+            const fileRef = storageRef(storage, `receipts/${ownerUid}/${name}`);
+            try {
+                await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+                return await getDownloadURL(fileRef);
+            } catch (error) {
+                console.error('Attachment upload failed:', error);
+                const code = String(error?.code || '').toLowerCase();
+                if (code.includes('unauthorized') || code.includes('permission')) {
+                    throw new Error('You are not allowed to attach a file to this record. Contact your administrator.');
+                }
+                if (code.includes('retry-limit') || code.includes('canceled')) {
+                    throw new Error('The attachment could not be uploaded. Check your connection and try again.');
+                }
+                throw new Error('The attachment could not be uploaded. Please try again.');
             }
         },
         async handleAttachmentUpload(e) {

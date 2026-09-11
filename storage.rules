@@ -51,6 +51,26 @@ service firebase.storage {
       allow delete: if isStaffDocumentManager();
     }
 
+    // Receipts, payment proofs and approval documents attached to a claim, a
+    // payment voucher or a billing document. These used to be written into the
+    // Firestore record as base64, which put the bytes inside every read of that
+    // record; they are files here instead.
+    //
+    // The path carries the uploader's uid, so "your own attachment" is decided
+    // by the path rather than by a lookup. An approver has to be able to see
+    // what they are approving, which is the whole point of the attachment, so
+    // the staff readers are admitted to all of them — the same set that already
+    // reads the claim itself in firestore.rules.
+    match /receipts/{ownerUid}/{fileName} {
+      allow read: if isStaffReader() || (isSignedIn() && request.auth.uid == ownerUid);
+      // Only ever the portal's own re-encoded JPEG: it resizes and re-encodes
+      // before upload, so anything else arriving here did not come from it.
+      allow write: if isSignedIn() && request.auth.uid == ownerUid &&
+        request.resource.size <= 2 * 1024 * 1024 &&
+        request.resource.contentType == 'image/jpeg';
+      allow delete: if isStaffDocumentManager() || (isSignedIn() && request.auth.uid == ownerUid);
+    }
+
     // Public zenqor-tech Portfolio gallery images (Digital Systems / Licensing &
     // Permits). Publicly readable — these are marketing images shown to anonymous
     // site visitors — but only content admins may upload/replace/remove them.
