@@ -45,8 +45,10 @@ test('ownership is checked the same two ways the read rule allows', () => {
 
 test('staff keep their own write path, while Finance may delete billing documents only', () => {
     const rule = docsRule();
-    assert.match(rule, /allow create: if isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\);/);
-    assert.match(rule, /allow update: if \(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) \|\|/);
+    // The same four roles as before, now also holding their document to totals
+    // that add up — see tests/money-enforcement.test.js.
+    assert.match(rule, /allow create: if \(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) &&/);
+    assert.match(rule, /allow update: if \(\(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) && billingTotalsAccepted\(\)\) \|\|/);
     assert.match(rule, /allow delete: if isAdmin\(\) \|\| \(isAccount\(\) && resource\.data\.type in \['Invoice', 'Quotation'\]\);/);
 });
 

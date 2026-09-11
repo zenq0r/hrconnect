@@ -218,6 +218,115 @@ service cloud.firestore {
         get(/databases/$(database)/documents/pending_access/$(request.auth.token.email)).data.email == request.auth.token.email;
     }
 
+    // ---- Money -------------------------------------------------------------
+    //
+    // SST, EPF, SOCSO and EIS are all worked out in the browser, and a browser
+    // is not a place anything can be enforced: devtools can change a figure
+    // between the form and the save. None of the rules below decide what a
+    // price or a salary *should* be — that is a commercial decision this file
+    // has no business in — they decide that the figures which are DERIVED
+    // agree with the inputs they claim to come from. A tampered SST rate, a
+    // payslip whose EPF is not 11% of its own wages, or a grand total that is
+    // not its own subtotal minus its own discount, are all refused here no
+    // matter which role sends them or what the interface displayed.
+    //
+    // Everything is compared in whole cents. The rules engine and the browser
+    // both work in doubles, so comparing ringgit directly would eventually
+    // fail on a value neither of them got wrong; one cent of tolerance absorbs
+    // that without leaving room for a meaningful forgery.
+
+    function figure(data, key) {
+      return data.get(key, 0) is number ? data.get(key, 0) : 0;
+    }
+
+    function cents(value) {
+      return math.round(value * 100);
+    }
+
+    function centsMatch(left, right) {
+      return math.abs(left - right) <= 1;
+    }
+
+    // ---- Quotations and invoices ----
+    // SST is 8%. The grand total is subtotal - discount + SST. A discount
+    // cannot exceed what is being discounted, and nothing may be negative.
+    function billingTotalsConsistent(data) {
+      return centsMatch(cents(figure(data, 'sst')), cents(figure(data, 'subtotal') * 0.08)) &&
+        centsMatch(
+          cents(figure(data, 'amount')),
+          cents(figure(data, 'subtotal') - figure(data, 'discount') + figure(data, 'sst'))
+        ) &&
+        figure(data, 'subtotal') >= 0 &&
+        figure(data, 'discount') >= 0 &&
+        figure(data, 'discount') <= figure(data, 'subtotal');
+    }
+
+    // Documents saved before the totals were broken out carry no `subtotal`.
+    // They stay readable and their workflow keeps moving — a status change, a
+    // payment proof, a PIC handover — but the moment a figure on one of them
+    // moves, it has to come back as a consistent set.
+    function billingTotalsAccepted() {
+      return 'subtotal' in request.resource.data
+        ? billingTotalsConsistent(request.resource.data)
+        : request.resource.data.amount == resource.data.amount;
+    }
+
+    // ---- Payslips ----
+    // EPF is charged on the fixed wage; SOCSO and EIS add overtime and stop at
+    // the RM6,000 ceiling. An employee past the statutory retirement age pays
+    // none of the three (the employer still contributes, which is not a figure
+    // this document carries).
+    function payslipEpfWages(raw) {
+      return figure(raw, 'basic') + figure(raw, 'phone') + figure(raw, 'transport') +
+        figure(raw, 'meal') + figure(raw, 'bonus');
+    }
+
+    function payslipGross(raw) {
+      return payslipEpfWages(raw) + figure(raw, 'ot');
+    }
+
+    function payslipCappedWages(raw) {
+      return payslipGross(raw) > 6000 ? 6000 : payslipGross(raw);
+    }
+
+    function payslipIsSenior(raw) {
+      return raw.get('isSenior', false) == true;
+    }
+
+    function payslipDeductions(raw) {
+      return figure(raw, 'dedEpf') + figure(raw, 'dedSocso') + figure(raw, 'dedEis') +
+        figure(raw, 'dedPcb') + figure(raw, 'dedAdvance') + figure(raw, 'dedOther');
+    }
+
+    function payslipStatutoryCorrect(raw) {
+      return centsMatch(cents(figure(raw, 'dedEpf')), cents(math.round(payslipEpfWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.11)))) &&
+        centsMatch(cents(figure(raw, 'dedSocso')), cents(payslipCappedWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.005))) &&
+        centsMatch(cents(figure(raw, 'dedEis')), cents(payslipCappedWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.002)));
+    }
+
+    function payslipFiguresConsistent(data) {
+      return data.raw is map &&
+        payslipStatutoryCorrect(data.raw) &&
+        centsMatch(cents(figure(data, 'amount')), cents(payslipGross(data.raw) - payslipDeductions(data.raw))) &&
+        figure(data.raw, 'basic') >= 0 &&
+        figure(data, 'amount') >= 0;
+    }
+
+    // Same easing as billing: a payslip filed before this rule existed keeps
+    // its metadata editable, but its money cannot move without being right.
+    function payslipFiguresAccepted() {
+      return payslipFiguresConsistent(request.resource.data) ||
+        (resource != null && request.resource.data.amount == resource.data.amount);
+    }
+
+    // An approver decides yes or no. Changing the sum on the way through is a
+    // different act entirely, and the person who filed the claim never agreed
+    // to it — so the figure a claim was submitted with is the figure that gets
+    // approved, or it goes back for a new submission.
+    function claimAmountUnchanged() {
+      return request.resource.data.amount == resource.data.amount;
+    }
+
     // The company profile is the letterhead: clients read it on the support
     // page, staff print it onto quotations and invoices. Every signed-in
     // session may read that one document; the rest of this collection, such
@@ -363,8 +472,9 @@ service cloud.firestore {
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
         )
       );
-      allow create: if isSuperadmin() || isDirector() || isHR() || isAccount();
-      allow update: if (isSuperadmin() || isDirector() || isHR() || isAccount()) || (
+      allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+        billingTotalsConsistent(request.resource.data);
+      allow update: if ((isSuperadmin() || isDirector() || isHR() || isAccount()) && billingTotalsAccepted()) || (
         // A client records their own decision on their own open quotation, and
         // nothing else. Ownership is established the same two ways the read
         // rule above allows: the primary contact, or an authorized secondary
@@ -477,7 +587,10 @@ service cloud.firestore {
         isAdmin() || isHR() || isAccount() ||
         (isStaff() && resource.data.raw.empEmail == request.auth.token.email)
       );
-      allow create, update: if isSuperadmin() || isDirector() || isHR() || isAccount();
+      allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+        payslipFiguresConsistent(request.resource.data);
+      allow update: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+        payslipFiguresAccepted();
       allow delete: if isAdmin();
     }
 
@@ -521,15 +634,18 @@ service cloud.firestore {
         ])
       ) || (
         isHR() && resource.data.status == 'Pending HR' &&
-        request.resource.data.status in ['Pending Account', 'Rejected']
+        request.resource.data.status in ['Pending Account', 'Rejected'] &&
+        claimAmountUnchanged()
       ) || (
         isAccount() && resource.data.status == 'Pending Account' &&
-        request.resource.data.status in ['Pending Director', 'Rejected']
+        request.resource.data.status in ['Pending Director', 'Rejected'] &&
+        claimAmountUnchanged()
       ) || (
         // Superadmin approves alongside Director: the client gate lets them,
         // and without this the write is refused after the UI has said yes.
         isAdmin() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
-        request.resource.data.status in ['Approved', 'Rejected']
+        request.resource.data.status in ['Approved', 'Rejected'] &&
+        claimAmountUnchanged()
       );
       allow delete: if isAdmin();
     }
@@ -577,15 +693,18 @@ service cloud.firestore {
         ])
       ) || (
         isHR() && resource.data.status == 'Pending HR' &&
-        request.resource.data.status in ['Pending Account', 'Rejected']
+        request.resource.data.status in ['Pending Account', 'Rejected'] &&
+        claimAmountUnchanged()
       ) || (
         isAccount() && resource.data.status == 'Pending Account' &&
-        request.resource.data.status in ['Pending Director', 'Rejected']
+        request.resource.data.status in ['Pending Director', 'Rejected'] &&
+        claimAmountUnchanged()
       ) || (
         // Superadmin approves alongside Director: the client gate lets them,
         // and without this the write is refused after the UI has said yes.
         isAdmin() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
-        request.resource.data.status in ['Approved', 'Rejected']
+        request.resource.data.status in ['Approved', 'Rejected'] &&
+        claimAmountUnchanged()
       );
       allow delete: if isAdmin();
     }

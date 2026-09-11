@@ -152,7 +152,7 @@ export const billingMethods = {
                 Object.assign(this.docForm, normalizedDocForm);
                 const docId = String(this.editingDocId || Date.now());
                 const linkedProject = this.projects.find(project => String(project.id || '') === String(this.docForm.projectId || ''));
-                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
+                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, subtotal: this.docSubtotal, sst: this.docSST, discount: Number(this.docForm.discount) || 0, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
                 if (!this.clientSavedForDocument) { this.showNotify('Select a registered client before saving this document.'); return false; }
                 // Hard guarantee, not just an implied one: every document must carry
                 // its client's real customers/{id}, never just a name snapshot — two
@@ -212,6 +212,12 @@ export const billingMethods = {
         async savePayslipRecord() {
             try {
                 if (!this.canManagePayroll) { this.showNotify('You do not have permission to save payslips.'); return; }
+                // firestore.rules re-derives EPF, SOCSO and EIS from the wages on
+                // the payslip and refuses a set that does not agree. Recomputing
+                // here means what is saved is always what the inputs produce,
+                // rather than whatever the last keystroke happened to leave in
+                // payCalc.
+                this.autoCalculatePayroll();
                 const normalizedPayForm = this.normalizeOfficialRecord(this.payForm);
                 normalizedPayForm.empEmail = String(this.payForm.empEmail || '').trim().toLowerCase();
                 Object.assign(this.payForm, normalizedPayForm);
