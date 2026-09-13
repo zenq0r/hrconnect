@@ -49,7 +49,13 @@ function readSource(...parts) {
     const name = parts.join('/');
     if (name === 'app.js') return appFiles().map(read).join('\n');
     if (name === 'index.html') return markupFiles().map(read).join('\n');
-    return read(path.join(ROOT, name));
+    return readRaw(name);
+}
+
+// One file exactly as it is on disk — app.js and index.html included — for a
+// test that reports what it finds by file and line.
+function readRaw(...parts) {
+    return read(path.join(ROOT, parts.join('/')));
 }
 
 // Lifts whole `name(args) { ... }` members out of the portal's method modules,
@@ -98,4 +104,4 @@ function constantSource(...names) {
     }).join('\n');
 }
 
-module.exports = { ROOT, readSource, methodSource, constantSource, appFiles, markupFiles, portalSourceFiles };
+module.exports = { ROOT, readSource, readRaw, methodSource, constantSource, appFiles, markupFiles, portalSourceFiles };

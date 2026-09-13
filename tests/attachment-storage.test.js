@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readSource, methodSource } = require('./helpers/sources');
+const { ROOT, readSource, readRaw, methodSource, appFiles } = require('./helpers/sources');
 
 // Receipts, payment proofs and approval documents used to be base64 inside the
 // Firestore record. Every reader of a claim downloaded the image bytes whether
@@ -81,8 +81,8 @@ test('messages a person reads are not written in the vocabulary of the stack', (
     const STACK_WORDS = /\b(Firestore|Firebase|FIREBASE_[A-Z_]+|UID\b|security rules|firestore\.rules|redeploy|collection\b)/;
 
     const files = [
-        ...['app.js'],
-        ...fs.readdirSync(path.join(__dirname, '..', 'app', 'methods')).map(f => `app/methods/${f}`),
+        // Each module by its own name, so an offender is reported where it is.
+        ...appFiles().map(file => path.relative(ROOT, file).split(path.sep).join('/')),
         ...fs.readdirSync(path.join(__dirname, '..', 'api'))
             .filter(f => f.endsWith('.js'))
             // Its errors name the environment variable on purpose — they are
@@ -94,7 +94,7 @@ test('messages a person reads are not written in the vocabulary of the stack', (
     ];
     const offenders = [];
     for (const file of files) {
-        readSource(file).split(/\r?\n/).forEach((line, index) => {
+        readRaw(file).split(/\r?\n/).forEach((line, index) => {
             if (/^\s*\/\//.test(line) || /console\.(error|warn|info|log)\(/.test(line) || !SINKS.test(line)) return;
             for (const literal of line.matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*\s(?:(?!\1)[^\\]|\\.)*)\1/g)) {
                 if (STACK_WORDS.test(literal[2])) offenders.push(`${file}:${index + 1}  ${literal[2].slice(0, 90)}`);

@@ -597,24 +597,11 @@ test('a normal logout cannot be labelled as removed portal access', () => {
     assert.match(app, /async revokeCurrentPortalAccess\([\s\S]{0,240}?this\.intentionalLogoutInProgress = false;\s*this\.loginError = message;/);
 });
 
-// Lifts a method body straight out of app.js so this exercises the code that
-// actually ships, rather than a copy that can drift from it.
-function liftAppMethod(appSource, name) {
-    const start = appSource.indexOf(`\n        ${name}(`);
-    assert.ok(start >= 0, `method ${name} not found in app.js`);
-    const end = appSource.indexOf('\n        },', start);
-    assert.ok(end > start, `could not delimit ${name} in app.js`);
-    const body = appSource.slice(start + 9, end + '\n        }'.length).trim();
-    return eval('(' + body.replace(new RegExp('^' + name), 'function') + ')');
-}
-
 test('website content shows the newest work first, whatever shape its dates are in', () => {
     const app = readSource('app.js');
 
-    const ctx = {};
-    ctx.toComparableIsoDate = liftAppMethod(app, 'toComparableIsoDate');
-    ctx.websiteContentDateKey = liftAppMethod(app, 'websiteContentDateKey').bind(ctx);
-    ctx.sortGalleryItemsNewestFirst = liftAppMethod(app, 'sortGalleryItemsNewestFirst').bind(ctx);
+    // The shipped methods, lifted out as one object so each reaches the others through this.
+    const ctx = new Function(`return { ${methodSource('toComparableIsoDate', 'websiteContentDateKey', 'sortGalleryItemsNewestFirst')} };`)();
 
     // createdAt is a Firestore Timestamp on the older records in this collection
     // and an ISO string on the newer ones. Both must normalise, or the fallback

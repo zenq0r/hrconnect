@@ -94,8 +94,9 @@ test('abandoning the challenge ends the session it was guarding', () => {
 
 test('a cleared second factor is recorded against the account', () => {
     const verify = readSource('api/verify-login-otp.js');
-    assert.match(verify, /lastSecondFactorAt/);
-    assert.match(verify, /if \(purpose === 'sign-in'\)/);
+    // Inside the transaction that spends the code, so one is never without the other.
+    const transaction = verify.slice(verify.indexOf('db.runTransaction('), verify.indexOf('if (!result.valid)'));
+    assert.match(transaction, /if \(purpose === 'sign-in'\) \{\s*transaction\.set\(db\.collection\('users'\)\.doc\(reset\.uid\), \{ lastSecondFactorAt: usedAt \}, \{ merge: true \}\);/);
 });
 
 test('the sign-in screen asks for the code instead of the password form', () => {

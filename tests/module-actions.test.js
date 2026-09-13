@@ -172,7 +172,11 @@ test('an administrator\'s correction of a claim is stamped, audited, and kept ap
 
 test('every audit action the portal sends is one the server records', () => {
     const allowed = new Set([...readSource('api/audit-log.js').match(/const ALLOWED_ACTIONS = new Set\(\[([\s\S]*?)\]\);/)[1].matchAll(/'([A-Z_]+)'/g)].map(m => m[1]));
-    const sent = new Set([...readSource('app.js').matchAll(/logAudit\('([A-Z_]+)'/g)].map(m => m[1]));
+    // Every verb in the first argument, including both sides of a ternary
+    // such as logAudit(locking ? 'LOCK' : 'UNLOCK', ...).
+    const sent = new Set([...readSource('app.js').matchAll(/logAudit\(([^,]*'[A-Z_]+'[^,]*),/g)]
+        .flatMap(call => [...call[1].matchAll(/'([A-Z_]+)'/g)].map(m => m[1])));
+    assert.ok(sent.has('LOCK') && sent.has('UNLOCK'), 'verbs chosen by a ternary are checked too');
     const refused = [...sent].filter(action => !allowed.has(action));
     // A verb the server does not list is refused with a 400 the portal never
     // shows, and the event is simply not recorded.

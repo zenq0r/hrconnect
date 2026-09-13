@@ -44,19 +44,18 @@ module.exports = async function handler(req, res) {
                 transaction.update(docRef, { attempts: attempts + 1 });
                 return { error: attempts + 1 >= MAX_ATTEMPTS ? 'Too many incorrect attempts. Request a new code.' : 'Incorrect code. Please try again.' };
             }
-            transaction.update(docRef, { used: true, usedAt: new Date().toISOString() });
+            const usedAt = new Date().toISOString();
+            transaction.update(docRef, { used: true, usedAt });
+            // A cleared second factor is recorded against the account in the
+            // same write that spends the code, so the audit trail can show that
+            // this session passed one and when.
+            if (purpose === 'sign-in') {
+                transaction.set(db.collection('users').doc(reset.uid), { lastSecondFactorAt: usedAt }, { merge: true });
+            }
             return { valid: true };
         });
 
         if (!result.valid) { res.status(400).json({ valid: false, error: result.error }); return; }
-
-        // A cleared second factor is recorded against the account, so the audit
-        // trail can show that this session passed one and when.
-        if (purpose === 'sign-in') {
-            await db.collection('users').doc(reset.uid)
-                .set({ lastSecondFactorAt: new Date().toISOString() }, { merge: true })
-                .catch(error => console.error('Could not record the second factor:', error));
-        }
 
         res.status(200).json({ valid: true });
     } catch (error) {

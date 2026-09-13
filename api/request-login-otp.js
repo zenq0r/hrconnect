@@ -7,15 +7,23 @@ const { resolvePasswordResetContext, resolveSignInContext } = require('./_passwo
 const OTP_TTL_MS = 5 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 
-function buildOtpEmailHtml(code, purpose) {
-    const isSignIn = purpose === 'sign-in';
-    const heading = isSignIn ? 'Confirm Your Sign-In' : 'Confirm Your Password Reset';
-    const intro = isSignIn
-        ? 'Enter this code to finish signing in to the portal. It expires in 5 minutes.'
-        : 'Enter this code before choosing a new password. It expires in 5 minutes.';
-    const footnote = isSignIn
-        ? 'If you did not just try to sign in, your password is known to somebody else. Change it and tell your administrator.'
-        : 'If you did not request a password reset, you can ignore this email and your account will remain secure.';
+// What the email says for each use of the code.
+const OTP_EMAIL_COPY = {
+    'sign-in': {
+        subject: 'Your ZENQOR Sign-In Code',
+        heading: 'Confirm Your Sign-In',
+        intro: 'Enter this code to finish signing in to the portal. It expires in 5 minutes.',
+        footnote: 'If you did not just try to sign in, your password is known to somebody else. Change it and tell your administrator.'
+    },
+    'password-reset': {
+        subject: 'Confirm Your ZENQOR Password Reset',
+        heading: 'Confirm Your Password Reset',
+        intro: 'Enter this code before choosing a new password. It expires in 5 minutes.',
+        footnote: 'If you did not request a password reset, you can ignore this email and your account will remain secure.'
+    }
+};
+
+function buildOtpEmailHtml(code, { heading, intro, footnote }) {
     return `<div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 0; background-color: #ffffff; border-radius: 16px; border: 1px solid #E5E7EB; overflow: hidden;">
   <div style="background-color: #0B1E36; padding: 28px 32px; text-align: center;">
     <span style="font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: 0.5px;">ZENQOR</span><span style="font-size: 20px; font-weight: 800; color: #14B8A6; letter-spacing: 0.5px;"> HRMS/CDTS</span>
@@ -35,6 +43,7 @@ function buildOtpEmailHtml(code, purpose) {
 async function sendOtpEmail(email, code, purpose) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) throw new Error('RESEND_API_KEY environment variable is not set.');
+    const copy = OTP_EMAIL_COPY[purpose];
 
     const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -42,8 +51,8 @@ async function sendOtpEmail(email, code, purpose) {
         body: JSON.stringify({
             from: MAIL_FROM,
             to: [email],
-            subject: purpose === 'sign-in' ? 'Your ZENQOR Sign-In Code' : 'Confirm Your ZENQOR Password Reset',
-            html: buildOtpEmailHtml(code, purpose)
+            subject: copy.subject,
+            html: buildOtpEmailHtml(code, copy)
         })
     });
     if (!response.ok) throw new Error(`Resend send failed: ${response.status} ${await response.text()}`);
