@@ -5,7 +5,7 @@ runtime compiler, so what is in the repository is what ships.
 
 ```
 index.html            the sign-in page, and nothing else
-app.js                entry point: builds the Vue app out of app/
+app.js                entry point: the sign-in page's code, and the Vue app itself
 app/
   config.js           portal URL, seed administrators, changelog, greeting timing
   constants/
@@ -18,6 +18,7 @@ app/
   state.js            every reactive field a session starts with
   computed/           derived values, by area (access, reports, billing, …)
   methods/            behaviour, by area (auth, claims, projects, hr, …)
+  portal.js           the method groups fetched only after sign-in
   views.js            fetches, compiles and mounts the screens in views/
 views/
   portal-shell.html   sidebar and top bar
@@ -25,7 +26,7 @@ views/
   shared-modals.html  overlays more than one screen raises
   print-templates.html quotation, invoice, payslip, approved claim
 api/                  Vercel serverless functions (OTP, e-mail, audit, claims)
-functions/            Firebase Functions (account lifecycle)
+functions/            Firebase Functions (account lifecycle, billing totals check)
 firestore.rules       the access rules that actually enforce all of the above
 ```
 
@@ -54,20 +55,34 @@ the free map: no unauthenticated visitor is handed the module list, the role
 names and the workflows simply for loading the page. Real data is protected by
 `firestore.rules` and by the checks in `api/_security.js`, and always was.
 
-### What is still loaded up front
+### The code is split the same way
 
-The markup is split; the JavaScript is not. Every module under `app/` is a
-static import of `app.js`, so the logic still arrives in full on first load —
-around 650 KB of it, cached and revalidated, against 36 KB of `index.html`
-where the page used to be 529 KB. Reading it tells you the Firestore collection
-names and the shape of the workflows, though not the module list a person can
-actually open, and none of the portal's text.
+| before sign-in | after sign-in |
+| --- | --- |
+| `app.js` and what it imports — about 237 KB: state, computed values, and the method groups a sign-in needs (`auth`, `shell`, `forms`, `display`, `presence`, `dashboard`, `audit`, `notifications`, `access`) | `app/portal.js`, fetched with `import()` inside `ensurePortalCode()`: projects, clients, claims, billing, payroll, uploads, reports, HR, account administration, the CMS, and every Firestore subscription |
 
-Making that lazy too is a separate change with a specific shape: `computed`
-values must stay eager (Vue resolves them when the component is created),
-`mounted()` calls a handful of methods at boot, and the rest of the method
-groups could be dynamically imported alongside the views and merged onto the
-instance. It is worth doing deliberately, not as a side effect of moving files.
+Where the whole portal used to be ~650 KB of JavaScript on first load, a
+visitor now receives about a third of it — and none of the parts that name the
+collections or walk through a workflow.
+
+Three things about the split are worth knowing before changing it:
+
+- **Computed values stay eager.** Vue resolves `computed` when the component is
+  created, so they cannot be attached later. That is safe only because nothing
+  the sign-in page reads calls into portal code — and a test checks exactly that.
+- **Portal methods are bound on arrival**, the way Vue binds `methods:`, so
+  `this.saveProject()`, `@click="saveProject"` and a method passed along as a
+  callback all behave as though it had been there from the start.
+- **A new call from sign-in code into a portal method fails the build.**
+  `tests/portal-code-loading.test.js` knows every path that runs before the code
+  arrives, and lists each existing reference with its reason — guarded by a
+  modal that cannot be open yet, or only reached after `ensurePortalViews()`. A
+  reference that is not on that list has to be decided, not discovered in
+  production.
+
+If a method moves into sign-in (as `loadOrMigrateUserMetadata` and
+`syncUserClaims` did, because both sign-in paths call them before the portal is
+fetched), it moves to one of the eager modules — not just into the list.
 
 ## How a screen can live in its own file without being rewritten
 
@@ -93,16 +108,18 @@ Adding a screen means three things: the file in `views/`, an entry in
 
 ## app.js is an entry point
 
-Method bodies moved verbatim into `app/methods/*.js` and are spread back into
-one `methods:` object, so `this.<method>()` resolves exactly as it always did
-and no call site changed. The same applies to `computed/`. Imports in those
+Method bodies moved verbatim into `app/methods/*.js`. The groups a sign-in
+needs are spread into `methods:` in `app.js`; the rest are spread into
+`portalMethods` in `app/portal.js` and bound onto the same component when it
+arrives. Either way `this.<method>()` resolves exactly as it always did, and no
+call site changed. The same applies to `computed/`. Imports in those
 files are a deliberate superset — an unused import is inert, a missing one
 would be a `ReferenceError` on some screen nobody opens often.
 
 ## Where each rule is actually enforced
 
-The browser is where things are *shown*, never where they are decided. Four
-kinds of rule and the place each one holds:
+The browser is where things are *shown*, never where they are decided. Each
+kind of rule, and the place it holds:
 
 | rule | enforced in | notes |
 | --- | --- | --- |

@@ -50,13 +50,6 @@ export const adminUserMethods = {
         isLikelyFirebaseUid(value) {
             return typeof value === 'string' && /^[A-Za-z0-9_-]{20,128}$/.test(value);
         },
-        // Syncs Firebase Auth custom claims (role, clientDirectoryId for Client role)
-        // from the Firestore users/{uid} record via the serverless endpoint, then
-        // forces a fresh ID token so Storage Rules see the up-to-date claims in THIS
-        // session immediately (custom claims don't appear in an already-issued token
-        // until it's refreshed). Called after every login, and after an admin changes
-        // someone's role. Failures are non-fatal — the rest of the app still works,
-        // only client_documents upload/download would be affected.
         // Fire-and-forget branded email notification for a workflow event (claim
         // submitted/decided, document shared, project stage changed, client
         // message). Never awaited by callers in a way that blocks the underlying
@@ -73,81 +66,6 @@ export const adminUserMethods = {
         },
         emailsForRole(role) {
             return this.users.filter(u => u.role === role).map(u => u.email).filter(Boolean);
-        },
-        async syncUserClaims(targetUid = null) {
-            try {
-                if (!auth.currentUser) return;
-                const idToken = await auth.currentUser.getIdToken();
-                const resp = await fetch('/api/sync-user-claims', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
-                    body: JSON.stringify(targetUid ? { uid: targetUid } : {})
-                });
-                const data = await resp.json().catch(() => ({}));
-                if (!resp.ok) {
-                    const error = new Error(data.error || 'Unable to sync access claims right now.');
-                    error.code = data.errorCode || (resp.status === 409 ? 'client/email-ambiguous' : '');
-                    if (!targetUid || targetUid === auth.currentUser?.uid) throw error;
-                    console.warn('Claims sync failed:', error);
-                    return;
-                }
-                if (!targetUid || targetUid === auth.currentUser.uid) {
-                    await auth.currentUser.getIdToken(true);
-                    // The API resolves this server-side from the authorized customer
-                    // record. Retaining it locally lets a Client subscribe only to
-                    // their own customer document, never the entire directory.
-                    this.userProfile.clientDirectoryId = data?.claims?.clientDirectoryId || '';
-                }
-            } catch (error) {
-                console.error('Claims sync error:', error);
-                if (!targetUid || targetUid === auth.currentUser?.uid) throw error;
-            }
-        },
-        async loadOrMigrateUserMetadata(firebaseUser) {
-            if (!firebaseUser?.uid || !firebaseUser?.email) return null;
-            const normalizedEmail = firebaseUser.email.trim().toLowerCase();
-            // The protected bootstrap administrator is a valid Superadmin even
-            // before its Firestore profile has been restored. The server then
-            // recreates that profile during syncUserClaims(), avoiding a failed
-            // session restore caused by a missing users/{uid} document.
-            if (this.isSeedAdminEmail(normalizedEmail)) {
-                return {
-                    email: normalizedEmail,
-                    name: firebaseUser.displayName || 'System Administrator',
-                    photo: '',
-                    role: 'Superadmin',
-                    mustChangePassword: false
-                };
-            }
-            const userRef = doc(db, 'users', firebaseUser.uid);
-            // Both callers read a null return as "not provisioned or revoked" and
-            // sign the account out saying so. getDoc() falls back to the local
-            // cache when Firestore's transport is down, and a document that was
-            // never cached comes back as a missing one rather than an error — so
-            // a stalled connection would accuse a perfectly valid account of
-            // having had its access removed. Confirm against the server: a real
-            // outage now throws, and the callers report it as a session that
-            // could not be restored.
-            const userSnapshot = await getDocFromServer(userRef);
-            if (userSnapshot.exists()) return userSnapshot.data();
-
-            const pendingRef = doc(db, 'pending_access', normalizedEmail);
-            const pendingSnapshot = await getDoc(pendingRef);
-            if (!pendingSnapshot.exists()) return null;
-
-            const pendingData = pendingSnapshot.data();
-            const pendingRole = pendingData.role || 'Client';
-            const migratedData = {
-                email: normalizedEmail,
-                name: pendingData.name || firebaseUser.displayName || normalizedEmail,
-                photo: pendingData.photo || '',
-                role: pendingRole,
-                mustChangePassword: pendingData.mustChangePassword === true,
-                migratedAt: new Date().toISOString()
-            };
-            await setDoc(userRef, migratedData);
-            await deleteDoc(pendingRef);
-            return migratedData;
         },
 
         sendWelcomeEmail(userForm) {

@@ -3,7 +3,7 @@
 // so we never want a stale cached response to shadow real data. Caching only speeds up the
 // static shell (HTML/CSS/JS/logo) on repeat visits and satisfies PWA "installable" criteria.
 
-const SHELL_CACHE = 'zenqor-shell-v19';
+const SHELL_CACHE = 'zenqor-shell-v20';
 const SHELL_ASSETS = ['/', '/index.html', '/app.js', '/custom.css', '/tailwind.css', '/logo.png', '/icon-192.png'];
 
 // The signed-in portal is split across app/ and views/ and fetched on demand.

@@ -9,7 +9,37 @@ import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS } from "../config.js
 import { CLIENT_PANELS, CLIENT_LEGACY_TABS } from "../constants/client-tiers.js";
 import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, homeTabFor } from "../views.js";
 
+// One fetch of app/portal.js per page, however many times a session signs in
+// and out. Cleared on failure so "Try Again" genuinely tries again.
+let portalCodeTask = null;
+
 export const shellMethods = {
+        // ---- Portal code ----------------------------------------------------
+        // The methods behind every signed-in screen live in app/portal.js and
+        // are fetched here, never at page load. Once fetched they are bound onto
+        // this component exactly as Vue binds the ones declared in `methods:`,
+        // so `this.saveProject()`, a template's `@click="saveProject"` and a
+        // method passed along as a callback all behave as though they had been
+        // there from the start.
+        //
+        // A failure throws. Every caller is a sign-in path, and the next thing
+        // each of them does is call one of these methods — continuing without
+        // them would be a TypeError rather than an error anybody could act on.
+        async ensurePortalCode() {
+            if (this.portalCodeLoaded) return;
+            if (!portalCodeTask) {
+                portalCodeTask = import('../portal.js').catch(error => {
+                    portalCodeTask = null;
+                    throw error;
+                });
+            }
+            const { portalMethods, startPortal } = await portalCodeTask;
+            if (this.portalCodeLoaded) return;
+            for (const [name, method] of Object.entries(portalMethods)) this[name] = method.bind(this);
+            this.portalCodeLoaded = true;
+            startPortal(this);
+        },
+
         // ---- Screen loading -------------------------------------------------
         // The signed-in markup is fetched from views/ rather than shipped in
         // index.html. These three are the only places that decide when.
@@ -18,6 +48,9 @@ export const shellMethods = {
         // with its own shell missing. The home screen is loaded with it, since
         // that is the one every session lands on.
         async ensurePortalViews(role) {
+            // Code before markup: a view that rendered ahead of the methods its
+            // buttons call would be a screen full of dead controls.
+            await this.ensurePortalCode();
             const home = viewForTab(homeTabFor(role));
             const needed = [...ALWAYS_LOADED_VIEWS, home];
             try {
@@ -53,8 +86,13 @@ export const shellMethods = {
 
         async retryPortalViews() {
             this.viewError = '';
-            await this.ensurePortalViews(this.userProfile.role);
-            await this.ensureTabView(this.currentTab);
+            try {
+                await this.ensurePortalViews(this.userProfile.role);
+                await this.ensureTabView(this.currentTab);
+            } catch (error) {
+                console.error('Retrying the portal failed:', error);
+                this.viewError = 'The portal could not be loaded. Check your connection and try again.';
+            }
         },
 
         toggleSidebar() {

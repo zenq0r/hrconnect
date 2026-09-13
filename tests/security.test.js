@@ -26,16 +26,17 @@ test('password reset tokens are not stored using the raw link secret', () => {
     assert.equal(hashResetToken(token).includes(token), false);
 });
 
-test('ordinary sign-in does not request OTP, while password reset does', () => {
+test('sign-in finishes in one place, and password reset still requires its code', () => {
     const appSource = readSource('app.js');
     const requestOtpSource = readSource('api/request-login-otp.js');
     const verifyOtpSource = readSource('api/verify-login-otp.js');
 
-    const loginStart = appSource.indexOf('async handleLogin()');
-  const loginEnd = appSource.indexOf('async requestLoginOtp()', loginStart);
-    const login = appSource.slice(loginStart, loginEnd);
-    assert.match(login, /await this\.completeLogin\(loginContext\)/);
+    // Whether a sign-in needs a code is decided by finishSignIn() and nowhere
+    // else — see tests/second-factor.test.js for which roles it asks.
+    const login = methodSource('handleLogin');
+    assert.match(login, /await this\.finishSignIn\(loginContext\)/);
     assert.doesNotMatch(login, /startLoginOtp|requestLoginOtp|loginOtp\.show/);
+
     assert.match(appSource, /async startPasswordResetOtp\(\)/);
     assert.match(appSource, /purpose: 'password-reset'/);
     assert.match(appSource, /this\.timeoutPromise\(15000, 'Sending the verification code is taking too long/);

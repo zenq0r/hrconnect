@@ -15,13 +15,35 @@ test('the roles that hold the money are the roles that are challenged', () => {
 });
 
 test('a challenged role reaches the portal only through the code', () => {
-    const login = methodSource('handleLogin');
-    const challengeAt = login.indexOf('SECOND_FACTOR_ROLES.includes(role)');
-    const completeAt = login.indexOf('await this.completeLogin(loginContext)');
+    // One function decides, so no path can skip it by calling completeLogin()
+    // directly — which is exactly how the first-login password change used to
+    // open the portal without a code.
+    const finish = methodSource('finishSignIn');
+    const challengeAt = finish.indexOf('SECOND_FACTOR_ROLES.includes(loginContext?.role)');
+    const completeAt = finish.indexOf('await this.completeLogin(loginContext)');
+    assert.ok(challengeAt > -1 && challengeAt < completeAt, 'the challenge has to come before the session is completed');
+    assert.match(finish, /await this\.startSignInOtp\(loginContext\);\s*\r?\n\s*return;/);
 
-    assert.ok(challengeAt > -1, 'handleLogin must consult the list');
-    assert.ok(challengeAt < completeAt, 'the challenge has to come before the session is completed');
-    assert.match(login, /await this\.startSignInOtp\(loginContext\);\s*\r?\n\s*return;/);
+    // Every entry point goes through it. The only one allowed to skip the
+    // challenge is the one that has just confirmed the code.
+    assert.match(methodSource('handleLogin'), /await this\.finishSignIn\(loginContext\)/);
+    assert.match(methodSource('submitPasswordReset'), /await this\.finishSignIn\(context\)/);
+    assert.match(methodSource('verifyLoginOtp'), /await this\.finishSignIn\(context, \{ secondFactorCleared: true \}\)/);
+
+    const auth = readSource('app/methods/auth.js');
+    const directCompletes = (auth.match(/await this\.completeLogin\(/g) || []).length;
+    assert.equal(directCompletes, 1, 'completeLogin() may only be called from finishSignIn()');
+});
+
+test('a sign-in that fails after the password was accepted does not stay half-open', () => {
+    const finish = methodSource('finishSignIn');
+    assert.match(finish, /catch \(error\)/);
+    assert.match(finish, /this\.loginLoading = false;/);
+    assert.match(finish, /await signOut\(auth\)/);
+    // The reason has to survive the sign-out: marking it intentional would have
+    // the auth observer clear loginError before it rendered.
+    assert.doesNotMatch(finish, /intentionalLogoutInProgress = true/);
+    assert.doesNotMatch(methodSource('cancelLoginOtp'), /intentionalLogoutInProgress = true/);
 });
 
 test('the code is tied to the account by a token the server verifies', () => {

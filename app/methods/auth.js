@@ -4,8 +4,10 @@ import {
     db,
     auth,
     doc,
+    getDoc,
     getDocFromServer,
     setDoc,
+    deleteDoc,
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged,
@@ -312,7 +314,7 @@ export const authMethods = {
                     this.passwordResetFlow = createEmailActionFlow();
                     this.pendingLoginContext = null;
                     window.history.replaceState({}, '', '/');
-                    await this.completeLogin(context);
+                    await this.finishSignIn(context);
                 } else if (flow.source === 'firebase') {
                     await confirmPasswordReset(auth, this.passwordResetFlow.oobCode, flow.newPassword);
                     flow.success = true;
@@ -493,17 +495,7 @@ export const authMethods = {
                     return;
                 }
 
-                // A password is one factor. For the roles that reach payroll,
-                // bank details and the money, it is not enough on its own: a
-                // code goes to the account's own inbox and the portal does not
-                // open until it comes back.
-                if (SECOND_FACTOR_ROLES.includes(role)) {
-                    this.loginLoading = false;
-                    await this.startSignInOtp(loginContext);
-                    return;
-                }
-
-                await this.completeLogin(loginContext);
+                await this.finishSignIn(loginContext);
             } catch (error) {
                 console.error('Sign-in failed:', error);
                 // The credentials were accepted the moment signInWithEmailAndPassword
@@ -608,8 +600,7 @@ export const authMethods = {
                     clearInterval(this.loginOtpCooldownTimer);
                     this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
                     if (!context?.firebaseUser) throw new Error('Your sign-in session has expired. Please sign in again.');
-                    this.loginLoading = true;
-                    await this.completeLogin(context);
+                    await this.finishSignIn(context, { secondFactorCleared: true });
                     return;
                 }
                 flow.otpVerified = true;
@@ -637,10 +628,44 @@ export const authMethods = {
                 this.setPendingSecondFactor('');
                 this.pendingLoginContext = null;
                 this.loginError = 'Sign-in was cancelled before the verification code was confirmed.';
+                // intentionalLogoutInProgress is deliberately NOT set: it tells
+                // the auth observer to clear loginError, and this message is the
+                // one thing the person needs to see on the screen they land on.
                 if (auth.currentUser) {
-                    this.intentionalLogoutInProgress = true;
                     await signOut(auth).catch(error => console.error('Sign-out after an abandoned verification failed:', error));
                 }
+            }
+        },
+
+        // Every sign-in path ends here: the password form, the first-login
+        // password change, and a confirmed verification code. Having one place
+        // decide is what stops a path from quietly skipping the second factor —
+        // the first-login change used to go straight to completeLogin(), so an
+        // account flagged for a password reset opened without a code at all.
+        //
+        // A failure here happens after Firebase accepted the password, so the
+        // session is signed out rather than left half-open, and the reason is
+        // put on the sign-in screen the person lands back on.
+        async finishSignIn(loginContext, { secondFactorCleared = false } = {}) {
+            if (!secondFactorCleared && SECOND_FACTOR_ROLES.includes(loginContext?.role)) {
+                this.loginLoading = false;
+                // Only staff roles are challenged, and the challenge renders on
+                // the staff sign-in card — not behind the role chooser a restored
+                // first-login session would otherwise land on.
+                this.authView = 'staff';
+                await this.startSignInOtp(loginContext);
+                return;
+            }
+            try {
+                this.loginLoading = true;
+                await this.completeLogin(loginContext);
+            } catch (error) {
+                console.error('Opening the portal after sign-in failed:', error);
+                this.isLoggedIn = false;
+                this.loginLoading = false;
+                this.setPendingSecondFactor('');
+                this.loginError = 'We could not open the portal. Check your connection and sign in again.';
+                if (auth.currentUser) await signOut(auth).catch(signOutError => console.error('Sign-out after a failed sign-in failed:', signOutError));
             }
         },
 
@@ -817,5 +842,92 @@ export const authMethods = {
                 this.profilePhotoUpload.loading = false;
                 event.target.value = '';
             }
+        },
+
+        // Syncs Firebase Auth custom claims (role, clientDirectoryId for Client role)
+        // from the Firestore users/{uid} record via the serverless endpoint, then
+        // forces a fresh ID token so Storage Rules see the up-to-date claims in THIS
+        // session immediately (custom claims don't appear in an already-issued token
+        // until it's refreshed). Called after every login, and after an admin changes
+        // someone's role. Failures are non-fatal — the rest of the app still works,
+        // only client_documents upload/download would be affected.
+        // It lives with sign-in rather than with account administration because
+        // both sign-in paths call it before the portal's own code has loaded.
+        async syncUserClaims(targetUid = null) {
+            try {
+                if (!auth.currentUser) return;
+                const idToken = await auth.currentUser.getIdToken();
+                const resp = await fetch('/api/sync-user-claims', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+                    body: JSON.stringify(targetUid ? { uid: targetUid } : {})
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok) {
+                    const error = new Error(data.error || 'Unable to sync access claims right now.');
+                    error.code = data.errorCode || (resp.status === 409 ? 'client/email-ambiguous' : '');
+                    if (!targetUid || targetUid === auth.currentUser?.uid) throw error;
+                    console.warn('Claims sync failed:', error);
+                    return;
+                }
+                if (!targetUid || targetUid === auth.currentUser.uid) {
+                    await auth.currentUser.getIdToken(true);
+                    // The API resolves this server-side from the authorized customer
+                    // record. Retaining it locally lets a Client subscribe only to
+                    // their own customer document, never the entire directory.
+                    this.userProfile.clientDirectoryId = data?.claims?.clientDirectoryId || '';
+                }
+            } catch (error) {
+                console.error('Claims sync error:', error);
+                if (!targetUid || targetUid === auth.currentUser?.uid) throw error;
+            }
+        },
+        // Read by both sign-in paths before the portal's code is fetched, which
+        // is why it sits here rather than with the rest of account administration.
+        async loadOrMigrateUserMetadata(firebaseUser) {
+            if (!firebaseUser?.uid || !firebaseUser?.email) return null;
+            const normalizedEmail = firebaseUser.email.trim().toLowerCase();
+            // The protected bootstrap administrator is a valid Superadmin even
+            // before its Firestore profile has been restored. The server then
+            // recreates that profile during syncUserClaims(), avoiding a failed
+            // session restore caused by a missing users/{uid} document.
+            if (this.isSeedAdminEmail(normalizedEmail)) {
+                return {
+                    email: normalizedEmail,
+                    name: firebaseUser.displayName || 'System Administrator',
+                    photo: '',
+                    role: 'Superadmin',
+                    mustChangePassword: false
+                };
+            }
+            const userRef = doc(db, 'users', firebaseUser.uid);
+            // Both callers read a null return as "not provisioned or revoked" and
+            // sign the account out saying so. getDoc() falls back to the local
+            // cache when Firestore's transport is down, and a document that was
+            // never cached comes back as a missing one rather than an error — so
+            // a stalled connection would accuse a perfectly valid account of
+            // having had its access removed. Confirm against the server: a real
+            // outage now throws, and the callers report it as a session that
+            // could not be restored.
+            const userSnapshot = await getDocFromServer(userRef);
+            if (userSnapshot.exists()) return userSnapshot.data();
+
+            const pendingRef = doc(db, 'pending_access', normalizedEmail);
+            const pendingSnapshot = await getDoc(pendingRef);
+            if (!pendingSnapshot.exists()) return null;
+
+            const pendingData = pendingSnapshot.data();
+            const pendingRole = pendingData.role || 'Client';
+            const migratedData = {
+                email: normalizedEmail,
+                name: pendingData.name || firebaseUser.displayName || normalizedEmail,
+                photo: pendingData.photo || '',
+                role: pendingRole,
+                mustChangePassword: pendingData.mustChangePassword === true,
+                migratedAt: new Date().toISOString()
+            };
+            await setDoc(userRef, migratedData);
+            await deleteDoc(pendingRef);
+            return migratedData;
         }
 };

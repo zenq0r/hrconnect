@@ -43,6 +43,10 @@ export function createInitialState() {
             mountedViews: [],
             viewLoading: false,
             viewError: '',
+            // Whether app/portal.js has been fetched and its methods attached.
+            // Stays true for the life of the page: signing out does not unload
+            // code, and a second sign-in has nothing left to fetch.
+            portalCodeLoaded: false,
             mobileMenuOpen: false,
             // The navigation stays hidden until the user opens it deliberately
             // from the single menu control, on desktop as well as on mobile.

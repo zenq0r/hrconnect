@@ -1,9 +1,10 @@
 // ============================================================
 // ZENQOR TECHNOLOGIES - app.js (ENTERPRISE FINAL BUILD v8.7)
 //
-// Entry point only. State, computed values and methods live in app/, and
-// the signed-in portal markup is fetched per screen from views/ — a visitor
-// who never signs in never downloads either.
+// Entry point only. This file and what it imports are the sign-in page: the
+// signed-in portal's code (app/portal.js) and its markup (views/) are both
+// fetched after a session is confirmed, so a visitor who never signs in
+// downloads neither.
 // ============================================================
 
 import {
@@ -25,28 +26,15 @@ import { billingComputed } from "./app/computed/billing.js";
 import { reportsComputed } from "./app/computed/reports.js";
 import { tablesComputed } from "./app/computed/tables.js";
 import { projectsComputed } from "./app/computed/projects.js";
-import { clientIdentityMethods } from "./app/methods/client-identity.js";
 import { accessMethods } from "./app/methods/access.js";
-import { projectMethods } from "./app/methods/projects.js";
-import { clientWorkflowMethods } from "./app/methods/client-workflow.js";
-import { reportMethods } from "./app/methods/reports.js";
-import { claimMethods } from "./app/methods/claims.js";
-import { billingMethods } from "./app/methods/billing.js";
-import { uploadMethods } from "./app/methods/uploads.js";
 import { presenceMethods } from "./app/methods/presence.js";
 import { notificationMethods } from "./app/methods/notifications.js";
 import { shellMethods } from "./app/methods/shell.js";
 import { dashboardMethods } from "./app/methods/dashboard.js";
 import { auditMethods } from "./app/methods/audit.js";
 import { authMethods } from "./app/methods/auth.js";
-import { adminUserMethods } from "./app/methods/admin-users.js";
-import { clientMethods } from "./app/methods/clients.js";
-import { websiteContentMethods } from "./app/methods/website-content.js";
-import { contextMenuMethods } from "./app/methods/context-menu.js";
-import { hrMethods } from "./app/methods/hr.js";
 import { formMethods } from "./app/methods/forms.js";
 import { displayMethods } from "./app/methods/display.js";
-import { realtimeMethods } from "./app/methods/realtime.js";
 
 inject();
 
@@ -99,38 +87,26 @@ createApp({
             }
         }
     },
-    // Every method group lives in app/methods/. They are spread rather than
-    // nested so `this.<method>()` keeps working exactly as it did when this
-    // file held all of them.
+    // Only what the sign-in page and a sign-in need. Everything a signed-in
+    // screen does is in app/portal.js, fetched and bound onto this component
+    // by ensurePortalCode() — see app/methods/shell.js. Spread rather than
+    // nested, so `this.<method>()` resolves the same way for both.
     methods: {
-        ...clientIdentityMethods,
         ...accessMethods,
-        ...projectMethods,
-        ...clientWorkflowMethods,
-        ...reportMethods,
-        ...claimMethods,
-        ...billingMethods,
-        ...uploadMethods,
         ...presenceMethods,
         ...notificationMethods,
         ...shellMethods,
         ...dashboardMethods,
         ...auditMethods,
         ...authMethods,
-        ...adminUserMethods,
-        ...clientMethods,
-        ...websiteContentMethods,
-        ...contextMenuMethods,
-        ...hrMethods,
         ...formMethods,
-        ...displayMethods,
-        ...realtimeMethods
+        ...displayMethods
     },
     mounted() {
         this.checkPasswordResetLink();
-        this.autoCalculatePayroll();
-        this.generateDocNo();
-        this.installUniversalButtonContextMenu();
+        // The payslip and document forms, and the right-click menu on portal
+        // buttons, are prepared by startPortal() in app/portal.js once that code
+        // has been fetched — not here, for every visitor to the sign-in page.
         window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
         this.browserBackHandler = (event) => {
             if (this.isLoggedIn) this.restoreTabFromHistory(event.state?.tab);
@@ -186,8 +162,9 @@ createApp({
                 // walk straight past the code that was never answered.
                 if (this.pendingSecondFactorUid() === firebaseUser.uid) {
                     this.setPendingSecondFactor('');
-                    this.intentionalLogoutInProgress = true;
-                    this.loginError = 'Sign-in was not completed. Enter the verification code sent to your email.';
+                    // Not marked intentional: that would have the signed-out branch
+                    // below clear this message before anyone could read it.
+                    this.loginError = 'Sign-in was not completed. Sign in again and enter the verification code sent to your email.';
                     this.authLoading = false;
                     await signOut(auth).catch(error => console.error('Sign-out of an unverified session failed:', error));
                     return;
@@ -241,10 +218,11 @@ createApp({
                     this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
                     this.startIdleTimeoutWatch();
                     await this.syncUserClaims();
-                    this.resetAllForms();
-                    // Same as an interactive sign-in: the portal's markup is
-                    // fetched before the portal is shown.
+                    // Same as an interactive sign-in: the portal's code and
+                    // markup are fetched before the portal is shown — and before
+                    // resetAllForms(), which calls into that code.
                     await this.ensurePortalViews(role);
+                    this.resetAllForms();
                     this.isLoggedIn = true;
                     // The sidebar stays closed after a restored session too;
                     // it only opens when the user presses the menu control.
@@ -332,7 +310,7 @@ createApp({
         if (this.appVisibilityHandler) document.removeEventListener('visibilitychange', this.appVisibilityHandler);
         if (this.notificationsSyncTimer) clearTimeout(this.notificationsSyncTimer);
         this.clearWelcomeGreetingTimers();
-        this.removeUniversalButtonContextMenu();
+        if (this.portalCodeLoaded) this.removeUniversalButtonContextMenu();
         this.stopIdleTimeoutWatch();
     }
 }).component('zq-view', ZqView).directive('longpress', longpressDirective).mount('#app');
