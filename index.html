@@ -10,9 +10,9 @@
     <link rel="shortcut icon" type="image/png" href="/icon-192.png">
 
     <!-- PWA INSTALLABILITY -->
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#0f172a">
-    <link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="apple-touch-icon" href="/icon-192.png">
 
     <!-- GOOGLE FONTS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,7 +39,7 @@
         injectSpeedInsights();
     </script>
     
-    <link rel="stylesheet" href="./custom.css">
+    <link rel="stylesheet" href="/custom.css">
     <style id="dynamic-print-orientation"></style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 antialiased selection:bg-brand-gold selection:text-brand-dark transition-colors duration-200">
@@ -71,7 +71,7 @@
                     <div class="splash-orbit splash-orbit-two"></div>
                     <div class="splash-logo-stage">
                         <div class="splash-logo-card">
-                            <img src="./logo.png" alt="ZENQOR Technologies" class="splash-logo-image">
+                            <img src="/logo.png" alt="ZENQOR Technologies" class="splash-logo-image">
                         </div>
                     </div>
                     <p class="mt-9 text-sm font-extrabold uppercase tracking-[0.28em]">ZENQOR Technologies</p>
@@ -139,11 +139,11 @@
         <!-- EMAIL ACTION HANDLER: Firebase sends mode + oobCode here. Legacy ?resetToken links remain supported. -->
         <main v-if="passwordResetFlow.active" id="auth-main" aria-label="Account email action" class="zq-auth-shell relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
-                <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
+                <img src="/logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
             <div class="zq-auth-card relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700 text-center">
                 <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
-                    <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
+                    <img src="/logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
                 </div>
 
                 <template v-if="passwordResetFlow.verifying">
@@ -242,7 +242,7 @@
         <!-- FORGOT PASSWORD REQUEST (step 1: enter email, before the reset link is sent) -->
         <main v-else-if="forgotPasswordFlow.active" id="auth-main" aria-label="Password assistance" class="zq-auth-shell relative min-h-screen flex items-center justify-center bg-brand-dark px-4 py-8 overflow-hidden">
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
-                <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
+                <img src="/logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
             <div class="zq-auth-card relative z-10 max-w-md w-full bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 border border-slate-100 dark:border-slate-700">
                 <button type="button" @click="exitForgotPasswordFlow" class="zq-btn zq-btn-ghost zq-btn-sm mb-5">
@@ -251,7 +251,7 @@
 
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
-                        <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
+                        <img src="/logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
                     </div>
 
                     <template v-if="!forgotPasswordFlow.sent">
@@ -299,11 +299,11 @@
 
             <!-- WORDMARK WATERMARK — proprietary in-house system, not a rented/subscribed SaaS -->
             <div class="pointer-events-none select-none absolute inset-0 flex items-center justify-center opacity-[0.06]">
-                <img src="./logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
+                <img src="/logo.png" alt="" class="w-full max-w-3xl object-contain" style="filter: invert(1);">
             </div>
 
             <div v-if="authLoading" class="relative z-10 flex flex-col items-center gap-4">
-                <img src="./logo.png" onerror="this.style.display='none'" alt="" class="h-14 w-auto object-contain opacity-90">
+                <img src="/logo.png" onerror="this.style.display='none'" alt="" class="h-14 w-auto object-contain opacity-90">
                 <i class="fa-solid fa-circle-notch fa-spin text-2xl text-white/70"></i>
             </div>
             <template v-else>
@@ -312,7 +312,7 @@
             <div v-if="authView === 'landing'" class="zq-auth-landing relative z-10 max-w-3xl w-full">
                 <div class="text-center mb-10">
                     <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
-                        <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-14 w-auto object-contain">
+                        <img src="/logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-14 w-auto object-contain">
                     </div>
                     <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">ZENQOR HRMS/CDTS</h1>
                     <p class="text-xs sm:text-sm font-semibold text-slate-300 mt-2 leading-snug max-w-xl mx-auto">
@@ -350,7 +350,7 @@
 
                 <div class="text-center mb-8">
                     <div class="inline-flex items-center justify-center p-3 bg-white rounded-2xl mb-4 shadow-lg border border-brand-gold/30">
-                        <img src="./logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
+                        <img src="/logo.png" onerror="this.style.display='none'" alt="ZENQOR Logo" class="h-12 w-auto object-contain">
                     </div>
                     <h2 class="zq-text-page-title">{{ authView === 'client' ? 'Client Portal Sign In' : 'Staff & Management Sign In' }}</h2>
                     <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-300 mt-1 leading-snug">
@@ -441,11 +441,11 @@
 
     </div>
 
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="/app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
             });
         }
     </script>

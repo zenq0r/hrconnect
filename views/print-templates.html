@@ -13,7 +13,7 @@
             <div class="flex justify-between items-start print-header-border pb-4 mb-6">
                 <div class="flex items-start gap-4 min-w-0">
                     <div class="print-logo-container shrink-0">
-                        <img src="./logo.png" onerror="this.style.display='none'" class="print-logo">
+                        <img src="/logo.png" onerror="this.style.display='none'" class="print-logo">
                     </div>
                     <div class="min-w-0">
                         <h1 class="text-xl font-extrabold text-brand-dark tracking-tight leading-tight">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1>
@@ -118,7 +118,7 @@
             <div class="flex justify-between items-start print-header-border pb-4 mb-6">
                 <div class="flex items-start gap-4 min-w-0">
                     <div class="print-logo-container shrink-0">
-                        <img src="./logo.png" onerror="this.style.display='none'" class="print-logo">
+                        <img src="/logo.png" onerror="this.style.display='none'" class="print-logo">
                     </div>
                     <div class="min-w-0">
                         <h1 class="text-xl font-extrabold text-brand-dark tracking-tight leading-tight">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1>
@@ -224,7 +224,7 @@
             <div class="payslip-paper">
                 <div class="payslip-header">
                     <div class="company-brand">
-                        <img src="./logo.png" onerror="this.style.display='none'" alt="Logo Syarikat">
+                        <img src="/logo.png" onerror="this.style.display='none'" alt="Logo Syarikat">
                         <div class="company-brand-text">
                             <h1>{{ company.name }}</h1>
                             <p>Business Registration No.: {{ company.ssm }}</p><p v-if="company.tin">TIN: {{ company.tin }}</p>
@@ -324,7 +324,7 @@
         <!-- TEMPLATE: APPROVED CLAIM (A4 PORTRAIT) -->
         <div v-if="activePrintModule === 'CLAIM' && claimPrint" id="print-template-claim" class="print-only claim-print p-8 text-sm print-container">
             <div class="flex justify-between items-start print-header-border pb-4 mb-6">
-                <div class="claim-print-brand flex items-center space-x-4"><img src="./logo.png" onerror="this.style.display='none'" alt="" class="claim-print-logo"><div><h1 class="text-2xl font-extrabold text-brand-dark">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1><p class="text-xs text-slate-600">Approved {{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Expense Claim' }} Record</p></div></div>
+                <div class="claim-print-brand flex items-center space-x-4"><img src="/logo.png" onerror="this.style.display='none'" alt="" class="claim-print-logo"><div><h1 class="text-2xl font-extrabold text-brand-dark">{{ company.name || 'ZENQOR TECHNOLOGIES' }}</h1><p class="text-xs text-slate-600">Approved {{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Voucher' : 'Expense Claim' }} Record</p></div></div>
                 <div class="text-right"><span class="inline-block bg-emerald-600 text-white font-extrabold px-3 py-1 rounded text-xs uppercase">Approved</span><p class="font-bold mt-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Voucher' : 'Receipt' }} Ref: {{ claimPrint.documentType === 'Payment Voucher' ? claimPrint.voucherNo : claimPrint.receiptNo }}</p><p class="text-xs text-slate-600">Printed: {{ formatDateTime(new Date().toISOString()) }}</p></div>
             </div>
             <div class="grid grid-cols-2 gap-5 border-b border-slate-200 pb-5 mb-5"><div><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Requested By' : 'Applicant' }}</h3><p class="font-extrabold">{{ claimPrint.name }}</p><p>{{ claimPrint.empNo }} · {{ claimPrint.dept }}</p><p class="text-xs text-slate-600">{{ claimPrint.empEmail }}</p></div><div><h3 class="font-bold text-brand-dark mb-2">{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment Details' : 'Expense Details' }}</h3><p><strong>Category:</strong> {{ claimPrint.category }}</p><p><strong>Sub-category:</strong> {{ claimPrint.subCategory }}</p><p><strong>{{ claimPrint.documentType === 'Payment Voucher' ? 'Payment date' : 'Expense date' }}:</strong> {{ formatDateWithDay(claimPrint.documentType === 'Payment Voucher' ? claimPrint.paymentDate : claimPrint.expenseDate) }}</p><p><strong>Submitted:</strong> {{ formatDateTimeWithDay(claimPrint.createdAt) }}</p><p class="text-lg font-extrabold mt-2">{{ formatCurrency(claimPrint.amount) }}</p></div></div>

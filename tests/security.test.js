@@ -768,7 +768,7 @@ test('Firebase email action route is served by the portal application', () => {
 
     assert.deepEqual(
         config.rewrites.find((rule) => rule.source === '/auth/action'),
-        { source: '/auth/action', destination: '/index.html' }
+        { source: '/auth/action', destination: '/' }
     );
     assert.match(actionPage, /portal\.search = window\.location\.search/);
     assert.match(actionPage, /window\.location\.replace\(portal\.toString\(\)\)/);

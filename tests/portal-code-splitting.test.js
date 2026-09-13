@@ -89,9 +89,16 @@ test('the screens are deployed, and the loader can reach them', () => {
     // sign-in page compiled into a screen — and the loader asks for the file.
     const vercel = JSON.parse(readSource('vercel.json'));
     assert.equal(vercel.cleanUrls, true);
-    const fallback = new RegExp(`^${vercel.rewrites.find(rule => rule.destination === '/index.html' && rule.source.includes('(?!')).source}$`);
+    const fallbackRule = vercel.rewrites.find(rule => rule.source.includes('(?!'));
+    const fallback = new RegExp(`^${fallbackRule.source}$`);
     assert.equal(fallback.test('/dashboard'), true, 'a portal route still opens the portal');
     assert.equal(fallback.test('/views/portal-shell'), false, 'a missing view must not be answered with the sign-in page');
+    // With cleanUrls on, Vercel files index.html under /index, so a rewrite to
+    // /index.html finds no file and answers 404 — which is what every deep link
+    // got until this was measured on a deployment. "/" is the page itself.
+    for (const rule of vercel.rewrites.filter(r => r.source !== '/favicon.ico')) {
+        assert.equal(rule.destination, '/', `${rule.source} must rewrite to "/", not to a file cleanUrls has renamed`);
+    }
     assert.match(loader, /if \(!response\.ok\) response = await fetch\(`\$\{viewUrl\(name\)\}\.html`, options\);/);
 
     // The update check asks for the same spelling, or every check is a redirect.
@@ -114,6 +121,17 @@ test('a screen is mounted once and then kept', () => {
     assert.match(shell, /if \(!this\.isLoggedIn \|\| !view \|\| this\.mountedViews\.includes\(view\)\) return;/);
     // And the portal is never shown before its own shell has arrived.
     assert.match(readSource('app/methods/auth.js'), /await Promise\.all\(\[this\.syncUserClaims\(\), this\.ensurePortalViews\(role\)\]\);\s*\r?\n\s*this\.resetAllForms\(\); this\.isLoggedIn = true;/);
+});
+
+// The fallback serves the page on any path, /client-portal/documents included.
+// A page-relative "./app.js" there asks for /client-portal/app.js, which does
+// not exist, and the portal never starts.
+test('the page finds its own files from any path it is served on', () => {
+    const markup = readSource('index.html');
+    const relative = markup.match(/\s(?:src|href)="\.\/[^"]+"/g) || [];
+    assert.deepEqual(relative, [], 'asset references must be root-absolute');
+    assert.match(markup, /navigator\.serviceWorker\.register\('\/sw\.js'\)/);
+    assert.match(markup, /<script type="module" src="\/app\.js"><\/script>/);
 });
 
 // The stylesheet is built from the files Tailwind is told to read. A screen

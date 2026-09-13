@@ -10,11 +10,11 @@
     },
     {
       "source": "/auth/action",
-      "destination": "/index.html"
+      "destination": "/"
     },
     {
       "source": "/((?!api/|views/|.*\\.).*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ],
   "headers": [
