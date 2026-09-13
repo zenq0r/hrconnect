@@ -67,21 +67,25 @@ exports.verifyBillingDocumentTotals = functions.firestore
         const db = getFirestore();
         const docId = context.params.docId;
         const before = { subtotal: data.subtotal, sst: data.sst, amount: data.amount };
+        const now = new Date();
+        // One commit: a correction never lands without its audit entry. Were
+        // they separate, a failure between the two would leave a corrected
+        // document whose next pass agrees, and the entry would never be written.
+        const batch = db.batch();
 
-        await db.collection('docs').doc(docId).set({
+        batch.set(db.collection('docs').doc(docId), {
             subtotal,
             sst,
             amount,
-            totalsCorrectedAt: new Date().toISOString()
+            totalsCorrectedAt: now.toISOString()
         }, { merge: true });
 
         // Written with the Admin SDK, the same way /api/audit-log writes one, so
         // it lands in the log the Audit & Security screen already reads. It is
         // kept for a year rather than for the retention setting, which defaults
         // to 30 days: a corrected figure is not routine traffic.
-        const now = new Date();
         const id = `${now.getTime()}-billing-totals-${docId}`;
-        await db.collection('audit_logs').doc(id).set({
+        batch.set(db.collection('audit_logs').doc(id), {
             id,
             timestamp: now.toISOString(),
             user: 'system@zenqor.com.my',
@@ -100,6 +104,7 @@ exports.verifyBillingDocumentTotals = functions.firestore
             userAgent: 'firebase-functions/verifyBillingDocumentTotals',
             expireAt: Timestamp.fromMillis(now.getTime() + 365 * 24 * 60 * 60 * 1000)
         });
+        await batch.commit();
 
         console.warn('Corrected billing document totals.', { docId, before, after: { subtotal, sst, amount } });
         return null;

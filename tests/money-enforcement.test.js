@@ -143,8 +143,10 @@ test('the line-item sum is checked where rules cannot reach', () => {
     assert.match(trigger, /exports\.verifyBillingDocumentTotals/);
     assert.match(trigger, /\.document\('docs\/\{docId\}'\)/);
     assert.match(trigger, /items\.reduce\(\(sum, item\) => sum \+ \(Number\(item\?\.qty\) \|\| 0\) \* \(Number\(item\?\.price\) \|\| 0\), 0\)/);
-    // It corrects, and it says so in the audit log.
-    assert.match(trigger, /collection\('audit_logs'\)/);
+    // It corrects, and it says so in the audit log — in the same commit.
+    assert.match(trigger, /batch\.set\(db\.collection\('docs'\)\.doc\(docId\)/);
+    assert.match(trigger, /batch\.set\(db\.collection\('audit_logs'\)\.doc\(id\)/);
+    assert.match(trigger, /await batch\.commit\(\);/);
     // And it stops: the corrected document agrees on the next pass.
     assert.match(trigger, /if \(agrees\) return null;/);
     // History is not rewritten.
