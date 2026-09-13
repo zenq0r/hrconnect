@@ -733,11 +733,10 @@ export const authMethods = {
             this.applyDarkModePreference();
             this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
             this.startIdleTimeoutWatch();
-            await this.syncUserClaims();
-
-            // Fetch the portal's own markup before the portal is shown, so the
-            // first frame after sign-in is the workspace and not an empty page.
-            await this.ensurePortalViews(role);
+            // Fetch the portal's own code and markup before the portal is shown,
+            // so the first frame after sign-in is the workspace and not an empty
+            // page. Neither depends on the claims sync, so all three run at once.
+            await Promise.all([this.syncUserClaims(), this.ensurePortalViews(role)]);
 
             this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = false; this.mobileMenuOpen = false;
             await this.logAudit('LOGIN', `User logged in with role ${this.getRoleDisplayName(role)}`);

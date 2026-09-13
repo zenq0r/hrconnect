@@ -50,7 +50,7 @@ test('code arrives before the markup that calls it, and is bound like a declared
 
     const views = shell.slice(shell.indexOf('async ensurePortalViews('));
     const codeAt = views.indexOf('await this.ensurePortalCode()');
-    assert.ok(codeAt > -1 && codeAt < views.indexOf('loadView('), 'code must load before markup');
+    assert.ok(codeAt > -1 && codeAt < views.indexOf('await markup;'), 'code must be in before the markup is used');
 });
 
 test('nothing that runs before sign-in reaches a method that has not been fetched', () => {
@@ -104,14 +104,14 @@ test('nothing that runs before sign-in reaches a method that has not been fetche
 test('the after-load exceptions really do come after the load', () => {
     const auth = readRoot('app/methods/auth.js');
     const completeLogin = auth.slice(auth.indexOf('async completeLogin('));
-    const loadedAt = completeLogin.indexOf('await this.ensurePortalViews(role)');
+    const loadedAt = completeLogin.indexOf('this.ensurePortalViews(role)])');
     assert.ok(loadedAt > -1);
     assert.ok(loadedAt < completeLogin.indexOf('this.resetAllForms()'));
     assert.ok(loadedAt < completeLogin.indexOf('this.initFirebaseRealtime()'));
 
     const entry = readRoot('app.js');
     const restore = entry.slice(entry.indexOf('onAuthStateChanged(auth'));
-    const restoreLoadAt = restore.indexOf('await this.ensurePortalViews(role)');
+    const restoreLoadAt = restore.indexOf('this.ensurePortalViews(role)])');
     assert.ok(restoreLoadAt > -1, 'a restored session must fetch the portal');
     assert.ok(restoreLoadAt < restore.indexOf('this.resetAllForms()'), 'resetAllForms() calls into portal code');
     assert.ok(restoreLoadAt < restore.indexOf('this.initFirebaseRealtime()'));

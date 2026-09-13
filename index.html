@@ -201,11 +201,11 @@
                         </div>
                         <div>
                             <label for="reset-new-password" class="zq-label">New Password</label>
-                            <input id="reset-new-password" name="newPassword" type="password" v-model="passwordResetFlow.newPassword" required :minlength="12" autocomplete="new-password" :placeholder="passwordPolicy" class="zq-input font-medium">
+                            <input id="reset-new-password" name="newPassword" type="password" v-model="passwordResetFlow.newPassword" required :minlength="passwordMinLength" autocomplete="new-password" :placeholder="passwordPolicy" class="zq-input font-medium">
                         </div>
                         <div>
                             <label for="reset-confirm-password" class="zq-label">Confirm New Password</label>
-                            <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required :minlength="12" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
+                            <input id="reset-confirm-password" name="confirmPassword" type="password" v-model="passwordResetFlow.confirmPassword" required :minlength="passwordMinLength" autocomplete="new-password" placeholder="Re-enter new password" class="zq-input font-medium">
                         </div>
                         <div class="zq-alert-slot" aria-live="polite">
                             <div v-show="passwordResetFlow.error" role="alert" class="zq-alert zq-alert-error">{{ passwordResetFlow.error }}</div>

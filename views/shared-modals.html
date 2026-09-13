@@ -481,12 +481,12 @@
                     </div>
                     <div>
                         <label for="pwd-new" class="zq-label">New Password *</label>
-                        <input id="pwd-new" type="password" v-model="changePasswordModal.newPassword" required :minlength="12" :placeholder="passwordPolicy" class="zq-input">
+                        <input id="pwd-new" type="password" v-model="changePasswordModal.newPassword" required :minlength="passwordMinLength" :placeholder="passwordPolicy" class="zq-input">
                         <p class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ passwordPolicy }}</p>
                     </div>
                     <div>
                         <label for="pwd-confirm" class="zq-label">Sahkan Kata Laluan Baharu *</label>
-                        <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required :minlength="12" class="zq-input">
+                        <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required :minlength="passwordMinLength" class="zq-input">
                     </div>
 
                     <p v-if="changePasswordModal.error" class="zq-alert zq-alert-error">{{ changePasswordModal.error }}</p>

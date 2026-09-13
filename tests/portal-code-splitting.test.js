@@ -112,7 +112,7 @@ test('a screen is mounted once and then kept', () => {
     // what v-show gave the screens when they all lived in one file.
     assert.match(shell, /if \(!this\.isLoggedIn \|\| !view \|\| this\.mountedViews\.includes\(view\)\) return;/);
     // And the portal is never shown before its own shell has arrived.
-    assert.match(readSource('app/methods/auth.js'), /await this\.ensurePortalViews\(role\);\s*\r?\n\s*this\.resetAllForms\(\); this\.isLoggedIn = true;/);
+    assert.match(readSource('app/methods/auth.js'), /await Promise\.all\(\[this\.syncUserClaims\(\), this\.ensurePortalViews\(role\)\]\);\s*\r?\n\s*this\.resetAllForms\(\); this\.isLoggedIn = true;/);
 });
 
 // The stylesheet is built from the files Tailwind is told to read. A screen

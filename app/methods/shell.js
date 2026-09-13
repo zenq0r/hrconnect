@@ -48,15 +48,21 @@ export const shellMethods = {
         // with its own shell missing. The home screen is loaded with it, since
         // that is the one every session lands on.
         async ensurePortalViews(role) {
-            // Code before markup: a view that rendered ahead of the methods its
-            // buttons call would be a screen full of dead controls.
-            await this.ensurePortalCode();
             const home = viewForTab(homeTabFor(role));
             const needed = [...ALWAYS_LOADED_VIEWS, home];
+            // The code and the markup are fetched side by side, but the code is
+            // awaited first: a view that rendered ahead of the methods its
+            // buttons call would be a screen full of dead controls. Nothing
+            // renders before the caller sets isLoggedIn, after both are in.
+            const markup = Promise.all(needed.map(view => loadView(view)));
+            // Reported below. This only keeps a markup failure from counting as
+            // unhandled while the code is still arriving.
+            markup.catch(() => {});
+            await this.ensurePortalCode();
             try {
-                await Promise.all(needed.map(view => loadView(view)));
+                await markup;
                 this.viewError = '';
-                if (!this.mountedViews.includes(home)) this.mountedViews = [...this.mountedViews, home];
+                this.markViewMounted(home);
             } catch (error) {
                 console.error('Portal views failed to load:', error);
                 this.viewError = 'Part of the portal could not be loaded. Check your connection and try again.';
@@ -74,7 +80,7 @@ export const shellMethods = {
             this.viewLoading = true;
             try {
                 await loadView(view);
-                if (!this.mountedViews.includes(view)) this.mountedViews = [...this.mountedViews, view];
+                this.markViewMounted(view);
                 this.viewError = '';
             } catch (error) {
                 console.error(`Portal screen "${tabName}" failed to load:`, error);
@@ -82,6 +88,10 @@ export const shellMethods = {
             } finally {
                 this.viewLoading = false;
             }
+        },
+
+        markViewMounted(view) {
+            if (!this.mountedViews.includes(view)) this.mountedViews = [...this.mountedViews, view];
         },
 
         async retryPortalViews() {

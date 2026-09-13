@@ -78,8 +78,11 @@ test('the password a new account is emailed satisfies the policy it will be held
 test('the form asks for what the policy requires', () => {
     const markup = readSource('index.html');
     assert.doesNotMatch(markup, /minlength="8"/, 'no field may still advertise eight characters');
-    assert.match(markup, /:minlength="12"/);
+    assert.doesNotMatch(markup, /minlength="\d+"/, 'the length comes from the policy, not a number typed into a field');
+    assert.match(markup, /:minlength="passwordMinLength"/);
     // The rule is shown, not just enforced after the fact.
     assert.match(markup, /:placeholder="passwordPolicy"/);
-    assert.match(readSource('app/computed/access.js'), /passwordPolicy\(\) \{ return PASSWORD_POLICY_TEXT; \}/);
+    const access = readSource('app/computed/access.js');
+    assert.match(access, /passwordPolicy\(\) \{ return PASSWORD_POLICY_TEXT; \}/);
+    assert.match(access, /passwordMinLength\(\) \{ return PASSWORD_MIN_LENGTH; \}/);
 });

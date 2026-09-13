@@ -216,11 +216,10 @@ createApp({
                     this.applyDarkModePreference();
                     this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
                     this.startIdleTimeoutWatch();
-                    await this.syncUserClaims();
                     // Same as an interactive sign-in: the portal's code and
                     // markup are fetched before the portal is shown — and before
                     // resetAllForms(), which calls into that code.
-                    await this.ensurePortalViews(role);
+                    await Promise.all([this.syncUserClaims(), this.ensurePortalViews(role)]);
                     this.resetAllForms();
                     this.isLoggedIn = true;
                     // The sidebar stays closed after a restored session too;
