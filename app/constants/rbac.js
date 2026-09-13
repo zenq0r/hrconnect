@@ -47,6 +47,109 @@ export const MODULE_LABELS = {
 // because six separate places used to repeat the pair inline.
 export const FULL_ACCESS_ROLES = ['Superadmin', 'Director'];
 
+// What each module actually lets somebody change or remove — not what a role
+// can open (that is RBAC_ROLES). The Staff Portal's Access panel is drawn from
+// this, and it used to be drawn from RBAC_ROLES alone: every module a role
+// opened was shown as editable, and every module was shown as deletable for
+// Superadmin and Director, including Reports, the Audit Log and Claims, which
+// have no delete at all. It also showed Finance unable to delete invoices,
+// which it can.
+//
+// For each action:
+//   null      — the module has no such action for anybody
+//   all       — roles that may do it to any record
+//   own       — roles that may do it only to records they created, or a
+//               project they are Person In Charge of
+//   where     — when the control does not live on the module's own screen
+//
+// Every entry is checked against the gates the screens actually use by
+// tests/module-actions.test.js, so this table cannot quietly drift from them.
+const STAFF_ROLES = ['Director', 'Superadmin', 'HR', 'Account', 'IT', 'Staff'];
+export const MODULE_ACTIONS = {
+    'dashboard': { edit: null, remove: null, note: 'Acts on records that belong to other modules — invoices, payslips, activities — so those rights are listed against their own modules.' },
+    'client-task': {
+        edit: { all: FULL_ACCESS_ROLES },
+        remove: { all: FULL_ACCESS_ROLES, where: 'right-click a Client Task' },
+    },
+    'project-activities': {
+        edit: { all: FULL_ACCESS_ROLES, own: ['HR', 'Account', 'IT', 'Staff'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'A Person In Charge edits their own projects and schedules their activities.',
+    },
+    'doc-generator': {
+        edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
+        remove: { all: ['Director', 'Superadmin', 'Account'], where: 'Dashboard — Recent Activity and the billing queue' },
+        note: 'Quotations, invoices and Client Information. Only invoices and quotations can be deleted.',
+    },
+    'payslip-generator': {
+        edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
+        remove: { all: FULL_ACCESS_ROLES, where: 'Dashboard — Recent Activity' },
+    },
+    'claims': {
+        edit: { own: ['Director', 'Superadmin', 'HR', 'Account', 'Staff'] },
+        remove: null,
+        note: 'Submitters edit their own claim while it is Pending HR. Approval moves it on; nothing deletes one.',
+    },
+    'client-directory': {
+        edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
+        remove: { all: FULL_ACCESS_ROLES },
+    },
+    'hr-employees': {
+        edit: { all: ['Director', 'Superadmin', 'HR'] },
+        remove: { all: FULL_ACCESS_ROLES },
+    },
+    'reports': {
+        edit: { all: FULL_ACCESS_ROLES },
+        remove: null,
+        note: 'Export for everyone. Superadmin and Director can also rebuild a closed month from the records currently on file.',
+    },
+    'website-content': {
+        edit: { all: ['Director', 'Superadmin', 'IT'] },
+        remove: { all: ['Director', 'Superadmin', 'IT'] },
+    },
+    'audit-logs': {
+        edit: { all: ['Director', 'Superadmin', 'IT'] },
+        remove: null,
+        note: 'Only the retention period can be changed. Log entries themselves can never be edited or deleted.',
+    },
+    'settings': {
+        edit: { all: ['Director', 'Superadmin', 'IT'] },
+        remove: null,
+    },
+    'profile': {
+        edit: { all: FULL_ACCESS_ROLES, own: STAFF_ROLES.filter(role => !FULL_ACCESS_ROLES.includes(role)).concat('Client') },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'Everyone edits their own profile. Superadmin and Director also manage and delete portal accounts.',
+    },
+    'client-portal': {
+        edit: { own: ['Client'] },
+        remove: null,
+        note: 'Accept or decline their own quotations and send payment proof.',
+    },
+    'client-documents': {
+        edit: { own: ['Client'] },
+        remove: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
+        note: 'Clients upload to their own folder; only staff remove a file.',
+    },
+    'client-updates': {
+        edit: { all: FULL_ACCESS_ROLES, own: ['Client'] },
+        remove: { all: FULL_ACCESS_ROLES, own: ['Client'] },
+        note: 'Clients reply on Premium and above, and may edit or delete their own replies.',
+    },
+    'client-support': { edit: null, remove: null },
+};
+
+// true — any record; 'own' — only their own; false — not permitted; null — no
+// such action exists in this module.
+export function moduleActionFor(moduleName, action, role) {
+    const entry = MODULE_ACTIONS[moduleName];
+    if (!entry || entry[action] === null || entry[action] === undefined) return null;
+    const rule = entry[action];
+    if ((rule.all || []).includes(role)) return true;
+    if ((rule.own || []).includes(role)) return 'own';
+    return false;
+}
+
 // IT already reaches Settings and the Audit & Security Log, and support work
 // regularly needs to answer "what access does this account actually hold?".
 // They are admitted to the Staff Portal as observers: the three read-only

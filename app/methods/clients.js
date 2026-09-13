@@ -374,7 +374,7 @@ export const clientMethods = {
             }
         },
         openClientTaskModal() {
-            if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
+            if (!this.canCreateClientTask) { this.showNotify('Only Director and Superadmin may create a new Client Task.'); return; }
             this.clientTaskModal = { show: true, clientDirectoryId: '', saving: false };
         },
         closeClientTaskModal() {
@@ -384,7 +384,7 @@ export const clientMethods = {
         // becomes mandatory once a project exists; creating a directory record
         // alone still does not add an empty task to the board.
         async addClientToTask(cust) {
-            if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return false; }
+            if (!this.canCreateClientTask) { this.showNotify('Only Director and Superadmin may create a new Client Task.'); return false; }
             if (!cust?.id) return false;
             if (cust.clientTaskCreatedAt) return true;
             try {
@@ -496,7 +496,7 @@ export const clientMethods = {
             }
         },
         async saveClientTask() {
-            if (!this.canCreateClientTask) { this.showNotify('Only Director may create a new Client Task.'); return; }
+            if (!this.canCreateClientTask) { this.showNotify('Only Director and Superadmin may create a new Client Task.'); return; }
             const modal = this.clientTaskModal;
             const cust = this.customers.find(c => c.id === modal.clientDirectoryId);
             if (!cust) { this.showNotify('Select a client from the list.'); return; }

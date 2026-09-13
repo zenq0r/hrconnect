@@ -395,16 +395,34 @@
                     </div>
 
                     <div v-else class="space-y-2">
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">What the {{ getRoleDisplayName(staffPortalAccount.account?.role) }} role reaches, straight from the portal's own access rules.</p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">What the {{ getRoleDisplayName(staffPortalAccount.account?.role) }} role can do in each module it opens.</p>
+                        <p class="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500 dark:text-slate-400">
+                            <span><i class="fa-solid fa-check text-emerald-600"></i> any record</span>
+                            <span><span class="rounded bg-sky-100 px-1 font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">Own</span> only their own</span>
+                            <span><i class="fa-solid fa-xmark text-slate-400"></i> not permitted</span>
+                            <span><span class="font-bold text-slate-400">—</span> the module has no such action</span>
+                        </p>
                         <div class="overflow-x-auto">
                             <table class="zq-table">
                                 <thead><tr><th>Module</th><th class="text-center">Open</th><th class="text-center">Edit</th><th class="text-center">Delete</th></tr></thead>
                                 <tbody>
                                     <tr v-for="entry in staffPortalAccessMatrix(staffPortalAccount.account?.role)" :key="entry.module">
-                                        <td class="font-bold text-slate-800 dark:text-slate-200">{{ entry.label }}</td>
-                                        <td class="text-center"><i :class="entry.view ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
-                                        <td class="text-center"><i :class="entry.edit ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
-                                        <td class="text-center"><i :class="entry.remove ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'"></i></td>
+                                        <td>
+                                            <p class="font-bold text-slate-800 dark:text-slate-200">{{ entry.label }}</p>
+                                            <p v-if="entry.note" class="mt-0.5 text-[10px] font-normal leading-snug text-slate-500 dark:text-slate-400">{{ entry.note }}</p>
+                                        </td>
+                                        <td class="text-center"><i :class="entry.view ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="entry.view ? 'Yes' : 'No'"></i></td>
+                                        <td class="text-center">
+                                            <span v-if="entry.edit === null" class="font-bold text-slate-400" aria-label="Not available in this module">—</span>
+                                            <span v-else-if="entry.edit === 'own'" class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">Own</span>
+                                            <i v-else :class="entry.edit ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="entry.edit ? 'Yes' : 'Not permitted'"></i>
+                                        </td>
+                                        <td class="text-center">
+                                            <span v-if="entry.remove === null" class="font-bold text-slate-400" aria-label="Not available in this module">—</span>
+                                            <span v-else-if="entry.remove === 'own'" class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">Own</span>
+                                            <i v-else :class="entry.remove ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="entry.remove ? 'Yes' : 'Not permitted'"></i>
+                                            <p v-if="entry.remove && entry.removeWhere" class="mt-0.5 text-[9px] leading-tight text-slate-400">from {{ entry.removeWhere }}</p>
+                                        </td>
                                     </tr>
                                     <tr v-if="!staffPortalAccessMatrix(staffPortalAccount.account?.role).length" class="zq-table-empty">
                                         <td colspan="4">
