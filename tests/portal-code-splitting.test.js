@@ -78,7 +78,24 @@ test('the screens are deployed, and the loader can reach them', () => {
 
     // The portal also answers on /auth/action, where a relative path would
     // resolve against /auth/ and miss every view.
-    assert.match(viewsLoader(), /fetch\(`\/views\/\$\{file\}`/);
+    const loader = viewsLoader();
+    assert.match(loader, /return `\/views\/\$\{file\.replace\(\/\\\.html\$\/, ''\)\}`;/);
+
+    // Extensionless, because Vercel's cleanUrls answers the .html spelling with
+    // a 308 — an extra round trip per screen, measured on production. That
+    // depends on cleanUrls staying on, so the loader recognises the SPA
+    // fallback page and falls back to the literal file rather than compiling
+    // the sign-in page into a screen.
+    assert.equal(JSON.parse(readSource('vercel.json')).cleanUrls, true);
+    assert.match(loader, /return isPortalShellPage\(html\) \? read\(`\/views\/\$\{file\}`\) : html;/);
+    const isShell = new Function(`${loader.slice(loader.indexOf('function isPortalShellPage'), loader.indexOf('async function fetchViewMarkup'))} return isPortalShellPage;`)();
+    assert.equal(isShell(readSource('index.html')), true, 'the sign-in page must be recognised as not-a-view');
+    for (const view of viewFiles()) {
+        assert.equal(isShell(readSource(`views/${view}`)), false, `${view} must not be mistaken for the sign-in page`);
+    }
+
+    // The update check asks for the same spelling, or every check is a redirect.
+    assert.match(readSource('app/methods/shell.js'), /`\/views\/portal-shell\?_v=\$\{Date\.now\(\)\}`/);
 
     // And the deployment must not let them go stale behind a cache.
     const vercel = JSON.parse(readSource('vercel.json'));

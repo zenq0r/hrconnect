@@ -74,6 +74,37 @@ export function compiledView(name) {
     return compiled.get(name) || null;
 }
 
+// Where a view is fetched from, without the extension. Vercel serves this site
+// with cleanUrls on, which answers `/views/x.html` with a 308 to `/views/x` — a
+// whole extra round trip for every screen, four of them at every sign-in. The
+// extensionless path is served directly.
+export function viewUrl(file) {
+    return `/views/${file.replace(/\.html$/, '')}`;
+}
+
+// The SPA fallback in vercel.json answers any extensionless path that is not a
+// file with index.html. cleanUrls is what makes /views/x a file; should it ever
+// be turned off, the extensionless request would come back as the sign-in page
+// rather than failing. Compiling that into a screen would be a silent,
+// confusing breakage, so it is recognised and the literal file is fetched.
+function isPortalShellPage(html) {
+    return /^\s*<!doctype html/i.test(html) || html.includes('<div id="app"');
+}
+
+async function fetchViewMarkup(file) {
+    // Root-absolute: the portal also answers on /auth/action, where a relative
+    // path would resolve against /auth/ and miss. `no-cache` keeps a revalidation
+    // round-trip rather than a stale screen after a deploy.
+    const options = { cache: 'no-cache', credentials: 'same-origin' };
+    const read = async (url) => {
+        const response = await fetch(url, options);
+        if (!response.ok) throw new Error(`${response.status} while loading ${url}`);
+        return response.text();
+    };
+    const html = await read(viewUrl(file));
+    return isPortalShellPage(html) ? read(`/views/${file}`) : html;
+}
+
 export function loadView(name) {
     if (compiled.has(name)) return Promise.resolve(compiled.get(name));
     if (inFlight.has(name)) return inFlight.get(name);
@@ -82,14 +113,7 @@ export function loadView(name) {
     if (!file) return Promise.reject(new Error(`Unknown portal view: ${name}`));
     if (typeof Vue?.compile !== 'function') return Promise.reject(new Error('This build of Vue cannot compile a view at runtime.'));
 
-    // Root-absolute: the portal also answers on /auth/action, where a relative
-    // path would resolve against /auth/ and miss. `no-cache` keeps a revalidation
-    // round-trip rather than a stale screen after a deploy.
-    const task = fetch(`/views/${file}`, { cache: 'no-cache', credentials: 'same-origin' })
-        .then(response => {
-            if (!response.ok) throw new Error(`${response.status} while loading ${file}`);
-            return response.text();
-        })
+    const task = fetchViewMarkup(file)
         .then(html => {
             const render = Vue.compile(html);
             compiled.set(name, render);

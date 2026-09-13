@@ -136,7 +136,9 @@ export const shellMethods = {
                     `${window.location.pathname}?_v=${Date.now()}`,
                     `/app.js?_v=${Date.now()}`,
                     `/custom.css?_v=${Date.now()}`,
-                    `/views/portal-shell.html?_v=${Date.now()}`
+                    // Extensionless for the same reason as app/views.js: the
+                    // .html spelling is a redirect on Vercel.
+                    `/views/portal-shell?_v=${Date.now()}`
                 ];
                 const responses = await Promise.all(watched.map(url => fetch(url, { method: 'HEAD', cache: 'no-store' })));
                 const markerOf = response => response.headers.get('etag') || response.headers.get('last-modified') || '';
