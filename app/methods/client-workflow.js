@@ -204,25 +204,47 @@ export const clientWorkflowMethods = {
                     clientDecisionByName: this.userProfile.name || this.userProfile.email,
                     clientDecisionNote: note
                 });
-                this.logAudit('UPDATE', `Client ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo}`);
-                if (accepting) {
-                    // The server derives the PIC, Finance and Director recipients
-                    // from protected records. Client-side code never chooses them.
-                    await this.runBillingWorkflow('quotation-accepted', d.id);
-                }
-                this.showNotify(accepting
-                    ? 'Quotation accepted. PIC, Finance and Director have been notified.'
-                    : 'Quotation declined. Our team has been notified.');
-                if (!accepting) this.notifyByEmail({
-                    to: this.company.email || this.supportEmail,
-                    subject: `Quotation Declined — ${d.docNo}`,
-                    heading: 'Quotation Declined',
-                    message: `${this.userProfile.name || this.userProfile.email} declined quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `\n\nNote: "${note}"` : ''}`
-                });
             } catch (error) {
                 console.error('Quotation decision failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'record your decision'), 'error');
+                return;
             }
+            // From here the decision is recorded. Whatever happens to the
+            // handover, the client is not told it failed.
+            this.logAudit('UPDATE', `Client ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo}`);
+            const who = this.userProfile.name || this.userProfile.email;
+            if (!accepting) {
+                this.showNotify('Quotation declined. Our team has been notified.');
+                this.notifyByEmail({
+                    to: this.clientTeamRecipients(d),
+                    subject: `Quotation Declined — ${d.docNo}`,
+                    heading: 'Quotation Declined',
+                    message: `${who} declined quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `\n\nNote: "${note}"` : ''}`
+                });
+                return;
+            }
+            try {
+                // The server derives the PIC, Finance and Director recipients
+                // from protected records. Client-side code never chooses them.
+                await this.runBillingWorkflow('quotation-accepted', d.id);
+                this.showNotify('Quotation accepted. PIC, Finance and Director have been notified.');
+            } catch (error) {
+                console.error('Quotation handover could not be started:', error);
+                this.showNotify('Quotation accepted. Our team has been told and will follow up with you.');
+                this.notifyByEmail({
+                    to: this.clientTeamRecipients(d),
+                    subject: `Quotation Accepted — ${d.docNo} (follow up manually)`,
+                    heading: 'Quotation Accepted',
+                    message: `${who} accepted quotation ${d.docNo} (${this.formatCurrency(d.amount)}), but the automatic handover to Finance could not be created: ${error.message} Prepare the invoice from the Billing Workflow.${note ? `\n\nNote: "${note}"` : ''}`
+                });
+            }
+        },
+        // Who at the company hears about a client's decision when the server
+        // workflow cannot route it: the project's PIC, and the company inbox.
+        // /api/notify accepts only staff accounts as a client's recipients.
+        clientTeamRecipients(d) {
+            const project = this.projects.find(item => String(item.id) === String(d?.raw?.projectId || ''));
+            return [project?.ownerEmail, this.company.email || this.supportEmail].filter(Boolean);
         },
         // Proof may be attached to an unpaid invoice of the client's own. It
         // records evidence; it never settles the invoice — staff mark Paid.
@@ -282,8 +304,21 @@ export const clientWorkflowMethods = {
                     paymentProofByName: this.userProfile.name || this.userProfile.email
                 });
                 this.logAudit('UPDATE', `Client attached payment proof to ${d.docNo}`);
-                await this.runBillingWorkflow('payment-proof-submitted', d.id);
-                this.showNotify('Payment proof submitted. Finance, Director and your PIC will review it.');
+                // The proof is on the invoice now. If routing it for review fails,
+                // the client is not told the upload failed; the team is emailed.
+                try {
+                    await this.runBillingWorkflow('payment-proof-submitted', d.id);
+                    this.showNotify('Payment proof submitted. Finance, Director and your PIC will review it.');
+                } catch (workflowError) {
+                    console.error('Payment proof review could not be started:', workflowError);
+                    this.showNotify('Payment proof submitted. Our team has been told and will review it.');
+                    this.notifyByEmail({
+                        to: this.clientTeamRecipients(d),
+                        subject: `Payment Proof Submitted — ${d.docNo} (review manually)`,
+                        heading: 'Payment Proof Submitted',
+                        message: `${this.userProfile.name || this.userProfile.email} attached payment proof to ${d.docNo}, but it could not be routed for review automatically: ${workflowError.message} Review it from the Billing Workflow.`
+                    });
+                }
             } catch (error) {
                 console.error('Payment proof upload failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'submit your payment proof'), 'error');

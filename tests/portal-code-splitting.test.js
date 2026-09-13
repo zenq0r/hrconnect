@@ -101,8 +101,11 @@ test('the screens are deployed, and the loader can reach them', () => {
     }
     assert.match(loader, /if \(!response\.ok\) response = await fetch\(`\$\{viewUrl\(name\)\}\.html`, options\);/);
 
-    // The update check asks for the same spelling, or every check is a redirect.
-    assert.match(readSource('app/methods/shell.js'), /`\$\{viewUrl\('portal-shell'\)\}\?_v=\$\{Date\.now\(\)\}`/);
+    // The update check reads one version for every file the portal loads.
+    assert.match(readSource('app/methods/shell.js'), /fetch\(`\/version\.json\?_v=\$\{Date\.now\(\)\}`, \{ cache: 'no-store' \}\)/);
+    const versionRule = vercel.headers.find(entry => entry.source === '/version.json');
+    assert.ok(versionRule, 'version.json must never be served from a cache');
+    assert.match(versionRule.headers.find(h => h.key === 'Cache-Control').value, /no-store/);
 
     // And the deployment must not let them go stale behind a cache.
     for (const prefix of ['/app/(.*)', '/views/(.*)']) {
@@ -141,4 +144,16 @@ test('the stylesheet build reads every file the markup and classes moved to', ()
     for (const glob of ['./index.html', './app.js', './app/**/*.js', './views/**/*.html']) {
         assert.ok(content.includes(glob), `tailwind.config.js content must include ${glob}`);
     }
+});
+
+// A release that changes any one portal file — a module under app/, any screen
+// in views/ — has to reach an open tab as the update banner. version.json is
+// the hash of all of them; a commit that changes one without restamping would
+// ship a release nobody is told about.
+test('version.json is the version of the files being shipped', () => {
+    const { computeVersion, portalFiles } = require(path.join(ROOT, 'scripts', 'portal-version.js'));
+    const files = portalFiles(ROOT);
+    assert.ok(files.includes('app/methods/claims.js') && files.includes('views/tab-claims.html') && files.includes('index.html'));
+    const stamped = JSON.parse(fs.readFileSync(path.join(ROOT, 'version.json'), 'utf8')).version;
+    assert.equal(stamped, computeVersion(ROOT), 'version.json is out of date: run npm run stamp');
 });

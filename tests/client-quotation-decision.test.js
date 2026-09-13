@@ -156,3 +156,17 @@ test('the decision is stamped as the signed-in client, not as whoever is claimed
     const branch = rule.slice(rule.indexOf("resource.data.type == 'Quotation'"));
     assert.match(branch, /request\.resource\.data\.clientDecisionByUid == request\.auth\.uid/);
 });
+
+test('a recorded decision is never reported to the client as a failure', () => {
+    const { methodSource } = require('./helpers/sources');
+    const decide = methodSource('decideQuotation');
+    // The decision is written first and returns on its own failure…
+    assert.match(decide, /this\.showNotify\(this\.getFirestoreWriteError\(error, 'record your decision'\), 'error'\);\s*return;/);
+    // …and the handover that follows has its own catch, which tells the team.
+    const handover = decide.slice(decide.indexOf("await this.runBillingWorkflow('quotation-accepted', d.id);"));
+    assert.match(handover, /catch \(error\) \{[\s\S]*?Quotation accepted\. Our team has been told and will follow up with you\./);
+    assert.match(handover, /this\.notifyByEmail\(\{\s*to: this\.clientTeamRecipients\(d\)/);
+
+    const proof = methodSource('handlePaymentProofUpload');
+    assert.match(proof, /catch \(workflowError\) \{[\s\S]*?Payment proof submitted\. Our team has been told and will review it\./);
+});

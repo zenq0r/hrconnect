@@ -7,7 +7,7 @@ import {
 } from "../../firebase-config.js";
 import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS } from "../config.js";
 import { CLIENT_PANELS, CLIENT_LEGACY_TABS } from "../constants/client-tiers.js";
-import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, viewUrl, homeTabFor } from "../views.js";
+import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, homeTabFor } from "../views.js";
 
 // One fetch of app/portal.js per page, however many times a session signs in
 // and out. Cleared on failure so "Try Again" genuinely tries again.
@@ -137,25 +137,15 @@ export const shellMethods = {
         },
         async checkForAppUpdate() {
             try {
-                // Watches every file a deploy can change on its own: the page,
-                // the application logic, the stylesheet, and the portal shell
-                // now that the signed-in markup ships from views/. Any one of
-                // them shipping alone is a real release, and a check that
-                // missed it left the banner silent for that release.
-                const watched = [
-                    `${window.location.pathname}?_v=${Date.now()}`,
-                    `/app.js?_v=${Date.now()}`,
-                    `/custom.css?_v=${Date.now()}`,
-                    // Asked for the way the loader asks, or every check is a redirect.
-                    `${viewUrl('portal-shell')}?_v=${Date.now()}`
-                ];
-                const responses = await Promise.all(watched.map(url => fetch(url, { method: 'HEAD', cache: 'no-store' })));
-                const markerOf = response => response.headers.get('etag') || response.headers.get('last-modified') || '';
-                const markers = responses.map(markerOf);
-                if (markers.every(value => !value)) return;
-                const marker = markers.join('|');
-                if (!this.appVersionMarker) { this.appVersionMarker = marker; return; }
-                if (marker !== this.appVersionMarker) this.appUpdateAvailable = true;
+                // version.json is a hash of every file the portal loads, the
+                // page, app/ and views/ included (scripts/portal-version.js), so
+                // a release that changes any one of them shows the banner.
+                const response = await fetch(`/version.json?_v=${Date.now()}`, { cache: 'no-store' });
+                if (!response.ok) return;
+                const { version } = await response.json();
+                if (!version) return;
+                if (!this.appVersionMarker) { this.appVersionMarker = version; return; }
+                if (version !== this.appVersionMarker) this.appUpdateAvailable = true;
             } catch (error) { /* offline or blocked request, ignore and retry next interval */ }
         },
         async refreshApp() {

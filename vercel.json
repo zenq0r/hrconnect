@@ -21,43 +21,88 @@
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "X-Frame-Options", "value": "DENY" },
-        { "key": "X-XSS-Protection", "value": "1; mode=block" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Strict-Transport-Security", "value": "max-age=31536000" },
-        { "key": "Permissions-Policy", "value": "camera=(), geolocation=(), microphone=()" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=31536000"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), geolocation=(), microphone=()"
+        }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/(app.js|firebase-config.js|custom.css)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/app/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/views/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, must-revalidate"
+        }
       ]
     },
     {
       "source": "/sw.js",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
+      ]
+    },
+    {
+      "source": "/version.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     }
   ]
