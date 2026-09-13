@@ -95,7 +95,7 @@
                                         <img :src="userProfile.photo" alt="Profile photo preview" class="h-16 w-16 rounded-full object-cover border-2 border-brand-gold bg-white shadow-sm">
                                         <div class="flex-1">
                                             <input id="prof-photo" name="profPhoto" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" @change="handleProfilePhotoUpload" :disabled="profilePhotoUpload.loading" class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-dark file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-brand-blue disabled:opacity-60">
-                                            <p class="mt-2 text-[10px] text-slate-500">PNG, JPEG or JPG only. Maximum file size: 2 MB. The image is saved securely in Firebase Storage.</p>
+                                            <p class="mt-2 text-[10px] text-slate-500">PNG, JPEG or JPG only. Maximum file size: 2 MB. The image is stored securely.</p>
                                             <p v-if="profilePhotoUpload.loading" class="mt-1 text-[10px] font-bold text-brand-blue">Uploading and saving photo…</p>
                                             <p v-if="profilePhotoUpload.error" class="zq-error-text">{{ profilePhotoUpload.error }}</p>
                                         </div>

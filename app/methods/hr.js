@@ -139,7 +139,7 @@ export const hrMethods = {
         async migrateLegacyPaymentVouchers() {
             if (!['Superadmin', 'Director'].includes(this.userProfile.role)) { this.showNotify('Only Superadmin and Director can run this migration.'); return; }
             const legacyVouchers = this.claimsHistory.filter(c => (c.documentType || c.type) === 'Payment Voucher');
-            if (!legacyVouchers.length) { this.showNotify('No legacy Payment Voucher records found inside the Claims collection.'); return; }
+            if (!legacyVouchers.length) { this.showNotify('No payment vouchers are still filed under Claims.'); return; }
             if (!await this.askConfirm({
                 title: 'Migrate legacy payment vouchers?',
                 // Deployment prerequisites are an operator's concern, not the

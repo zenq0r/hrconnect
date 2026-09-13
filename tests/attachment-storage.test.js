@@ -71,3 +71,56 @@ test('no operator instruction is left in a message a user reads', () => {
     // Nor should a size limit be explained in terms of the database behind it.
     assert.doesNotMatch(source, /exceeds the (safe )?Firestore size/);
 });
+
+test('messages a person reads are not written in the vocabulary of the stack', () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    // Strings that reach the screen: toasts, dialog text, thrown errors shown
+    // as-is, and the error bodies the API sends back for the portal to display.
+    const SINKS = /(showNotify\(|loginError\s*=|\.error\s*=|message:\s*[`'"]|throw new Error\(|json\(\{\s*error:)/;
+    const STACK_WORDS = /\b(Firestore|Firebase|FIREBASE_[A-Z_]+|UID\b|security rules|firestore\.rules|redeploy|collection\b)/;
+
+    const files = [
+        ...['app.js'],
+        ...fs.readdirSync(path.join(__dirname, '..', 'app', 'methods')).map(f => `app/methods/${f}`),
+        ...fs.readdirSync(path.join(__dirname, '..', 'api'))
+            .filter(f => f.endsWith('.js'))
+            // Its errors name the environment variable on purpose — they are
+            // for the function log. No route returns them: portal-account.js
+            // maps them to SERVER_CREDENTIALS_MESSAGE, and the rest answer any
+            // uncoded error with a generic message (checked below).
+            .filter(f => f !== '_firebaseAdmin.js')
+            .map(f => `api/${f}`),
+    ];
+    const offenders = [];
+    for (const file of files) {
+        readSource(file).split(/\r?\n/).forEach((line, index) => {
+            if (/^\s*\/\//.test(line) || /console\.(error|warn|info|log)\(/.test(line) || !SINKS.test(line)) return;
+            for (const literal of line.matchAll(/(['"`])((?:(?!\1)[^\\]|\\.)*\s(?:(?!\1)[^\\]|\\.)*)\1/g)) {
+                if (STACK_WORDS.test(literal[2])) offenders.push(`${file}:${index + 1}  ${literal[2].slice(0, 90)}`);
+            }
+        });
+    }
+    // The exact cause of a server misconfiguration belongs in the function log,
+    // where whoever can fix it looks — not in a toast shown to whoever pressed
+    // the button.
+    assert.deepEqual(offenders, [], `user-facing text names the stack:\n${offenders.join('\n')}`);
+
+    // The excluded helper's messages stay out of response bodies: a route may
+    // echo error.message only for an error it raised on purpose with a code.
+    for (const file of fs.readdirSync(path.join(__dirname, '..', 'api')).filter(f => /^[a-z].*\.js$/.test(f))) {
+        const source = readSource(`api/${file}`);
+        for (const echo of source.matchAll(/json\(\{[^}]*error:\s*(?:error|err|e)\.message/g)) {
+            const before = source.slice(Math.max(0, echo.index - 240), echo.index);
+            assert.match(before, /statusCode|error\?\.code ===|error\.code ===/, `${file} echoes an uncoded error message to the browser`);
+        }
+    }
+    const portalAccount = readSource('api/portal-account.js');
+    assert.equal((portalAccount.match(/res\.status\(503\)\.json\(\{ error: SERVER_CREDENTIALS_MESSAGE \}\)/g) || []).length, 3);
+
+    // Same for the screens themselves.
+    const markup = readSource('index.html').replace(/<!--[\s\S]*?-->/g, '');
+    for (const phrase of [/from Firebase\./, /Firestore TTL/, /Firebase Storage\./]) {
+        assert.doesNotMatch(markup, phrase);
+    }
+});

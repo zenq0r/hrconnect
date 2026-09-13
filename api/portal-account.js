@@ -44,6 +44,16 @@ const { buildPortalClaims } = require('./_portalClaims');
 
 const ACTIONS = ['lock', 'unlock', 'delete'];
 
+// What the person pressing the button sees when the deployment itself is
+// misconfigured. The exact cause — which environment variable, and how it is
+// broken — is written to the function log below, where whoever can fix it will
+// look. It used to be sent to the browser verbatim: a redeploy instruction and
+// the name of the variable holding the service-account key, shown to anyone
+// who happened to press Lock that day.
+const SERVER_CREDENTIALS_MESSAGE =
+    'Account changes are unavailable because the server credentials are not set up correctly. ' +
+    'Ask whoever manages the portal deployment to check its function logs.';
+
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
@@ -74,7 +84,7 @@ module.exports = async function handler(req, res) {
 
         const { uid, reason } = req.body || {};
         if (!ACTIONS.includes(action)) { res.status(400).json({ error: `An action is required, one of: ${ACTIONS.join(', ')}.` }); return; }
-        if (typeof uid !== 'string' || !uid) { res.status(400).json({ error: 'A target user UID is required.' }); return; }
+        if (typeof uid !== 'string' || !uid) { res.status(400).json({ error: 'No portal account was selected.' }); return; }
         // Both re-checked server-side. The UI already withholds Lock and Delete
         // on the viewer's own row, but that withholding is not itself a security
         // boundary. Unlocking yourself is not refused because it is not
@@ -166,15 +176,18 @@ module.exports = async function handler(req, res) {
         // missing service-account key and a transient Firebase outage read
         // identically, though only one of them is fixable from here.
         if (/FIREBASE_SERVICE_ACCOUNT_KEY.*not set/.test(message)) {
-            res.status(503).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY is not present on this deployment. Add it, then redeploy so the build picks it up.' });
+            console.error('portal-account: FIREBASE_SERVICE_ACCOUNT_KEY is not present on this deployment. Add it, then redeploy so the build picks it up.');
+            res.status(503).json({ error: SERVER_CREDENTIALS_MESSAGE });
             return;
         }
         if (/FIREBASE_SERVICE_ACCOUNT_KEY.*valid JSON/.test(message)) {
-            res.status(503).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY is set but is not valid JSON. Re-paste the whole service account file, including its outer braces.' });
+            console.error('portal-account: FIREBASE_SERVICE_ACCOUNT_KEY is set but is not valid JSON. Re-paste the whole service account file, including its outer braces.');
+            res.status(503).json({ error: SERVER_CREDENTIALS_MESSAGE });
             return;
         }
         if (/PEM|DECODER|private key/i.test(message)) {
-            res.status(503).json({ error: 'FIREBASE_SERVICE_ACCOUNT_KEY parsed but its private key was rejected — the newline escapes were probably altered. Re-add the file unmodified.' });
+            console.error('portal-account: FIREBASE_SERVICE_ACCOUNT_KEY parsed but its private key was rejected — the newline escapes were probably altered. Re-add the file unmodified.');
+            res.status(503).json({ error: SERVER_CREDENTIALS_MESSAGE });
             return;
         }
         if (code.startsWith('auth/id-token') || code === 'auth/argument-error') {
@@ -182,15 +195,16 @@ module.exports = async function handler(req, res) {
             return;
         }
         if (code === 'auth/user-not-found') {
-            res.status(404).json({ error: 'That Authentication account no longer exists.' });
+            res.status(404).json({ error: 'That sign-in account no longer exists.' });
             return;
         }
         if (code === 'auth/insufficient-permission') {
-            res.status(500).json({ error: 'The service account lacks permission to change Authentication accounts.' });
+            console.error('portal-account: the service account lacks permission to change Authentication accounts.');
+            res.status(500).json({ error: 'The server is not permitted to change sign-in accounts. Ask whoever manages the portal deployment to check its credentials.' });
             return;
         }
         if (action === 'delete') {
-            res.status(500).json({ error: `Firebase Authentication refused the delete${code ? ` (${code})` : ''}. The account was not removed.` });
+            res.status(500).json({ error: `The sign-in account could not be deleted${code ? ` (${code})` : ''}. Nothing was removed.` });
             return;
         }
         // Deliberately does not promise nothing changed — something may well

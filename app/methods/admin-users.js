@@ -21,6 +21,18 @@ import { PORTAL_URL, SUPPORT_EMAIL } from "../config.js";
 import { RBAC_ROLES, MODULE_LABELS, FULL_ACCESS_ROLES, STAFF_PORTAL_ACTIONS, STAFF_PORTAL_REQUEST_ACTIONS } from "../constants/rbac.js";
 export const adminUserMethods = {
 
+        // Firebase's own messages read "Firebase: Error (auth/invalid-email)." —
+        // accurate, and addressed to a developer. Translate the ones an
+        // administrator can act on; keep the code for the rest so a support
+        // conversation still has something to search for.
+        signInAccountErrorMessage(error) {
+            const code = String(error?.code || '');
+            if (code === 'auth/invalid-email') return 'That email address is not valid.';
+            if (code === 'auth/weak-password') return 'The temporary password was refused as too weak. Try again to generate a new one.';
+            if (code === 'auth/network-request-failed') return 'The sign-in account could not be created — check the connection and try again.';
+            if (code === 'auth/too-many-requests') return 'Too many accounts were created in a short time. Wait a minute and try again.';
+            return `The sign-in account could not be created${code ? ` (${code})` : ''}.`;
+        },
         openUserAccessModal(usr = null) {
             if (!this.canManageRBAC) { this.showNotify('Only Superadmin and Director can manage portal access.'); return; }
             if (usr) { this.userModal.isEdit = true; this.userModal.form = { uid: usr.uid || usr.id || '', name: usr.name || '', email: usr.email || '', password: '', role: usr.role || 'Staff' }; }
@@ -123,7 +135,7 @@ export const adminUserMethods = {
                         userId = createdUser.user.uid;
                     } catch (authErr) {
                         if (authErr.code === 'auth/email-already-in-use') existingAuthenticationAccount = true;
-                        else { this.showNotify("Gagal mendaftar ke Firebase: " + authErr.message); return; }
+                        else { console.error('Creating the sign-in account failed:', authErr); this.showNotify(this.signInAccountErrorMessage(authErr), 'error'); return; }
                     } finally {
                         await signOut(secondaryAuth).catch(() => {});
                         await deleteApp(secondaryApp).catch(() => {});
@@ -156,7 +168,7 @@ export const adminUserMethods = {
                     if (existingRecord) {
                         this.showNotify(`Unable to grant Client Portal access: ${email} already belongs to an active ${existingRecord.role || 'staff'} account. One email can only be one portal account — use a different email for this Client.`);
                     } else {
-                        this.showNotify(existingAuthenticationAccount ? 'Existing Firebase account found. Access will activate automatically at the next login.' : 'Portal access is pending UID activation.');
+                        this.showNotify(existingAuthenticationAccount ? 'This email already has a sign-in account. Portal access will switch on the next time it signs in.' : 'Portal access will switch on the first time this person signs in.');
                     }
                     return;
                 }
@@ -169,18 +181,18 @@ export const adminUserMethods = {
                 this.userModal.show = false;
                 this.logAudit(isNewUser ? 'CREATE' : 'UPDATE', `User role/metadata for ${email}`);
                 this.syncUserClaims(userId).catch(() => {});
-                if (isNewUser) { this.sendWelcomeEmail(this.userModal.form); this.showNotify('Akaun berjaya dicipta!'); }
+                if (isNewUser) { this.sendWelcomeEmail(this.userModal.form); this.showNotify('Portal account created.'); }
                 else this.showNotify('User updated successfully!');
             } catch (error) {
                 console.error('Portal access save failed:', error);
-                this.showNotify("Unable to save portal access. Please ensure the latest Firestore Rules have been published.");
+                this.showNotify('Unable to save portal access. Try again, and tell the portal administrator if it keeps failing.', 'error');
             }
         },
 
         async deletePortalUser(uid, email) {
             if (!await this.askConfirm({
                 title: 'Delete portal access?',
-                message: `This permanently removes portal access and the Firebase Authentication account for ${email}.`,
+                message: `This permanently removes portal access and the sign-in account for ${email}.`,
                 confirmLabel: 'Yes, Delete Access',
                 danger: true
             })) return;
@@ -203,12 +215,12 @@ export const adminUserMethods = {
                     });
                     if (!resp.ok) {
                         const errBody = await resp.json().catch(() => ({}));
-                        throw new Error(errBody.error || 'Unable to delete the Firebase Authentication account.');
+                        throw new Error(errBody.error || 'Unable to delete the sign-in account.');
                     }
                 }
                 await deleteDoc(doc(db, "users", uid));
                 this.logAudit('DELETE', `Deleted user metadata for ${email}`);
-                this.showNotify('User record and Firebase Authentication account deleted.');
+                this.showNotify('Portal access and sign-in account deleted.');
             } catch (error) {
                 console.error('Portal user deletion failed:', error);
                 // Stated rather than inferred: the server's wording varies with
