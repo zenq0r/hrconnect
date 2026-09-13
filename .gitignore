@@ -16,3 +16,6 @@ Thumbs.db
 node_modules/
 .vercel
 .env*
+
+# Firebase emulator logs
+*-debug.log
