@@ -142,6 +142,9 @@ test('the line-item sum is checked where rules cannot reach', () => {
     // still have nothing to do with the lines printed on the document.
     assert.match(trigger, /exports\.verifyBillingDocumentTotals/);
     assert.match(trigger, /\.document\('docs\/\{docId\}'\)/);
+    // Next to the database it watches, not in the default us-central1.
+    assert.match(trigger, /const FIRESTORE_REGION = 'asia-southeast1';/);
+    assert.match(trigger, /exports\.verifyBillingDocumentTotals = functions\.region\(FIRESTORE_REGION\)\.firestore/);
     assert.match(trigger, /items\.reduce\(\(sum, item\) => sum \+ \(Number\(item\?\.qty\) \|\| 0\) \* \(Number\(item\?\.price\) \|\| 0\), 0\)/);
     // It corrects, and it says so in the audit log — in the same commit.
     assert.match(trigger, /batch\.set\(db\.collection\('docs'\)\.doc\(docId\)/);

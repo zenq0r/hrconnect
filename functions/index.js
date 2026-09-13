@@ -32,13 +32,17 @@ exports.cleanupDeletedAuthenticationUser = functions.auth.user().onDelete(async 
 const CENT = 0.01;
 const SST_RATE = 0.08;
 
+// Where the Firestore database lives. A trigger deployed anywhere else still
+// fires, but every event and every write it makes crosses regions on the way.
+const FIRESTORE_REGION = 'asia-southeast1';
+
 const money = (value) => Math.round((Number(value) || 0) * 100) / 100;
 
 function subtotalOf(items) {
     return money(items.reduce((sum, item) => sum + (Number(item?.qty) || 0) * (Number(item?.price) || 0), 0));
 }
 
-exports.verifyBillingDocumentTotals = functions.firestore
+exports.verifyBillingDocumentTotals = functions.region(FIRESTORE_REGION).firestore
     .document('docs/{docId}')
     .onWrite(async (change, context) => {
         if (!change.after.exists) return null;
