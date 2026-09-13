@@ -8,6 +8,17 @@ import {
     deleteDoc
 } from "../../firebase-config.js";
 import { STATUTORY_RATES } from "../constants/statutory.js";
+
+// The records confirmDeleteRecord() removes, keyed by the flag the lists put on
+// each row. Checked in this order, the same order the lists were written in.
+const DELETABLE_RECORDS = [
+    { flag: 'isDoc', collection: 'docs', kind: item => item.type || 'Document' },
+    { flag: 'isPay', collection: 'payslips', kind: () => 'Payslip' },
+    { flag: 'isVoucher', collection: 'payment_vouchers', kind: () => 'Payment voucher' },
+    { flag: 'isClaim', collection: 'claims', kind: () => 'Expense claim' }
+];
+const deletableRecordOf = item => DELETABLE_RECORDS.find(entry => item?.[entry.flag]);
+
 export const billingMethods = {
 
         loadCustomerIntoDocument(cust) {
@@ -375,13 +386,21 @@ export const billingMethods = {
         canDeleteBillingDocument(item) {
             return this.canDeleteBillingDocuments && ['Invoice', 'Quotation'].includes(item?.type);
         },
+        // Asked by every Delete button and menu entry that ends in
+        // confirmDeleteRecord(), and by confirmDeleteRecord() itself, so a
+        // control is never offered for a delete that would then be refused.
+        canDeleteRecord(item) {
+            if (item?.isDoc) return this.canDeleteBillingDocument(item);
+            if (item?.isPay) return this.canDeletePayroll;
+            return Boolean(deletableRecordOf(item)) && this.canDelete;
+        },
         // The one delete for billing documents, payslips, claims and payment
         // vouchers, wherever the button is. Returns whether a record was deleted,
         // so a screen that had the record open can clear itself.
         async confirmDeleteRecord(item) {
-            const canDeleteThisRecord = item?.isDoc ? this.canDeleteBillingDocument(item) : this.canDelete;
-            if (!canDeleteThisRecord) { this.showNotify(item?.isDoc ? 'Only Director, Finance or Superadmin can delete invoices and quotations.' : 'Only Superadmin and Director can delete records.'); return false; }
-            const kind = item.isDoc ? (item.type || 'Document') : item.isPay ? 'Payslip' : item.isVoucher ? 'Payment voucher' : item.isClaim ? 'Expense claim' : 'Record';
+            if (!this.canDeleteRecord(item)) { this.showNotify(item?.isDoc ? 'Only Director, Finance or Superadmin can delete invoices and quotations.' : 'Only Superadmin and Director can delete records.'); return false; }
+            const record = deletableRecordOf(item);
+            const kind = record.kind(item);
             const reference = item.docNo || item.receiptNo || item.payeeName || item.fileName || item.name || item.id;
             if (!await this.askConfirm({
                 title: `Delete ${kind.toLowerCase()}?`,
@@ -389,10 +408,9 @@ export const billingMethods = {
                 confirmLabel: 'Yes, Delete Record',
                 danger: true
             })) return false;
-            const collectionName = item.isDoc ? 'docs' : item.isPay ? 'payslips' : item.isVoucher ? 'payment_vouchers' : item.isClaim ? 'claims' : '';
-            if (!collectionName || !item.id) { this.showNotify('Unable to delete record.', 'error'); return false; }
+            if (!item.id) { this.showNotify('Unable to delete record.', 'error'); return false; }
             try {
-                await deleteDoc(doc(db, collectionName, String(item.id)));
+                await deleteDoc(doc(db, record.collection, String(item.id)));
                 // Deleting a financial record is exactly what the audit trail is for.
                 this.logAudit('DELETE', `Deleted ${kind.toLowerCase()} ${reference}${item.name && item.name !== reference ? ` (${item.name})` : ''}${Number.isFinite(Number(item.amount)) ? `, ${this.formatCurrency(Number(item.amount))}` : ''}.`);
                 if (this.claimPreview?.show && String(this.claimPreview.claim?.id) === String(item.id)) this.claimPreview.show = false;

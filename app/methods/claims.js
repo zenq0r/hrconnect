@@ -72,8 +72,12 @@ export const claimMethods = {
         // (see isAdminClaimCorrection), so a figure can never change inside the
         // same write that approves it.
         canEditClaim(clm) {
-            if (this.isFullAccessRole) return true;
-            return (clm.createdByUid === this.userProfile.uid || clm.empEmail === this.userProfile.email) && clm.status === 'Pending HR';
+            return this.isFullAccessRole || this.isOwnPendingRecord(clm);
+        },
+        // A claim or voucher the signed-in person submitted that HR has not yet
+        // looked at — the only kind a submitter may still change.
+        isOwnPendingRecord(record) {
+            return (record.createdByUid === this.userProfile.uid || record.empEmail === this.userProfile.email) && record.status === 'Pending HR';
         },
         // True when this save is an administrator correcting a record rather
         // than its submitter editing their own pending one — the two are
@@ -81,8 +85,28 @@ export const claimMethods = {
         // carries an edit stamp.
         isAdminCorrection(record) {
             if (!this.isFullAccessRole || !record) return false;
-            const ownPending = (record.createdByUid === this.userProfile.uid || record.empEmail === this.userProfile.email) && record.status === 'Pending HR';
-            return !ownPending;
+            return !this.isOwnPendingRecord(record);
+        },
+        // The stamp firestore.rules requires on that correction.
+        adminCorrectionStamp() {
+            return { lastEditedByUid: auth.currentUser.uid, lastEditedByName: this.userProfile.name || '', lastEditedAt: new Date().toISOString() };
+        },
+        // Appended to a correction's audit entry when the amount moved.
+        amountChangeNote(previous, amount) {
+            const was = Number(previous?.amount);
+            return Number.isFinite(was) && was !== amount ? ` Amount ${this.formatCurrency(was)} → ${this.formatCurrency(amount)}.` : '';
+        },
+        // Who a claim or voucher is waiting on. An edit keeps the record wherever
+        // it is in the approval chain — it used to hand every edited record back
+        // to HR's queue. Only a new record starts with the first assignee.
+        recordAssignment(form, isEdit, assignee) {
+            const kept = (field, fallback) => isEdit ? (form[field] ?? fallback) : fallback;
+            return {
+                assignedToUid: kept('assignedToUid', assignee.id),
+                assignedToName: kept('assignedToName', assignee.name),
+                assignedToEmail: kept('assignedToEmail', assignee.email),
+                assignedToRole: kept('assignedToRole', assignee.role)
+            };
         },
         claimStageStamp(record, role) {
             if (!Array.isArray(record?.approvalHistory)) return null;
@@ -228,20 +252,13 @@ export const claimMethods = {
                 if (!auth.currentUser?.uid || !claimOwnerEmail) throw Object.assign(new Error('Your login identity is incomplete. Sign out and sign in again.'), { code: 'permission-denied' });
 
                 const claimId = String(this.editingClaimId || Date.now());
-                const payload = { id: claimId, type: 'Claim', documentType: 'Claim', date: this.claimForm.expenseDate, expenseDate: this.claimForm.expenseDate, name: this.claimForm.name, empNo: this.claimForm.empNo, empEmail: claimOwnerEmail, position: this.claimForm.position || '', dept: this.claimForm.dept, category: this.claimForm.category, subCategory: this.claimForm.subCategory, amount: Number(this.claimForm.amount), receiptNo: this.claimForm.receiptNo, description: this.claimForm.description, receiptAttachment: this.claimForm.receiptAttachment, receiptAttachmentName: this.claimForm.receiptAttachmentName || '', receiptAttachmentOriginalBytes: Number(this.claimForm.receiptAttachmentOriginalBytes || 0), createdByUid: this.editingClaimId ? (this.claimForm.createdByUid || auth.currentUser.uid) : auth.currentUser.uid, createdByEmail: this.editingClaimId ? (this.claimForm.createdByEmail || signedInEmail) : signedInEmail, createdAt: this.editingClaimId ? (this.claimForm.createdAt || new Date().toISOString()) : new Date().toISOString(), status: this.editingClaimId ? (this.claimForm.status || initialStatus) : initialStatus, assignedToUid: this.editingClaimId ? (this.claimForm.assignedToUid ?? assignee.id) : assignee.id, assignedToName: this.editingClaimId ? (this.claimForm.assignedToName ?? assignee.name) : assignee.name, assignedToEmail: this.editingClaimId ? (this.claimForm.assignedToEmail ?? assignee.email) : assignee.email, assignedToRole: this.editingClaimId ? (this.claimForm.assignedToRole ?? assignee.role) : assignee.role };
-                // An edit keeps the claim wherever it is in the approval chain — it
-                // used to hand every edited claim back to HR's queue. A correction by
-                // Superadmin or Director is stamped, and firestore.rules requires it.
+                const payload = { id: claimId, type: 'Claim', documentType: 'Claim', date: this.claimForm.expenseDate, expenseDate: this.claimForm.expenseDate, name: this.claimForm.name, empNo: this.claimForm.empNo, empEmail: claimOwnerEmail, position: this.claimForm.position || '', dept: this.claimForm.dept, category: this.claimForm.category, subCategory: this.claimForm.subCategory, amount: Number(this.claimForm.amount), receiptNo: this.claimForm.receiptNo, description: this.claimForm.description, receiptAttachment: this.claimForm.receiptAttachment, receiptAttachmentName: this.claimForm.receiptAttachmentName || '', receiptAttachmentOriginalBytes: Number(this.claimForm.receiptAttachmentOriginalBytes || 0), createdByUid: this.editingClaimId ? (this.claimForm.createdByUid || auth.currentUser.uid) : auth.currentUser.uid, createdByEmail: this.editingClaimId ? (this.claimForm.createdByEmail || signedInEmail) : signedInEmail, createdAt: this.editingClaimId ? (this.claimForm.createdAt || new Date().toISOString()) : new Date().toISOString(), status: this.editingClaimId ? (this.claimForm.status || initialStatus) : initialStatus, ...this.recordAssignment(this.claimForm, this.editingClaimId, assignee) };
                 const previousClaim = this.editingClaimId ? this.claimsHistory.find(item => item.id === claimId) : null;
                 const adminCorrection = this.editingClaimId && this.isAdminCorrection(previousClaim || this.claimForm);
-                if (adminCorrection) Object.assign(payload, { lastEditedByUid: auth.currentUser.uid, lastEditedByName: this.userProfile.name || '', lastEditedAt: new Date().toISOString() });
+                if (adminCorrection) Object.assign(payload, this.adminCorrectionStamp());
                 if (this.getSerializedSize(payload) > 800 * 1024) throw Object.assign(new Error('This claim is too large to save. Use fewer or smaller attachments.'), { code: 'resource-exhausted' });
                 await setDoc(doc(db, "claims", claimId), payload, { merge: true });
-                if (adminCorrection) {
-                    const was = Number(previousClaim?.amount);
-                    const amountNote = Number.isFinite(was) && was !== payload.amount ? ` Amount ${this.formatCurrency(was)} → ${this.formatCurrency(payload.amount)}.` : '';
-                    this.logAudit('UPDATE', `Corrected expense claim ${payload.receiptNo || claimId} for ${payload.name} (${payload.status}).${amountNote}`);
-                }
+                if (adminCorrection) this.logAudit('UPDATE', `Corrected expense claim ${payload.receiptNo || claimId} for ${payload.name} (${payload.status}).${this.amountChangeNote(previousClaim, payload.amount)}`);
                 if (!this.editingClaimId) this.notifyByEmail({
                     to: this.emailsForRole('HR'),
                     subject: `New Expense Claim Pending Review — ${payload.receiptNo}`,
@@ -273,8 +290,7 @@ export const claimMethods = {
             return !!expectedStatus && pv.status === expectedStatus && (!pv.assignedToEmail || pv.assignedToEmail === this.userProfile.email);
         },
         canEditPaymentVoucher(pv) {
-            if (this.isFullAccessRole) return true;
-            return (pv.createdByUid === this.userProfile.uid || pv.empEmail === this.userProfile.email) && pv.status === 'Pending HR';
+            return this.isFullAccessRole || this.isOwnPendingRecord(pv);
         },
         async approvePaymentVoucher(pv) {
             if (!this.canApprovePaymentVoucher(pv)) { this.showNotify('You do not have permission to approve this record at its current workflow stage.'); return false; }
@@ -349,17 +365,13 @@ export const claimMethods = {
 
                 const voucherId = String(this.editingVoucherId || Date.now());
                 if (!this.voucherForm.voucherNo) this.voucherForm.voucherNo = `PV-${this.currentYear}-${String(Date.now()).slice(-6)}`;
-                const payload = { id: voucherId, type: 'Payment Voucher', documentType: 'Payment Voucher', date: this.voucherForm.paymentDate, paymentDate: this.voucherForm.paymentDate, name: this.voucherForm.name, empNo: this.voucherForm.empNo, empEmail: voucherOwnerEmail, position: this.voucherForm.position || '', dept: this.voucherForm.dept, payeeName: this.voucherForm.payeeName, payeeType: this.voucherForm.payeeType || '', payeeReference: this.voucherForm.payeeReference || '', paymentPurpose: this.voucherForm.paymentPurpose, category: this.voucherForm.category, subCategory: this.voucherForm.subCategory, amount: Number(this.voucherForm.amount), voucherNo: this.voucherForm.voucherNo, description: this.voucherForm.description, receiptAttachment: this.voucherForm.receiptAttachment, receiptAttachmentName: this.voucherForm.receiptAttachmentName || '', receiptAttachmentOriginalBytes: Number(this.voucherForm.receiptAttachmentOriginalBytes || 0), createdByUid: this.editingVoucherId ? (this.voucherForm.createdByUid || auth.currentUser.uid) : auth.currentUser.uid, createdByEmail: this.editingVoucherId ? (this.voucherForm.createdByEmail || signedInEmail) : signedInEmail, createdAt: this.editingVoucherId ? (this.voucherForm.createdAt || new Date().toISOString()) : new Date().toISOString(), status: this.editingVoucherId ? (this.voucherForm.status || initialStatus) : initialStatus, assignedToUid: this.editingVoucherId ? (this.voucherForm.assignedToUid ?? assignee.id) : assignee.id, assignedToName: this.editingVoucherId ? (this.voucherForm.assignedToName ?? assignee.name) : assignee.name, assignedToEmail: this.editingVoucherId ? (this.voucherForm.assignedToEmail ?? assignee.email) : assignee.email, assignedToRole: this.editingVoucherId ? (this.voucherForm.assignedToRole ?? assignee.role) : assignee.role };
+                const payload = { id: voucherId, type: 'Payment Voucher', documentType: 'Payment Voucher', date: this.voucherForm.paymentDate, paymentDate: this.voucherForm.paymentDate, name: this.voucherForm.name, empNo: this.voucherForm.empNo, empEmail: voucherOwnerEmail, position: this.voucherForm.position || '', dept: this.voucherForm.dept, payeeName: this.voucherForm.payeeName, payeeType: this.voucherForm.payeeType || '', payeeReference: this.voucherForm.payeeReference || '', paymentPurpose: this.voucherForm.paymentPurpose, category: this.voucherForm.category, subCategory: this.voucherForm.subCategory, amount: Number(this.voucherForm.amount), voucherNo: this.voucherForm.voucherNo, description: this.voucherForm.description, receiptAttachment: this.voucherForm.receiptAttachment, receiptAttachmentName: this.voucherForm.receiptAttachmentName || '', receiptAttachmentOriginalBytes: Number(this.voucherForm.receiptAttachmentOriginalBytes || 0), createdByUid: this.editingVoucherId ? (this.voucherForm.createdByUid || auth.currentUser.uid) : auth.currentUser.uid, createdByEmail: this.editingVoucherId ? (this.voucherForm.createdByEmail || signedInEmail) : signedInEmail, createdAt: this.editingVoucherId ? (this.voucherForm.createdAt || new Date().toISOString()) : new Date().toISOString(), status: this.editingVoucherId ? (this.voucherForm.status || initialStatus) : initialStatus, ...this.recordAssignment(this.voucherForm, this.editingVoucherId, assignee) };
                 const previousVoucher = this.editingVoucherId ? this.paymentVouchers.find(item => item.id === voucherId) : null;
                 const adminCorrection = this.editingVoucherId && this.isAdminCorrection(previousVoucher || this.voucherForm);
-                if (adminCorrection) Object.assign(payload, { lastEditedByUid: auth.currentUser.uid, lastEditedByName: this.userProfile.name || '', lastEditedAt: new Date().toISOString() });
+                if (adminCorrection) Object.assign(payload, this.adminCorrectionStamp());
                 if (this.getSerializedSize(payload) > 800 * 1024) throw Object.assign(new Error('This voucher is too large to save. Use fewer or smaller attachments.'), { code: 'resource-exhausted' });
                 await setDoc(doc(db, "payment_vouchers", voucherId), payload, { merge: true });
-                if (adminCorrection) {
-                    const was = Number(previousVoucher?.amount);
-                    const amountNote = Number.isFinite(was) && was !== payload.amount ? ` Amount ${this.formatCurrency(was)} → ${this.formatCurrency(payload.amount)}.` : '';
-                    this.logAudit('UPDATE', `Corrected payment voucher for ${payload.payeeName || payload.name} (${payload.status}).${amountNote}`);
-                }
+                if (adminCorrection) this.logAudit('UPDATE', `Corrected payment voucher for ${payload.payeeName || payload.name} (${payload.status}).${this.amountChangeNote(previousVoucher, payload.amount)}`);
                 if (!this.editingVoucherId) this.notifyByEmail({
                     to: this.emailsForRole('HR'),
                     subject: `New Payment Voucher Pending Review — ${payload.voucherNo}`,

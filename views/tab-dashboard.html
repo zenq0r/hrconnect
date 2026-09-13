@@ -368,7 +368,7 @@
                                                  <div class="zq-table-actions">
                                                  <button type="button" @click="(item.isClaim || item.isVoucher) ? viewClaimRecord(item) : viewRecord(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View Record"><i class="fa-solid fa-eye"></i></button>
                                                 <button v-if="(item.isDoc && canManageDocuments) || (item.isPay && canManagePayroll)" type="button" @click="editRecord(item)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Record"><i class="fa-solid fa-pen"></i></button>
-                                                <button v-if="(item.isDoc && canDeleteBillingDocument(item)) || (item.isPay && canDeletePayroll) || ((item.isClaim || item.isVoucher) && canDelete)" type="button" @click="confirmDeleteRecord(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Record"><i class="fa-solid fa-trash"></i></button>
+                                                <button v-if="canDeleteRecord(item)" type="button" @click="confirmDeleteRecord(item)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Record"><i class="fa-solid fa-trash"></i></button>
                                                  </div>
                                             </td>
                                         </tr>

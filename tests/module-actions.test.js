@@ -30,7 +30,7 @@ const COMPUTED_GATES = [
 // getters, the way Vue exposes them.
 function gatesFor(role) {
     const source = rbacSource();
-    const methods = new Function(`${source} return { ${methodSource('hasAccess', 'hasModulePermission', 'canEditClaim')} };`)();
+    const methods = new Function(`${source} return { ${methodSource('hasAccess', 'hasModulePermission', 'canEditClaim', 'isOwnPendingRecord')} };`)();
     const computed = new Function(`${source} return { ${methodSource(...COMPUTED_GATES)} };`)();
     const self = { userProfile: { role, email: 'someone@zenqor.com.my', uid: 'uid' } };
     Object.assign(self, methods);
@@ -125,7 +125,14 @@ test('each delete is on the module\'s own screen, not only somewhere else', () =
     assert.match(methodSource('claimRowMenuItems'), /this\.canDelete \? \{ label: 'Delete Claim Record'/);
     assert.match(methodSource('voucherRowMenuItems'), /this\.canDelete \? \{ label: 'Delete Voucher Record'/);
     // Claims and vouchers listed in Recent Activity can be deleted there too.
-    assert.match(readSource('views/tab-dashboard.html'), /\(\(item\.isClaim \|\| item\.isVoucher\) && canDelete\)"[^>]*@click="confirmDeleteRecord\(item\)"/);
+    // The button, the menu and the delete itself ask the same question, so
+    // none of them offers a delete another would refuse.
+    assert.match(readSource('views/tab-dashboard.html'), /<button v-if="canDeleteRecord\(item\)"[^>]*@click="confirmDeleteRecord\(item\)"/);
+    assert.match(methodSource('recentActivityMenuItems'), /this\.canDeleteRecord\(item\) \? \{ label: 'Delete Record'/);
+    assert.match(methodSource('confirmDeleteRecord'), /if \(!this\.canDeleteRecord\(item\)\)/);
+    const gate = methodSource('canDeleteRecord');
+    assert.match(gate, /if \(item\?\.isDoc\) return this\.canDeleteBillingDocument\(item\);/);
+    assert.match(gate, /if \(item\?\.isPay\) return this\.canDeletePayroll;/);
 
     // Quotations, invoices and payslips: on their own screen while one is open.
     assert.match(readSource('views/tab-documents.html'), /<button v-if="editingDocId && canDeleteBillingDocument\(\{ type: docForm\.type \}\)"[^>]*@click="deleteOpenDocument"/);
@@ -148,12 +155,16 @@ test('an administrator\'s correction of a claim is stamped, audited, and kept ap
     assert.equal((rules.match(/claimAmountUnchanged\(\)/g) || []).length, 7, 'six approval transitions plus the definition');
 
     const claims = readSource('app/methods/claims.js');
-    assert.match(claims, /canEditClaim\(clm\) \{\s*if \(this\.isFullAccessRole\) return true;/);
-    assert.match(claims, /if \(adminCorrection\) Object\.assign\(payload, \{ lastEditedByUid: auth\.currentUser\.uid/);
+    assert.match(claims, /canEditClaim\(clm\) \{\s*return this\.isFullAccessRole \|\|/);
+    assert.match(claims, /canEditPaymentVoucher\(pv\) \{\s*return this\.isFullAccessRole \|\|/);
+    assert.match(methodSource('adminCorrectionStamp'), /lastEditedByUid: auth\.currentUser\.uid/);
+    assert.equal((claims.match(/if \(adminCorrection\) Object\.assign\(payload, this\.adminCorrectionStamp\(\)\);/g) || []).length, 2, 'claims and payment vouchers');
     assert.match(claims, /this\.logAudit\('UPDATE', `Corrected expense claim/);
     assert.match(claims, /this\.logAudit\('UPDATE', `Corrected payment voucher/);
     // And editing no longer throws a claim back into HR's queue.
-    assert.match(claims, /assignedToUid: this\.editingClaimId \? \(this\.claimForm\.assignedToUid \?\? assignee\.id\) : assignee\.id/);
+    assert.match(methodSource('recordAssignment'), /isEdit \? \(form\[field\] \?\? fallback\) : fallback/);
+    assert.match(claims, /\.\.\.this\.recordAssignment\(this\.claimForm, this\.editingClaimId, assignee\)/);
+    assert.match(claims, /\.\.\.this\.recordAssignment\(this\.voucherForm, this\.editingVoucherId, assignee\)/);
 
     // Every delete of a financial record is written to the audit log.
     assert.match(methodSource('confirmDeleteRecord'), /this\.logAudit\('DELETE', `Deleted \$\{kind\.toLowerCase\(\)\}/);

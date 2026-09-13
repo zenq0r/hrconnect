@@ -38,7 +38,6 @@ export const accessComputed = {
         // Finance is stored as the Account role. It may delete only official
         // billing documents; all other delete capabilities remain unchanged.
         canDeleteBillingDocuments() { return ['Superadmin', 'Director', 'Account'].includes(this.userProfile.role); },
-        canDeleteDocuments() { return this.canDeleteBillingDocuments; },
         canDeletePayroll() { return this.hasModulePermission('payslip-generator', 'delete'); },
         // Superadmin and Director hold every module their role lists, with edit
         // and delete on each, and no per-user override may subtract from that.

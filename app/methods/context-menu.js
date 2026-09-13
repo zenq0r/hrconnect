@@ -170,7 +170,7 @@ export const contextMenuMethods = {
             return [
                 { label: 'View Record', icon: 'fa-eye', action: () => (item.isClaim || item.isVoucher) ? this.viewClaimRecord(item) : this.viewRecord(item) },
                 ((item.isDoc && this.canManageDocuments) || (item.isPay && this.canManagePayroll)) ? { label: 'Edit Record', icon: 'fa-pen', action: () => this.editRecord(item) } : null,
-                ((item.isDoc && this.canDeleteDocuments) || (item.isPay && this.canDeletePayroll) || ((item.isClaim || item.isVoucher) && this.canDelete)) ? { label: 'Delete Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord(item) } : null
+                this.canDeleteRecord(item) ? { label: 'Delete Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord(item) } : null
             ];
         },
         clientDirectoryRowMenuItems(cust) {

@@ -57,7 +57,9 @@ test('the document delete gate admits only Director, Finance and Superadmin', ()
 
     assert.match(app, /canDeleteBillingDocuments\(\) \{ return \['Superadmin', 'Director', 'Account'\]\.includes\(this\.userProfile\.role\); \}/);
     assert.match(app, /canDeleteBillingDocument\(item\) \{[\s\S]{0,160}?\['Invoice', 'Quotation'\]\.includes\(item\?\.type\)/);
-    assert.match(page, /canDeleteBillingDocument\(item\)/);
+    // Recent Activity asks canDeleteRecord(), which hands a document to the gate above.
+    assert.match(page, /canDeleteRecord\(item\)/);
+    assert.match(app, /canDeleteRecord\(item\) \{\s*if \(item\?\.isDoc\) return this\.canDeleteBillingDocument\(item\);/);
 });
 
 test('the client gate mirrors the rule before showing the buttons', () => {
