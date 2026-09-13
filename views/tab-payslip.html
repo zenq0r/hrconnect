@@ -14,6 +14,9 @@
                             <button type="button" @click="printPayslipModule" class="bg-brand-dark hover:bg-brand-blue text-white font-bold px-4 py-2 rounded-xl text-xs shadow transition flex items-center space-x-1.5">
                                 <i class="fa-solid fa-file-pdf"></i><span>Preview / Print PDF</span>
                             </button>
+                            <button v-if="editingPayId && canDeletePayroll" type="button" @click="deleteOpenPayslip" class="zq-btn zq-btn-destructive">
+                                <i class="fa-solid fa-trash"></i><span>Delete Payslip</span>
+                            </button>
                             <button type="button" @click="resetPayForm" class="bg-red-50 hover:bg-red-100 text-red-600 font-bold px-3 py-2 rounded-xl text-xs transition" title="Clear Form">
                                 <i class="fa-solid fa-rotate-left"></i>
                             </button>

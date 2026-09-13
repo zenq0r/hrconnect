@@ -30,7 +30,7 @@ const COMPUTED_GATES = [
 // getters, the way Vue exposes them.
 function gatesFor(role) {
     const source = rbacSource();
-    const methods = new Function(`${source} return { ${methodSource('hasAccess', 'hasModulePermission')} };`)();
+    const methods = new Function(`${source} return { ${methodSource('hasAccess', 'hasModulePermission', 'canEditClaim')} };`)();
     const computed = new Function(`${source} return { ${methodSource(...COMPUTED_GATES)} };`)();
     const self = { userProfile: { role, email: 'someone@zenqor.com.my', uid: 'uid' } };
     Object.assign(self, methods);
@@ -41,6 +41,15 @@ function gatesFor(role) {
 }
 
 const CHECKS = {
+    'dashboard': {
+        edit: g => g.canManageDocuments || g.canManagePayroll,
+        remove: g => g.canDelete,
+    },
+    'claims': {
+        // canEditClaim() of a record the viewer neither filed nor can see yet.
+        edit: g => g.canEditClaim({ createdByUid: 'somebody-else', empEmail: 'else@zenqor.com.my', status: 'Pending Director' }),
+        remove: g => g.canDelete,
+    },
     'client-task': { edit: g => g.canCreateClientTask, remove: g => g.canDelete },
     'project-activities': { edit: g => g.canManageProjects, remove: g => g.canManageProjects },
     'doc-generator': { edit: g => g.canManageDocuments, remove: g => g.canDeleteBillingDocuments },
@@ -87,23 +96,80 @@ test('Finance deletes invoices and quotations — the case the old panel got wro
     assert.equal(moduleActionFor('doc-generator', 'remove', 'HR'), false);
 });
 
+test('Superadmin and Director can change and delete in every module that has records', () => {
+    const { RBAC_ROLES, MODULE_ACTIONS, moduleActionFor } = rbac();
+    // Where a module has anything to change or delete, the full-access pair
+    // does it to any record — never "own only", never refused. The modules
+    // left with no delete at all are named, each for a stated reason below.
+    const NOTHING_TO_DELETE = ['reports', 'audit-logs', 'settings'];
+    for (const role of ['Director', 'Superadmin']) {
+        for (const moduleName of RBAC_ROLES[role]) {
+            const edit = moduleActionFor(moduleName, 'edit', role);
+            const remove = moduleActionFor(moduleName, 'remove', role);
+            assert.equal(edit, true, `${role} must be able to change any record in ${moduleName}`);
+            if (NOTHING_TO_DELETE.includes(moduleName)) {
+                assert.equal(remove, null, `${moduleName} was expected to have nothing to delete`);
+            } else {
+                assert.equal(remove, true, `${role} must be able to delete any record in ${moduleName}`);
+            }
+        }
+    }
+    assert.ok(MODULE_ACTIONS.claims.remove.all.includes('Director'));
+});
+
+test('each delete is on the module\'s own screen, not only somewhere else', () => {
+    // Claims and vouchers: in both tables and both right-click menus.
+    const claims = readSource('views/tab-claims.html');
+    assert.match(claims, /<button v-if="canDelete"[^>]*@click="confirmDeleteRecord\(\{ \.\.\.clm, isClaim: true \}\)"/);
+    assert.match(claims, /<button v-if="canDelete"[^>]*@click="confirmDeleteRecord\(\{ \.\.\.pv, isVoucher: true \}\)"/);
+    assert.match(methodSource('claimRowMenuItems'), /this\.canDelete \? \{ label: 'Delete Claim Record'/);
+    assert.match(methodSource('voucherRowMenuItems'), /this\.canDelete \? \{ label: 'Delete Voucher Record'/);
+    // Claims and vouchers listed in Recent Activity can be deleted there too.
+    assert.match(readSource('views/tab-dashboard.html'), /\(\(item\.isClaim \|\| item\.isVoucher\) && canDelete\)"[^>]*@click="confirmDeleteRecord\(item\)"/);
+
+    // Quotations, invoices and payslips: on their own screen while one is open.
+    assert.match(readSource('views/tab-documents.html'), /<button v-if="editingDocId && canDeleteBillingDocument\(\{ type: docForm\.type \}\)"[^>]*@click="deleteOpenDocument"/);
+    assert.match(readSource('views/tab-payslip.html'), /<button v-if="editingPayId && canDeletePayroll"[^>]*@click="deleteOpenPayslip"/);
+
+    // Client Task: a visible button, not only the right-click menu.
+    assert.match(readSource('views/tab-client-task.html'), /<button v-if="canDelete"[^>]*@click\.stop="requestDeleteClientTask\(cust\)"/);
+});
+
+test('an administrator\'s correction of a claim is stamped, audited, and kept apart from approval', () => {
+    const rules = readSource('firestore.rules');
+    const correction = rules.slice(rules.indexOf('function isAdminClaimCorrection()'), rules.indexOf('match /settings/'));
+    assert.match(correction, /isAdmin\(\) &&/);
+    // The status cannot move in the same write, so an amount is never changed
+    // inside an approval.
+    assert.match(correction, /request\.resource\.data\.status == resource\.data\.status/);
+    assert.match(correction, /request\.resource\.data\.lastEditedByUid == request\.auth\.uid/);
+    assert.equal((rules.match(/allow update: if isAdminClaimCorrection\(\) \|\| \(/g) || []).length, 2, 'claims and payment_vouchers');
+    // Approvals still may not touch the amount.
+    assert.equal((rules.match(/claimAmountUnchanged\(\)/g) || []).length, 7, 'six approval transitions plus the definition');
+
+    const claims = readSource('app/methods/claims.js');
+    assert.match(claims, /canEditClaim\(clm\) \{\s*if \(this\.isFullAccessRole\) return true;/);
+    assert.match(claims, /if \(adminCorrection\) Object\.assign\(payload, \{ lastEditedByUid: auth\.currentUser\.uid/);
+    assert.match(claims, /this\.logAudit\('UPDATE', `Corrected expense claim/);
+    assert.match(claims, /this\.logAudit\('UPDATE', `Corrected payment voucher/);
+    // And editing no longer throws a claim back into HR's queue.
+    assert.match(claims, /assignedToUid: this\.editingClaimId \? \(this\.claimForm\.assignedToUid \?\? assignee\.id\) : assignee\.id/);
+
+    // Every delete of a financial record is written to the audit log.
+    assert.match(methodSource('confirmDeleteRecord'), /this\.logAudit\('DELETE', `Deleted \$\{kind\.toLowerCase\(\)\}/);
+});
+
+test('every audit action the portal sends is one the server records', () => {
+    const allowed = new Set([...readSource('api/audit-log.js').match(/const ALLOWED_ACTIONS = new Set\(\[([\s\S]*?)\]\);/)[1].matchAll(/'([A-Z_]+)'/g)].map(m => m[1]));
+    const sent = new Set([...readSource('app.js').matchAll(/logAudit\('([A-Z_]+)'/g)].map(m => m[1]));
+    const refused = [...sent].filter(action => !allowed.has(action));
+    // A verb the server does not list is refused with a 400 the portal never
+    // shows, and the event is simply not recorded.
+    assert.deepEqual(refused, [], `the audit log silently refuses: ${refused.join(', ')}`);
+});
+
 test('modules with no delete say so, and really have none', () => {
     const { moduleActionFor, MODULE_ACTIONS } = rbac();
-
-    // Claims and payment vouchers: approval moves a record on; nothing in the
-    // portal deletes one. confirmDeleteRecord() does carry a claim branch, but
-    // no control ever calls it for a claim or a voucher — the Recent Activity
-    // button and its right-click entry are both limited to documents and
-    // payslips. What counts is what a person can reach.
-    assert.equal(moduleActionFor('claims', 'remove', 'Director'), null);
-    const dashboard = readSource('views/tab-dashboard.html');
-    for (const trigger of dashboard.matchAll(/<button v-if="([^"]*)"[^>]*@click="confirmDeleteRecord/g)) {
-        assert.doesNotMatch(trigger[1], /isClaim|isVoucher/, 'a claim delete button now exists — update MODULE_ACTIONS');
-    }
-    const menu = methodSource('recentActivityMenuItems');
-    const deleteEntry = menu.slice(menu.indexOf("label: 'Delete Record'") - 160, menu.indexOf("label: 'Delete Record'"));
-    assert.doesNotMatch(deleteEntry, /isClaim|isVoucher/, 'a claim delete menu entry now exists — update MODULE_ACTIONS');
-    assert.doesNotMatch(readSource('views/tab-claims.html'), /confirmDeleteRecord|deleteClaim|deletePaymentVoucher/);
 
     // The audit log is append-only, and the rules enforce it.
     assert.equal(moduleActionFor('audit-logs', 'remove', 'Superadmin'), null);

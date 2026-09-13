@@ -15,6 +15,9 @@
                             <button type="button" @click="printDocumentModule" class="zq-btn zq-btn-outline">
                                 <i class="fa-solid fa-file-pdf"></i><span>Preview / Print PDF</span>
                             </button>
+                            <button v-if="editingDocId && canDeleteBillingDocument({ type: docForm.type })" type="button" @click="deleteOpenDocument" class="zq-btn zq-btn-destructive">
+                                <i class="fa-solid fa-trash"></i><span>Delete {{ docForm.type }}</span>
+                            </button>
                             <button type="button" @click="resetDocForm" class="zq-btn zq-btn-destructive zq-btn-icon" title="Clear Form">
                                 <i class="fa-solid fa-rotate-left"></i>
                             </button>

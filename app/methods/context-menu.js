@@ -156,20 +156,22 @@ export const contextMenuMethods = {
         claimRowMenuItems(clm) {
             return [
                 { label: 'View Claim Record', icon: 'fa-eye', action: () => this.viewClaimRecord(clm) },
-                this.canEditClaim(clm) ? { label: 'Edit Claim Record', icon: 'fa-pen', action: () => this.editClaimRecord(clm) } : null
+                this.canEditClaim(clm) ? { label: 'Edit Claim Record', icon: 'fa-pen', action: () => this.editClaimRecord(clm) } : null,
+                this.canDelete ? { label: 'Delete Claim Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord({ ...clm, isClaim: true }) } : null
             ];
         },
         voucherRowMenuItems(pv) {
             return [
                 { label: 'View Voucher Record', icon: 'fa-eye', action: () => this.viewClaimRecord(pv) },
-                this.canEditPaymentVoucher(pv) ? { label: 'Edit Voucher Record', icon: 'fa-pen', action: () => this.editPaymentVoucher(pv) } : null
+                this.canEditPaymentVoucher(pv) ? { label: 'Edit Voucher Record', icon: 'fa-pen', action: () => this.editPaymentVoucher(pv) } : null,
+                this.canDelete ? { label: 'Delete Voucher Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord({ ...pv, isVoucher: true }) } : null
             ];
         },
         recentActivityMenuItems(item) {
             return [
                 { label: 'View Record', icon: 'fa-eye', action: () => (item.isClaim || item.isVoucher) ? this.viewClaimRecord(item) : this.viewRecord(item) },
                 ((item.isDoc && this.canManageDocuments) || (item.isPay && this.canManagePayroll)) ? { label: 'Edit Record', icon: 'fa-pen', action: () => this.editRecord(item) } : null,
-                ((item.isDoc && this.canDeleteDocuments) || (item.isPay && this.canDeletePayroll)) ? { label: 'Delete Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord(item) } : null
+                ((item.isDoc && this.canDeleteDocuments) || (item.isPay && this.canDeletePayroll) || ((item.isClaim || item.isVoucher) && this.canDelete)) ? { label: 'Delete Record', icon: 'fa-trash', danger: true, action: () => this.confirmDeleteRecord(item) } : null
             ];
         },
         clientDirectoryRowMenuItems(cust) {

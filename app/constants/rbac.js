@@ -60,16 +60,19 @@ export const FULL_ACCESS_ROLES = ['Superadmin', 'Director'];
 //   all       — roles that may do it to any record
 //   own       — roles that may do it only to records they created, or a
 //               project they are Person In Charge of
-//   where     — when the control does not live on the module's own screen
 //
 // Every entry is checked against the gates the screens actually use by
 // tests/module-actions.test.js, so this table cannot quietly drift from them.
 const STAFF_ROLES = ['Director', 'Superadmin', 'HR', 'Account', 'IT', 'Staff'];
 export const MODULE_ACTIONS = {
-    'dashboard': { edit: null, remove: null, note: 'Acts on records that belong to other modules — invoices, payslips, activities — so those rights are listed against their own modules.' },
+    'dashboard': {
+        edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'Recent Activity and the billing queue act on invoices, payslips, claims and vouchers. Finance can also delete invoices and quotations here.',
+    },
     'client-task': {
         edit: { all: FULL_ACCESS_ROLES },
-        remove: { all: FULL_ACCESS_ROLES, where: 'right-click a Client Task' },
+        remove: { all: FULL_ACCESS_ROLES },
     },
     'project-activities': {
         edit: { all: FULL_ACCESS_ROLES, own: ['HR', 'Account', 'IT', 'Staff'] },
@@ -78,17 +81,17 @@ export const MODULE_ACTIONS = {
     },
     'doc-generator': {
         edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
-        remove: { all: ['Director', 'Superadmin', 'Account'], where: 'Dashboard — Recent Activity and the billing queue' },
+        remove: { all: ['Director', 'Superadmin', 'Account'] },
         note: 'Quotations, invoices and Client Information. Only invoices and quotations can be deleted.',
     },
     'payslip-generator': {
         edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
-        remove: { all: FULL_ACCESS_ROLES, where: 'Dashboard — Recent Activity' },
+        remove: { all: FULL_ACCESS_ROLES },
     },
     'claims': {
-        edit: { own: ['Director', 'Superadmin', 'HR', 'Account', 'Staff'] },
-        remove: null,
-        note: 'Submitters edit their own claim while it is Pending HR. Approval moves it on; nothing deletes one.',
+        edit: { all: FULL_ACCESS_ROLES, own: ['HR', 'Account', 'Staff'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'Submitters edit their own claim while it is Pending HR. Superadmin and Director correct any claim at any stage — recorded, and never in the same step as an approval.',
     },
     'client-directory': {
         edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
@@ -110,7 +113,7 @@ export const MODULE_ACTIONS = {
     'audit-logs': {
         edit: { all: ['Director', 'Superadmin', 'IT'] },
         remove: null,
-        note: 'Only the retention period can be changed. Log entries themselves can never be edited or deleted.',
+        note: 'Only the retention period can be changed. Entries can never be edited or deleted — not even by Superadmin — or the log could not show what an administrator did.',
     },
     'settings': {
         edit: { all: ['Director', 'Superadmin', 'IT'] },

@@ -329,6 +329,26 @@ service cloud.firestore {
       return request.resource.data.amount == resource.data.amount;
     }
 
+    // Superadmin and Director may correct any claim or payment voucher, at any
+    // stage — including its amount. What keeps that from undoing the rule
+    // above is that a correction is a write of its own: the status cannot move
+    // in it, so a figure is never changed inside the same write that approves
+    // it, and the edit is stamped with who made it (the portal also records it
+    // in the audit log). Approval and correction stay two separate acts, each
+    // with its own trail.
+    function isAdminClaimCorrection() {
+      return isAdmin() &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.lastEditedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
+          'empNo', 'empEmail', 'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose',
+          'category', 'subCategory', 'amount', 'receiptNo', 'description',
+          'receiptAttachment', 'receiptAttachmentName', 'receiptAttachmentOriginalBytes',
+          'lastEditedByUid', 'lastEditedByName', 'lastEditedAt'
+        ]);
+    }
+
     // The company profile is the letterhead: clients read it on the support
     // page, staff print it onto quotations and invoices. Every signed-in
     // session may read that one document; the rest of this collection, such
@@ -606,7 +626,7 @@ service cloud.firestore {
           (isStaff() && request.resource.data.empEmail == request.auth.token.email) ||
           isAdmin() || isHR() || isAccount()
         );
-      allow update: if (
+      allow update: if isAdminClaimCorrection() || (
         (isAdmin() || isHR()) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'position', 'dept', 'empEmail'
@@ -665,7 +685,7 @@ service cloud.firestore {
           isHR() || isAccount()
         ))
       );
-      allow update: if (
+      allow update: if isAdminClaimCorrection() || (
         (isAdmin() || isHR()) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'position', 'dept', 'empEmail'

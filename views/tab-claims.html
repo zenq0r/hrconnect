@@ -316,6 +316,9 @@
                                              <button v-if="canEditClaim(clm)" type="button" @click="editClaimRecord(clm)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Claim Record">
                                                  <i class="fa-solid fa-pen"></i>
                                              </button>
+                                             <button v-if="canDelete" type="button" @click="confirmDeleteRecord({ ...clm, isClaim: true })" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Claim Record" aria-label="Delete Claim Record">
+                                                 <i class="fa-solid fa-trash"></i>
+                                             </button>
                                              </div>
                                          </td>
                                     </tr>
@@ -435,6 +438,9 @@
                                              </button>
                                              <button v-if="canEditPaymentVoucher(pv)" type="button" @click="editPaymentVoucher(pv)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit Voucher Record">
                                                  <i class="fa-solid fa-pen"></i>
+                                             </button>
+                                             <button v-if="canDelete" type="button" @click="confirmDeleteRecord({ ...pv, isVoucher: true })" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Voucher Record" aria-label="Delete Voucher Record">
+                                                 <i class="fa-solid fa-trash"></i>
                                              </button>
                                              </div>
                                          </td>

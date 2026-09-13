@@ -375,15 +375,45 @@ export const billingMethods = {
         canDeleteBillingDocument(item) {
             return this.canDeleteBillingDocuments && ['Invoice', 'Quotation'].includes(item?.type);
         },
+        // The one delete for billing documents, payslips, claims and payment
+        // vouchers, wherever the button is. Returns whether a record was deleted,
+        // so a screen that had the record open can clear itself.
         async confirmDeleteRecord(item) {
             const canDeleteThisRecord = item?.isDoc ? this.canDeleteBillingDocument(item) : this.canDelete;
-            if (!canDeleteThisRecord) { this.showNotify(item?.isDoc ? 'Only Director, Finance or Superadmin can delete invoices and quotations.' : 'Only Superadmin and Director can delete records.'); return; }
+            if (!canDeleteThisRecord) { this.showNotify(item?.isDoc ? 'Only Director, Finance or Superadmin can delete invoices and quotations.' : 'Only Superadmin and Director can delete records.'); return false; }
+            const kind = item.isDoc ? (item.type || 'Document') : item.isPay ? 'Payslip' : item.isVoucher ? 'Payment voucher' : item.isClaim ? 'Expense claim' : 'Record';
+            const reference = item.docNo || item.receiptNo || item.payeeName || item.fileName || item.name || item.id;
             if (!await this.askConfirm({
-                title: 'Delete record?',
-                message: `${item.docNo || item.fileName || 'This record'} will be permanently deleted. This action cannot be undone.`,
+                title: `Delete ${kind.toLowerCase()}?`,
+                message: `${kind} ${reference || ''} will be permanently deleted. This action cannot be undone.`,
                 confirmLabel: 'Yes, Delete Record',
                 danger: true
-            })) return;
-            try { if (item.isDoc) await deleteDoc(doc(db, "docs", item.id)); else if (item.isPay) await deleteDoc(doc(db, "payslips", item.id)); else if (item.isVoucher) await deleteDoc(doc(db, "payment_vouchers", item.id)); else if (item.isClaim) await deleteDoc(doc(db, "claims", item.id)); this.showNotify('Record deleted.'); } catch (error) { console.error('Record deletion failed:', error); this.showNotify('Unable to delete record.'); }
+            })) return false;
+            const collectionName = item.isDoc ? 'docs' : item.isPay ? 'payslips' : item.isVoucher ? 'payment_vouchers' : item.isClaim ? 'claims' : '';
+            if (!collectionName || !item.id) { this.showNotify('Unable to delete record.', 'error'); return false; }
+            try {
+                await deleteDoc(doc(db, collectionName, String(item.id)));
+                // Deleting a financial record is exactly what the audit trail is for.
+                this.logAudit('DELETE', `Deleted ${kind.toLowerCase()} ${reference}${item.name && item.name !== reference ? ` (${item.name})` : ''}${Number.isFinite(Number(item.amount)) ? `, ${this.formatCurrency(Number(item.amount))}` : ''}.`);
+                if (this.claimPreview?.show && String(this.claimPreview.claim?.id) === String(item.id)) this.claimPreview.show = false;
+                this.showNotify('Record deleted.');
+                return true;
+            } catch (error) {
+                console.error('Record deletion failed:', error);
+                this.showNotify('Unable to delete record.', 'error');
+                return false;
+            }
+        },
+        // Delete the saved quotation or invoice that is open on its own screen.
+        async deleteOpenDocument() {
+            if (!this.editingDocId) return;
+            const deleted = await this.confirmDeleteRecord({ isDoc: true, id: this.editingDocId, type: this.docForm.type, docNo: this.docForm.docNo, name: this.docForm.clientName, amount: this.docGrandTotal });
+            if (deleted) { this.editingDocId = null; this.resetAllForms(); }
+        },
+        // Delete the saved payslip that is open on its own screen.
+        async deleteOpenPayslip() {
+            if (!this.editingPayId) return;
+            const deleted = await this.confirmDeleteRecord({ isPay: true, id: this.editingPayId, docNo: `PS-${this.currentYear}-${this.payForm.empNo}`, name: this.payForm.name, amount: this.payCalc?.net });
+            if (deleted) { this.editingPayId = null; this.resetAllForms(); }
         }
 };
