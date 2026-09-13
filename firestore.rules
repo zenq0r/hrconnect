@@ -293,46 +293,109 @@ service cloud.firestore {
     }
 
     // ---- Payslips ----
-    // EPF is charged on the fixed wage; SOCSO and EIS add overtime and stop at
-    // the RM6,000 ceiling. An employee past the statutory retirement age pays
-    // none of the three (the employer still contributes, which is not a figure
-    // this document carries).
+    // Contributions are checked against the published schedules — EPF Third
+    // Schedule Parts A and E, PERKESO Act 4 (with LINDUNG 24 Jam from June 2026)
+    // and EIS Act 800 — not against their headline percentages, which differ
+    // from what is actually remitted on most salaries. app/constants/statutory.js
+    // holds the tables in full; the rules engine evaluates at most 1,000
+    // expressions per request, so here the first six bands are listed and every
+    // later band is worked out the way those tables are (tests/rules/
+    // payroll.rules.test.js writes a payslip in every band to prove they agree).
+    //
+    // EPF is charged on the fixed wage and bonus; SOCSO and EIS add overtime.
     function payslipEpfWages(raw) {
       return figure(raw, 'basic') + figure(raw, 'phone') + figure(raw, 'transport') +
         figure(raw, 'meal') + figure(raw, 'bonus');
     }
 
-    function payslipGross(raw) {
-      return payslipEpfWages(raw) + figure(raw, 'ot');
-    }
-
-    function payslipCappedWages(raw) {
-      return payslipGross(raw) > 6000 ? 6000 : payslipGross(raw);
-    }
-
-    function payslipIsSenior(raw) {
-      return raw.get('isSenior', false) == true;
-    }
-
     function payslipDeductions(raw) {
-      return figure(raw, 'dedEpf') + figure(raw, 'dedSocso') + figure(raw, 'dedEis') +
+      return figure(raw, 'dedEpf') + figure(raw, 'dedSocso') + figure(raw, 'dedSkbbk') + figure(raw, 'dedEis') +
         figure(raw, 'dedPcb') + figure(raw, 'dedAdvance') + figure(raw, 'dedOther');
     }
 
-    function payslipStatutoryCorrect(raw) {
-      return centsMatch(cents(figure(raw, 'dedEpf')), cents(math.round(payslipEpfWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.11)))) &&
-        centsMatch(cents(figure(raw, 'dedSocso')), cents(payslipCappedWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.005))) &&
-        centsMatch(cents(figure(raw, 'dedEis')), cents(payslipCappedWages(raw) * (payslipIsSenior(raw) ? 0.0 : 0.002)));
+    function wagesInSen(value) {
+      return math.round(value * 100.0);
+    }
+
+    // EPF bands run RM20 wide to RM5,000 and RM100 wide to RM20,000; a share is
+    // the rate on the band's upper limit, rounded up to the next ringgit. Above
+    // RM20,000 it is the rate on the wages themselves.
+    function epfBandUpperInSen(sen) {
+      return sen <= 500000 ? math.ceil(sen / 2000.0) * 2000 : (sen <= 2000000 ? math.ceil(sen / 10000.0) * 10000 : sen);
+    }
+
+    // Part A: 11%. Part E (60 and above): nothing from the employee.
+    function epfEmployeeSen(epfSen, senior) {
+      return (senior || epfSen <= 1000) ? 0 : math.ceil(epfBandUpperInSen(epfSen) * 11 / 10000.0) * 100;
+    }
+
+    // PERKESO and EIS bands: to RM30, 50, 70, 100, 140, 200 (0-5), then RM100
+    // wide to RM6,000 (6-63); above RM6,000 contributes as RM6,000 does.
+    function perkesoBand(sen) {
+      return sen <= 3000 ? 0 : (sen <= 5000 ? 1 : (sen <= 7000 ? 2 : (sen <= 10000 ? 3 : (sen <= 14000 ? 4 :
+        (sen <= 20000 ? 5 : (sen > 590000 ? 63 : 5 + math.ceil((sen - 20000) / 10000.0)))))));
+    }
+
+    // From band 6 the tables charge each rate on the band's midpoint, in ringgit.
+    function perkesoMidpoint(band) {
+      return 250 + 100 * (band - 6);
+    }
+
+    // Act 4, employee, Invalidity Scheme (0.5%). Nothing from 60.
+    function socsoInvaliditySen(band) {
+      return band < 6 ? [10, 20, 30, 40, 60, 85][band] : perkesoMidpoint(band) / 2;
+    }
+
+    // Act 4, employee, Non-Employment Injury Scheme — LINDUNG 24 Jam, first
+    // phase 0.75% — which PERKESO rounds down to ten sen and adds five.
+    function skbbkSen(band) {
+      return band < 6 ? [20, 30, 50, 65, 90, 125][band] : math.floor(perkesoMidpoint(band) * 75 / 1000.0) * 10 + 5;
+    }
+
+    // Act 800, employee (0.2%). Nothing from 60.
+    function eisSen(band) {
+      return band < 6 ? [5, 10, 15, 20, 25, 35][band] : perkesoMidpoint(band) / 5;
+    }
+
+    // LINDUNG 24 Jam: from the 2026-06 contribution month to 2028-05 (the
+    // published first phase), no age limit, not for an employee who opted out.
+    function skbbkApplies(raw, month) {
+      return raw.get('skbbkOptedOut', false) != true && month >= '2026-06' && month <= '2028-05';
+    }
+
+    function payslipScheduleAgrees(raw, epfSen, grossSen) {
+      let senior = raw.get('isSenior', false) == true;
+      let month = raw.get('month', '') is string ? raw.get('month', '') : '';
+      let band = perkesoBand(grossSen);
+      return month <= '2028-05' &&
+        centsMatch(wagesInSen(figure(raw, 'dedEpf')), epfEmployeeSen(epfSen, senior)) &&
+        centsMatch(wagesInSen(figure(raw, 'dedSocso')), (senior || grossSen <= 0) ? 0 : socsoInvaliditySen(band)) &&
+        centsMatch(wagesInSen(figure(raw, 'dedSkbbk')), (grossSen > 0 && skbbkApplies(raw, month)) ? skbbkSen(band) : 0) &&
+        centsMatch(wagesInSen(figure(raw, 'dedEis')), (senior || grossSen <= 0) ? 0 : eisSen(band));
+    }
+
+    // Figures entered by hand — a voluntary higher EPF rate, a foreign worker,
+    // a month whose table is not published here yet — carry the reason, which
+    // the portal also writes to the audit log.
+    function payslipManualContributionsRecorded(raw) {
+      return raw.get('statutoryOverrideReason', '') is string &&
+        raw.get('statutoryOverrideReason', '').size() >= 5 &&
+        figure(raw, 'dedEpf') >= 0 && figure(raw, 'dedSocso') >= 0 &&
+        figure(raw, 'dedSkbbk') >= 0 && figure(raw, 'dedEis') >= 0;
     }
 
     // Net pay is deliberately NOT required to be positive. It is already pinned
     // to gross minus its own deductions, and a month where a repayment or an
     // advance swallows the salary is a real thing a payroll has to record.
     function payslipFiguresConsistent(data) {
-      return data.raw is map &&
-        payslipStatutoryCorrect(data.raw) &&
-        centsMatch(cents(figure(data, 'amount')), cents(payslipGross(data.raw) - payslipDeductions(data.raw))) &&
-        figure(data.raw, 'basic') >= 0;
+      let raw = data.raw;
+      let epfWages = payslipEpfWages(raw);
+      let gross = epfWages + figure(raw, 'ot');
+      return (raw.get('statutoryOverride', false) == true
+          ? payslipManualContributionsRecorded(raw)
+          : payslipScheduleAgrees(raw, wagesInSen(epfWages), wagesInSen(gross))) &&
+        centsMatch(cents(figure(data, 'amount')), cents(gross - payslipDeductions(raw))) &&
+        figure(raw, 'basic') >= 0;
     }
 
     // Same easing as billing: a payslip filed before this rule existed keeps

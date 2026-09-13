@@ -1,77 +1,109 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readSource, methodSource, constantSource } = require('./helpers/sources');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const { readSource, methodSource } = require('./helpers/sources');
 
 const rules = () => readSource('firestore.rules');
 
 // The browser works out SST, EPF, SOCSO and EIS, and firestore.rules re-derives
-// every one of them before the write is allowed to land. Two copies of the same
-// arithmetic is the price of enforcing it server-side — these tests exist so the
-// copies cannot drift apart silently. A rate changed in one place and not the
-// other would not look like a bug: the portal would simply refuse to save a
-// payslip, with no explanation of why.
+// every one of them before the write is allowed to land. These tests pin the
+// portal's copy to the published schedules; tests/rules/payroll.rules.test.js
+// sends a payslip in every band to the rules engine to pin the rules' copy.
 
-function statutory() {
-    return new Function(`${constantSource('STATUTORY_RATES')} return STATUTORY_RATES;`)();
+const statutory = () => import(pathToFileURL(path.join(__dirname, '..', 'app', 'constants', 'statutory.js')).href);
+
+async function payroll(input) {
+    const tables = await statutory();
+    const self = { payForm: { month: '2026-09', ...input }, payCalc: {} };
+    const methods = new Function('epfContribution', 'socsoContribution', 'eisContribution', 'skbbkTableCovers',
+        `return { ${methodSource('autoCalculatePayroll')} };`)(tables.epfContribution, tables.socsoContribution, tables.eisContribution, tables.skbbkTableCovers);
+    methods.autoCalculatePayroll.call(self);
+    return { form: self.payForm, calc: self.payCalc };
 }
 
-function payroll(input) {
-    const calc = new Function(`
-        ${constantSource('STATUTORY_RATES')}
-        const self = { payForm: ${JSON.stringify(input)}, payCalc: {} };
-        const methods = { ${methodSource('autoCalculatePayroll')} };
-        methods.autoCalculatePayroll.call(self);
-        return { form: self.payForm, calc: self.payCalc };
-    `)();
-    return calc;
-}
+test('the contribution tables are the published schedules', async () => {
+    const { epfContribution, socsoContribution, eisContribution, SOCSO_TABLE, EIS_TABLE } = await statutory();
 
-test('the statutory rates in the rules are the statutory rates in the portal', () => {
+    // EPF Third Schedule, Part A (below 60) — a row from each stretch of the table.
+    for (const [wages, employer, employee] of [
+        [15, 3, 3], [100, 13, 11], [210, 29, 25], [1010, 133, 113], [3000, 390, 330],
+        [3010, 393, 333], [5000, 650, 550], [5050, 612, 561], [5950, 720, 660], [20000, 2400, 2200],
+    ]) {
+        assert.deepEqual(epfContribution(wages), { employer, employee }, `EPF Part A at RM${wages}`);
+    }
+    // Part E (Malaysian citizens aged 60 and above): employer 4%, employee nothing.
+    for (const [wages, employer] of [[15, 1], [100, 4], [210, 9], [3010, 121], [5050, 204], [20000, 800]]) {
+        assert.deepEqual(epfContribution(wages, { senior: true }), { employer, employee: 0 }, `EPF Part E at RM${wages}`);
+    }
+    // A bonus lifting a RM5,000-or-less wage over RM5,000 keeps the 13% employer rate.
+    assert.equal(epfContribution(5500, { baseWages: 4800 }).employer, 715);
+
+    // PERKESO Act 4 including LINDUNG 24 Jam: 65 bands, the last two the same.
+    assert.equal(SOCSO_TABLE.length, 65);
+    assert.deepEqual(SOCSO_TABLE[34], [53.35, 15.25, 22.85, 38.10], 'RM3,000.01-RM3,100.00');
+    assert.deepEqual(SOCSO_TABLE[63], SOCSO_TABLE[64], 'above RM6,000 contributes as RM6,000');
+    assert.deepEqual(socsoContribution(3010, { month: '2026-09' }), { employer: 53.35, invalidity: 15.25, skbbk: 22.85 });
+    assert.deepEqual(socsoContribution(3010, { month: '2026-05' }), { employer: 53.35, invalidity: 15.25, skbbk: 0 }, 'before June 2026');
+    assert.deepEqual(socsoContribution(3010, { month: '2026-09', skbbkOptedOut: true }).skbbk, 0, 'opted out');
+    assert.deepEqual(socsoContribution(7000, { month: '2026-09', senior: true }), { employer: 74.40, invalidity: 0, skbbk: 44.65 }, 'Second Category');
+
+    // EIS Act 800: 65 bands, nothing from 60.
+    assert.equal(EIS_TABLE.length, 65);
+    assert.deepEqual(eisContribution(3010), { employer: 6.10, employee: 6.10 });
+    assert.deepEqual(eisContribution(9000), { employer: 11.90, employee: 11.90 });
+    assert.deepEqual(eisContribution(3010, { senior: true }), { employer: 0, employee: 0 });
+
+    // From band 7 the published amounts follow each rate on the band midpoint;
+    // that is what the rules compute, so every row here is held to it.
+    for (let band = 6; band < 64; band++) {
+        const mid = 250 + 100 * (band - 6);
+        const [, invalidity, skbbk] = SOCSO_TABLE[band];
+        assert.equal(Math.round(invalidity * 100), mid / 2, `invalidity, band ${band}`);
+        assert.equal(Math.round(skbbk * 100), Math.floor((mid * 75) / 1000) * 10 + 5, `LINDUNG 24 Jam, band ${band}`);
+        assert.equal(Math.round(EIS_TABLE[band] * 100), mid / 5, `EIS, band ${band}`);
+    }
+    // And the first six bands the rules list outright.
     const source = rules();
-    const rates = statutory().regular;
-
-    // Each of these appears in payslipStatutoryCorrect() as the multiplier the
-    // stored deduction is checked against.
-    assert.match(source, new RegExp(`: ${rates.epf.employeePct}\\)\\)`), `EPF must be checked at ${rates.epf.employeePct}`);
-    assert.match(source, new RegExp(`: ${rates.socso.employeePct}\\)\\)`), `SOCSO must be checked at ${rates.socso.employeePct}`);
-    assert.match(source, new RegExp(`: ${rates.eis.employeePct}\\)\\)`), `EIS must be checked at ${rates.eis.employeePct}`);
-    // One ceiling covers both SOCSO and EIS.
-    assert.equal(rates.socso.wageCap, rates.eis.wageCap);
-    assert.match(source, new RegExp(`> ${rates.socso.wageCap} \\? ${rates.socso.wageCap}`), 'the wage ceiling must match');
+    assert.match(source, /\[10, 20, 30, 40, 60, 85\]\[band\]/);
+    assert.match(source, /\[20, 30, 50, 65, 90, 125\]\[band\]/);
+    assert.match(source, /\[5, 10, 15, 20, 25, 35\]\[band\]/);
+    assert.deepEqual(SOCSO_TABLE.slice(0, 6).map(row => Math.round(row[1] * 100)), [10, 20, 30, 40, 60, 85]);
+    assert.deepEqual(SOCSO_TABLE.slice(0, 6).map(row => Math.round(row[2] * 100)), [20, 30, 50, 65, 90, 125]);
+    assert.deepEqual(EIS_TABLE.slice(0, 6).map(value => Math.round(value * 100)), [5, 10, 15, 20, 25, 35]);
 
     // SST is 8% in the browser and 8% in the rules.
     assert.match(readSource('app/computed/billing.js'), /docSST\(\) \{ return this\.docSubtotal \* 0\.08; \}/);
     assert.match(source, /figure\(data, 'subtotal'\) \* 0\.08/);
 });
 
-test('a payslip the portal produces satisfies the rule that guards it', () => {
+test('a payslip the portal produces carries the schedule figures', async () => {
     const cases = [
         { basic: 4000, ot: 0, phone: 100, transport: 200, meal: 0, bonus: 0, isSenior: false, dedPcb: 120, dedAdvance: 0, dedOther: 0 },
         { basic: 9000, ot: 500, phone: 0, transport: 0, meal: 0, bonus: 2000, isSenior: false, dedPcb: 900, dedAdvance: 100, dedOther: 50 },
         { basic: 1500, ot: 0, phone: 0, transport: 0, meal: 0, bonus: 0, isSenior: false, dedPcb: 0, dedAdvance: 0, dedOther: 0 },
         { basic: 6200, ot: 300, phone: 0, transport: 0, meal: 0, bonus: 0, isSenior: true, dedPcb: 0, dedAdvance: 0, dedOther: 0 },
     ];
-    const rates = statutory();
+    const { epfContribution, socsoContribution, eisContribution } = await statutory();
     const cents = (value) => Math.round(value * 100);
 
     for (const input of cases) {
-        const { form, calc } = payroll(input);
-        const rate = input.isSenior ? rates.senior : rates.regular;
+        const { form, calc } = await payroll(input);
+        const epfWages = input.basic + input.phone + input.transport + input.meal + input.bonus;
+        const gross = epfWages + input.ot;
+        assert.equal(form.dedEpf, epfContribution(epfWages, { senior: input.isSenior }).employee, `EPF for ${JSON.stringify(input)}`);
+        const socso = socsoContribution(gross, { senior: input.isSenior, month: '2026-09' });
+        assert.equal(form.dedSocso, socso.invalidity, 'SOCSO');
+        assert.equal(form.dedSkbbk, socso.skbbk, 'LINDUNG 24 Jam');
+        assert.equal(form.dedEis, eisContribution(gross, { senior: input.isSenior }).employee, 'EIS');
 
-        // Exactly what payslipStatutoryCorrect() recomputes, written out the way
-        // the rules write it rather than the way autoCalculatePayroll does.
-        const epfWages = form.basic + form.phone + form.transport + form.meal + form.bonus;
-        const gross = epfWages + form.ot;
-        const capped = gross > rate.socso.wageCap ? rate.socso.wageCap : gross;
-
-        assert.equal(cents(form.dedEpf), cents(Math.round(epfWages * rate.epf.employeePct)), `EPF for ${JSON.stringify(input)}`);
-        assert.ok(Math.abs(cents(form.dedSocso) - cents(capped * rate.socso.employeePct)) <= 1, 'SOCSO');
-        assert.ok(Math.abs(cents(form.dedEis) - cents(capped * rate.eis.employeePct)) <= 1, 'EIS');
-
-        // And the net figure the payslip is filed under.
-        const deductions = form.dedEpf + form.dedSocso + form.dedEis + form.dedPcb + form.dedAdvance + form.dedOther;
-        assert.ok(Math.abs(cents(calc.net) - cents(gross - deductions)) <= 1, 'net pay');
+        const deductions = form.dedEpf + form.dedSocso + form.dedSkbbk + form.dedEis + form.dedPcb + form.dedAdvance + form.dedOther;
+        assert.equal(cents(calc.net), cents(gross - deductions), 'net pay');
     }
+
+    // Figures entered by hand are kept as typed.
+    const { form } = await payroll({ basic: 3010, statutoryOverride: true, dedEpf: 400, dedSocso: 15.25, dedSkbbk: 0, dedEis: 6.1 });
+    assert.equal(form.dedEpf, 400);
 });
 
 test('a payslip is saved from the inputs, not from whatever was last calculated', () => {

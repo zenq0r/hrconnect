@@ -7,7 +7,7 @@ import {
     updateDoc,
     deleteDoc
 } from "../../firebase-config.js";
-import { STATUTORY_RATES } from "../constants/statutory.js";
+import { epfContribution, socsoContribution, eisContribution, skbbkTableCovers } from "../constants/statutory.js";
 
 // The records confirmDeleteRecord() removes, keyed by the flag the lists put on
 // each row. Checked in this order, the same order the lists were written in.
@@ -236,13 +236,26 @@ export const billingMethods = {
                 // rather than whatever the last keystroke happened to leave in
                 // payCalc.
                 this.autoCalculatePayroll();
+                if (this.payForm.statutoryOverride && String(this.payForm.statutoryOverrideReason || '').trim().length < 5) {
+                    this.showNotify('Give the reason the statutory contributions were entered by hand.', 'error'); return;
+                }
+                if (!this.payForm.statutoryOverride && !this.payCalc.skbbkTableCovers) {
+                    this.showNotify('The LINDUNG 24 Jam rate for this month is not in the portal yet. Enter the statutory contributions by hand from the PERKESO table.', 'error'); return;
+                }
                 const normalizedPayForm = this.normalizeOfficialRecord(this.payForm);
                 normalizedPayForm.empEmail = String(this.payForm.empEmail || '').trim().toLowerCase();
                 Object.assign(this.payForm, normalizedPayForm);
                 const docId = String(this.editingPayId || Date.now());
-                const payload = { id: docId, type: 'Payslip', docNo: `PS-${this.currentYear}-${this.payForm.empNo}`, date: this.payForm.payDate, name: this.payForm.name, amount: this.payCalc.net, raw: JSON.parse(JSON.stringify(this.payForm)) };
+                const payload = { id: docId, type: 'Payslip', docNo: this.payslipNumber(this.payForm), date: this.payForm.payDate, name: this.payForm.name, amount: this.payCalc.net, raw: JSON.parse(JSON.stringify(this.payForm)) };
                 await setDoc(doc(db, "payslips", docId), payload, { merge: true }); this.editingPayId = null; this.showNotify(`Payslip saved.`);
+                if (payload.raw.statutoryOverride) this.logAudit('UPDATE', `Payslip ${payload.docNo} for ${payload.name} saved with statutory contributions entered by hand: ${payload.raw.statutoryOverrideReason}`);
             } catch (error) { console.error('Payslip save failed:', error); this.showNotify('Unable to save payslip.'); }
+        },
+        // One number per employee per pay month. It was PS-<year>-<employee>, the
+        // same for all twelve payslips of a year.
+        payslipNumber(form) {
+            const month = String(form?.month || form?.payDate || '').slice(0, 7).replace('-', '') || String(this.currentYear);
+            return `PS-${month}-${form?.empNo || 'ZEN-0000000'}`;
         },
         addDocItem() { this.docForm.items.push({ desc: '', qty: 1, price: 0 }); },
         removeDocItem(idx) { this.docForm.items.splice(idx, 1); },
@@ -262,23 +275,34 @@ export const billingMethods = {
             this.docForm.docNo = `${prefix}-${this.currentYear}-${String(maxNum + 1).padStart(5, '0')}`;
         },
 
+        // Contributions come from the published schedules in
+        // app/constants/statutory.js, the same tables firestore.rules checks a
+        // saved payslip against. A manual entry — a voluntary higher EPF rate, a
+        // foreign worker, a month whose LINDUNG 24 Jam table the portal does not
+        // have yet — keeps the figures as typed, with the reason the rules require.
         autoCalculatePayroll() {
-            const rates = this.payForm.isSenior ? STATUTORY_RATES.senior : STATUTORY_RATES.regular;
-            let epfWages = (Number(this.payForm.basic)||0) + (Number(this.payForm.phone)||0) + (Number(this.payForm.transport)||0) + (Number(this.payForm.meal)||0) + (Number(this.payForm.bonus)||0);
-            let socsoWages = epfWages + (Number(this.payForm.ot)||0);
-            let gross = socsoWages;
-            let epfEmp = Math.round(epfWages * rates.epf.employeePct);
-            let epfEmpr = Math.round(epfWages * (epfWages <= rates.epf.threshold ? rates.epf.employerPctBelow5k : rates.epf.employerPctAbove5k));
-            let capSocso = Math.min(socsoWages, rates.socso.wageCap);
-            let socsoEmp = Math.round(capSocso * rates.socso.employeePct * 100) / 100;
-            let socsoEmpr = Math.round(capSocso * rates.socso.employerPct * 100) / 100;
-            let capEis = Math.min(socsoWages, rates.eis.wageCap);
-            let eisEmp = Math.round(capEis * rates.eis.employeePct * 100) / 100;
-            let eisEmpr = Math.round(capEis * rates.eis.employerPct * 100) / 100;
-            this.payForm.dedEpf = epfEmp; this.payForm.dedSocso = socsoEmp; this.payForm.dedEis = eisEmp;
-            let deduct = epfEmp + socsoEmp + eisEmp + (Number(this.payForm.dedPcb)||0) + (Number(this.payForm.dedAdvance)||0) + (Number(this.payForm.dedOther)||0);
-            let net = gross - deduct;
-            this.payCalc = { gross, deduct, net, epfEmpr, socsoEmpr, eisEmpr };
+            const form = this.payForm;
+            const amount = key => Number(form[key]) || 0;
+            const baseWages = amount('basic') + amount('phone') + amount('transport') + amount('meal');
+            const epfWages = baseWages + amount('bonus');
+            const gross = epfWages + amount('ot');
+            const senior = Boolean(form.isSenior);
+            const epf = epfContribution(epfWages, { senior, baseWages });
+            const socso = socsoContribution(gross, { senior, month: form.month, skbbkOptedOut: Boolean(form.skbbkOptedOut) });
+            const eis = eisContribution(gross, { senior });
+            if (!form.statutoryOverride) {
+                form.dedEpf = epf.employee;
+                form.dedSocso = socso.invalidity;
+                form.dedSkbbk = socso.skbbk;
+                form.dedEis = eis.employee;
+            }
+            const deduct = amount('dedEpf') + amount('dedSocso') + amount('dedSkbbk') + amount('dedEis') + amount('dedPcb') + amount('dedAdvance') + amount('dedOther');
+            const sen = value => Math.round(value * 100) / 100;
+            this.payCalc = {
+                gross: sen(gross), deduct: sen(deduct), net: sen(gross - deduct),
+                epfEmpr: epf.employer, socsoEmpr: socso.employer, eisEmpr: eis.employer,
+                skbbkTableCovers: skbbkTableCovers(form.month)
+            };
         },
         async viewRecord(item) {
             const previewItem = JSON.parse(JSON.stringify(item));
@@ -431,7 +455,7 @@ export const billingMethods = {
         // Delete the saved payslip that is open on its own screen.
         async deleteOpenPayslip() {
             if (!this.editingPayId) return;
-            const deleted = await this.confirmDeleteRecord({ isPay: true, id: this.editingPayId, docNo: `PS-${this.currentYear}-${this.payForm.empNo}`, name: this.payForm.name, amount: this.payCalc?.net });
+            const deleted = await this.confirmDeleteRecord({ isPay: true, id: this.editingPayId, docNo: this.payslipNumber(this.payForm), name: this.payForm.name, amount: this.payCalc?.net });
             if (deleted) { this.editingPayId = null; this.resetAllForms(); }
         }
 };

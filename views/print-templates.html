@@ -234,7 +234,7 @@
                     <div class="payslip-title">
                         <h2>PAYSLIP</h2>
                         <p>Month: <strong>{{ payForm.month }}</strong></p>
-                        <p>Payslip No.: <strong>PS-{{ currentYear }}-{{ payForm.empNo || 'ZEN-0000000' }}</strong></p>
+                        <p>Payslip No.: <strong>{{ payslipNumber(payForm) }}</strong></p>
                         <p>Payment Date: <strong>{{ payForm.payDate }}</strong></p>
                     </div>
                 </div>
@@ -277,8 +277,9 @@
                         <table class="calc-table">
                             <thead><tr><th colspan="2">EMPLOYEE DEDUCTIONS</th></tr></thead>
                             <tbody>
-                                <tr><td>Employee EPF {{ payForm.isSenior ? '(0%)' : '(11%)' }}</td><td class="amount">{{ formatCurrency(payForm.dedEpf) }}</td></tr>
+                                <tr><td>Employee EPF</td><td class="amount">{{ formatCurrency(payForm.dedEpf) }}</td></tr>
                                 <tr><td>Employee SOCSO</td><td class="amount">{{ formatCurrency(payForm.dedSocso) }}</td></tr>
+                                <tr v-if="payForm.dedSkbbk"><td>LINDUNG 24 Jam (SKBBK)</td><td class="amount">{{ formatCurrency(payForm.dedSkbbk) }}</td></tr>
                                 <tr><td>Employee EIS</td><td class="amount">{{ formatCurrency(payForm.dedEis) }}</td></tr>
                                 <tr v-if="payForm.dedPcb"><td>MTD / PCB (Tax)</td><td class="amount">{{ formatCurrency(payForm.dedPcb) }}</td></tr>
                                 <tr v-if="payForm.dedAdvance"><td>Advance / Loan</td><td class="amount">{{ formatCurrency(payForm.dedAdvance) }}</td></tr>
@@ -300,6 +301,7 @@
                                 <tbody>
                                     <tr><td>EPF</td><td class="amount">{{ formatCurrency(payForm.dedEpf) }}</td><td class="amount">{{ formatCurrency(payCalc.epfEmpr) }}</td></tr>
                                     <tr><td>SOCSO</td><td class="amount">{{ formatCurrency(payForm.dedSocso) }}</td><td class="amount">{{ formatCurrency(payCalc.socsoEmpr) }}</td></tr>
+                                    <tr v-if="payForm.dedSkbbk"><td>LINDUNG 24 Jam</td><td class="amount">{{ formatCurrency(payForm.dedSkbbk) }}</td><td class="amount">{{ formatCurrency(0) }}</td></tr>
                                     <tr><td>EIS</td><td class="amount">{{ formatCurrency(payForm.dedEis) }}</td><td class="amount">{{ formatCurrency(payCalc.eisEmpr) }}</td></tr>
                                 </tbody>
                             </table>
@@ -311,6 +313,7 @@
                                 <tbody>
                                     <tr><td>EPF</td><td class="amount">{{ formatCurrency(payForm.dedEpf * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(payCalc.epfEmpr * payslipYtdMultiplier) }}</td></tr>
                                     <tr><td>SOCSO</td><td class="amount">{{ formatCurrency(payForm.dedSocso * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(payCalc.socsoEmpr * payslipYtdMultiplier) }}</td></tr>
+                                    <tr v-if="payForm.dedSkbbk"><td>LINDUNG 24 Jam</td><td class="amount">{{ formatCurrency(payForm.dedSkbbk * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(0) }}</td></tr>
                                     <tr><td>EIS</td><td class="amount">{{ formatCurrency(payForm.dedEis * payslipYtdMultiplier) }}</td><td class="amount">{{ formatCurrency(payCalc.eisEmpr * payslipYtdMultiplier) }}</td></tr>
                                 </tbody>
                             </table>

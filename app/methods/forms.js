@@ -14,7 +14,8 @@ export const formMethods = {
             this.payForm = {
                 name: '', ic: '', empNo: '', empEmail: '', position: '', dept: '', isSenior: false, joinDate: '', bankAcc: '', epfSocso: '',
                 month: new Date().toISOString().slice(0, 7), payDate: new Date().toISOString().slice(0, 10),
-                basic: 0, ot: 0, phone: 0, transport: 0, meal: 0, bonus: 0, dedEpf: 0, dedSocso: 0, dedEis: 0, dedPcb: 0, dedAdvance: 0, dedOther: 0
+                basic: 0, ot: 0, phone: 0, transport: 0, meal: 0, bonus: 0, dedEpf: 0, dedSocso: 0, dedSkbbk: 0, dedEis: 0, dedPcb: 0, dedAdvance: 0, dedOther: 0,
+                skbbkOptedOut: false, statutoryOverride: false, statutoryOverrideReason: ''
             };
             this.claimForm = {
                 documentType: 'Claim', name: '', empNo: '', empEmail: '', position: '', dept: '', expenseDate: new Date().toISOString().substr(0, 10), category: 'Medical', subCategory: 'Clinic / Hospital Treatment',

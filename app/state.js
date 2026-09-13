@@ -490,7 +490,8 @@ export function createInitialState() {
                 month: new Date().toISOString().slice(0, 7),
                 payDate: new Date().toISOString().slice(0, 10),
                 basic: 0, ot: 0, phone: 0, transport: 0, meal: 0, bonus: 0,
-                dedEpf: 0, dedSocso: 0, dedEis: 0, dedPcb: 0, dedAdvance: 0, dedOther: 0
+                dedEpf: 0, dedSocso: 0, dedSkbbk: 0, dedEis: 0, dedPcb: 0, dedAdvance: 0, dedOther: 0,
+                skbbkOptedOut: false, statutoryOverride: false, statutoryOverrideReason: ''
             },
 
             claimForm: {
@@ -511,6 +512,6 @@ export function createInitialState() {
                 assignedToUid: '', assignedToName: '', assignedToEmail: '', assignedToRole: 'HR'
             },
 
-            payCalc: { gross: 0, deduct: 0, net: 0, epfEmpr: 0, socsoEmpr: 0, eisEmpr: 0 }
+            payCalc: { gross: 0, deduct: 0, net: 0, epfEmpr: 0, socsoEmpr: 0, eisEmpr: 0, skbbkTableCovers: true }
         };
     }
