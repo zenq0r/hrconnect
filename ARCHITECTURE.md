@@ -103,7 +103,7 @@ half-filled form survives a trip to another tab, which is what `v-show` gave the
 screens when they were all in one file.
 
 Adding a screen means three things: the file in `views/`, an entry in
-`VIEW_FILES`, and an entry in `TAB_VIEWS` mapping the `currentTab` value to it.
+`VIEW_NAMES`, and an entry in `TAB_VIEWS` mapping the `currentTab` value to it.
 `tests/portal-code-splitting.test.js` fails if any of the three is missing.
 
 ## app.js is an entry point

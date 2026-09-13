@@ -13,7 +13,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api/|.*\\.).*)",
+      "source": "/((?!api/|views/|.*\\.).*)",
       "destination": "/index.html"
     }
   ],

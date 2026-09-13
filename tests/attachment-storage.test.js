@@ -33,8 +33,12 @@ test('the uploaded image is still bounded', () => {
     // A phone camera photo of an A4 receipt is 12 megapixels of mostly white
     // paper. Storage removes the reason to crush it to 220 KB, not the reason
     // to resize it at all.
-    assert.match(prepare, /maxUploadBytes = 1536 \* 1024, maxDimension = 2000/);
+    assert.match(prepare, /maxUploadBytes = 1536 \* 1024, maxDimension = 2000, minDimension = 900/);
     assert.match(prepare, /if \(blob\.size <= maxUploadBytes\)/);
+    // Shrinking stops at the floor and never scales up to it: a profile photo
+    // is capped at 720px, and a fixed 900px floor used to enlarge it instead.
+    assert.match(prepare, /const nextMax = Math\.max\(minDimension, Math\.round\(currentMax \* 0\.85\)\);\s*[\s\S]{0,160}if \(nextMax >= currentMax\) break;/);
+    assert.match(methodSource('handleProfilePhotoUpload'), /this\.prepareImageAttachment\(file, 120 \* 1024, 720, 480\)/);
     // And the source file is still checked by its actual bytes before any of
     // this runs.
     assert.match(prepare, /await this\.validateImageFile\(file\)/);

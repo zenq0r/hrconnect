@@ -70,8 +70,10 @@ export const uploadMethods = {
         // The image is still resized and re-encoded before it leaves the
         // browser — a 12-megapixel phone photo of an A4 receipt helps nobody —
         // but the budget is now what is readable rather than what Firestore
-        // will accept.
-        async prepareImageAttachment(file, maxUploadBytes = 1536 * 1024, maxDimension = 2000) {
+        // will accept. minDimension is how far it may shrink to fit that budget:
+        // 900px keeps a receipt's figures legible, and a profile photo passes
+        // its own, smaller floor.
+        async prepareImageAttachment(file, maxUploadBytes = 1536 * 1024, maxDimension = 2000, minDimension = 900) {
             // Validates the bytes, not just the extension — what comes out of
             // the canvas below is always a JPEG whatever went in.
             await this.validateImageFile(file);
@@ -96,12 +98,20 @@ export const uploadMethods = {
                 const context = canvas.getContext('2d', { alpha: false });
                 if (!context) throw new Error('This browser cannot process the selected image.');
                 let quality = 0.92;
+                let drawnWidth = 0;
+                let drawnHeight = 0;
                 for (let attempt = 0; attempt < 14; attempt++) {
-                    canvas.width = width;
-                    canvas.height = height;
-                    context.fillStyle = '#FFFFFF';
-                    context.fillRect(0, 0, width, height);
-                    context.drawImage(image, 0, 0, width, height);
+                    // Only a new size needs a new drawing; a new quality is
+                    // just another encode of the same pixels.
+                    if (width !== drawnWidth || height !== drawnHeight) {
+                        canvas.width = width;
+                        canvas.height = height;
+                        context.fillStyle = '#FFFFFF';
+                        context.fillRect(0, 0, width, height);
+                        context.drawImage(image, 0, 0, width, height);
+                        drawnWidth = width;
+                        drawnHeight = height;
+                    }
                     const blob = await new Promise((resolve, reject) => {
                         canvas.toBlob(
                             result => result ? resolve(result) : reject(new Error('This browser could not re-encode the selected image.')),
@@ -113,7 +123,10 @@ export const uploadMethods = {
                     if (quality > 0.6) quality -= 0.08;
                     else {
                         const currentMax = Math.max(width, height);
-                        const nextMax = Math.max(900, Math.round(currentMax * 0.85));
+                        const nextMax = Math.max(minDimension, Math.round(currentMax * 0.85));
+                        // At the floor already: nothing left to try. The floor
+                        // must never scale an image up either.
+                        if (nextMax >= currentMax) break;
                         const resizeScale = nextMax / currentMax;
                         width = Math.max(1, Math.round(width * resizeScale));
                         height = Math.max(1, Math.round(height * resizeScale));

@@ -13,25 +13,26 @@
 // no state to lift. Nothing about how a screen is written changes — only when
 // its bytes arrive.
 
-const VIEW_FILES = {
-    'portal-shell': 'portal-shell.html',
-    'shared-modals': 'shared-modals.html',
-    'print-templates': 'print-templates.html',
-    'tab-dashboard': 'tab-dashboard.html',
-    'tab-client-task': 'tab-client-task.html',
-    'tab-projects': 'tab-projects.html',
-    'tab-documents': 'tab-documents.html',
-    'tab-payslip': 'tab-payslip.html',
-    'tab-claims': 'tab-claims.html',
-    'tab-client-directory': 'tab-client-directory.html',
-    'tab-hr-employees': 'tab-hr-employees.html',
-    'tab-reports': 'tab-reports.html',
-    'tab-client-portal': 'tab-client-portal.html',
-    'tab-website-content': 'tab-website-content.html',
-    'tab-audit-logs': 'tab-audit-logs.html',
-    'tab-settings': 'tab-settings.html',
-    'tab-doc-generator': 'tab-doc-generator.html',
-};
+// Every screen in views/, named as its file is without the .html.
+const VIEW_NAMES = new Set([
+    'portal-shell',
+    'shared-modals',
+    'print-templates',
+    'tab-dashboard',
+    'tab-client-task',
+    'tab-projects',
+    'tab-documents',
+    'tab-payslip',
+    'tab-claims',
+    'tab-client-directory',
+    'tab-hr-employees',
+    'tab-reports',
+    'tab-client-portal',
+    'tab-website-content',
+    'tab-audit-logs',
+    'tab-settings',
+    'tab-doc-generator',
+]);
 
 // currentTab -> the file that draws it. Settings and Profile are two tabs on
 // one screen, which is why they share an entry.
@@ -78,42 +79,32 @@ export function compiledView(name) {
 // with cleanUrls on, which answers `/views/x.html` with a 308 to `/views/x` — a
 // whole extra round trip for every screen, four of them at every sign-in. The
 // extensionless path is served directly.
-export function viewUrl(file) {
-    return `/views/${file.replace(/\.html$/, '')}`;
+export function viewUrl(name) {
+    return `/views/${name}`;
 }
 
-// The SPA fallback in vercel.json answers any extensionless path that is not a
-// file with index.html. cleanUrls is what makes /views/x a file; should it ever
-// be turned off, the extensionless request would come back as the sign-in page
-// rather than failing. Compiling that into a screen would be a silent,
-// confusing breakage, so it is recognised and the literal file is fetched.
-function isPortalShellPage(html) {
-    return /^\s*<!doctype html/i.test(html) || html.includes('<div id="app"');
-}
-
-async function fetchViewMarkup(file) {
+async function fetchViewMarkup(name) {
     // Root-absolute: the portal also answers on /auth/action, where a relative
     // path would resolve against /auth/ and miss. `no-cache` keeps a revalidation
     // round-trip rather than a stale screen after a deploy.
     const options = { cache: 'no-cache', credentials: 'same-origin' };
-    const read = async (url) => {
-        const response = await fetch(url, options);
-        if (!response.ok) throw new Error(`${response.status} while loading ${url}`);
-        return response.text();
-    };
-    const html = await read(viewUrl(file));
-    return isPortalShellPage(html) ? read(`/views/${file}`) : html;
+    // The extensionless path is a file only while cleanUrls is on. vercel.json
+    // keeps views/ out of the sign-in page fallback, so without cleanUrls — or
+    // on a plain static server — it is a 404, and the literal file is asked for.
+    let response = await fetch(viewUrl(name), options);
+    if (!response.ok) response = await fetch(`${viewUrl(name)}.html`, options);
+    if (!response.ok) throw new Error(`${response.status} while loading ${viewUrl(name)}`);
+    return response.text();
 }
 
 export function loadView(name) {
     if (compiled.has(name)) return Promise.resolve(compiled.get(name));
     if (inFlight.has(name)) return inFlight.get(name);
 
-    const file = VIEW_FILES[name];
-    if (!file) return Promise.reject(new Error(`Unknown portal view: ${name}`));
+    if (!VIEW_NAMES.has(name)) return Promise.reject(new Error(`Unknown portal view: ${name}`));
     if (typeof Vue?.compile !== 'function') return Promise.reject(new Error('This build of Vue cannot compile a view at runtime.'));
 
-    const task = fetchViewMarkup(file)
+    const task = fetchViewMarkup(name)
         .then(html => {
             const render = Vue.compile(html);
             compiled.set(name, render);

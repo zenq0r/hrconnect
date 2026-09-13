@@ -7,7 +7,7 @@ import {
 } from "../../firebase-config.js";
 import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS } from "../config.js";
 import { CLIENT_PANELS, CLIENT_LEGACY_TABS } from "../constants/client-tiers.js";
-import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, homeTabFor } from "../views.js";
+import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, viewUrl, homeTabFor } from "../views.js";
 
 // One fetch of app/portal.js per page, however many times a session signs in
 // and out. Cleared on failure so "Try Again" genuinely tries again.
@@ -146,9 +146,8 @@ export const shellMethods = {
                     `${window.location.pathname}?_v=${Date.now()}`,
                     `/app.js?_v=${Date.now()}`,
                     `/custom.css?_v=${Date.now()}`,
-                    // Extensionless for the same reason as app/views.js: the
-                    // .html spelling is a redirect on Vercel.
-                    `/views/portal-shell?_v=${Date.now()}`
+                    // Asked for the way the loader asks, or every check is a redirect.
+                    `${viewUrl('portal-shell')}?_v=${Date.now()}`
                 ];
                 const responses = await Promise.all(watched.map(url => fetch(url, { method: 'HEAD', cache: 'no-store' })));
                 const markerOf = response => response.headers.get('etag') || response.headers.get('last-modified') || '';

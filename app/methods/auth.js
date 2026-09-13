@@ -21,11 +21,12 @@ import {
 import { SEED_ADMIN_EMAILS, createEmailActionFlow, createLoginOtpState } from "../config.js";
 import { SECOND_FACTOR_ROLES } from "../constants/rbac.js";
 import { homeTabFor } from "../views.js";
+import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_TEXT, passwordPolicyError } from "../constants/password-policy.js";
 
 // Set while a sign-in has passed the password but not yet the code. Read by the
 // session restore in app.js, which is why it lives in storage and not in state.
 const PENDING_SECOND_FACTOR_KEY = 'zqPendingSecondFactor';
-import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_TEXT, passwordPolicyError } from "../constants/password-policy.js";
+
 export const authMethods = {
         // The password a new account is emailed. It has to satisfy the same
         // policy the account will be held to when it changes it, and drawing
@@ -825,7 +826,7 @@ export const authMethods = {
             if (!this.userProfile.uid) { this.profilePhotoUpload.error = 'Please sign in again before uploading a photo.'; return; }
             this.profilePhotoUpload.loading = true;
             try {
-                const photoUrl = await this.prepareImageAttachment(file, 120 * 1024, 720);
+                const photoUrl = await this.prepareImageAttachment(file, 120 * 1024, 720, 480);
                 await setDoc(doc(db, 'users', this.userProfile.uid), { photo: photoUrl }, { merge: true });
                 this.userProfile.photo = photoUrl;
                 await this.syncCurrentOwnerPhoto();

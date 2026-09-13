@@ -38,7 +38,8 @@ test('the sign-in page stays small enough to read at a glance', () => {
 
 test('every view file is registered, and every registered view exists', () => {
     const loader = viewsLoader();
-    const registered = [...loader.matchAll(/'([a-z-]+\.html)'/g)].map(m => m[1]).sort();
+    const names = loader.slice(loader.indexOf('const VIEW_NAMES'), loader.indexOf(']);', loader.indexOf('const VIEW_NAMES')));
+    const registered = [...names.matchAll(/'([a-z-]+)'/g)].map(m => `${m[1]}.html`).sort();
     const onDisk = viewFiles().sort();
 
     assert.deepEqual(registered, onDisk, 'app/views.js and views/ must name exactly the same files');
@@ -79,31 +80,31 @@ test('the screens are deployed, and the loader can reach them', () => {
     // The portal also answers on /auth/action, where a relative path would
     // resolve against /auth/ and miss every view.
     const loader = viewsLoader();
-    assert.match(loader, /return `\/views\/\$\{file\.replace\(\/\\\.html\$\/, ''\)\}`;/);
+    assert.match(loader, /return `\/views\/\$\{name\}`;/);
 
     // Extensionless, because Vercel's cleanUrls answers the .html spelling with
     // a 308 — an extra round trip per screen, measured on production. That
-    // depends on cleanUrls staying on, so the loader recognises the SPA
-    // fallback page and falls back to the literal file rather than compiling
-    // the sign-in page into a screen.
-    assert.equal(JSON.parse(readSource('vercel.json')).cleanUrls, true);
-    assert.match(loader, /return isPortalShellPage\(html\) \? read\(`\/views\/\$\{file\}`\) : html;/);
-    const isShell = new Function(`${loader.slice(loader.indexOf('function isPortalShellPage'), loader.indexOf('async function fetchViewMarkup'))} return isPortalShellPage;`)();
-    assert.equal(isShell(readSource('index.html')), true, 'the sign-in page must be recognised as not-a-view');
-    for (const view of viewFiles()) {
-        assert.equal(isShell(readSource(`views/${view}`)), false, `${view} must not be mistaken for the sign-in page`);
-    }
+    // depends on cleanUrls staying on. views/ is kept out of the sign-in page
+    // fallback, so without it the extensionless request is a 404 — never the
+    // sign-in page compiled into a screen — and the loader asks for the file.
+    const vercel = JSON.parse(readSource('vercel.json'));
+    assert.equal(vercel.cleanUrls, true);
+    const fallback = new RegExp(`^${vercel.rewrites.find(rule => rule.destination === '/index.html' && rule.source.includes('(?!')).source}$`);
+    assert.equal(fallback.test('/dashboard'), true, 'a portal route still opens the portal');
+    assert.equal(fallback.test('/views/portal-shell'), false, 'a missing view must not be answered with the sign-in page');
+    assert.match(loader, /if \(!response\.ok\) response = await fetch\(`\$\{viewUrl\(name\)\}\.html`, options\);/);
 
     // The update check asks for the same spelling, or every check is a redirect.
-    assert.match(readSource('app/methods/shell.js'), /`\/views\/portal-shell\?_v=\$\{Date\.now\(\)\}`/);
+    assert.match(readSource('app/methods/shell.js'), /`\$\{viewUrl\('portal-shell'\)\}\?_v=\$\{Date\.now\(\)\}`/);
 
     // And the deployment must not let them go stale behind a cache.
-    const vercel = JSON.parse(readSource('vercel.json'));
     for (const prefix of ['/app/(.*)', '/views/(.*)']) {
         const rule = vercel.headers.find(entry => entry.source === prefix);
         assert.ok(rule, `${prefix} needs a cache rule`);
         assert.match(rule.headers.find(h => h.key === 'Cache-Control').value, /no-cache/);
     }
+    // Nor behind the service worker: only a good response becomes the offline copy.
+    assert.match(readSource('sw.js'), /if \(response\.ok\) \{\s*const clone = response\.clone\(\);/);
 });
 
 test('a screen is mounted once and then kept', () => {

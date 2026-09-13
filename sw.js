@@ -37,10 +37,17 @@ self.addEventListener('fetch', (event) => {
     if (!isShellAsset && !isLazyPortalAsset) return; // let Firebase/API/everything else hit the network normally
 
     event.respondWith(
-        fetch(request, { cache: 'no-store' })
+        // no-cache still asks the server every time, but a file that has not
+        // changed comes back as a 304 instead of being downloaded again — at
+        // sign-in that is every module under app/.
+        fetch(request, { cache: 'no-cache' })
             .then((response) => {
-                const clone = response.clone();
-                caches.open(SHELL_CACHE).then((cache) => cache.put(request, clone)).catch(() => {});
+                // Only a good response may become the offline fallback. A 404 or
+                // 500 kept here would be served later in place of the real file.
+                if (response.ok) {
+                    const clone = response.clone();
+                    caches.open(SHELL_CACHE).then((cache) => cache.put(request, clone)).catch(() => {});
+                }
                 return response;
             })
             .catch(() => caches.match(request))
