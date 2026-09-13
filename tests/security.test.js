@@ -822,3 +822,34 @@ test('every link the portal emails out points at the live host', () => {
     assert.match(readSource('api/request-password-reset.js'),
         /const resetLink = `\$\{PORTAL_URL\}auth\/action\?resetToken=\$\{token\}`;/);
 });
+
+test('every third-party script and stylesheet is pinned to its exact bytes', () => {
+    // A CDN serving an altered Vue would run inside every signed-in session,
+    // with everything that session can reach. `integrity` makes the browser
+    // refuse it instead. Reads the raw sign-in page: views/ carry no CDN tags.
+    const page = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const external = [
+        ...page.matchAll(/<script\b[^>]*\bsrc="https:\/\/[^"]+"[^>]*>/g),
+        ...page.matchAll(/<link\b[^>]*\brel="stylesheet"[^>]*\bhref="https:\/\/[^"]+"[^>]*>/g),
+    ].map(m => m[0]);
+
+    // Google Fonts builds its CSS per browser, so there is no fixed file to hash.
+    // It only ever supplies a typeface; nothing it serves can execute.
+    //
+    // Known gap, not covered here: the Firebase SDK and Vercel's analytics are
+    // pulled in by ES module `import` statements, and an import has no
+    // integrity attribute. Closing that means self-hosting those modules or an
+    // import map with integrity metadata.
+    const hashable = external.filter(tag => !tag.includes('fonts.googleapis.com'));
+    assert.ok(hashable.length >= 3, 'Vue, Chart.js and Font Awesome are all loaded from a CDN');
+
+    for (const tag of hashable) {
+        const url = tag.match(/(?:src|href)="([^"]+)"/)[1];
+        assert.match(tag, /\bintegrity="sha(?:384|512)-[A-Za-z0-9+/]+={0,2}"/, `${url} must carry an integrity hash`);
+        // Without crossorigin the browser cannot verify a cross-origin file and
+        // refuses to load it at all.
+        assert.match(tag, /\bcrossorigin="anonymous"/, `${url} needs crossorigin for its hash to be checked`);
+        // A floating version would change the bytes under a fixed hash.
+        assert.match(url, /@\d+\.\d+\.\d+\/|\/\d+\.\d+\.\d+\//, `${url} must name an exact version`);
+    }
+});
