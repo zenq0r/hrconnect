@@ -7,9 +7,17 @@ const { enforceRateLimit } = require('./_rateLimit');
 // LOCK/UNLOCK are the Staff Portal's account-access actions. They are recorded
 // as their own verbs rather than as a generic UPDATE: "who locked this account
 // out, when, and why" is the first question asked of the log afterwards.
+//
+// Every verb the portal sends has to be listed here. Four were not — closing an
+// accounting period, deleting a Client Task together with all its projects,
+// and the two repair jobs — and a verb that is not listed is refused with a
+// 400 the portal does not surface, so those events were never recorded at all.
+// tests/module-actions.test.js now fails if the portal sends one this does not
+// accept.
 const ALLOWED_ACTIONS = new Set([
     'LOGIN', 'LOGOUT', 'CREATE', 'UPDATE', 'DELETE', 'EXPORT', 'BACKUP',
-    'UPLOAD_DOCUMENT', 'DELETE_DOCUMENT', 'LOCK', 'UNLOCK'
+    'UPLOAD_DOCUMENT', 'DELETE_DOCUMENT', 'LOCK', 'UNLOCK',
+    'ARCHIVE', 'DELETE_CLIENT_TASK', 'REPAIR_CLIENT_TASKS', 'REPAIR_PROJECT_CLIENT_TASK_LINKS'
 ]);
 
 module.exports = async function handler(req, res) {
