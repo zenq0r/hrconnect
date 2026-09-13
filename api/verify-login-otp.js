@@ -57,6 +57,15 @@ module.exports = async function handler(req, res) {
 
         if (!result.valid) { res.status(400).json({ valid: false, error: result.error }); return; }
 
+        // What firestore.rules and storage.rules actually check: the sign-in
+        // this code confirmed. Until the session's token carries it, the roles
+        // that need a code get nothing from the database.
+        if (purpose === 'sign-in') {
+            const adminAuth = getAdminAuth();
+            const current = (await adminAuth.getUser(reset.uid)).customClaims || {};
+            await adminAuth.setCustomUserClaims(reset.uid, { ...current, sfa: reset.authTime });
+        }
+
         res.status(200).json({ valid: true });
     } catch (error) {
         console.error('verify-login-otp error:', error);

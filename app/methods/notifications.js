@@ -2,8 +2,10 @@
 import {
     db,
     doc,
+    getDoc,
     setDoc,
-    updateDoc
+    updateDoc,
+    deleteField
 } from "../../firebase-config.js";
 export const notificationMethods = {
         // Every toast used to render a success tick, so "Unable to delete this
@@ -32,9 +34,30 @@ export const notificationMethods = {
         async syncNotificationsLog() {
             if (!this.userProfile.uid) return;
             try {
-                await setDoc(doc(db, 'users', this.userProfile.uid), { notificationsLog: this.notificationsLog }, { merge: true });
+                await setDoc(doc(db, 'users', this.userProfile.uid, 'private', 'notifications'), { log: this.notificationsLog });
             } catch (error) {
                 console.error('Unable to sync notifications log:', error);
+            }
+        },
+        // The history is kept in users/{uid}/private/notifications. It used to be
+        // a field on users/{uid}, which every staff session reads for the
+        // directory, so everyone could read everyone's toasts. A record still
+        // carrying the old field has it moved across and removed on sign-in.
+        async loadNotificationsLog(userData) {
+            const uid = this.userProfile.uid;
+            if (!uid) return;
+            const legacy = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : null;
+            try {
+                const snapshot = await getDoc(doc(db, 'users', uid, 'private', 'notifications'));
+                const stored = snapshot.exists() && Array.isArray(snapshot.data().log) ? snapshot.data().log : null;
+                this.notificationsLog = stored || legacy || [];
+                if (legacy) {
+                    if (!stored) await setDoc(doc(db, 'users', uid, 'private', 'notifications'), { log: legacy });
+                    await updateDoc(doc(db, 'users', uid), { notificationsLog: deleteField() });
+                }
+            } catch (error) {
+                console.warn('Unable to load the notification history:', error);
+                this.notificationsLog = legacy || [];
             }
         },
         toggleNotificationsPanel() {

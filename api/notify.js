@@ -7,6 +7,7 @@
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isAllowedPortalUrl, normalizeEmail, isSeedAdminEmail, MAIL_FROM, PORTAL_URL } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
+const { secondFactorSatisfied } = require('./_portalClaims');
 
 const PORTAL_ROLES = new Set(['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff', 'Client']);
 
@@ -115,6 +116,7 @@ module.exports = async function handler(req, res) {
         const callerDoc = await db.collection('users').doc(decoded.uid).get();
         const callerRole = callerDoc.exists ? callerDoc.data().role : (isSeedAdminEmail(decoded.email) ? 'Superadmin' : null);
         if (!PORTAL_ROLES.has(callerRole)) { res.status(403).json({ error: 'This account is not provisioned for notifications.' }); return; }
+        if (!secondFactorSatisfied(decoded, callerRole)) { res.status(403).json({ error: 'Confirm the sign-in code for this session first. Sign out, sign in again and enter the code sent to your email.' }); return; }
 
         const rate = await enforceRateLimit(db, { scope: 'notify', key: decoded.uid, limit: 15, windowMs: 5 * 60 * 1000 });
         if (!rate.allowed) {

@@ -112,3 +112,32 @@ test('the sign-in screen asks for the code instead of the password form', () => 
     // The password form is the other branch, so both cannot be on screen.
     assert.match(markup, /<form v-else @submit\.prevent="handleLogin"/);
 });
+
+test('the database, not the page, decides whether the second factor was cleared', () => {
+    // The confirmed code stamps this sign-in's auth_time into the account's claims…
+    const verify = readSource('api/verify-login-otp.js');
+    assert.match(verify, /setCustomUserClaims\(reset\.uid, \{ \.\.\.current, sfa: reset\.authTime \}\)/);
+    assert.match(readSource('api/_passwordResetOtp.js'), /authTime: Number\(decoded\.auth_time\) \|\| 0,/);
+    // …the rules and Storage accept these roles only with that stamp…
+    const rules = readSource('firestore.rules');
+    assert.match(rules, /function secondFactorCleared\(\) \{\s*return request\.auth\.token\.get\('sfa', 0\) == request\.auth\.token\.auth_time;/);
+    for (const role of ['Superadmin', 'Director', 'Account']) {
+        assert.ok(rules.includes(`isApprovedStaffSession() && secondFactorCleared() && hasActiveRole('${role}')`), `${role} must need the second factor`);
+    }
+    assert.match(readSource('storage.rules'), /request\.auth\.token\.get\('sfa', 0\) == request\.auth\.token\.auth_time/);
+    // …a role sync never drops it…
+    assert.match(readSource('api/_portalClaims.js'), /if \(Object\.keys\(claims\)\.length && current\.sfa\) next\.sfa = current\.sfa;/);
+    assert.doesNotMatch(readSource('api/sync-user-claims.js'), /auth\.setCustomUserClaims\(/);
+    assert.doesNotMatch(readSource('api/portal-account.js'), /auth\.setCustomUserClaims\(/);
+    // …and the server routes these roles use ask for it too.
+    for (const route of ['api/billing-workflow.js', 'api/portal-account.js', 'api/audit-retention.js', 'api/notify.js', 'api/sync-user-claims.js']) {
+        assert.match(readSource(route), /secondFactorSatisfied\(/, `${route} must require the second factor`);
+    }
+    // A restored session without it is sent to the code, not into the portal.
+    const entry = readSource('app.js');
+    const restore = entry.slice(entry.indexOf('onAuthStateChanged(auth'));
+    assert.ok(restore.indexOf('secondFactorClearedFor(firebaseUser, role)') > -1);
+    assert.ok(restore.indexOf('secondFactorClearedFor(firebaseUser, role)') < restore.indexOf('this.initFirebaseRealtime()'));
+    // And the page refreshes its token the moment the code is confirmed.
+    assert.match(methodSource('verifyLoginOtp'), /await auth\.currentUser\?\.getIdToken\(true\);/);
+});

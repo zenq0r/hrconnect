@@ -41,4 +41,29 @@ async function buildPortalClaims(db, { role, email, accessLocked }) {
     return claims;
 }
 
-module.exports = { buildPortalClaims };
+// The roles whose sessions count only once the emailed sign-in code has been
+// confirmed. Mirrors SECOND_FACTOR_ROLES in app/constants/rbac.js and
+// secondFactorCleared() in firestore.rules and storage.rules.
+const SECOND_FACTOR_ROLES = new Set(['Superadmin', 'Director', 'Account']);
+
+// sfa holds the auth_time of the sign-in whose code was confirmed. A later
+// password sign-in has a later auth_time, so an old stamp does not match it.
+function secondFactorSatisfied(decodedToken, role) {
+    if (!SECOND_FACTOR_ROLES.has(role)) return true;
+    const stamp = Number(decodedToken?.sfa);
+    return stamp > 0 && stamp === Number(decodedToken?.auth_time);
+}
+
+// Replaces an account's portal claims without dropping the second-factor
+// stamp. setCustomUserClaims() overwrites the whole set, so a role sync after
+// the code was confirmed would otherwise sign the session back out of every
+// rule that asks for it. A locked account keeps nothing, stamp included.
+async function setPortalClaims(adminAuth, uid, claims) {
+    const current = (await adminAuth.getUser(uid)).customClaims || {};
+    const next = { ...claims };
+    if (Object.keys(claims).length && current.sfa) next.sfa = current.sfa;
+    await adminAuth.setCustomUserClaims(uid, next);
+    return next;
+}
+
+module.exports = { buildPortalClaims, setPortalClaims, secondFactorSatisfied, SECOND_FACTOR_ROLES };

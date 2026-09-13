@@ -170,6 +170,12 @@ export function createInitialState() {
             projectActivities: [],
             projectActivitiesLoaded: false,
             projectClientUpdates: [],
+            // Per-project listeners for staff outside the full-access pair; see
+            // syncProjectClientUpdateListeners() in app/methods/realtime.js.
+            projectClientUpdateListeners: [],
+            projectClientUpdateListenerKey: null,
+            // uid -> why that account was locked, for administrators only.
+            accessLockReasons: {},
             projectClientUpdatesLoaded: false,
             activityTypes: ['To-Do', 'Document Request', 'Client Follow-Up', 'Government Submission', 'Review', 'Meeting', 'Payment Follow-Up', 'Other'],
             activityModal: { show: false, isEdit: false, activityId: '', project: null, form: { activityType: 'To-Do', summary: '', dueDate: '', assignedEmpNo: '', assignedName: '', assignedEmail: '', assignedPosition: '', details: '' } },

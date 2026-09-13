@@ -81,6 +81,9 @@ async function resolveSignInContext(adminAuth, { idToken } = {}) {
     return {
         email,
         uid: decoded.uid,
+        // The sign-in this code confirms. It becomes the sfa claim, which the
+        // rules compare against the auth_time of every later request.
+        authTime: Number(decoded.auth_time) || 0,
         source: 'sign-in',
         fingerprint: hashResetToken(`signin:${decoded.uid}`)
     };

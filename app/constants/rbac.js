@@ -11,7 +11,9 @@ export const RBAC_ROLES = {
     'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
     'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'profile'],
     'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'reports', 'profile'],
-    'IT': ['dashboard', 'project-activities', 'website-content', 'audit-logs', 'settings', 'profile'],
+    // IT staff are employees too: Claims is where they file and follow their
+    // own claims and vouchers, as the Staff role does.
+    'IT': ['dashboard', 'project-activities', 'claims', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
     'Staff': ['dashboard', 'project-activities', 'claims', 'profile']
 };
@@ -86,7 +88,7 @@ export const MODULE_ACTIONS = {
         remove: { all: FULL_ACCESS_ROLES },
     },
     'claims': {
-        edit: { all: FULL_ACCESS_ROLES, own: ['HR', 'Account', 'Staff'] },
+        edit: { all: FULL_ACCESS_ROLES, own: ['HR', 'Account', 'IT', 'Staff'] },
         remove: { all: FULL_ACCESS_ROLES },
         note: 'Submitters edit their own claim while it is Pending HR. Superadmin and Director correct any claim at any stage — recorded, and never in the same step as an approval.',
     },

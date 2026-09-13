@@ -10,6 +10,40 @@ import {
 import { FULL_ACCESS_ROLES } from "../constants/rbac.js";
 export const realtimeMethods = {
 
+        // Staff outside the full-access pair read a client's conversation only for
+        // the projects they work on (staffWorksOnProject() in firestore.rules). A
+        // listener has to stay inside what the rules allow, so these follow
+        // this.projects: one query per 30 project ids (Firestore's limit for
+        // 'in'), rebuilt only when that set of ids changes.
+        syncProjectClientUpdateListeners() {
+            if (this.userProfile.role === 'Client' || this.canManageProjects) return;
+            const ids = [...new Set(this.projects.map(project => String(project.id || '')).filter(Boolean))].sort();
+            const key = ids.join('|');
+            if (this.projectClientUpdateListeners && key === this.projectClientUpdateListenerKey) return;
+            this.stopProjectClientUpdateListeners();
+            this.projectClientUpdateListenerKey = key;
+            const buckets = new Map();
+            const publish = () => {
+                const merged = new Map();
+                buckets.forEach(list => list.forEach(update => merged.set(update.id, update)));
+                this.projectClientUpdates = [...merged.values()];
+                this.projectClientUpdatesLoaded = true;
+            };
+            if (!ids.length) { publish(); return; }
+            for (let start = 0; start < ids.length; start += 30) {
+                const source = query(collection(db, 'project_client_updates'), where('projectId', 'in', ids.slice(start, start + 30)));
+                this.projectClientUpdateListeners.push(onSnapshot(source, (snapshot) => {
+                    buckets.set(start, snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                    publish();
+                }, (error) => console.error('Unable to load Client activity history:', error)));
+            }
+        },
+        stopProjectClientUpdateListeners() {
+            (this.projectClientUpdateListeners || []).forEach(unsubscribe => unsubscribe());
+            this.projectClientUpdateListeners = [];
+            this.projectClientUpdateListenerKey = null;
+        },
+
         initFirebaseRealtime() {
             if (this.portalDataReadyPromise) return this.portalDataReadyPromise;
             this.projectActivitiesLoaded = false;
@@ -92,19 +126,22 @@ export const realtimeMethods = {
                 : role === 'Staff'
                     ? query(collection(db, 'docs'), where('billingPicEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()), where('type', '==', 'Invoice'), where('status', 'not-in', ['Draft']))
                     : null;
+            // Staff and IT follow their own records; see isSelfServiceEmployee() in
+            // firestore.rules.
+            const isSelfService = ['Staff', 'IT'].includes(role);
             const payslipsSource = canReadAllPayslips
                 ? collection(db, 'payslips')
-                : role === 'Staff'
+                : isSelfService
                     ? query(collection(db, 'payslips'), where('raw.empEmail', '==', this.userProfile.email))
                     : null;
             const claimsSource = canReadAllClaims
                 ? collection(db, 'claims')
-                : role === 'Staff'
+                : isSelfService
                     ? query(collection(db, 'claims'), where('empEmail', '==', this.userProfile.email))
                     : null;
             const vouchersSource = canReadAllClaims
                 ? collection(db, 'payment_vouchers')
-                : role === 'Staff'
+                : isSelfService
                     ? query(collection(db, 'payment_vouchers'), where('empEmail', '==', this.userProfile.email))
                     : null;
             const employeesSource = canReadAllEmployees
@@ -160,7 +197,12 @@ export const realtimeMethods = {
                         ? [query(collection(db, 'project_client_updates'), where('clientEmail', '==', String(this.userProfile.email || '').trim().toLowerCase()))]
                         : [])
                 ]
-                : [collection(db, 'project_client_updates')];
+                : this.canManageProjects
+                    ? [collection(db, 'project_client_updates')]
+                    // Everyone else reads a conversation only for a project they
+                    // work on; those listeners follow this.projects, see
+                    // syncProjectClientUpdateListeners().
+                    : null;
             const portalNotificationsSource = query(collection(db, 'portal_notifications'), where('recipientUid', '==', this.userProfile.uid));
             // A Client account never raises or decides a portal access request,
             // so it subscribes to nothing here rather than to an empty query.
@@ -323,6 +365,7 @@ export const realtimeMethods = {
                     this.repairLegacyProjectClientLinks();
                     this.syncProjectActivityOwners();
                     this.syncProjectActivityAssignees();
+                    this.syncProjectClientUpdateListeners();
                 }, 'project activities'),
                 projectActivitiesSources ? subscribeMergedWithReadySignal(projectActivitiesSources, (merged) => {
                     const previousIds = new Set(this.projectActivities.map(activity => activity.id));
@@ -340,7 +383,7 @@ export const realtimeMethods = {
                     this.syncProjectActivityOwners();
                     this.syncProjectActivityAssignees();
                 }, 'project activity issues') : Promise.resolve(),
-                subscribeMergedWithReadySignal(projectClientUpdatesSources, (merged) => {
+                projectClientUpdatesSources ? subscribeMergedWithReadySignal(projectClientUpdatesSources, (merged) => {
                     const previousIds = new Set(this.projectClientUpdates.map(update => update.id));
                     this.projectClientUpdates = merged;
                     if (this.projectClientUpdatesLoaded && role === 'Client') {
@@ -348,7 +391,7 @@ export const realtimeMethods = {
                         if (newUpdate) this.showNotify(`New project update received: ${newUpdate.projectRef}`);
                     }
                     this.projectClientUpdatesLoaded = true;
-                }, 'Client activity history'),
+                }, 'Client activity history') : Promise.resolve(),
                 subscribeWithReadySignal(portalNotificationsSource, (snapshot) => {
                     const previousIds = new Set(this.portalNotifications.map(notification => notification.id));
                     this.portalNotifications = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -374,6 +417,13 @@ export const realtimeMethods = {
                     ? subscribeWithReadySignal(accessRequestsSource, (snapshot) => {
                         this.accessRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                     }, 'portal access requests')
+                    : Promise.resolve(),
+                // Why each locked account was locked, for the administrators who
+                // lock them. Nobody else can read access_locks.
+                FULL_ACCESS_ROLES.includes(role)
+                    ? subscribeWithReadySignal(collection(db, 'access_locks'), (snapshot) => {
+                        this.accessLockReasons = Object.fromEntries(snapshot.docs.map(d => [d.id, d.data().reason || '']));
+                    }, 'access lock reasons')
                     : Promise.resolve(),
                 // Closed monthly packages listed in Enterprise Reports & Data Export.
                 canReadMonthlyArchives

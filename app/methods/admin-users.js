@@ -284,6 +284,12 @@ export const adminUserMethods = {
             if (!this.canObserveStaffPortal) { this.showNotify('You do not have permission to open the Staff Portal.'); return; }
             this.staffPortalAccount = { show: true, tab, account: usr ? { ...usr } : null };
         },
+        // Why an account was locked. Administrators read it from access_locks;
+        // a record locked before that collection existed still carries it.
+        lockReasonFor(account) {
+            if (!account) return '';
+            return this.accessLockReasons[account.id] ?? account.accessLockReason ?? '';
+        },
         closeStaffPortalAccount() {
             this.staffPortalAccount = { show: false, tab: 'overview', account: null };
         },

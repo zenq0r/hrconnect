@@ -11,7 +11,14 @@ const { getFirestore, Timestamp } = require('firebase-admin/firestore');
 if (!getApps().length) initializeApp();
 
 exports.cleanupDeletedAuthenticationUser = functions.auth.user().onDelete(async (user) => {
-    await getFirestore().collection('users').doc(user.uid).delete();
+    const db = getFirestore();
+    // The profile, and what only that account could read: its notification
+    // history and the reason it was locked.
+    const batch = db.batch();
+    batch.delete(db.collection('users').doc(user.uid));
+    batch.delete(db.collection('users').doc(user.uid).collection('private').doc('notifications'));
+    batch.delete(db.collection('access_locks').doc(user.uid));
+    await batch.commit();
     console.info('Removed Firestore portal profile after Authentication deletion.', { uid: user.uid });
 });
 

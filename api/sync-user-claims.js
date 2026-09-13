@@ -7,7 +7,7 @@
 // kind of role/ownership check in Storage Rules.
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isApprovedStaffEmail, normalizeEmail, isSeedAdminEmail } = require('./_security');
-const { buildPortalClaims } = require('./_portalClaims');
+const { buildPortalClaims, setPortalClaims, secondFactorSatisfied } = require('./_portalClaims');
 
 
 module.exports = async function handler(req, res) {
@@ -32,7 +32,7 @@ module.exports = async function handler(req, res) {
         if (targetUid !== decoded.uid) {
             const callerDoc = await db.collection('users').doc(decoded.uid).get();
             const callerRole = callerDoc.exists ? callerDoc.data().role : null;
-            if (!['Superadmin', 'Director'].includes(callerRole)) {
+            if (!['Superadmin', 'Director'].includes(callerRole) || !secondFactorSatisfied(decoded, callerRole)) {
                 res.status(403).json({ error: "Only Superadmin or Director may sync another user's access claims." });
                 return;
             }
@@ -83,8 +83,8 @@ module.exports = async function handler(req, res) {
         // hand a locked session its Storage access back — see _portalClaims.js.
         const claims = await buildPortalClaims(db, { role, email, accessLocked: targetDoc.data().accessLocked });
 
-        await auth.setCustomUserClaims(targetUid, claims);
-        res.status(200).json({ success: true, claims });
+        const issued = await setPortalClaims(auth, targetUid, claims);
+        res.status(200).json({ success: true, claims: issued });
     } catch (error) {
         console.error('sync-user-claims error:', error);
         if (error?.code === 'client/email-ambiguous') {

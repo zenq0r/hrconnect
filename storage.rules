@@ -19,8 +19,15 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // The role from the token, counted only once the roles that must clear the
+    // sign-in code have cleared it for this sign-in. Mirrors
+    // secondFactorCleared() in firestore.rules: the sfa claim holds the
+    // auth_time of the sign-in whose code was confirmed.
     function userRole() {
-      return request.auth.token.role;
+      return !(request.auth.token.role in ['Superadmin', 'Director', 'Account']) ||
+        request.auth.token.get('sfa', 0) == request.auth.token.auth_time
+        ? request.auth.token.role
+        : '';
     }
 
     function isStaffDocumentManager() {

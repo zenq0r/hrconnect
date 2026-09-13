@@ -364,7 +364,7 @@
                         <div><p class="font-bold text-slate-400">Password change required</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ staffPortalAccount.account?.mustChangePassword === true ? 'Yes — at next sign-in' : 'No' }}</p></div>
                         <div v-if="isAccountLocked(staffPortalAccount.account)" class="sm:col-span-2 rounded-xl border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-900 p-4">
                             <p class="font-bold text-rose-700 dark:text-rose-300"><i class="fa-solid fa-lock mr-1.5"></i>Locked out of the portal</p>
-                            <p class="mt-1 text-rose-700 dark:text-rose-300">{{ staffPortalAccount.account?.accessLockReason || 'No reason recorded.' }}</p>
+                            <p class="mt-1 text-rose-700 dark:text-rose-300">{{ lockReasonFor(staffPortalAccount.account) || (canManageStaffPortal ? 'No reason recorded.' : 'The reason is visible to Superadmin and Director.') }}</p>
                             <p class="mt-1 text-[10px] text-rose-700 dark:text-rose-300">Locked by {{ staffPortalAccount.account?.accessLockedBy || 'an administrator' }} · {{ formatDateTime(staffPortalAccount.account?.accessLockedAt) }}</p>
                         </div>
                     </div>

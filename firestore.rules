@@ -72,12 +72,25 @@ service cloud.firestore {
       return recordHasActiveRole(getUserRecord(), role);
     }
 
+    // Superadmin, Director and Finance hold the company's money and its people's
+    // records, so none of those roles counts until the emailed sign-in code has
+    // been confirmed for THIS sign-in. /api/verify-login-otp writes the
+    // sign-in's auth_time into the sfa claim when the code is right; a later
+    // password sign-in carries a new auth_time, so a stamp left over from an
+    // earlier one no longer matches. A stolen password used straight against
+    // the SDK therefore opens nothing these roles can reach. The account's own
+    // users/{uid} record is not role-gated and stays readable, which is how the
+    // portal learns it has to ask for the code at all.
+    function secondFactorCleared() {
+      return request.auth.token.get('sfa', 0) == request.auth.token.auth_time;
+    }
+
     function isSuperadmin() {
-      return isApprovedStaffSession() && hasActiveRole('Superadmin');
+      return isApprovedStaffSession() && secondFactorCleared() && hasActiveRole('Superadmin');
     }
 
     function isDirector() {
-      return isApprovedStaffSession() && hasActiveRole('Director');
+      return isApprovedStaffSession() && secondFactorCleared() && hasActiveRole('Director');
     }
 
     function isAdmin() {
@@ -89,7 +102,7 @@ service cloud.firestore {
     }
 
     function isAccount() {
-      return isApprovedStaffSession() && hasActiveRole('Account');
+      return isApprovedStaffSession() && secondFactorCleared() && hasActiveRole('Account');
     }
 
     function isIT() {
@@ -128,6 +141,14 @@ service cloud.firestore {
 
     function isProjectManager() {
       return isAdmin();
+    }
+
+    // The project's PIC, or a staff member with an activity on it: exactly the
+    // two staff grants of the projects read rule.
+    function staffWorksOnProject(projectId) {
+      let project = get(/databases/$(database)/documents/projects/$(projectId)).data;
+      return project.get('ownerEmail', '') == request.auth.token.email ||
+        project.get('activityAssigneeEmails', []).hasAny([request.auth.token.email]);
     }
 
     function isDocumentProjectPic(data) {
@@ -321,12 +342,42 @@ service cloud.firestore {
         (resource != null && request.resource.data.amount == resource.data.amount);
     }
 
-    // An approver decides yes or no. Changing the sum on the way through is a
-    // different act entirely, and the person who filed the claim never agreed
-    // to it — so the figure a claim was submitted with is the figure that gets
-    // approved, or it goes back for a new submission.
-    function claimAmountUnchanged() {
-      return request.resource.data.amount == resource.data.amount;
+    // An approver decides yes or no and passes the record on. Everything else
+    // about a claim or voucher — its amount, what it was for, whose it is —
+    // belongs to the person who filed it, and nobody approving it may change
+    // any of that in the same write. These are the only fields a decision
+    // moves: HR and Finance forward or reject, and the full-access pair also
+    // records the final approval and its supporting document.
+    function claimForwardKeys() {
+      return [
+        'status', 'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole', 'approvalHistory',
+        'rejectedByUid', 'rejectedByName', 'rejectedByRole', 'rejectedAt'
+      ];
+    }
+
+    function claimFinalDecisionKeys() {
+      return claimForwardKeys().concat([
+        'finalDecision', 'settlementStatus', 'statusDetail', 'approvalPath', 'approvalPreviousStatus', 'bypassedReviews',
+        'approvedByUid', 'approvedByName', 'approvedByEmail', 'approvedByRole', 'approvedAt',
+        'directorApprovalAttachment', 'directorApprovalAttachmentName', 'directorApprovalOriginalBytes'
+      ]);
+    }
+
+    // A rejection or an approval names whoever made it, never whoever the
+    // payload claims made it.
+    function isClaimDecision(fromStatuses, toStatuses, allowedKeys) {
+      return resource.data.status in fromStatuses &&
+        request.resource.data.status in toStatuses &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys) &&
+        (request.resource.data.status != 'Rejected' || request.resource.data.rejectedByUid == request.auth.uid) &&
+        (request.resource.data.status != 'Approved' || request.resource.data.approvedByUid == request.auth.uid);
+    }
+
+    // An employee who files and follows their own claims, vouchers and
+    // payslips rather than everybody's: the Staff role, and IT, who are
+    // employees too but whose module list has no Claims screen of its own.
+    function isSelfServiceEmployee() {
+      return isStaff() || isIT();
     }
 
     // Superadmin and Director may correct any claim or payment voucher, at any
@@ -382,7 +433,11 @@ service cloud.firestore {
         // is locked) but may not keep writing to it — presence pings included,
         // which would otherwise show a locked account as online in the roster.
         !isAccessLocked() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo', 'mustChangePassword', 'updatedAt', 'themePreference', 'lastSeenChangelogVersion', 'notificationsLog', 'presenceStatus', 'isOnline', 'presenceUpdatedAt', 'lastSeen'])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'photo', 'mustChangePassword', 'updatedAt', 'themePreference', 'lastSeenChangelogVersion', 'notificationsLog', 'presenceStatus', 'isOnline', 'presenceUpdatedAt', 'lastSeen']) &&
+        // Every staff account can read this record, so the notification history
+        // lives in private/notifications instead. The old field may only be
+        // taken off a record as it moves there, never written back onto one.
+        !('notificationsLog' in request.resource.data && request.resource.data.diff(resource.data).affectedKeys().hasAny(['notificationsLog']))
       ) || (
         // HR can correct a name typo/legal-name change via the HR Employees form
         // (syncEmployeeIdentityReferences), which needs to keep this portal login
@@ -391,6 +446,23 @@ service cloud.firestore {
         // stay untouchable here.
         isHR() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
       );
+
+      // What only the account itself should see: the toasts it has been shown,
+      // which name records, amounts and deletions. The users/{uid} record above
+      // is read by every staff session for the directory, so this cannot live
+      // on it.
+      match /private/{docId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId && docId == 'notifications';
+      }
+    }
+
+    // Why an account was locked. The lock itself stays on users/{uid}, where
+    // the rules read it; the reason an administrator typed is kept here, for
+    // the administrators and the locked person, not for the whole directory.
+    // Written only by /api/portal-account through the Admin SDK.
+    match /access_locks/{userId} {
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      allow write: if false;
     }
 
     match /pending_access/{email} {
@@ -607,7 +679,7 @@ service cloud.firestore {
     match /payslips/{payslipId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() ||
-        (isStaff() && resource.data.raw.empEmail == request.auth.token.email)
+        (isSelfServiceEmployee() && resource.data.raw.empEmail == request.auth.token.email)
       );
       allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
         payslipFiguresConsistent(request.resource.data);
@@ -619,11 +691,11 @@ service cloud.firestore {
     match /claims/{claimId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() ||
-        (isStaff() && resource.data.empEmail == request.auth.token.email)
+        (isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email)
       );
       allow create: if isAuthenticated() &&
         request.resource.data.createdByUid == request.auth.uid && (
-          (isStaff() && request.resource.data.empEmail == request.auth.token.email) ||
+          (isSelfServiceEmployee() && request.resource.data.empEmail == request.auth.token.email) ||
           isAdmin() || isHR() || isAccount()
         );
       allow update: if isAdminClaimCorrection() || (
@@ -645,7 +717,7 @@ service cloud.firestore {
         resource.data.status == 'Pending HR' &&
         request.resource.data.status == 'Pending HR' &&
         request.resource.data.empNo == resource.data.empNo &&
-        ((isStaff() && resource.data.empEmail == request.auth.token.email) ||
+        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
           ((isAdmin() || isHR() || isAccount()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
@@ -655,19 +727,13 @@ service cloud.firestore {
           'createdByEmail', 'createdAt'
         ])
       ) || (
-        isHR() && resource.data.status == 'Pending HR' &&
-        request.resource.data.status in ['Pending Account', 'Rejected'] &&
-        claimAmountUnchanged()
+        isHR() && isClaimDecision(['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
       ) || (
-        isAccount() && resource.data.status == 'Pending Account' &&
-        request.resource.data.status in ['Pending Director', 'Rejected'] &&
-        claimAmountUnchanged()
+        isAccount() && isClaimDecision(['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
       ) || (
         // Superadmin approves alongside Director: the client gate lets them,
         // and without this the write is refused after the UI has said yes.
-        isAdmin() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
-        request.resource.data.status in ['Approved', 'Rejected'] &&
-        claimAmountUnchanged()
+        isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
       );
       allow delete: if isAdmin();
     }
@@ -676,12 +742,12 @@ service cloud.firestore {
     match /payment_vouchers/{voucherId} {
       allow read: if isAuthenticated() && (
         isAdmin() || isHR() || isAccount() ||
-        (isStaff() && resource.data.empEmail == request.auth.token.email)
+        (isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email)
       );
       allow create: if isAuthenticated() && (
         isAdmin() ||
         (request.resource.data.createdByUid == request.auth.uid && (
-          (isStaff() && request.resource.data.empEmail == request.auth.token.email) ||
+          (isSelfServiceEmployee() && request.resource.data.empEmail == request.auth.token.email) ||
           isHR() || isAccount()
         ))
       );
@@ -704,7 +770,7 @@ service cloud.firestore {
         resource.data.status == 'Pending HR' &&
         request.resource.data.status == 'Pending HR' &&
         request.resource.data.empNo == resource.data.empNo &&
-        ((isStaff() && resource.data.empEmail == request.auth.token.email) ||
+        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
           ((isAdmin() || isHR() || isAccount()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'type', 'documentType', 'date', 'paymentDate', 'name', 'position', 'dept',
@@ -714,19 +780,13 @@ service cloud.firestore {
           'createdByEmail', 'createdAt'
         ])
       ) || (
-        isHR() && resource.data.status == 'Pending HR' &&
-        request.resource.data.status in ['Pending Account', 'Rejected'] &&
-        claimAmountUnchanged()
+        isHR() && isClaimDecision(['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
       ) || (
-        isAccount() && resource.data.status == 'Pending Account' &&
-        request.resource.data.status in ['Pending Director', 'Rejected'] &&
-        claimAmountUnchanged()
+        isAccount() && isClaimDecision(['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
       ) || (
         // Superadmin approves alongside Director: the client gate lets them,
         // and without this the write is refused after the UI has said yes.
-        isAdmin() && resource.data.status in ['Pending HR', 'Pending Account', 'Pending Director'] &&
-        request.resource.data.status in ['Approved', 'Rejected'] &&
-        claimAmountUnchanged()
+        isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
       );
       allow delete: if isAdmin();
     }
@@ -938,7 +998,13 @@ service cloud.firestore {
 
     match /project_client_updates/{updateId} {
       allow read: if isAuthenticated() && (
-        isApprovedStaffSession() || resource.data.clientPortalUid == request.auth.uid || (
+        isProjectManager() ||
+        // Staff read a client's conversation when they work on that project —
+        // its PIC, or someone with an activity on it — the same people who can
+        // open the project itself. It used to be every staff session, which put
+        // every client's messages in every employee's browser.
+        (isApprovedStaffSession() && staffWorksOnProject(resource.data.projectId)) ||
+        resource.data.clientPortalUid == request.auth.uid || (
           // Multi-user Client Portal: a secondary authorized email shares the
           // primary contact's clientDirectoryId claim (see projects rule above)
           // rather than the project's single clientPortalUid.

@@ -4,6 +4,7 @@
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { normalizeEmail, isSeedAdminEmail, PORTAL_URL } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
+const { secondFactorSatisfied } = require('./_portalClaims');
 
 const INVOICE_MANAGEMENT_ROLES = new Set(['Director', 'Superadmin']);
 const PAYMENT_REVIEW_ROLES = new Set(['HR', 'Account']);
@@ -123,6 +124,9 @@ module.exports = async function handler(req, res) {
         const callerSnapshot = await db.collection('users').doc(identity.uid).get();
         const caller = callerSnapshot.exists ? callerSnapshot.data() : null;
         const callerRole = caller?.role || (isSeedAdminEmail(identity.email) ? 'Superadmin' : '');
+        if (!secondFactorSatisfied(identity, callerRole)) {
+            res.status(403).json({ error: 'Confirm the sign-in code for this session first. Sign out, sign in again and enter the code sent to your email.' }); return;
+        }
         const { action, documentId } = req.body || {};
         if (!['quotation-issued', 'quotation-accepted', 'invoice-sent', 'payment-proof-submitted', 'payment-proof-reviewed'].includes(action) || typeof documentId !== 'string' || !documentId) {
             res.status(400).json({ error: 'Invalid workflow request.' }); return;

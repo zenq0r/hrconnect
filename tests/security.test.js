@@ -320,7 +320,10 @@ test('Authentication deletion cascades to the matching Firestore portal profile'
     const functionsSource = readSource('functions/index.js');
     const firebaseConfig = readSource('firebase.json');
     assert.match(functionsSource, /functions\.auth\.user\(\)\.onDelete/);
-    assert.match(functionsSource, /collection\('users'\)\.doc\(user\.uid\)\.delete\(\)/);
+    assert.match(functionsSource, /batch\.delete\(db\.collection\('users'\)\.doc\(user\.uid\)\);/);
+    // And what only that account could read goes with it.
+    assert.match(functionsSource, /batch\.delete\(db\.collection\('users'\)\.doc\(user\.uid\)\.collection\('private'\)\.doc\('notifications'\)\);/);
+    assert.match(functionsSource, /batch\.delete\(db\.collection\('access_locks'\)\.doc\(user\.uid\)\);/);
     assert.match(firebaseConfig, /"source": "functions"/);
 });
 

@@ -212,9 +212,17 @@ createApp({
                         this.openFirstTimePasswordFlow(loginContext);
                         return;
                     }
+                    // The database opens to these roles only once this sign-in's
+                    // code has been confirmed. A session restored without it goes
+                    // to the code, exactly as an interactive sign-in would.
+                    if (!(await this.secondFactorClearedFor(firebaseUser, role))) {
+                        this.authLoading = false;
+                        await this.finishSignIn(loginContext);
+                        return;
+                    }
                     this.userProfile = { name, email: firebaseUser.email, role, uid: firebaseUser.uid, photo, mustChangePassword, themePreference: userData?.themePreference || 'light' };
                     this.applyDarkModePreference();
-                    this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
+                    this.loadNotificationsLog(userData);
                     this.startIdleTimeoutWatch();
                     // Same as an interactive sign-in: the portal's code and
                     // markup are fetched before the portal is shown — and before
@@ -272,6 +280,10 @@ createApp({
                 this.projects = [];
                 this.projectActivities = [];
                 this.projectClientUpdates = [];
+                (this.projectClientUpdateListeners || []).forEach(unsubscribe => unsubscribe());
+                this.projectClientUpdateListeners = [];
+                this.projectClientUpdateListenerKey = null;
+                this.accessLockReasons = {};
                 this.projectActivitiesLoaded = false;
                 this.projectClientUpdatesLoaded = false;
                 this.employees = [];

@@ -69,7 +69,7 @@ test('the Director-only gates admit Superadmin', () => {
 
 test('the Firestore approval branch matches the client gate', () => {
     const rules = readSource('firestore.rules');
-    const branches = rules.match(/isAdmin\(\) && resource\.data\.status in \['Pending HR', 'Pending Account', 'Pending Director'\]/g) || [];
+    const branches = rules.match(/isAdmin\(\) && isClaimDecision\(\['Pending HR', 'Pending Account', 'Pending Director'\], \['Approved', 'Rejected'\], claimFinalDecisionKeys\(\)\)/g) || [];
     assert.equal(branches.length, 2, 'both claims and vouchers must admit Superadmin');
     // A UI that permits what the rules refuse is worse than one that refuses first.
     assert.doesNotMatch(rules, /isDirector\(\) && resource\.data\.status in \['Pending HR'/);

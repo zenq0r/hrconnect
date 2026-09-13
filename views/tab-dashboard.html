@@ -25,7 +25,7 @@
                     </section>
                     
                     <!-- 1. VIEW PEKERJA (STAFF DASHBOARD) -->
-                    <div v-if="userProfile.role === 'Staff'" class="zq-staff-dashboard space-y-6">
+                    <div v-if="['Staff', 'IT'].includes(userProfile.role)" class="zq-staff-dashboard space-y-6">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                                 <h2 class="zq-text-page-title">Staff Employee Dashboard</h2>

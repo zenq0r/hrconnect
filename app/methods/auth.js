@@ -585,6 +585,10 @@ export const authMethods = {
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
                 this.closeLoginOtp();
                 if (isSignIn) {
+                    // The server has just stamped this sign-in into the token's
+                    // claims; the rules read the database through that stamp, so
+                    // nothing is fetched on the old token.
+                    await auth.currentUser?.getIdToken(true);
                     this.setPendingSecondFactor('');
                     const context = this.pendingLoginContext;
                     this.pendingLoginContext = null;
@@ -685,6 +689,17 @@ export const authMethods = {
             await this.requestLoginOtp();
         },
 
+        // Whether this session's token carries the second factor for this very
+        // sign-in (see secondFactorCleared() in firestore.rules). A restored
+        // session without it is sent to the code, not into a portal whose every
+        // read would be refused.
+        async secondFactorClearedFor(firebaseUser, role) {
+            if (!SECOND_FACTOR_ROLES.includes(role)) return true;
+            const result = await firebaseUser.getIdTokenResult(true).catch(() => firebaseUser.getIdTokenResult());
+            const stamp = Number(result?.claims?.sfa);
+            return stamp > 0 && stamp === Number(result?.claims?.auth_time);
+        },
+
         setPendingSecondFactor(uid) {
             try {
                 if (uid) localStorage.setItem(PENDING_SECOND_FACTOR_KEY, uid);
@@ -732,7 +747,7 @@ export const authMethods = {
             }
             this.userProfile = { name: name, email: firebaseUser.email, role: role, uid: firebaseUser.uid, photo: photo, mustChangePassword, themePreference: userData?.themePreference || 'light' };
             this.applyDarkModePreference();
-            this.notificationsLog = Array.isArray(userData?.notificationsLog) ? userData.notificationsLog : [];
+            this.loadNotificationsLog(userData);
             this.startIdleTimeoutWatch();
             // Fetch the portal's own code and markup before the portal is shown,
             // so the first frame after sign-in is the workspace and not an empty
@@ -907,7 +922,16 @@ export const authMethods = {
             // outage now throws, and the callers report it as a session that
             // could not be restored.
             const userSnapshot = await getDocFromServer(userRef);
-            if (userSnapshot.exists()) return userSnapshot.data();
+            if (userSnapshot.exists()) {
+                const userData = userSnapshot.data();
+                // The reason for a lock lives in access_locks/{uid}, which the
+                // locked person may read; the users record is read by everyone.
+                if (userData.accessLocked === true) {
+                    const lock = await getDoc(doc(db, 'access_locks', firebaseUser.uid)).catch(() => null);
+                    if (lock?.exists()) userData.accessLockReason = lock.data().reason || '';
+                }
+                return userData;
+            }
 
             const pendingRef = doc(db, 'pending_access', normalizedEmail);
             const pendingSnapshot = await getDoc(pendingRef);

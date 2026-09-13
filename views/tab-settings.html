@@ -252,7 +252,7 @@
                                                     </td>
                                                     <td>
                                                         <span :class="['zq-badge', staffPortalStatusBadge(usr).className]"><i :class="['fa-solid', staffPortalStatusBadge(usr).icon]"></i>{{ staffPortalStatusBadge(usr).label }}</span>
-                                                        <p v-if="isAccountLocked(usr) && usr.accessLockReason" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ usr.accessLockReason }}</p>
+                                                        <p v-if="isAccountLocked(usr) && lockReasonFor(usr)" class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">{{ lockReasonFor(usr) }}</p>
                                                     </td>
                                                     <td>
                                                         <div class="zq-table-actions-wide">

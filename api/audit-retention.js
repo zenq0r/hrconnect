@@ -1,5 +1,6 @@
 const { getAdminAuth, getAdminFirestore, Timestamp } = require('./_firebaseAdmin');
 const { DEFAULT_RETENTION, normalizeRetention } = require('./_auditRetention');
+const { secondFactorSatisfied } = require('./_portalClaims');
 
 const ALLOWED_ROLES = new Set(['Superadmin', 'Director', 'IT']);
 
@@ -25,6 +26,7 @@ module.exports = async function handler(req, res) {
         const userDoc = await db.collection('users').doc(decoded.uid).get();
         const role = userDoc.exists ? userDoc.data().role : null;
         if (!ALLOWED_ROLES.has(role)) { res.status(403).json({ error: 'Only Director, Superadmin, or IT may manage audit retention.' }); return; }
+        if (!secondFactorSatisfied(decoded, role)) { res.status(403).json({ error: 'Confirm the sign-in code for this session first. Sign out, sign in again and enter the code sent to your email.' }); return; }
 
         const settingRef = db.collection('settings').doc('audit_retention');
         if (req.method === 'GET') {

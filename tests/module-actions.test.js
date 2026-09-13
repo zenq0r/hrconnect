@@ -152,7 +152,11 @@ test('an administrator\'s correction of a claim is stamped, audited, and kept ap
     assert.match(correction, /request\.resource\.data\.lastEditedByUid == request\.auth\.uid/);
     assert.equal((rules.match(/allow update: if isAdminClaimCorrection\(\) \|\| \(/g) || []).length, 2, 'claims and payment_vouchers');
     // Approvals still may not touch the amount.
-    assert.equal((rules.match(/claimAmountUnchanged\(\)/g) || []).length, 7, 'six approval transitions plus the definition');
+    // A decision moves only the decision fields: the amount, like everything
+    // else the claimant filed, is not among them. tests/rules/ sends these
+    // writes to the rules engine itself.
+    assert.equal((rules.match(/isClaimDecision\(\[/g) || []).length, 6, 'three decisions in each of claims and payment vouchers');
+    assert.doesNotMatch(rules.slice(rules.indexOf('function claimForwardKeys'), rules.indexOf('function isClaimDecision')), /'amount'/);
 
     const claims = readSource('app/methods/claims.js');
     assert.match(claims, /canEditClaim\(clm\) \{\s*return this\.isFullAccessRole \|\|/);

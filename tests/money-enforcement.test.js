@@ -123,7 +123,7 @@ test('the money rules are actually wired to the collections they protect', () =>
     // An approver moves a claim along; they do not get to change the sum on the
     // way. Both pipelines (claims and payment vouchers) have three transitions.
     const claims = source.slice(source.indexOf('match /claims/'), source.indexOf('match /projects/'));
-    assert.equal((claims.match(/claimAmountUnchanged\(\)/g) || []).length, 6);
+    assert.equal((claims.match(/isClaimDecision\(\[/g) || []).length, 6);
 });
 
 test('a legacy record keeps working, but its figures cannot move unchecked', () => {

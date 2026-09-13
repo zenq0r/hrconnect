@@ -40,7 +40,8 @@
 // accessLockedBy is the field an audit reads first.
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { isSeedAdminEmail } = require('./_security');
-const { buildPortalClaims } = require('./_portalClaims');
+const { buildPortalClaims, setPortalClaims, secondFactorSatisfied } = require('./_portalClaims');
+const { FieldValue } = require('firebase-admin/firestore');
 
 const ACTIONS = ['lock', 'unlock', 'delete'];
 
@@ -71,6 +72,10 @@ module.exports = async function handler(req, res) {
         const callerRole = callerDoc.exists ? callerDoc.data().role : (isSeedAdminEmail(decoded.email) ? 'Superadmin' : null);
         if (!['Superadmin', 'Director'].includes(callerRole)) {
             res.status(403).json({ error: 'Only Superadmin or Director may change a portal account.' });
+            return;
+        }
+        if (!secondFactorSatisfied(decoded, callerRole)) {
+            res.status(403).json({ error: 'Confirm the sign-in code for this session first. Sign out, sign in again and enter the code sent to your email.' });
             return;
         }
         // A locked administrator does not get to keep administering. This was on
@@ -137,14 +142,23 @@ module.exports = async function handler(req, res) {
             email: String(targetData.email || '').trim().toLowerCase(),
             accessLocked: locked
         });
-        const writeFirestore = () => targetRef.set({
-            accessLocked: locked,
-            accessLockedAt: locked ? now : '',
-            accessLockedBy: locked ? String(decoded.email || '').trim().toLowerCase() : '',
-            accessLockReason: locked ? lockReason : ''
-        }, { merge: true });
+        // The reason goes to access_locks/{uid}, readable by administrators and
+        // the locked person only: users/{uid} is read by every staff session.
+        const writeFirestore = async () => {
+            const batch = db.batch();
+            batch.set(targetRef, {
+                accessLocked: locked,
+                accessLockedAt: locked ? now : '',
+                accessLockedBy: locked ? String(decoded.email || '').trim().toLowerCase() : '',
+                accessLockReason: FieldValue.delete()
+            }, { merge: true });
+            const lockRef = db.collection('access_locks').doc(uid);
+            if (locked) batch.set(lockRef, { reason: lockReason, lockedAt: now, lockedBy: String(decoded.email || '').trim().toLowerCase() });
+            else batch.delete(lockRef);
+            await batch.commit();
+        };
         const writeAuth = async () => {
-            await auth.setCustomUserClaims(uid, claims);
+            await setPortalClaims(auth, uid, claims);
             // Revoke before disabling so a refresh already in flight cannot slip
             // a fresh token out between the two calls.
             if (locked) await auth.revokeRefreshTokens(uid);

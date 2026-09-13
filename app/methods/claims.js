@@ -238,7 +238,7 @@ export const claimMethods = {
             try { await updateDoc(doc(db, "claims", clm.id), { status: 'Rejected', rejectedByUid: this.userProfile.uid, rejectedByName: this.userProfile.name, rejectedByRole: this.userProfile.role, rejectedAt: new Date().toISOString() }); this.showNotify("Claim rejected."); this.notifyByEmail({ to: clm.empEmail, subject: `Your Expense Claim Was Rejected — ${clm.receiptNo}`, heading: 'Expense Claim Rejected', message: `Your expense claim of ${this.formatCurrency(clm.amount)} (${clm.receiptNo}) was rejected by ${this.getRoleDisplayName(this.userProfile.role)}. Contact them for details.` }); } catch (error) { this.showNotify('Unable to reject claim.'); }
         },
         async saveExpenseClaim() {
-            if (!['Superadmin', 'Director', 'HR', 'Account', 'Staff'].includes(this.userProfile.role)) { this.showNotify('Your role cannot submit expense claims.'); return; }
+            if (!['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff'].includes(this.userProfile.role)) { this.showNotify('Your role cannot submit expense claims.'); return; }
             if (this.attachmentUploadState.receipt) return this.showNotify('Wait for the receipt upload to finish.');
             Object.assign(this.claimForm, this.normalizeOfficialRecord(this.claimForm));
             this.claimForm.empEmail = String(this.claimForm.empEmail || '').trim().toLowerCase();
@@ -349,7 +349,7 @@ export const claimMethods = {
             try { await updateDoc(doc(db, "payment_vouchers", pv.id), { status: 'Rejected', rejectedByUid: this.userProfile.uid, rejectedByName: this.userProfile.name, rejectedByRole: this.userProfile.role, rejectedAt: new Date().toISOString() }); this.showNotify("Payment voucher rejected."); this.notifyByEmail({ to: pv.empEmail, subject: `Your Payment Voucher Was Rejected — ${pv.voucherNo}`, heading: 'Payment Voucher Rejected', message: `Your payment voucher of ${this.formatCurrency(pv.amount)} (${pv.voucherNo}) was rejected by ${this.getRoleDisplayName(this.userProfile.role)}. Contact them for details.` }); } catch (error) { this.showNotify('Unable to reject voucher.'); }
         },
         async savePaymentVoucher() {
-            if (!['Superadmin', 'Director', 'HR', 'Account', 'Staff'].includes(this.userProfile.role)) { this.showNotify('Your role cannot submit payment vouchers.'); return; }
+            if (!['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff'].includes(this.userProfile.role)) { this.showNotify('Your role cannot submit payment vouchers.'); return; }
             if (this.attachmentUploadState.receipt) return this.showNotify('Wait for the supporting document upload to finish.');
             Object.assign(this.voucherForm, this.normalizeOfficialRecord(this.voucherForm));
             this.voucherForm.empEmail = String(this.voucherForm.empEmail || '').trim().toLowerCase();
