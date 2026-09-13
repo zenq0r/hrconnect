@@ -16,7 +16,7 @@ import {
 // Vercel Web Analytics
 import { inject } from "https://unpkg.com/@vercel/analytics@2.0.1/dist/index.mjs";
 import { longpressDirective } from "./app/directives/longpress.js";
-import { ZqView } from "./app/views.js";
+import { ZqView, homeTabFor } from "./app/views.js";
 import { createInitialState } from "./app/state.js";
 import { accessComputed } from "./app/computed/access.js";
 import { directoryComputed } from "./app/computed/directory.js";
@@ -227,7 +227,7 @@ createApp({
                     // it only opens when the user presses the menu control.
                     this.desktopSidebarOpen = false;
                     this.mobileMenuOpen = false;
-                    this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard';
+                    this.currentTab = homeTabFor(role);
                     this.playWelcomeGreeting();
                     window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
                     this.loginLoading = false;

@@ -37,19 +37,23 @@ test('a challenged role reaches the portal only through the code', () => {
 
 test('a sign-in that fails after the password was accepted does not stay half-open', () => {
     const finish = methodSource('finishSignIn');
-    assert.match(finish, /catch \(error\)/);
-    assert.match(finish, /this\.loginLoading = false;/);
-    assert.match(finish, /await signOut\(auth\)/);
+    assert.match(finish, /catch \(error\) \{[\s\S]*await this\.abandonSignIn\(/);
+
+    const abandon = methodSource('abandonSignIn');
+    assert.match(abandon, /this\.loginLoading = false;/);
+    assert.match(abandon, /this\.setPendingSecondFactor\(''\)/);
+    assert.match(abandon, /await signOut\(auth\)/);
     // The reason has to survive the sign-out: marking it intentional would have
     // the auth observer clear loginError before it rendered.
-    assert.doesNotMatch(finish, /intentionalLogoutInProgress = true/);
-    assert.doesNotMatch(methodSource('cancelLoginOtp'), /intentionalLogoutInProgress = true/);
+    for (const name of ['finishSignIn', 'cancelLoginOtp', 'abandonSignIn']) {
+        assert.doesNotMatch(methodSource(name), /intentionalLogoutInProgress = true/);
+    }
 });
 
 test('the code is tied to the account by a token the server verifies', () => {
     // Not by an email address in the request body — that would let anyone who
     // guessed a password have the code delivered somewhere else.
-    assert.match(methodSource('signInOtpPayload'), /await user\.getIdToken\(\)/);
+    assert.match(methodSource('loginOtpPayload'), /return \{ purpose: 'sign-in', idToken: await user\.getIdToken\(\) \};/);
 
     const context = readSource('api/_passwordResetOtp.js');
     assert.match(context, /await adminAuth\.verifyIdToken\(idToken\)/);
@@ -77,15 +81,15 @@ test('an unanswered challenge cannot be walked around by reloading', () => {
     // And the marker is cleared on every exit from the challenge, so a stale
     // one cannot lock somebody out of their own account.
     assert.match(methodSource('verifyLoginOtp'), /this\.setPendingSecondFactor\(''\)/);
-    assert.match(methodSource('cancelLoginOtp'), /this\.setPendingSecondFactor\(''\)/);
+    assert.match(methodSource('abandonSignIn'), /this\.setPendingSecondFactor\(''\)/);
     assert.match(methodSource('handleLogout'), /this\.setPendingSecondFactor\(''\)/);
 });
 
 test('abandoning the challenge ends the session it was guarding', () => {
-    const cancel = methodSource('cancelLoginOtp');
-    assert.match(cancel, /if \(wasSignIn\)/);
-    assert.match(cancel, /await signOut\(auth\)/);
-    assert.match(cancel, /this\.pendingLoginContext = null/);
+    assert.match(methodSource('cancelLoginOtp'), /if \(wasSignIn\) await this\.abandonSignIn\(/);
+    const abandon = methodSource('abandonSignIn');
+    assert.match(abandon, /await signOut\(auth\)/);
+    assert.match(abandon, /this\.pendingLoginContext = null/);
 });
 
 test('a cleared second factor is recorded against the account', () => {

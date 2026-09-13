@@ -52,8 +52,9 @@ test('starting the password reset OTP actually dispatches the request', () => {
 
     // requestLoginOtp() bails out early while `sending` is already set, so the
     // starter must leave that flag false or the request never leaves the browser.
-    assert.match(body, /sending: false/);
+    assert.match(body, /this\.loginOtp = createLoginOtpState\(\{ show: true, email: flow\.email, purpose: 'password-reset' \}\);/);
     assert.doesNotMatch(body, /sending: true/);
+    assert.match(readSource('app/config.js'), /export const createLoginOtpState = [\s\S]*?\n    sending: false,/);
     assert.match(body, /await this\.requestLoginOtp\(\)/);
 });
 

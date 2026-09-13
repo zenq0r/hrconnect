@@ -38,6 +38,20 @@ export const createEmailActionFlow = (overrides = {}) => ({
     ...overrides
 });
 
+// The verification-code dialog, shared by a password reset and by the sign-in
+// second factor. `purpose` says which of the two it is answering.
+export const createLoginOtpState = (overrides = {}) => ({
+    show: false,
+    code: '',
+    error: '',
+    sending: false,
+    verifying: false,
+    email: '',
+    purpose: '',
+    cooldownSeconds: 0,
+    ...overrides
+});
+
 // Sign-in greeting timing. HOLD covers the fade in plus the pause that follows;
 // FADE must stay >= the CSS transition on .zq-welcome-greeting or the overlay
 // would unmount mid-fade and vanish instead of easing away.

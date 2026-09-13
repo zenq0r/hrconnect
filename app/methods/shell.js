@@ -259,11 +259,10 @@ export const shellMethods = {
             this.switchTab('document-quotations');
         },
         returnToDashboard() {
-            if (this.userProfile.role === 'Client') this.switchTab('client-portal');
-            else this.switchTab('dashboard');
+            this.switchTab(homeTabFor(this.userProfile.role));
         },
         restoreTabFromHistory(tabName) {
-            const homeTab = this.userProfile.role === 'Client' ? 'client-portal' : 'dashboard';
+            const homeTab = homeTabFor(this.userProfile.role);
             const resolvedTab = tabName === 'document-invoices' ? 'document-quotations' : tabName;
             const safeTab = typeof resolvedTab === 'string' && this.hasAccess(resolvedTab) ? resolvedTab : homeTab;
             this.currentTab = safeTab;

@@ -1,6 +1,6 @@
 // Every reactive field the portal starts with. One call per app instance, so
 // a signed-out session can be reset simply by rebuilding this object.
-import { SUPPORT_EMAIL, createEmailActionFlow } from "./config.js";
+import { SUPPORT_EMAIL, createEmailActionFlow, createLoginOtpState } from "./config.js";
 export function createInitialState() {
         return {
             isLoggedIn: false,
@@ -26,8 +26,7 @@ export function createInitialState() {
                 password: ''
             },
             loginError: '',
-            // OTP is used exclusively to verify a password-reset request.
-            loginOtp: { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 },
+            loginOtp: createLoginOtpState(),
             loginOtpCooldownTimer: null,
             pendingLoginContext: null,
             currentTab: 'dashboard',

@@ -18,8 +18,13 @@ import {
     checkActionCode,
     applyActionCode
 } from "../../firebase-config.js";
-import { SEED_ADMIN_EMAILS, createEmailActionFlow } from "../config.js";
+import { SEED_ADMIN_EMAILS, createEmailActionFlow, createLoginOtpState } from "../config.js";
 import { SECOND_FACTOR_ROLES } from "../constants/rbac.js";
+import { homeTabFor } from "../views.js";
+
+// Set while a sign-in has passed the password but not yet the code. Read by the
+// session restore in app.js, which is why it lives in storage and not in state.
+const PENDING_SECOND_FACTOR_KEY = 'zqPendingSecondFactor';
 import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_TEXT, passwordPolicyError } from "../constants/password-policy.js";
 export const authMethods = {
         // The password a new account is emailed. It has to satisfy the same
@@ -408,7 +413,7 @@ export const authMethods = {
             // bails out early when it is already set. Priming it to true here
             // would trip that in-flight guard and the request would never leave
             // the browser, leaving the button stuck on "Sending…" forever.
-            this.loginOtp = { show: true, code: '', error: '', sending: false, verifying: false, email: flow.email, purpose: 'password-reset', cooldownSeconds: 0 };
+            this.loginOtp = createLoginOtpState({ show: true, email: flow.email, purpose: 'password-reset' });
             await this.$nextTick();
             await this.requestLoginOtp();
         },
@@ -533,15 +538,7 @@ export const authMethods = {
             this.loginOtp.sending = true;
             this.loginOtp.error = '';
             try {
-                const flow = this.passwordResetFlow;
-                let body;
-                if (this.loginOtp.purpose === 'sign-in') {
-                    body = await this.signInOtpPayload();
-                } else if (this.loginOtp.purpose === 'password-reset' && flow?.valid && flow.oobCode) {
-                    body = { purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode };
-                } else {
-                    throw new Error('Your password reset session has expired. Please request a new reset link.');
-                }
+                const body = await this.loginOtpPayload();
                 const resp = await Promise.race([
                     fetch('/api/request-login-otp', {
                         method: 'POST',
@@ -577,14 +574,7 @@ export const authMethods = {
             try {
                 const flow = this.passwordResetFlow;
                 const isSignIn = this.loginOtp.purpose === 'sign-in';
-                let body;
-                if (isSignIn) {
-                    body = await this.signInOtpPayload();
-                } else if (this.loginOtp.purpose === 'password-reset' && flow?.valid && flow.oobCode) {
-                    body = { purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode };
-                } else {
-                    throw new Error('Your password reset session has expired. Please request a new reset link.');
-                }
+                const body = await this.loginOtpPayload();
                 const resp = await fetch('/api/verify-login-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -592,30 +582,30 @@ export const authMethods = {
                 });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
+                this.closeLoginOtp();
                 if (isSignIn) {
                     this.setPendingSecondFactor('');
                     const context = this.pendingLoginContext;
                     this.pendingLoginContext = null;
-                    clearInterval(this.loginOtpCooldownTimer);
-                    this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
                     if (!context?.firebaseUser) throw new Error('Your sign-in session has expired. Please sign in again.');
                     await this.finishSignIn(context, { secondFactorCleared: true });
                     return;
                 }
                 flow.otpVerified = true;
                 flow.error = '';
-                clearInterval(this.loginOtpCooldownTimer);
-                this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
             } catch (error) {
                 console.error('Verify login OTP failed:', error);
                 this.loginOtp.error = error.message || 'Verification failed.';
                 this.loginOtp.verifying = false;
             }
         },
+        closeLoginOtp() {
+            clearInterval(this.loginOtpCooldownTimer);
+            this.loginOtp = createLoginOtpState();
+        },
         async cancelLoginOtp() {
             const wasSignIn = this.loginOtp.purpose === 'sign-in';
-            clearInterval(this.loginOtpCooldownTimer);
-            this.loginOtp = { show: false, code: '', error: '', sending: false, verifying: false, email: '', purpose: '', cooldownSeconds: 0 };
+            this.closeLoginOtp();
             if (this.passwordResetFlow?.active && this.passwordResetFlow.mode === 'resetPassword') {
                 this.passwordResetFlow.error = 'Verification is required before you can set a new password.';
             }
@@ -623,17 +613,21 @@ export const authMethods = {
             // accepted, so a Firebase session exists at this point and would
             // otherwise be restored on the next page load without the code ever
             // having been entered.
-            if (wasSignIn) {
-                this.setPendingSecondFactor('');
-                this.pendingLoginContext = null;
-                this.loginError = 'Sign-in was cancelled before the verification code was confirmed.';
-                // intentionalLogoutInProgress is deliberately NOT set: it tells
-                // the auth observer to clear loginError, and this message is the
-                // one thing the person needs to see on the screen they land on.
-                if (auth.currentUser) {
-                    await signOut(auth).catch(error => console.error('Sign-out after an abandoned verification failed:', error));
-                }
-            }
+            if (wasSignIn) await this.abandonSignIn('Sign-in was cancelled before the verification code was confirmed.');
+        },
+        // Ends a sign-in Firebase has already accepted but the portal will not
+        // open, and leaves the reason on the sign-in screen.
+        //
+        // intentionalLogoutInProgress is deliberately NOT set: it tells the
+        // auth observer to clear loginError, and this message is the one thing
+        // the person needs to see on the screen they land on.
+        async abandonSignIn(message) {
+            this.isLoggedIn = false;
+            this.loginLoading = false;
+            this.setPendingSecondFactor('');
+            this.pendingLoginContext = null;
+            this.loginError = message;
+            if (auth.currentUser) await signOut(auth).catch(error => console.error('Sign-out of an abandoned sign-in failed:', error));
         },
 
         // Every sign-in path ends here: the password form, the first-login
@@ -660,11 +654,7 @@ export const authMethods = {
                 await this.completeLogin(loginContext);
             } catch (error) {
                 console.error('Opening the portal after sign-in failed:', error);
-                this.isLoggedIn = false;
-                this.loginLoading = false;
-                this.setPendingSecondFactor('');
-                this.loginError = 'We could not open the portal. Check your connection and sign in again.';
-                if (auth.currentUser) await signOut(auth).catch(signOutError => console.error('Sign-out after a failed sign-in failed:', signOutError));
+                await this.abandonSignIn('We could not open the portal. Check your connection and sign in again.');
             }
         },
 
@@ -689,15 +679,15 @@ export const authMethods = {
             // It is cleared when the code is confirmed, when the challenge is
             // abandoned, and on any sign-out.
             this.setPendingSecondFactor(loginContext?.firebaseUser?.uid || '');
-            this.loginOtp = { show: true, code: '', error: '', sending: false, verifying: false, email, purpose: 'sign-in', cooldownSeconds: 0 };
+            this.loginOtp = createLoginOtpState({ show: true, email, purpose: 'sign-in' });
             await this.$nextTick();
             await this.requestLoginOtp();
         },
 
         setPendingSecondFactor(uid) {
             try {
-                if (uid) localStorage.setItem('zqPendingSecondFactor', uid);
-                else localStorage.removeItem('zqPendingSecondFactor');
+                if (uid) localStorage.setItem(PENDING_SECOND_FACTOR_KEY, uid);
+                else localStorage.removeItem(PENDING_SECOND_FACTOR_KEY);
             } catch (error) {
                 // Private browsing, or storage disabled entirely. The challenge
                 // still holds in this tab; it just cannot be enforced across a
@@ -708,19 +698,27 @@ export const authMethods = {
 
         pendingSecondFactorUid() {
             try {
-                return localStorage.getItem('zqPendingSecondFactor') || '';
+                return localStorage.getItem(PENDING_SECOND_FACTOR_KEY) || '';
             } catch (error) {
                 return '';
             }
         },
 
-        // The token is proof of who is asking. It is minted by Firebase after
-        // the password was accepted, and the server re-verifies it rather than
+        // What both OTP routes are told about the request. For a sign-in the
+        // token is proof of who is asking: it is minted by Firebase after the
+        // password was accepted, and the server re-verifies it rather than
         // trusting any address in the request body.
-        async signInOtpPayload() {
-            const user = auth.currentUser;
-            if (!user) throw new Error('Your sign-in session has expired. Please sign in again.');
-            return { purpose: 'sign-in', idToken: await user.getIdToken() };
+        async loginOtpPayload() {
+            if (this.loginOtp.purpose === 'sign-in') {
+                const user = auth.currentUser;
+                if (!user) throw new Error('Your sign-in session has expired. Please sign in again.');
+                return { purpose: 'sign-in', idToken: await user.getIdToken() };
+            }
+            const flow = this.passwordResetFlow;
+            if (this.loginOtp.purpose === 'password-reset' && flow?.valid && flow.oobCode) {
+                return { purpose: 'password-reset', resetSource: flow.source, resetToken: flow.oobCode };
+            }
+            throw new Error('Your password reset session has expired. Please request a new reset link.');
         },
         async completeLogin({ firebaseUser, userData, role, name, photo, mustChangePassword }) {
             if (mustChangePassword) {
@@ -744,7 +742,7 @@ export const authMethods = {
             this.resetAllForms(); this.isLoggedIn = true; this.desktopSidebarOpen = false; this.mobileMenuOpen = false;
             await this.logAudit('LOGIN', `User logged in with role ${this.getRoleDisplayName(role)}`);
             this.showNotify(`Welcome back (${this.getRoleDisplayName(role)}): ${name}`);
-            this.currentTab = role === 'Client' ? 'client-portal' : 'dashboard';
+            this.currentTab = homeTabFor(role);
             window.history.replaceState({ zenqorPortal: true, tab: this.currentTab }, '', window.location.href);
             this.playWelcomeGreeting();
             this.loginLoading = false;
