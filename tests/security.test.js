@@ -7,7 +7,7 @@ const { generateOtp, hashOtp, hashResetToken, isAllowedPortalUrl, normalizeEmail
 const { getClientIp, parseUserAgent } = require('../api/_auditMetadata');
 const { normalizeRetention, retentionDurationMs } = require('../api/_auditRetention');
 const { rateLimitId } = require('../api/_rateLimit');
-const { readSource, methodSource, constantSource } = require('./helpers/sources');
+const { readSource, methodSource } = require('./helpers/sources');
 
 test('OTP is always a six-digit string', () => {
     for (let i = 0; i < 100; i += 1) assert.match(generateOtp(), /^\d{6}$/);

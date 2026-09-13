@@ -1,8 +1,5 @@
 // Permission gates: what the signed-in role may open, edit, delete or approve,
 // plus the portal access-request queue built on the same rules.
-import {
-    doc
-} from "../../firebase-config.js";
 import { SUPPORT_EMAIL } from "../config.js";
 import { RBAC_ROLES, FULL_ACCESS_ROLES, STAFF_PORTAL_OBSERVER_ROLES } from "../constants/rbac.js";
 import { PASSWORD_POLICY_TEXT } from "../constants/password-policy.js";

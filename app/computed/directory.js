@@ -1,8 +1,5 @@
 // Staff and client directories, the notification feed and the release notes
 // shown in Settings.
-import {
-    onSnapshot
-} from "../../firebase-config.js";
 import { APP_CHANGELOG } from "../config.js";
 import { canonicalClientTier } from "../constants/client-tiers.js";
 export const directoryComputed = {

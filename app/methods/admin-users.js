@@ -3,22 +3,18 @@
 import {
     db,
     auth,
-    storage,
     initializeApp,
     deleteApp,
     getAuth,
     collection,
     doc,
-    getDoc,
-    getDocFromServer,
     setDoc,
     deleteDoc,
-    where,
     createUserWithEmailAndPassword,
     signOut
 } from "../../firebase-config.js";
 import { PORTAL_URL, SUPPORT_EMAIL } from "../config.js";
-import { RBAC_ROLES, MODULE_LABELS, MODULE_ACTIONS, FULL_ACCESS_ROLES, STAFF_PORTAL_ACTIONS, STAFF_PORTAL_REQUEST_ACTIONS, moduleActionFor } from "../constants/rbac.js";
+import { RBAC_ROLES, MODULE_LABELS, MODULE_ACTIONS, STAFF_PORTAL_ACTIONS, STAFF_PORTAL_REQUEST_ACTIONS, moduleActionFor } from "../constants/rbac.js";
 export const adminUserMethods = {
 
         // Firebase's own messages read "Firebase: Error (auth/invalid-email)." —
@@ -291,11 +287,8 @@ export const adminUserMethods = {
         closeStaffPortalAccount() {
             this.staffPortalAccount = { show: false, tab: 'overview', account: null };
         },
-        // What the role on this account actually unlocks, one row per module, so
-        // the Access tab answers "what can this person reach?" out of RBAC_ROLES
-        // and the same rule hasModulePermission() applies, not a second
-        // hand-maintained list that would drift away from the real gates.
-        // One row per module the role opens. Edit and Delete come from
+        // What the role on this account unlocks: one row per module the role
+        // opens, out of RBAC_ROLES. Edit and Delete come from
         // MODULE_ACTIONS, which knows the difference between an action the role
         // is refused and an action the module does not have — a Delete tick on
         // the Audit Log described something nobody can do.
@@ -304,10 +297,8 @@ export const adminUserMethods = {
             return modules.map(moduleName => ({
                 module: moduleName,
                 label: MODULE_LABELS[moduleName] || moduleName,
-                view: true,
                 edit: moduleActionFor(moduleName, 'edit', role),
                 remove: moduleActionFor(moduleName, 'remove', role),
-                removeWhere: MODULE_ACTIONS[moduleName]?.remove?.where || '',
                 note: MODULE_ACTIONS[moduleName]?.note || ''
             }));
         },

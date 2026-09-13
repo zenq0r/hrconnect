@@ -9,7 +9,6 @@
 
 import {
     auth,
-    getDoc,
     signOut,
     onAuthStateChanged
 } from "./firebase-config.js";

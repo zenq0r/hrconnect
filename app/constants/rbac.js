@@ -1,8 +1,5 @@
 // Role-based access control: which role opens which module, which pair holds
 // full access, and the Staff Portal action lists every surface is built from.
-import {
-    doc
-} from "../../firebase-config.js";
 export const RBAC_ROLES = {
     // 'website-content' manages the public zenqor-tech site's Firestore-backed
     // Portfolio galleries (portfolio_web = Digital Systems, portfolio_gaming =

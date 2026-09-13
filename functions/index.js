@@ -76,9 +76,9 @@ exports.verifyBillingDocumentTotals = functions.firestore
         }, { merge: true });
 
         // Written with the Admin SDK, the same way /api/audit-log writes one, so
-        // it lands in the log the Audit & Security screen already reads. No
-        // retention stamp is set: a corrected figure is not routine traffic and
-        // should outlive the TTL applied to ordinary events.
+        // it lands in the log the Audit & Security screen already reads. It is
+        // kept for a year rather than for the retention setting, which defaults
+        // to 30 days: a corrected figure is not routine traffic.
         const now = new Date();
         const id = `${now.getTime()}-billing-totals-${docId}`;
         await db.collection('audit_logs').doc(id).set({

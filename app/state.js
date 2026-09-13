@@ -1,10 +1,5 @@
 // Every reactive field the portal starts with. One call per app instance, so
 // a signed-out session can be reset simply by rebuilding this object.
-import {
-    collection,
-    doc,
-    where
-} from "../firebase-config.js";
 import { SUPPORT_EMAIL, createEmailActionFlow } from "./config.js";
 export function createInitialState() {
         return {

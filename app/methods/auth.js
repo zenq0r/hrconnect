@@ -10,7 +10,6 @@ import {
     deleteDoc,
     signInWithEmailAndPassword,
     signOut,
-    onAuthStateChanged,
     updatePassword,
     EmailAuthProvider,
     reauthenticateWithCredential,

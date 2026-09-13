@@ -8,7 +8,6 @@ import {
     setDoc,
     deleteDoc,
     onSnapshot,
-    getDocs,
     query,
     where,
     storageRef,

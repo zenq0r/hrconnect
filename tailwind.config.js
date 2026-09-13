@@ -1,8 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // UI status styles are also assembled in app.js. Including it prevents
-  // Tailwind from dropping dark-mode variants that only appear at runtime.
-  content: ['./index.html', './app.js'],
+  // Every file that carries a class name. The screens live in views/ and the
+  // status styles assembled at runtime live in app/, so leaving either out
+  // makes a rebuild silently drop the classes only they use.
+  content: ['./index.html', './app.js', './app/**/*.js', './views/**/*.html'],
   darkMode: 'class',
   theme: {
     extend: {

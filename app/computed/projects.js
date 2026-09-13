@@ -1,12 +1,5 @@
 // Project board scoping: which projects this role sees, who can be assigned,
 // and which client accounts are linked to a project.
-import {
-    auth,
-    collection,
-    doc,
-    query,
-    createUserWithEmailAndPassword
-} from "../../firebase-config.js";
 export const projectsComputed = {
         // A Project Activity is only valid for the board when its Client Directory
         // record is an active Client Task parent. This single gate is used by both

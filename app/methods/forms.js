@@ -1,7 +1,4 @@
 // Blank-slate form resets and the portal's own confirmation dialogs.
-import {
-    where
-} from "../../firebase-config.js";
 export const formMethods = {
 
         resetAllForms() {

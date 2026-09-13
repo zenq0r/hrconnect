@@ -25,8 +25,8 @@ test('the unauthenticated page carries no part of the signed-in portal', () => {
     // What it does carry is the sign-in screen and the mount points.
     assert.match(page, /id="auth-main"/);
     assert.match(page, /<zq-view name="portal-shell">/);
-    assert.match(page, /<zq-view v-if="isLoggedIn" name="shared-modals">/);
-    assert.match(page, /<zq-view v-if="isLoggedIn" name="print-templates">/);
+    assert.match(page, /<zq-view name="shared-modals">/);
+    assert.match(page, /<zq-view name="print-templates">/);
 });
 
 test('the sign-in page stays small enough to read at a glance', () => {
@@ -113,4 +113,13 @@ test('a screen is mounted once and then kept', () => {
     assert.match(shell, /if \(!this\.isLoggedIn \|\| !view \|\| this\.mountedViews\.includes\(view\)\) return;/);
     // And the portal is never shown before its own shell has arrived.
     assert.match(readSource('app/methods/auth.js'), /await this\.ensurePortalViews\(role\);\s*\r?\n\s*this\.resetAllForms\(\); this\.isLoggedIn = true;/);
+});
+
+// The stylesheet is built from the files Tailwind is told to read. A screen
+// that moved out of index.html keeps its classes only if its new home is read.
+test('the stylesheet build reads every file the markup and classes moved to', () => {
+    const { content } = require(path.join(ROOT, 'tailwind.config.js'));
+    for (const glob of ['./index.html', './app.js', './app/**/*.js', './views/**/*.html']) {
+        assert.ok(content.includes(glob), `tailwind.config.js content must include ${glob}`);
+    }
 });

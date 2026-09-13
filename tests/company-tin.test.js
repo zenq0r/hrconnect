@@ -1,8 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
-const fs = require('node:fs');
-const { readSource, methodSource, constantSource } = require('./helpers/sources');
+const { readSource, methodSource } = require('./helpers/sources');
 
 // The TIN rules come from LHDN's published format, not from anything the
 // codebase can derive, so they are pinned here: an entity-type prefix, then

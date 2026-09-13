@@ -411,17 +411,11 @@
                                             <p class="font-bold text-slate-800 dark:text-slate-200">{{ entry.label }}</p>
                                             <p v-if="entry.note" class="mt-0.5 text-[10px] font-normal leading-snug text-slate-500 dark:text-slate-400">{{ entry.note }}</p>
                                         </td>
-                                        <td class="text-center"><i :class="entry.view ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="entry.view ? 'Yes' : 'No'"></i></td>
-                                        <td class="text-center">
-                                            <span v-if="entry.edit === null" class="font-bold text-slate-400" aria-label="Not available in this module">—</span>
-                                            <span v-else-if="entry.edit === 'own'" class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">Own</span>
-                                            <i v-else :class="entry.edit ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="entry.edit ? 'Yes' : 'Not permitted'"></i>
-                                        </td>
-                                        <td class="text-center">
-                                            <span v-if="entry.remove === null" class="font-bold text-slate-400" aria-label="Not available in this module">—</span>
-                                            <span v-else-if="entry.remove === 'own'" class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">Own</span>
-                                            <i v-else :class="entry.remove ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="entry.remove ? 'Yes' : 'Not permitted'"></i>
-                                            <p v-if="entry.remove && entry.removeWhere" class="mt-0.5 text-[9px] leading-tight text-slate-400">from {{ entry.removeWhere }}</p>
+                                        <td class="text-center"><i class="fa-solid fa-check text-emerald-600" aria-label="Yes"></i></td>
+                                        <td v-for="answer in [entry.edit, entry.remove]" class="text-center">
+                                            <span v-if="answer === null" class="font-bold text-slate-400" aria-label="Not available in this module">—</span>
+                                            <span v-else-if="answer === 'own'" class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-900/40 dark:text-sky-300">Own</span>
+                                            <i v-else :class="answer ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-slate-400'" :aria-label="answer ? 'Yes' : 'Not permitted'"></i>
                                         </td>
                                     </tr>
                                     <tr v-if="!staffPortalAccessMatrix(staffPortalAccount.account?.role).length" class="zq-table-empty">

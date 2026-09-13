@@ -3,7 +3,6 @@
 import {
     db,
     auth,
-    collection,
     doc,
     setDoc,
     updateDoc,

@@ -1,6 +1,5 @@
 // The right-click / long-press menu, and the action list each kind of row,
 // card or button contributes to it.
-import { STAFF_PORTAL_ACTIONS } from "../constants/rbac.js";
 import { LONGPRESS_THRESHOLD_MS, LONGPRESS_MOVE_TOLERANCE_PX } from "../directives/longpress.js";
 export const contextMenuMethods = {
         // Generic context menu — desktop right-click (@contextmenu.prevent) and

@@ -1,7 +1,4 @@
 // The dashboard charts and the data behind them.
-import {
-    doc
-} from "../../firebase-config.js";
 export const dashboardMethods = {
         refreshDashboardCharts(attempt = 0) {
             if (!this.isLoggedIn || !this.portalDataReady || this.currentTab !== 'dashboard' || ['Staff', 'Client'].includes(this.userProfile.role)) return;

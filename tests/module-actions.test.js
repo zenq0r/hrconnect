@@ -201,7 +201,8 @@ test('the Access panel is drawn from the table, not from what a role opens', () 
 
     // And the panel can show all four answers.
     const panel = readSource('views/shared-modals.html');
-    assert.match(panel, /v-if="entry\.remove === null"/);
-    assert.match(panel, /v-else-if="entry\.remove === 'own'"/);
+    assert.match(panel, /v-for="answer in \[entry\.edit, entry\.remove\]"/);
+    assert.match(panel, /v-if="answer === null"/);
+    assert.match(panel, /v-else-if="answer === 'own'"/);
     assert.match(panel, /the module has no such action/);
 });

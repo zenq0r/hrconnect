@@ -1,9 +1,5 @@
 // Everything a signed-in person sees about themselves: their own payslips,
 // claims and documents, and the client account's tier, timeline and totals.
-import {
-    collection,
-    query
-} from "../../firebase-config.js";
 import { CLIENT_TIER_ORDER, canonicalClientTier, CLIENT_TIER_FEATURES, CLIENT_SUPPORT_CHANNELS, CLIENT_TIMELINE_PREVIEW_COUNT } from "../constants/client-tiers.js";
 export const clientPortalComputed = {
         currentYear() { return new Date().getFullYear(); },
