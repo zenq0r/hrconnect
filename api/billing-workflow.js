@@ -267,10 +267,14 @@ module.exports = async function handler(req, res) {
             if (!document.paymentProofUrl || !['Submitted', 'Rejected'].includes(document.paymentProofReviewStatus || 'Submitted')) {
                 res.status(409).json({ error: 'No submitted payment proof is awaiting review.' }); return;
             }
+            // The exact Client ID / assigned-project match is enforced where a record is
+            // first created or sent (quotation-issued, quotation-accepted, invoice-sent) —
+            // those steps establish the link. Reviewing a payment proof never creates a
+            // new link, so an older invoice whose project has since been renamed, moved
+            // or removed must still be reviewable; its payment history is real either way.
+            // Project/customer are resolved on a best-effort basis, used only to route
+            // notifications and stamp the PIC — never to block the review itself.
             const project = await resolveProject(db, document);
-            if (!customer || !project) {
-                res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. Payment proof cannot be reviewed.' }); return;
-            }
             const approved = req.body?.decision === 'approved';
             const note = safeNote(req.body?.note);
             const previousStatus = document.status;
@@ -282,8 +286,8 @@ module.exports = async function handler(req, res) {
                 transaction.create(eventRef, {
                     action,
                     documentId,
-                    customerId,
-                    projectId: project.id,
+                    customerId: customerId || document.billingClientId || '',
+                    projectId: project?.id || document.billingProjectId || '',
                     reviewedByUid: identity.uid,
                     reviewedByName: caller?.name || identity.email,
                     decision: approved ? 'approved' : 'rejected',
@@ -303,9 +307,9 @@ module.exports = async function handler(req, res) {
                     paymentProofReviewNote: note,
                     billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
                     billingWorkflowUpdatedAt: timestamp,
-                    billingClientId: customerId,
-                    billingProjectId: project.id,
-                    billingPicEmail: normalizeEmail(project.ownerEmail)
+                    // Only overwrite the linkage stamps when this review actually resolved a
+                    // current project — never blank out or guess at a historical record's link.
+                    ...(project ? { billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) } : {})
                 });
                 return true;
             });
