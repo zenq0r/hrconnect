@@ -954,6 +954,11 @@ export const authMethods = {
                 this.isLoggedIn = false; this.loginLoading = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false; this.portalDataReady = false; this.portalDataReadyPromise = null; this.userProfile = { name: '', email: '', role: '', photo: '' };
                 this.mountedViews = []; this.viewError = '';
                 this.resetAllForms(); this.currentTab = 'dashboard'; this.loginForm = { email: '', password: '' }; this.searchQuery = ''; this.authView = 'landing';
+                // Gated by its own .loaded flag (see loadTrustedDevices()/switchTab()),
+                // so left unreset here it survives into whichever account signs in
+                // next on this same tab — that account's Trusted Devices screen would
+                // show the PREVIOUS user's devices instead of fetching its own.
+                this.trustedDevices = { items: [], loading: false, error: '', loaded: false };
                 this.postLogoutChoice = true;
             }
         },

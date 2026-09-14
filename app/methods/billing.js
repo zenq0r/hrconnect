@@ -157,6 +157,13 @@ export const billingMethods = {
             try {
                 if (this.attachmentUploadState.payment) { this.showNotify('Wait for the payment attachment upload to finish.'); return false; }
                 if (!this.canManageDocuments) { this.showNotify('You do not have permission to save documents.'); return false; }
+                // A status left over from switching Document Type (e.g. an Invoice's
+                // 'Unpaid' surviving a switch to Quotation) would save a value the
+                // record's own type never offers as an option, and a Quotation stuck
+                // that way can never be accepted or declined by its client. Catch it
+                // here as a backstop even though onDocTypeChange() already resets it.
+                const statusOptionsByType = { Quotation: ['Open', 'Accepted', 'Rejected', 'Invoiced'], Invoice: ['Draft', 'Unpaid', 'Paid', 'Partial', 'Cancelled'] };
+                if (!(statusOptionsByType[this.docForm.type] || []).includes(this.docForm.status)) { this.showNotify(`Status "${this.docForm.status}" is not valid for a ${this.docForm.type}. Re-select the Status field and try again.`); return false; }
                 // firestore.rules refuses these too, but a rule can only answer
                 // "denied" — say which figure is wrong while the person is still
                 // looking at it.
@@ -259,6 +266,17 @@ export const billingMethods = {
         },
         addDocItem() { this.docForm.items.push({ desc: '', qty: 1, price: 0 }); },
         removeDocItem(idx) { this.docForm.items.splice(idx, 1); },
+        // Quotation and Invoice each have their own Status options (Open/Accepted/
+        // Rejected/Invoiced vs Draft/Unpaid/Paid/Partial/Cancelled). Switching
+        // Document Type must carry docForm.status into the new type's own default
+        // — left alone, the previous type's value survives as a string the new
+        // type's <select> has no matching <option> for, and a Quotation saved that
+        // way can never be accepted or declined (canDecideQuotation() requires an
+        // exact 'Open').
+        onDocTypeChange() {
+            this.docForm.status = this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open';
+            this.generateDocNo();
+        },
         generateDocNo(includeCurrentNumber = false) {
             if (this.editingDocId) return;
             const prefix = this.docForm.type === 'Invoice' ? 'INV' : 'QT';

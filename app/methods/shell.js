@@ -241,10 +241,13 @@ export const shellMethods = {
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            // Own Trusted Devices list, loaded on demand the first time Settings
-            // is opened this session — the same on-demand pattern loadClientDocuments()
-            // already uses for the Client Portal's own documents.
-            if (tabName === 'settings' && this.userProfile.uid && !this.trustedDevices.loaded) this.loadTrustedDevices();
+            // Own Trusted Devices list, loaded on demand the first time it's shown
+            // this session — the same on-demand pattern loadClientDocuments() already
+            // uses for the Client Portal's own documents. The block itself lives in
+            // tab-settings.html's 'profile' branch (Account & Security / Profile &
+            // RBAC), not 'settings' (Global Company Settings) — both tab ids must be
+            // checked here, or the list never loads through any real navigation.
+            if ((tabName === 'settings' || tabName === 'profile') && this.userProfile.uid && !this.trustedDevices.loaded) this.loadTrustedDevices();
         },
         openClientPanel(panelKey) {
             this.clientPanel = CLIENT_PANELS.some(panel => panel.key === panelKey) ? panelKey : 'ov';
