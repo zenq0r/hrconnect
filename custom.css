@@ -731,6 +731,18 @@ input[type="url"] {
     text-transform: none;
 }
 
+/* A password field's Show/Hide toggle flips its DOM `type` between
+   "password" and "text" — the moment it becomes "text" it matches the
+   uppercase rule above instead of this file's own [type="password"]
+   exemption, so the revealed text rendered in ALL CAPS (visibly
+   larger/denser than the masked dots at the same font-size). This class is
+   applied directly, independent of the current `type`, so revealing a
+   password never changes how its text renders. */
+.zq-input-password {
+    text-transform: none !important;
+    letter-spacing: normal !important;
+}
+
 /* Project Activities: structured responsive workflow and summary layout. */
 .project-summary-grid {
     display: grid;
@@ -1080,6 +1092,30 @@ html.dark .zq-input, html.dark .zq-select, html.dark .zq-textarea { background: 
     outline: none; border-color: var(--zq-accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
 }
 html.dark .zq-input:focus, html.dark .zq-select:focus, html.dark .zq-textarea:focus { box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22); }
+
+/* One 6-digit verification code, one box per digit (sign-in second factor
+   and password-reset OTP — see app/methods/auth.js's otpDigit()/
+   onOtpDigitInput()). Sized in a fixed row rather than %-of-container so 6
+   boxes plus their gaps never wrap on a narrow phone screen. */
+.zq-otp-box {
+    width: 42px; height: 52px; flex: 0 0 auto; border-radius: var(--zq-radius-md);
+    border: 1px solid var(--zq-border); background: var(--zq-surface); color: var(--zq-text);
+    text-align: center; font-size: 1.25rem; font-weight: 800;
+    transition: border-color var(--zq-transition), box-shadow var(--zq-transition);
+}
+html.dark .zq-otp-box { background: var(--zq-surface-elevated); }
+.zq-otp-box:focus {
+    outline: none; border-color: var(--zq-accent); box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+html.dark .zq-otp-box:focus { box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22); }
+.zq-otp-box:disabled { background: var(--zq-surface-alt); color: var(--zq-text-muted); cursor: not-allowed; }
+/* The password-reset OTP previously read larger (text-2xl vs text-lg) than
+   the sign-in one — kept as a size variant rather than dropped. */
+.zq-otp-box-lg { width: 46px; height: 58px; font-size: 1.5rem; }
+@media (max-width: 380px) {
+    .zq-otp-box { width: 36px; height: 46px; font-size: 1.1rem; }
+    .zq-otp-box-lg { width: 38px; height: 50px; font-size: 1.25rem; }
+}
 .zq-input:disabled, .zq-select:disabled, .zq-textarea:disabled,
 .zq-input:read-only, .zq-textarea:read-only {
     background: var(--zq-surface-alt); color: var(--zq-text-muted); cursor: not-allowed;

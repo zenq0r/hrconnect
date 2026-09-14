@@ -744,6 +744,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // "Trust this device" — lets a sign-in skip the emailed code for 30 days.
+    // Only /api/verify-login-otp (Admin SDK) may mint or renew one, after
+    // independently re-verifying who is signing in; a user may list and
+    // delete (revoke) only their own, which is all the Settings > Trusted
+    // Devices screen needs. Never updatable — a compromised token cannot be
+    // extended or re-pointed at a different device, only replaced by a fresh
+    // sign-in through the normal code challenge.
+    match /trusted_devices/{deviceId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if false;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
     // Per-account API abuse counters are maintained only by server-side Admin SDK code.
     match /security_rate_limits/{limitId} {
       allow read, write: if false;

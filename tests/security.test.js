@@ -61,7 +61,10 @@ test('starting the password reset OTP actually dispatches the request', () => {
 test('password reset renders its OTP field inline and not behind a separate popup', () => {
     const html = readSource('index.html');
 
-    assert.match(html, /id="password-reset-otp-code" name="passwordResetOtpCode"/);
+    // One box per digit now (see onOtpDigitInput()/app/methods/auth.js), ids
+    // reset-otp-0..5 — still the six-digit code from loginOtp.code, still
+    // rendered where the form is rather than in a popup of its own.
+    assert.match(html, /:id="`reset-otp-\$\{i - 1\}`"/);
     assert.match(html, /<template v-if="loginOtp\.show">/);
     assert.doesNotMatch(html, /EMAIL OTP FOR PASSWORD RESET ONLY/);
 });
@@ -209,12 +212,51 @@ test('audit retention validates supported units and calculates expiry duration',
     assert.equal(normalizeRetention(1, 'minute'), null);
 });
 
-test('RBAC sign-in has no trusted-device bypass', () => {
-    const appSource = readSource('app.js');
+// "Trust this device" was deliberately absent (see prior revision of this
+// test) until the user explicitly asked for one, with three conditions: a
+// real expiry, a client-visible revoke, and no weakening of the second
+// factor itself. This locks in that a trusted-device sign-in still stamps
+// sfa to the CURRENT sign-in's own auth_time (the exact mechanism
+// secondFactorCleared() checks) rather than skipping the stamp — a device
+// bypass that skipped the code but never (re-)stamped sfa would pass this
+// check once and then fail every later request, or worse, would have had to
+// stamp some other value to "work", which is the actual bypass this test
+// exists to catch.
+test('a trusted-device sign-in still stamps sfa to this sign-in\'s own auth_time', () => {
     const otpSource = readSource('api/verify-login-otp.js');
-    assert.doesNotMatch(appSource, /checkTrustedDevice|trustDevice|revokeTrustedDeviceAccess|forgetTrustedDevice/);
-    assert.doesNotMatch(otpSource, /trusted_login_devices|trustedUntil|trustDevice/);
-    assert.equal(fs.existsSync(path.join(__dirname, '..', 'api', '_trustedDevice.js')), false);
+    const start = otpSource.indexOf("trustedDeviceToken && typeof trustedDeviceToken === 'string'");
+    assert.ok(start > -1, 'the trusted-device branch must exist');
+    const body = otpSource.slice(start, otpSource.indexOf('if (!code ', start));
+    assert.match(body, /resolveSignInContext\(getAdminAuth\(\), req\.body\)/, 'the caller\'s idToken must be independently re-verified — never a body-supplied uid');
+    assert.match(body, /sfa: signInContext\.authTime/, 'the current sign-in\'s own auth_time, not a stored or skipped value');
+    assert.match(body, /enforceRateLimit\(/, 'a guessable-secret check needs the same rate limiting other login-adjacent routes have');
+    assert.match(body, /device\.revoked|device\.uid !== signInContext\.uid|new Date\(device\.expiresAt\)/, 'revoked, wrong-account and expired tokens must all be checked');
+});
+
+test('trusted-device tokens are hashed at rest, exactly like OTP codes and reset tokens', () => {
+    const otpSource = readSource('api/verify-login-otp.js');
+    // The raw token is generated, returned once, and only its hash is ever
+    // written to Firestore — the same discipline hashOtp()/hashResetToken()
+    // already enforce for the codes and links this file already handles.
+    const issueStart = otpSource.indexOf('trustDevice === true');
+    assert.ok(issueStart > -1, 'trust-device issuance must exist');
+    const issueBody = otpSource.slice(issueStart, issueStart + 900);
+    assert.match(issueBody, /crypto\.randomBytes\(32\)/, 'the token must be a real random secret, not a derivable value');
+    assert.match(issueBody, /hashResetToken\(rawToken\)/, 'only the hash is used as the stored document id/lookup key');
+    // The stored document body itself — between .set({ and its closing }) —
+    // must never contain the raw token, only fields derived independently of it.
+    const setStart = issueBody.indexOf('.set({');
+    const setBody = issueBody.slice(setStart, issueBody.indexOf('});', setStart));
+    assert.doesNotMatch(setBody, /rawToken/, 'the raw token must never be written into the stored document');
+});
+
+test('a signed-in user can only read or revoke their own trusted devices', () => {
+    const rules = readSource('firestore.rules');
+    const start = rules.indexOf('match /trusted_devices/');
+    assert.ok(start > -1, 'the trusted_devices rule must exist');
+    const block = rules.slice(start, rules.indexOf('}', rules.indexOf('}', start) + 1));
+    assert.match(block, /resource\.data\.uid == request\.auth\.uid/);
+    assert.match(block, /allow create, update: if false/, 'only the server (Admin SDK) may mint or renew a trust token');
 });
 
 test('API rate-limit identifiers are deterministic and do not expose user identifiers', () => {

@@ -49,8 +49,17 @@ export const createLoginOtpState = (overrides = {}) => ({
     email: '',
     purpose: '',
     cooldownSeconds: 0,
+    // Only meaningful for purpose === 'sign-in' — see attemptTrustedDeviceSignIn
+    // in app/methods/auth.js.
+    trustDevice: false,
     ...overrides
 });
+
+// localStorage key prefix for a trusted-device token, namespaced per uid so a
+// shared browser signing into a second account never reuses the first
+// account's trust. The token itself is opaque; only its sha256 hash is ever
+// sent to or stored on the server (see api/verify-login-otp.js).
+export const TRUSTED_DEVICE_KEY_PREFIX = 'zq_trusted_device_';
 
 // Sign-in greeting timing. HOLD covers the fade in plus the pause that follows;
 // FADE must stay >= the CSS transition on .zq-welcome-greeting or the overlay

@@ -179,8 +179,10 @@
                         </div>
                         <template v-if="loginOtp.show">
                             <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
-                                <label for="password-reset-otp-code" class="zq-label">Verification Code</label>
-                                <input id="password-reset-otp-code" name="passwordResetOtpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending || loginOtp.verifying" placeholder="000000" autocomplete="one-time-code" class="zq-input mt-1 text-center text-2xl font-black tracking-[0.5em] py-3">
+                                <label id="password-reset-otp-label" class="zq-label">Verification Code</label>
+                                <div class="mt-1 flex items-center justify-center gap-2" role="group" aria-labelledby="password-reset-otp-label">
+                                    <input v-for="i in 6" :key="`reset-otp-${i}`" :id="`reset-otp-${i - 1}`" type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" :value="otpDigit(i - 1)" @input="onOtpDigitInput($event, i - 1)" @keydown="onOtpDigitKeydown($event, i - 1)" @paste="onOtpPaste($event)" :disabled="loginOtp.sending || loginOtp.verifying" autocomplete="one-time-code" class="zq-otp-box zq-otp-box-lg" :aria-label="`Digit ${i} of 6`">
+                                </div>
                                 <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ loginOtp.sending ? 'Sending a 6-digit code to' : 'Enter the 6-digit code sent to' }} <span class="font-bold break-all">{{ loginOtp.email }}</span>.</p>
                             </div>
                             <div class="zq-alert-slot" aria-live="polite">
@@ -361,10 +363,16 @@
                 <!-- SECOND FACTOR — the password was accepted; the portal opens on the code -->
                 <div v-if="loginOtp.show && loginOtp.purpose === 'sign-in'" class="space-y-4">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900/40">
-                        <label for="sign-in-otp-code" class="zq-label">Verification Code</label>
-                        <input id="sign-in-otp-code" name="signInOtpCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="loginOtp.code" :disabled="loginOtp.sending || loginOtp.verifying" autocomplete="one-time-code" placeholder="6-digit code" class="zq-input mt-1.5 text-center text-lg font-extrabold tracking-[0.5em]">
+                        <label id="sign-in-otp-label" class="zq-label">Verification Code</label>
+                        <div class="mt-1.5 flex items-center justify-center gap-2" role="group" aria-labelledby="sign-in-otp-label">
+                            <input v-for="i in 6" :key="`signin-otp-${i}`" :id="`signin-otp-${i - 1}`" type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" :value="otpDigit(i - 1)" @input="onOtpDigitInput($event, i - 1)" @keydown="onOtpDigitKeydown($event, i - 1)" @paste="onOtpPaste($event)" :disabled="loginOtp.sending || loginOtp.verifying" autocomplete="one-time-code" class="zq-otp-box" :aria-label="`Digit ${i} of 6`">
+                        </div>
                         <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">{{ loginOtp.sending ? 'Sending a 6-digit code to' : 'Enter the 6-digit code sent to' }} <span class="font-bold lowercase">{{ loginOtp.email }}</span>. It expires in 5 minutes.</p>
                     </div>
+                    <label class="flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                        <input type="checkbox" v-model="loginOtp.trustDevice" class="zq-checkbox">
+                        <span>Trust this device for 30 days — skip this code next time I sign in here.</span>
+                    </label>
                     <div class="zq-alert-slot" aria-live="polite">
                         <div v-show="loginOtp.error" role="alert" class="zq-alert zq-alert-error">{{ loginOtp.error }}</div>
                     </div>
@@ -388,7 +396,7 @@
                     <div>
                         <label for="login-password" class="zq-label">Password</label>
                         <div class="relative">
-                            <input id="login-password" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" required autocomplete="current-password" placeholder="••••••••" class="zq-input font-medium pr-10">
+                            <input id="login-password" name="password" :type="showPassword ? 'text' : 'password'" v-model="loginForm.password" required autocomplete="current-password" placeholder="••••••••" class="zq-input zq-input-password font-medium pr-10">
                             <button type="button" @click="showPassword = !showPassword" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword" class="absolute inset-y-0 right-0 px-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" title="Show / Hide Password">
                                 <i :class="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
                             </button>

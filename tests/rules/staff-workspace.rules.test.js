@@ -153,6 +153,28 @@ test('a project reference counter can only ever move forward by exactly 1', asyn
     await assertFails(as('client').db.doc('project_ref_counters/DOC_2026').set({ count: 3 }));
 });
 
+// ---- Trusted devices --------------------------------------------------
+
+test('a staff account reads and revokes only its own trusted device', async () => {
+    await seed({
+        'trusted_devices/hash-staff-1': { uid: 'u-staff', label: 'Chrome on Windows 10/11', createdAt: '2026-09-01T00:00:00.000Z', expiresAt: '2026-10-01T00:00:00.000Z', lastUsedAt: '2026-09-01T00:00:00.000Z', revoked: false },
+        'trusted_devices/hash-other-1': { uid: 'u-staff2', label: 'Safari on macOS', createdAt: '2026-09-01T00:00:00.000Z', expiresAt: '2026-10-01T00:00:00.000Z', lastUsedAt: '2026-09-01T00:00:00.000Z', revoked: false },
+    });
+    // Its own — readable. Someone else's, and another staff role's own — neither,
+    // even a Director's, since this is a self-service revoke list, not an
+    // admin one.
+    await assertSucceeds(as('staff').db.doc('trusted_devices/hash-staff-1').get());
+    await assertFails(as('staff').db.doc('trusted_devices/hash-other-1').get());
+    await assertFails(as('director').db.doc('trusted_devices/hash-staff-1').get());
+    // No client-side write ever creates or renews one — /api/verify-login-otp
+    // (Admin SDK) is the only path, independent of who is signed in.
+    await assertFails(as('staff').db.doc('trusted_devices/hash-new').set({ uid: 'u-staff', label: 'Forged', createdAt: '2026-09-01T00:00:00.000Z', expiresAt: '2099-01-01T00:00:00.000Z', lastUsedAt: '2026-09-01T00:00:00.000Z', revoked: false }));
+    await assertFails(as('staff').db.doc('trusted_devices/hash-staff-1').update({ expiresAt: '2099-01-01T00:00:00.000Z' }));
+    // Revoke — its own succeeds, someone else's does not.
+    await assertFails(as('staff').db.doc('trusted_devices/hash-other-1').delete());
+    await assertSucceeds(as('staff').db.doc('trusted_devices/hash-staff-1').delete());
+});
+
 // ---- Billing documents ----------------------------------------------------
 
 test('Finance issues a quotation whose totals agree, and only then', async () => {

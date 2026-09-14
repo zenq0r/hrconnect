@@ -230,6 +230,7 @@ export function createInitialState() {
             buttonContextHandlers: { contextmenu: null, touchstart: null, touchmove: null, touchend: null },
             projectPreview: { show: false, project: null, detailsReady: false },
             clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' },
+            trustedDevices: { items: [], loading: false, error: '', loaded: false },
             clientDocumentsUnsubscribe: null,
 
             // Public-site content management: Firestore-backed content consumed directly by

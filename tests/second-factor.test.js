@@ -24,11 +24,15 @@ test('a challenged role reaches the portal only through the code', () => {
     assert.ok(challengeAt > -1 && challengeAt < completeAt, 'the challenge has to come before the session is completed');
     assert.match(finish, /await this\.startSignInOtp\(loginContext\);\s*\r?\n\s*return;/);
 
-    // Every entry point goes through it. The only one allowed to skip the
-    // challenge is the one that has just confirmed the code.
+    // Every entry point goes through it. The only ones allowed to skip the
+    // challenge are the ones that have just confirmed it — the emailed code,
+    // or a trusted device (see completeSignInAfterSecondFactor(), the one
+    // tail both of those reach).
     assert.match(methodSource('handleLogin'), /await this\.finishSignIn\(loginContext\)/);
     assert.match(methodSource('submitPasswordReset'), /await this\.finishSignIn\(context\)/);
-    assert.match(methodSource('verifyLoginOtp'), /await this\.finishSignIn\(context, \{ secondFactorCleared: true \}\)/);
+    assert.match(methodSource('verifyLoginOtp'), /await this\.completeSignInAfterSecondFactor\(\); return;/);
+    assert.match(methodSource('attemptTrustedDeviceSignIn'), /await this\.completeSignInAfterSecondFactor\(\);/);
+    assert.match(methodSource('completeSignInAfterSecondFactor'), /await this\.finishSignIn\(context, \{ secondFactorCleared: true \}\)/);
 
     const auth = readSource('app/methods/auth.js');
     const directCompletes = (auth.match(/await this\.completeLogin\(/g) || []).length;
@@ -72,15 +76,18 @@ test('an unanswered challenge cannot be walked around by reloading', () => {
     // The password was accepted before the code was asked for, so Firebase
     // holds a restorable session while the challenge is on screen. Opening a
     // second tab would otherwise restore straight into the portal.
-    assert.match(methodSource('startSignInOtp'), /this\.setPendingSecondFactor\(loginContext\?\.firebaseUser\?\.uid \|\| ''\)/);
+    const startSignInOtp = methodSource('startSignInOtp');
+    assert.match(startSignInOtp, /const uid = loginContext\?\.firebaseUser\?\.uid \|\| '';/);
+    assert.match(startSignInOtp, /this\.setPendingSecondFactor\(uid\);/);
 
     const entry = readSource('app.js');
     assert.match(entry, /if \(this\.pendingSecondFactorUid\(\) === firebaseUser\.uid\) \{/);
     assert.match(entry, /await signOut\(auth\)\.catch\(error => console\.error\('Sign-out of an unverified session failed:', error\)\);/);
 
     // And the marker is cleared on every exit from the challenge, so a stale
-    // one cannot lock somebody out of their own account.
-    assert.match(methodSource('verifyLoginOtp'), /this\.setPendingSecondFactor\(''\)/);
+    // one cannot lock somebody out of their own account. The emailed code and
+    // a trusted device both reach it through completeSignInAfterSecondFactor().
+    assert.match(methodSource('completeSignInAfterSecondFactor'), /this\.setPendingSecondFactor\(''\)/);
     assert.match(methodSource('abandonSignIn'), /this\.setPendingSecondFactor\(''\)/);
     assert.match(methodSource('handleLogout'), /this\.setPendingSecondFactor\(''\)/);
 });
@@ -138,6 +145,7 @@ test('the database, not the page, decides whether the second factor was cleared'
     const restore = entry.slice(entry.indexOf('onAuthStateChanged(auth'));
     assert.ok(restore.indexOf('secondFactorClearedFor(firebaseUser, role)') > -1);
     assert.ok(restore.indexOf('secondFactorClearedFor(firebaseUser, role)') < restore.indexOf('this.initFirebaseRealtime()'));
-    // And the page refreshes its token the moment the code is confirmed.
-    assert.match(methodSource('verifyLoginOtp'), /await auth\.currentUser\?\.getIdToken\(true\);/);
+    // And the page refreshes its token the moment the code — or a trusted
+    // device — is confirmed (completeSignInAfterSecondFactor(), reached by both).
+    assert.match(methodSource('completeSignInAfterSecondFactor'), /await auth\.currentUser\?\.getIdToken\(true\);/);
 });
