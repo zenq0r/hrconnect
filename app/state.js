@@ -104,7 +104,7 @@ export function createInitialState() {
             recordPreview: { show: false, html: '' },
             claimPreview: { show: false, claim: null, directorApprovalAttachment: '', directorApprovalAttachmentName: '', directorApprovalOriginalBytes: 0 },
             attachmentPreview: { show: false, url: '', label: '' },
-            attachmentUploadState: { payment: false, receipt: false, director: false },
+            attachmentUploadState: { receipt: false, director: false },
             unsubscribers: [],
             portalDataReady: false,
             // Closed monthly packages (Firestore `monthly_archives`, doc id = YYYY-MM).
@@ -199,8 +199,12 @@ export function createInitialState() {
             clientUpdateModal: { show: false, isEdit: false, updateId: '', original: null, project: null, form: { updateType: 'Progress Update', updateDate: '', message: '' } },
             clientReplyMessage: '',
             clientPanel: 'ov',
-            // Which invoice row is mid-upload, so only that row shows a spinner.
-            paymentProofUploadingFor: '',
+            // Payment Reference No. and the receipt are collected together here —
+            // the client's own claimed reference alongside the evidence for it,
+            // submitted in one step rather than a bare file picker with no
+            // reference at all. `doc` is the invoice being proven; nulled out
+            // whenever the modal is closed so a stale reference can't be reused.
+            paymentProofModal: { show: false, doc: null, refNo: '', file: null, fileName: '', uploading: false, error: '' },
             bulkPrintPreparing: false,
             editingReplyId: '',
             editingReplyMessage: '',
@@ -474,8 +478,6 @@ export function createInitialState() {
                 paymentMethod: 'Bank Transfer (EFT)',
                 paymentBank: '',
                 paymentReceiver: '',
-                paymentRefNo: '',
-                paymentAttachment: '',
                 date: new Date().toISOString().substr(0, 10),
                 dueDate: new Date(Date.now() + 5*24*60*60*1000).toISOString().substr(0, 10),
                 clientName: '',

@@ -52,15 +52,16 @@ test('the one deliberate search handoff survives the tab-switch clear', () => {
     assert.ok(searchAt > switchAt, 'searchQuery must be set after switchTab(), not before it');
 });
 
-test('verifying a payment proof names the invoice\'s own reference to check it against', () => {
-    // A client's bank transfer form lets them type any reference they like,
-    // and a mismatched one is exactly how a payment gets credited to the
-    // wrong invoice. Nothing here can read the uploaded proof itself, but the
-    // confirmation dialog can at least put the invoice's own reference in
-    // front of whoever is about to approve it.
+test('verifying a payment proof names the client\'s own claimed reference to check it against', () => {
+    // paymentRefNo is typed by the client themselves, alongside their receipt,
+    // when they submit proof (submitPaymentProof()) — a typo between what they
+    // typed and what the receipt actually shows is exactly how a payment gets
+    // credited to the wrong invoice. Nothing here can read the uploaded proof
+    // itself, but the confirmation dialog can at least put the client's own
+    // claimed reference in front of whoever is about to approve it.
     const fn = methodSource('reviewPaymentProof');
     assert.match(fn, /invoice\.paymentRefNo/);
-    assert.match(fn, /Check the reference on the proof/);
+    assert.match(fn, /Check the reference the client provided/);
 });
 
 test('a document still reaches the client when the Storage bucket refuses CORS', () => {

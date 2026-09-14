@@ -104,13 +104,14 @@ export const billingMethods = {
         },
         async reviewPaymentProof(invoice, approved) {
             if (!this.canVerifyPaymentProof || !invoice?.paymentProofUrl) { this.showNotify('Only HR Management or Finance can verify a payment proof.', 'error'); return; }
-            // A client's own bank transfer form lets them type any reference they
-            // like, and it is common for one to name a different (often older)
-            // invoice than the proof is actually for. Nothing here can read the
-            // proof itself, but naming the invoice's own reference right where
-            // Finance is about to confirm gives them something concrete to check
-            // it against, rather than approving on the amount alone.
-            const referenceReminder = approved && invoice.paymentRefNo ? ` Check the reference on the proof against this invoice's own reference, ${invoice.paymentRefNo}, before confirming.` : '';
+            // paymentRefNo is the reference the client themselves typed when they
+            // submitted this proof (submitPaymentProof(), client-workflow.js) — it
+            // is not something staff set in advance. Nothing here can read the
+            // uploaded receipt's own content, but showing what the client claimed
+            // right where Finance is about to confirm gives them something concrete
+            // to check the attached proof against, rather than approving on the
+            // amount alone.
+            const referenceReminder = approved && invoice.paymentRefNo ? ` Check the reference the client provided, ${invoice.paymentRefNo}, against what is actually shown on the attached proof before confirming.` : '';
             const { confirmed, note } = await this.askConfirmWithNote({
                 title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
                 message: approved
@@ -162,7 +163,6 @@ export const billingMethods = {
         
         async saveDocRecord() {
             try {
-                if (this.attachmentUploadState.payment) { this.showNotify('Wait for the payment attachment upload to finish.'); return false; }
                 if (!this.canManageDocuments) { this.showNotify('You do not have permission to save documents.'); return false; }
                 // A status left over from switching Document Type (e.g. an Invoice's
                 // 'Unpaid' surviving a switch to Quotation) would save a value the
@@ -178,13 +178,18 @@ export const billingMethods = {
                 if (this.docSubtotal < 0) { this.showNotify('The line items add up to a negative amount. Check the unit prices.'); return false; }
                 if (discount < 0) { this.showNotify('A discount cannot be a negative amount.'); return false; }
                 if (discount > this.docSubtotal) { this.showNotify('The discount is larger than the subtotal it is taken off.'); return false; }
-                if (['Paid', 'Partial'].includes(this.docForm.status) && (!this.docForm.paymentRefNo || this.docForm.paymentRefNo.trim() === '')) { this.showNotify("Payment Reference No. is REQUIRED."); return false; }
                 const normalizedDocForm = this.normalizeOfficialRecord(this.docForm);
                 normalizedDocForm.clientEmail = String(this.docForm.clientEmail || '').trim().toLowerCase();
                 Object.assign(this.docForm, normalizedDocForm);
                 const docId = String(this.editingDocId || Date.now());
                 const linkedProject = this.projects.find(project => String(project.id || '') === String(this.docForm.projectId || ''));
-                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, subtotal: this.docSubtotal, sst: this.docSST, discount: Number(this.docForm.discount) || 0, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
+                // paymentRefNo and paymentAttachment are deliberately NOT written here —
+                // they are the client's own transfer reference and receipt, submitted
+                // through submitPaymentProof() (app/methods/client-workflow.js) only
+                // after the client has actually paid. Staff cannot know either before
+                // that, and merge:true below means omitting them here never clobbers
+                // whatever the client has already submitted on a re-save of this doc.
+                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, subtotal: this.docSubtotal, sst: this.docSST, discount: Number(this.docForm.discount) || 0, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
                 if (!this.clientSavedForDocument) { this.showNotify('Select a registered client before saving this document.'); return false; }
                 // Hard guarantee, not just an implied one: every document must carry
                 // its client's real customers/{id}, never just a name snapshot — two

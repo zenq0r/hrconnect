@@ -681,8 +681,11 @@ service cloud.firestore {
           )
         ) &&
         request.resource.data.paymentProofByUid == request.auth.uid &&
+        // paymentRefNo is the client's own claimed transfer reference, typed
+        // alongside the proof in the same submission — not something staff set
+        // in advance (see submitPaymentProof(), app/methods/client-workflow.js).
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName'
+          'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName', 'paymentRefNo'
         ])
       );
       // Finance is the Account role. It may remove only official billing

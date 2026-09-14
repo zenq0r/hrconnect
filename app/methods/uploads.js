@@ -164,20 +164,6 @@ export const uploadMethods = {
                 throw new Error('The attachment could not be uploaded. Please try again.');
             }
         },
-        async handleAttachmentUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            this.attachmentUploadState.payment = true;
-            try {
-                this.docForm.paymentAttachment = await this.prepareImageAttachment(file);
-                this.showNotify('Payment attachment is ready to be saved.');
-            } catch (error) {
-                console.error('Payment attachment upload failed:', error);
-                this.docForm.paymentAttachment = '';
-                this.showNotify(this.getUploadErrorMessage(error));
-                e.target.value = '';
-            } finally { this.attachmentUploadState.payment = false; e.target.value = ''; }
-        },
         async handleClaimAttachmentUpload(e) {
             const file = e.target.files[0];
             if (!file) return;

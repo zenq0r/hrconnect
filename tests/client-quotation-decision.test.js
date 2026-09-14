@@ -107,7 +107,7 @@ test('payment proof cannot settle an invoice', () => {
     assert.ok(allowed, 'the proof branch must constrain affectedKeys');
     const fields = allowed[1].match(/'[^']+'/g).map(f => f.replace(/'/g, ''));
     assert.deepEqual(fields.sort(), [
-        'paymentProofAt', 'paymentProofByName', 'paymentProofByUid', 'paymentProofName', 'paymentProofUrl'
+        'paymentProofAt', 'paymentProofByName', 'paymentProofByUid', 'paymentProofName', 'paymentProofUrl', 'paymentRefNo'
     ]);
     assert.ok(!fields.includes('status'), 'a client must never be able to mark an invoice Paid');
     assert.ok(!fields.includes('amount'), 'the amount owed must stay as issued');
@@ -117,14 +117,19 @@ test('payment proof cannot settle an invoice', () => {
 
 test('the proof upload reuses the audited client document path', () => {
     const app = read('app.js');
-    const start = app.indexOf('async handlePaymentProofUpload(');
+    const start = app.indexOf('async submitPaymentProof(');
     const fn = app.slice(start, app.indexOf('async sendClientReply()', start));
+    // The reference and receipt are required together, before anything else runs.
+    assert.match(fn, /if \(!refNo\)/);
+    assert.match(fn, /if \(!file\)/);
     // Same Storage layout the storage rules already bound to the owning client.
     assert.match(fn, /client_documents\/\$\{clientDirectoryId\}\/\$\{storageFileName\}/);
     assert.match(fn, /validateClientDocumentFile\(file\)/);
     // Filed in the repository as well, so it is findable without the invoice.
     assert.match(fn, /purpose: 'Payment Proof'/);
     assert.match(fn, /linkedDocId: d\.id/);
+    // The client's own claimed reference travels with the proof itself.
+    assert.match(fn, /paymentRefNo: refNo/);
     // And it never touches status.
     const update = fn.slice(fn.indexOf("updateDoc(doc(db, 'docs'"));
     assert.doesNotMatch(update.slice(0, 400), /status:/);
@@ -193,6 +198,6 @@ test('a recorded decision is never reported to the client as a failure', () => {
     assert.match(handover, /catch \(error\) \{[\s\S]*?Quotation accepted\. Our team has been told and will follow up with you\./);
     assert.match(handover, /this\.notifyByEmail\(\{\s*to: this\.clientTeamRecipients\(d\)/);
 
-    const proof = methodSource('handlePaymentProofUpload');
+    const proof = methodSource('submitPaymentProof');
     assert.match(proof, /catch \(workflowError\) \{[\s\S]*?Payment proof submitted\. Our team has been told and will review it\./);
 });

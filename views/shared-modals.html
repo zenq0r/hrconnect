@@ -506,3 +506,43 @@
                 </div>
             </form>
         </div>
+
+        <!-- PAYMENT PROOF MODAL — the client's own transfer reference and receipt,
+             collected together at the moment they submit proof of a payment
+             already made. Neither is something staff can fill in ahead of time. -->
+        <div v-if="paymentProofModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Submit Payment Proof">
+            <form @submit.prevent="submitPaymentProof" class="zq-modal zq-modal-sm">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title flex items-center">
+                        <i class="fa-solid fa-receipt text-brand-gold mr-2 text-base"></i>
+                        Submit Payment Proof
+                    </h3>
+                    <button type="button" @click="closePaymentProofModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <p class="text-slate-600 dark:text-slate-300">{{ paymentProofModal.doc?.docNo }} — enter the reference from your bank transfer and attach your receipt or payment screenshot.</p>
+                    <div>
+                        <label for="proof-ref-no" class="zq-label">Payment Reference No. <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                        <input id="proof-ref-no" name="paymentProofRefNo" type="text" v-model="paymentProofModal.refNo" required placeholder="e.g. IT280905CT833S" :disabled="paymentProofModal.uploading" class="zq-input font-semibold">
+                    </div>
+                    <div>
+                        <label class="zq-label">Receipt / Payment Screenshot <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                        <div class="mt-1.5 flex items-center gap-2">
+                            <label for="proof-file" :class="paymentProofModal.uploading ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer shrink-0">
+                                <span>Select</span>
+                                <input id="proof-file" name="paymentProofFile" type="file" @change="selectPaymentProofFile" :disabled="paymentProofModal.uploading" accept="image/jpeg,image/png,application/pdf" class="hidden">
+                            </label>
+                            <p class="truncate text-slate-500 dark:text-slate-400">{{ paymentProofModal.fileName || 'No file selected' }}</p>
+                        </div>
+                        <p class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">JPG, PNG or PDF, up to 10 MB.</p>
+                    </div>
+                    <p v-if="paymentProofModal.error" class="zq-alert zq-alert-error">{{ paymentProofModal.error }}</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="closePaymentProofModal" :disabled="paymentProofModal.uploading" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" :disabled="paymentProofModal.uploading" :class="{ 'is-loading': paymentProofModal.uploading }" class="zq-btn zq-btn-primary">
+                        {{ paymentProofModal.uploading ? 'Submitting…' : 'Submit Proof' }}
+                    </button>
+                </div>
+            </form>
+        </div>

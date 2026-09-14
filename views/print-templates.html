@@ -193,7 +193,6 @@
                             <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">DuitNow QR / UEN</td><td class="py-0.5 font-bold text-slate-900">{{ company.ssm }}</td></tr>
                             <tr><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Payment Method</td><td class="py-0.5 text-slate-800">{{ docForm.paymentMethod || 'Bank Transfer' }}<span v-if="docForm.paymentBank"> &middot; {{ docForm.paymentBank }}</span></td></tr>
                             <tr v-if="docForm.paymentReceiver"><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Receiver Account</td><td class="py-0.5 text-slate-800">{{ docForm.paymentReceiver }}</td></tr>
-                            <tr v-if="docForm.paymentRefNo"><td class="py-0.5 pr-4 align-top font-bold text-slate-700">Payment Ref. No.</td><td class="py-0.5 font-extrabold text-emerald-700">{{ docForm.paymentRefNo }}</td></tr>
                         </table>
                     </div>
                     <div>

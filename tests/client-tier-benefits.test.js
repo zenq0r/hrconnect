@@ -120,7 +120,7 @@ test('core portal functions are never tier-gated: quotation decisions and paymen
     const src = appSource();
     // Fixed-size windows, same technique as the export/reply enforcement test above —
     // large enough to cover each method body without needing to know what follows it.
-    for (const method of ['decideQuotation', 'canDecideQuotation', 'handlePaymentProofUpload', 'canAttachPaymentProof']) {
+    for (const method of ['decideQuotation', 'canDecideQuotation', 'submitPaymentProof', 'canAttachPaymentProof']) {
         const start = src.indexOf(`${method}(`);
         assert.ok(start > -1, `${method} must exist`);
         const body = src.slice(start, start + 1400);
