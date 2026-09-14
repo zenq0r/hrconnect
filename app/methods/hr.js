@@ -195,9 +195,14 @@ export const hrMethods = {
             return this.employeeActiveProjectAssignments(empNo).length > 0 || this.employeeActiveActivityAssignments(empNo).length > 0;
         },
         viewEmployeeProjectAssignments(emp) {
-            this.searchQuery = emp.name || emp.empNo;
+            // switchTab() clears searchQuery on every real tab change (so a
+            // search typed on one screen doesn't silently keep filtering an
+            // unrelated one), so this deliberate filter handoff sets it AFTER
+            // navigating rather than before, or switchTab would wipe it right
+            // back out.
             this.projectViewMode = 'list';
             this.switchTab('project-activities');
+            this.searchQuery = emp.name || emp.empNo;
         },
         async deleteEmployee(empNo, requiresConfirmation = true) {
             if (requiresConfirmation) {

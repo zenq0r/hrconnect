@@ -104,10 +104,17 @@ export const billingMethods = {
         },
         async reviewPaymentProof(invoice, approved) {
             if (!this.canVerifyPaymentProof || !invoice?.paymentProofUrl) { this.showNotify('Only HR Management or Finance can verify a payment proof.', 'error'); return; }
+            // A client's own bank transfer form lets them type any reference they
+            // like, and it is common for one to name a different (often older)
+            // invoice than the proof is actually for. Nothing here can read the
+            // proof itself, but naming the invoice's own reference right where
+            // Finance is about to confirm gives them something concrete to check
+            // it against, rather than approving on the amount alone.
+            const referenceReminder = approved && invoice.paymentRefNo ? ` Check the reference on the proof against this invoice's own reference, ${invoice.paymentRefNo}, before confirming.` : '';
             const { confirmed, note } = await this.askConfirmWithNote({
                 title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
                 message: approved
-                    ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.`
+                    ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.${referenceReminder}`
                     : `${invoice.docNo} stays Unpaid. The client will be asked to upload a corrected proof.`,
                 confirmLabel: approved ? 'Verify and Mark Paid' : 'Reject Proof',
                 danger: !approved,

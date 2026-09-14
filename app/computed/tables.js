@@ -101,6 +101,27 @@ export const tablesComputed = {
             const start = (this.currentPage - 1) * this.itemsPerPage;
             return this.filteredRecentActivities.slice(start, start + this.itemsPerPage);
         },
+        // Audit & Security Log's own list — an unfilterable log is only usable
+        // for as long as it fits on one screen. Matches by user, action, the
+        // module/details text and the target UID, so "who did what to which
+        // record" is answerable without scrolling the whole history.
+        filteredAuditLogs() {
+            if (!this.searchQuery) return this.auditLogs;
+            const q = this.searchQuery.toLowerCase();
+            return this.auditLogs.filter(log => [log.userName, log.user, log.role, log.action, log.module, log.details, log.uid]
+                .some(field => String(field || '').toLowerCase().includes(q)));
+        },
+        // Not a "correct" value to enforce — retention is the company's own call
+        // to make, not this portal's. Only flags that the currently configured
+        // period is short enough (under 90 days) that it is worth a deliberate
+        // look, since financial/security audit trails commonly need to survive
+        // 1-7 years for compliance, and 30 days is only ever the unconfigured
+        // default here, never a decision someone actually made.
+        auditRetentionIsShort() {
+            const UNIT_DAYS = { hour: 1 / 24, day: 1, week: 7, month: 30, year: 365 };
+            const days = (Number(this.auditRetention.value) || 0) * (UNIT_DAYS[this.auditRetention.unit] || 1);
+            return days > 0 && days < 90;
+        },
         // Drives the global body-scroll lock (see the matching watch below) — every
         // modal/drawer/dropdown/context-menu overlay in the app, OR'd together, so
         // locking/restoring scroll needs exactly one implementation instead of

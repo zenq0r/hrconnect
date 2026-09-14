@@ -238,6 +238,14 @@ export const shellMethods = {
             }
             window.history.pushState({ zenqorPortal: true, tab: tabName }, '', window.location.href);
             this.currentTab = tabName;
+            // The search box's own text otherwise survives the navigation and
+            // keeps filtering whatever list or KPI count the new screen has —
+            // most visibly the Dashboard's Project Progress cards silently
+            // reading 0 because of text typed on a completely different tab.
+            // A caller that deliberately hands a filter to the next screen
+            // (e.g. viewEmployeeProjectAssignments()) sets searchQuery AFTER
+            // calling switchTab(), so this clear never fights it.
+            this.searchQuery = '';
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });

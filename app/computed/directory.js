@@ -67,6 +67,15 @@ export const directoryComputed = {
         unreadNotificationsCount() { return this.notificationsForDisplay.filter(n => !n.read).length; },
         appChangelog() { return APP_CHANGELOG; },
         priorityClients() { return this.customers.filter(c => canonicalClientTier(c.clientTier) === 'Priority'); },
+        // The Client Directory table's own list — the global search box's
+        // placeholder has always promised "Documents, Employees, TIN, ID...",
+        // but nothing wired it to this table until now.
+        filteredCustomers() {
+            if (!this.searchQuery) return this.customers;
+            const q = this.searchQuery.toLowerCase();
+            return this.customers.filter(c => [c.clientName, c.clientId, c.clientSSM, c.clientContactPerson, c.clientEmail, c.clientPhone]
+                .some(field => String(field || '').toLowerCase().includes(q)));
+        },
         // Client Task board: every client bucketed by the LIVE status of their
         // own projects (clientTaskStatus) — not the manual clientTier tag, which
         // stays a separate, untouched feature (Dashboard's Priority Clients
