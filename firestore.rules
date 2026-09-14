@@ -143,6 +143,16 @@ service cloud.firestore {
       return isAdmin();
     }
 
+    // Any staff role (never Client) may CREATE a project — every creation is
+    // still audited client-side (logAudit). This is deliberately narrower in
+    // scope than isProjectManager(), which stays the read/update/delete
+    // authority over EXISTING projects everywhere else in this file; only the
+    // projects/{projectId} create rule and project_ref_counters below read
+    // this function.
+    function canCreateProject() {
+      return isSuperadmin() || isDirector() || isHR() || isAccount() || isIT() || isStaff();
+    }
+
     // The project's PIC, or a staff member with an activity on it: exactly the
     // two staff grants of the projects read rule.
     function staffWorksOnProject(projectId) {
@@ -886,7 +896,7 @@ service cloud.firestore {
           isClient() && resource.data.clientDirectoryId == request.auth.token.clientDirectoryId
         )
       );
-      allow create: if isProjectManager() &&
+      allow create: if (isProjectManager() || canCreateProject()) &&
         request.resource.data.createdByUid == request.auth.uid &&
         request.resource.data.createdByEmail == request.auth.token.email &&
         request.resource.data.updatedByUid == request.auth.uid &&
@@ -973,6 +983,23 @@ service cloud.firestore {
           ])
       );
       allow delete: if isProjectManager();
+    }
+
+    // One document per Project Type per year (id "PREFIX_YEAR", e.g.
+    // "DOC_2026"), holding only a running count — the source of every new
+    // project's reference number (see generateProjectRef() in
+    // app/methods/projects.js). Written inside a client-side Firestore
+    // transaction so two staff members creating a project at the same moment
+    // can never be handed the same reference, even though projects/{id} reads
+    // are PIC-scoped and neither of them can see the other's project. count
+    // may only move forward by exactly 1 per write — never jump, never reset.
+    match /project_ref_counters/{counterId} {
+      allow read: if canCreateProject() || isProjectManager();
+      allow create: if (canCreateProject() || isProjectManager()) &&
+        request.resource.data.count == 1;
+      allow update: if (canCreateProject() || isProjectManager()) &&
+        request.resource.data.count == resource.data.count + 1;
+      allow delete: if false;
     }
 
     match /project_activities/{activityId} {

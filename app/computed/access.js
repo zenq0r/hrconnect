@@ -89,6 +89,11 @@ export const accessComputed = {
         },
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
+        // Any staff role (never Client) may create a new project — every creation
+        // is still audited (saveProject calls logAudit unconditionally). This is
+        // deliberately broader than canManageProjects, which stays Director/
+        // Superadmin-only for editing, reassigning or deleting an EXISTING one.
+        canCreateProject() { return ['Staff', 'HR', 'Account', 'IT', 'Director', 'Superadmin'].includes(this.userProfile.role); },
         // Must mirror the customers subscription condition in loadPortalData(), or
         // any gate built on this.customers silently evaluates against an empty list
         // for Staff/IT — who deliberately cannot read the Client Directory.

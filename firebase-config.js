@@ -18,6 +18,7 @@ import {
     onSnapshot,
     getDocs,
     writeBatch,
+    runTransaction,
     query,
     where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
@@ -147,6 +148,7 @@ export {
     onSnapshot,
     getDocs,
     writeBatch,
+    runTransaction,
     query,
     where,
     signInWithEmailAndPassword,
