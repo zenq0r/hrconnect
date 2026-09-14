@@ -55,6 +55,25 @@ export const displayMethods = {
             if (Number.isNaN(parsed.getTime())) return '-';
             return new Intl.DateTimeFormat('en-US', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(parsed);
         },
+        // Recent Activities' own "Date" column is a business date the record's
+        // own type defines (Document Date, Expense Date, Payment Date) — staff
+        // enter it by hand and can backdate it, so it never carries a time of
+        // day. This is the separate, precise moment the record was actually
+        // saved: claims and vouchers stamp it explicitly as createdAt; every
+        // other type (docs, payslips) never has, but every one of the four
+        // save methods mints its Firestore doc id as String(Date.now()) at
+        // creation, so the id itself doubles as that timestamp.
+        recordCreatedAt(item) {
+            if (item?.createdAt) {
+                const fromField = new Date(item.createdAt);
+                if (!Number.isNaN(fromField.getTime())) return this.formatDateTime(fromField);
+            }
+            const idMillis = Number(item?.id);
+            if (Number.isInteger(idMillis) && idMillis > Date.UTC(2020, 0, 1) && idMillis <= Date.now()) {
+                return this.formatDateTime(idMillis);
+            }
+            return '';
+        },
         getLocalDateKey(value = new Date()) {
             const date = value instanceof Date ? value : new Date(value);
             const year = date.getFullYear();

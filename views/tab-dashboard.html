@@ -371,7 +371,10 @@
                                     </thead>
                                     <tbody>
                                         <tr v-for="item in paginatedActivities" :key="item.id" @contextmenu.prevent="openContextMenu($event, recentActivityMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, recentActivityMenuItems(item))">
-                                            <td class="text-slate-600 dark:text-slate-300 font-semibold">{{ item.date }}</td>
+                                            <td class="text-slate-600 dark:text-slate-300 font-semibold">
+                                                {{ item.date }}
+                                                <p v-if="recordCreatedAt(item)" class="mt-0.5 text-[10px] font-normal text-slate-400 dark:text-slate-500 whitespace-nowrap">Created {{ recordCreatedAt(item) }}</p>
+                                            </td>
                                              <td>
                                                  <span :class="item.tagClass" class="px-2 py-0.5 rounded-full text-[10px] font-bold">{{ item.type }}</span>
                                                  <p class="mt-1 font-bold text-brand-dark dark:text-slate-100">{{ item.docNo }}</p>

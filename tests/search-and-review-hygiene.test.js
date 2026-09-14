@@ -94,3 +94,34 @@ test('a toast only joins the persisted notifications feed when it is worth keepi
     assert.match(isNotable, /if \(tone === 'error'\) return false;/, 'this account\'s own validation/permission refusals must not clutter the feed');
     assert.match(isNotable, /is now \(online\|offline\)/, 'another user\'s presence pings must not clutter the feed');
 });
+
+test('Recent Activities shows exactly when a record was created, not just its editable business date', () => {
+    // item.date is a business date the record's own type defines (Document
+    // Date, Expense Date, Payment Date) — staff enter it by hand and can
+    // backdate it, so it never carries a time of day. recordCreatedAt() is
+    // the separate, precise moment the record was actually saved.
+    const obj = new Function(`return { ${methodSource('recordCreatedAt', 'formatDateTime')} }`)();
+
+    // Claims and vouchers stamp createdAt explicitly — prefer it.
+    const fromCreatedAt = obj.recordCreatedAt({ id: '1000000000000', createdAt: '2026-09-14T07:30:00.000Z' });
+    assert.match(fromCreatedAt, /2026/);
+    assert.notEqual(fromCreatedAt, '');
+
+    // Docs and payslips never set createdAt, but every save mints the
+    // Firestore doc id as String(Date.now()) — fall back to decoding it.
+    const nowMillis = Date.now();
+    const fromId = obj.recordCreatedAt({ id: String(nowMillis) });
+    assert.notEqual(fromId, '', 'a Date.now()-shaped id must still produce a created-at time');
+
+    // A legacy non-numeric id with no createdAt must not print a bogus date.
+    assert.equal(obj.recordCreatedAt({ id: 'legacy-SAZT-262808' }), '');
+    assert.equal(obj.recordCreatedAt({ id: undefined }), '');
+});
+
+test('the Recent Activities Date column renders the created-at detail', () => {
+    const { readRaw } = require('./helpers/sources');
+    const markup = readRaw('views/tab-dashboard.html');
+    const dateCell = markup.slice(markup.indexOf('{{ item.date }}') - 200, markup.indexOf('{{ item.date }}') + 300);
+    assert.match(dateCell, /v-if="recordCreatedAt\(item\)"/);
+    assert.match(dateCell, /Created \{\{ recordCreatedAt\(item\) \}\}/);
+});
