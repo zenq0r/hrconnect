@@ -107,9 +107,14 @@ test('payment proof cannot settle an invoice', () => {
     assert.ok(allowed, 'the proof branch must constrain affectedKeys');
     const fields = allowed[1].match(/'[^']+'/g).map(f => f.replace(/'/g, ''));
     assert.deepEqual(fields.sort(), [
+        'clientPaymentAccountHolder', 'clientPaymentAccountType', 'clientPaymentAmount', 'clientPaymentBank', 'clientPaymentDate',
         'paymentProofAt', 'paymentProofByName', 'paymentProofByUid', 'paymentProofName', 'paymentProofUrl', 'paymentRefNo'
     ]);
     assert.ok(!fields.includes('status'), 'a client must never be able to mark an invoice Paid');
+    // amount is the invoice's own issued total and must stay as issued; the
+    // client's OWN claimed payment figure is the distinctly-named
+    // clientPaymentAmount, asserted present above — the two are never the
+    // same field.
     assert.ok(!fields.includes('amount'), 'the amount owed must stay as issued');
     // The uploader is stamped as themselves, not as whoever they claim.
     assert.match(rule, /request\.resource\.data\.paymentProofByUid == request\.auth\.uid/);

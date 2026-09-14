@@ -1,8 +1,11 @@
 // Everything a signed-in person sees about themselves: their own payslips,
 // claims and documents, and the client account's tier, timeline and totals.
 import { CLIENT_TIER_ORDER, canonicalClientTier, CLIENT_TIER_FEATURES, CLIENT_SUPPORT_CHANNELS, CLIENT_TIMELINE_PREVIEW_COUNT } from "../constants/client-tiers.js";
+import { MALAYSIA_BANKS, CLIENT_PAYMENT_ACCOUNT_TYPES } from "../constants/malaysia-banks.js";
 export const clientPortalComputed = {
         currentYear() { return new Date().getFullYear(); },
+        malaysiaBanks() { return MALAYSIA_BANKS; },
+        clientPaymentAccountTypes() { return CLIENT_PAYMENT_ACCOUNT_TYPES; },
         payslipYtdMultiplier() {
             const month = Number(String(this.payForm.month || '').split('-')[1]);
             return month >= 1 && month <= 12 ? month : new Date().getMonth() + 1;

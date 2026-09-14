@@ -82,3 +82,117 @@ test('the client can only replace a proof through the modal, not an immediate ba
     assert.doesNotMatch(clientPortal, /handlePaymentProofUpload/);
     assert.match(clientPortal, /@click="openPaymentProofModal\(d\)"/);
 });
+
+// ---------------------------------------------------------------------------
+// A typical manual-transfer proof: which bank, whose account (Personal or
+// Business), when, how much, the reference, and the receipt — not just a
+// reference number and a bare file, so Finance has something to actually
+// check a receipt against instead of taking the amount on faith.
+
+test('the Malaysian bank list is comprehensive and never dead-ends an unlisted bank', () => {
+    const { constantSource } = require('./helpers/sources');
+    const banks = new Function(`${constantSource('MALAYSIA_BANKS')} return MALAYSIA_BANKS;`)();
+    assert.ok(banks.length > 20, 'the list should cover the real range of banks operating in Malaysia');
+    for (const name of ['Malayan Banking Berhad (Maybank)', 'CIMB Bank Berhad', 'Public Bank Berhad', 'RHB Bank Berhad', 'Bank Islam Malaysia Berhad']) {
+        assert.ok(banks.includes(name), `${name} must be listed`);
+    }
+    assert.equal(banks[banks.length - 1], 'Other Bank', 'a bank not named in the list must not be a dead end');
+    assert.equal(new Set(banks).size, banks.length, 'no duplicate bank names');
+});
+
+test('submitPaymentProof validates the full manual-transfer proof in order, before any upload begins', async () => {
+    const obj = new Function(`return { ${methodSource('submitPaymentProof')} }`)();
+    obj.canAttachPaymentProof = () => true;
+    obj.userProfile = { clientDirectoryId: 'CUST-1' };
+    const base = (overrides = {}) => ({ show: true, doc: { id: 'I1', docNo: 'INV-1' }, bankName: '', accountType: '', accountHolderName: '', paymentDate: '', amount: '', refNo: '', file: null, fileName: '', uploading: false, error: '', ...overrides });
+
+    obj.paymentProofModal = base();
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /bank/i);
+
+    obj.paymentProofModal = base({ bankName: 'Public Bank Berhad' });
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /Personal or a Business/);
+
+    obj.paymentProofModal = base({ bankName: 'Public Bank Berhad', accountType: 'Business' });
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /company name/i);
+
+    obj.paymentProofModal = base({ bankName: 'Public Bank Berhad', accountType: 'Business', accountHolderName: 'ACME SDN BHD' });
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /date/i);
+
+    obj.paymentProofModal = base({ bankName: 'Public Bank Berhad', accountType: 'Business', accountHolderName: 'ACME SDN BHD', paymentDate: '2026-09-14' });
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /amount/i);
+
+    obj.paymentProofModal = base({ bankName: 'Public Bank Berhad', accountType: 'Business', accountHolderName: 'ACME SDN BHD', paymentDate: '2026-09-14', amount: '1080' });
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /reference number/i);
+
+    obj.paymentProofModal = base({ bankName: 'Public Bank Berhad', accountType: 'Business', accountHolderName: 'ACME SDN BHD', paymentDate: '2026-09-14', amount: '1080', refNo: 'REF123' });
+    await obj.submitPaymentProof();
+    assert.match(obj.paymentProofModal.error, /receipt|screenshot/i);
+});
+
+test('submitPaymentProof writes the full manual-transfer proof onto both the invoice and the client document repository', () => {
+    const fn = methodSource('submitPaymentProof');
+    for (const field of ['clientPaymentBank: bankName', 'clientPaymentAccountType: accountType', 'clientPaymentAccountHolder: accountHolderName', 'clientPaymentDate: paymentDate', 'clientPaymentAmount: amount']) {
+        const occurrences = fn.split(field).length - 1;
+        assert.equal(occurrences, 2, `${field} must be written to both the client_documents record and the invoice`);
+    }
+});
+
+test('the payment proof form collects bank, account type, account holder, date and amount before the reference and receipt', () => {
+    const markup = readRaw('views/shared-modals.html');
+    const start = markup.indexOf('paymentProofModal.show');
+    const modal = markup.slice(start, markup.indexOf('</form>', start));
+    assert.match(modal, /v-model="paymentProofModal\.bankName"/);
+    assert.match(modal, /v-for="bank in malaysiaBanks"/);
+    assert.match(modal, /v-for="opt in clientPaymentAccountTypes"/);
+    assert.match(modal, /paymentProofModal\.accountType = opt\.value/);
+    assert.match(modal, /v-model="paymentProofModal\.accountHolderName"/);
+    assert.match(modal, /v-model="paymentProofModal\.paymentDate"/);
+    assert.match(modal, /v-model="paymentProofModal\.amount"/);
+    // Bank comes before the reference/receipt fields in source order, matching
+    // the requested flow: bank -> account type -> details -> proof.
+    assert.ok(modal.indexOf('paymentProofModal.bankName') < modal.indexOf('paymentProofModal.refNo'));
+    assert.ok(modal.indexOf('paymentProofModal.refNo') < modal.indexOf('selectPaymentProofFile'));
+});
+
+test('a submitted payment proof reads Pending Verification, not the old wording', () => {
+    const fn = methodSource('clientBillingStatus');
+    assert.match(fn, /'Pending Verification'/);
+    assert.doesNotMatch(fn, /'Payment Under Review'/);
+    // The status pill's own styling lookup must be kept in step with the rename.
+    const markup = readRaw('views/tab-client-portal.html');
+    assert.doesNotMatch(markup, /'Payment Under Review'/);
+    assert.match(markup, /'Pending Verification'/);
+});
+
+test('Finance gets three distinct outcomes for a payment proof, all resolving to the one binary server decision', () => {
+    // api/billing-workflow.js's payment-proof-reviewed only ever records
+    // decision === 'approved' or not — a reject and a request-new-proof leave
+    // the invoice in the exact same Unpaid/awaiting-resubmission state, so
+    // the distinction only needs to live in which dialog copy Finance sees.
+    const fn = methodSource('reviewPaymentProof');
+    assert.match(fn, /decision === 'approved'/);
+    assert.match(fn, /decision === 'new-proof'/);
+    assert.match(fn, /'Request a new payment proof\?'/);
+    assert.match(fn, /'Reject this payment\?'/);
+    assert.match(fn, /decision: approved \? 'approved' : 'rejected'/);
+
+    const dashboard = readRaw('views/tab-dashboard.html');
+    assert.match(dashboard, /reviewPaymentProof\(item, 'approved'\)/);
+    assert.match(dashboard, /reviewPaymentProof\(item, 'new-proof'\)/);
+    assert.match(dashboard, /reviewPaymentProof\(item, 'rejected'\)/);
+});
+
+test('Finance sees what the client claimed about their payment right on the review card', () => {
+    const dashboard = readRaw('views/tab-dashboard.html');
+    assert.match(dashboard, /item\.clientPaymentBank/);
+    assert.match(dashboard, /item\.clientPaymentAccountType/);
+    assert.match(dashboard, /item\.clientPaymentAccountHolder/);
+    assert.match(dashboard, /item\.clientPaymentDate/);
+    assert.match(dashboard, /item\.clientPaymentAmount/);
+});

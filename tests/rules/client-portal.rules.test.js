@@ -55,9 +55,15 @@ test('a client accepts their open quotation, and cannot touch its figures', asyn
 
 test('a client attaches payment proof, which never marks the invoice paid', async () => {
     const { db } = as('client');
-    // paymentRefNo travels with the proof — it is the client's own claimed
-    // transfer reference, typed alongside the receipt in the same submission.
-    const proof = { paymentProofUrl: 'https://firebasestorage.googleapis.com/x', paymentProofName: 'slip.pdf', paymentProofAt: '2026-09-13T00:00:00.000Z', paymentProofByUid: 'u-client', paymentProofByName: 'CLIENT BUYER', paymentRefNo: 'IT280905CT833S' };
+    // The full manual-transfer proof travels together — which bank, whose
+    // account, when, how much and the reference — alongside the receipt, all
+    // the client's own claim about a payment they say they already made.
+    const proof = {
+        paymentProofUrl: 'https://firebasestorage.googleapis.com/x', paymentProofName: 'slip.pdf', paymentProofAt: '2026-09-13T00:00:00.000Z',
+        paymentProofByUid: 'u-client', paymentProofByName: 'CLIENT BUYER', paymentRefNo: 'IT280905CT833S',
+        clientPaymentBank: 'Public Bank Berhad', clientPaymentAccountType: 'Business', clientPaymentAccountHolder: 'CLIENTCO SDN BHD',
+        clientPaymentDate: '2026-09-13', clientPaymentAmount: 1080
+    };
     await assertFails(db.doc('docs/I1').update({ ...proof, status: 'Paid' }));
     await assertFails(db.doc('docs/I1').update({ ...proof, amount: 1 }));
     await assertSucceeds(db.doc('docs/I1').update(proof));

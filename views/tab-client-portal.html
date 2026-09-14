@@ -198,7 +198,7 @@
                                             <td class="zq-cp-mono">{{ d.date }}</td>
                                             <td class="text-right zq-cp-mono zq-cp-strong">{{ formatCurrency(d.amount) }}</td>
                                             <td class="text-center">
-                                                <span class="zq-cp-pill" :class="['Paid', 'Accepted', 'Invoiced'].includes(d.status) ? 'is-done' : ['Open', 'Payment Under Review'].includes(clientBillingStatus(d)) ? 'is-wait' : 'is-act'">{{ clientBillingStatus(d) }}</span>
+                                                <span class="zq-cp-pill" :class="['Paid', 'Accepted', 'Invoiced'].includes(d.status) ? 'is-done' : ['Open', 'Pending Verification'].includes(clientBillingStatus(d)) ? 'is-wait' : 'is-act'">{{ clientBillingStatus(d) }}</span>
                                             </td>
                                             <td class="text-center">
                                                 <div class="flex flex-wrap items-center justify-center gap-1.5">
@@ -215,9 +215,9 @@
                                                     <button v-if="d.paymentProofUrl" type="button" @click="downloadClientDocument({ downloadURL: d.paymentProofUrl, fileName: d.paymentProofName })" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="Download submitted payment proof" aria-label="Download submitted payment proof"><i class="fa-solid fa-download"></i></button>
                                                 </div>
                                                 <p v-if="d.clientDecisionAt" class="zq-cp-cell-note">{{ d.status === 'Rejected' ? 'Declined' : 'Accepted' }} by {{ d.clientDecisionByName }}</p>
-                                                <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="zq-cp-cell-note is-act">Proof needs attention{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>
+                                                <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="zq-cp-cell-note is-act">Please submit a new payment proof{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>
                                                 <p v-else-if="d.paymentProofReviewStatus === 'Verified'" class="zq-cp-cell-note is-done">Payment verified by {{ d.paymentProofReviewedByName || 'Finance' }} · {{ formatDateTime(d.paymentProofReviewedAt) }}</p>
-                                                <p v-else-if="d.paymentProofAt" class="zq-cp-cell-note is-done">Proof submitted — awaiting Finance verification</p>
+                                                <p v-else-if="d.paymentProofAt" class="zq-cp-cell-note is-done">Pending Verification — {{ d.clientPaymentBank }}, {{ formatCurrency(d.clientPaymentAmount) }} on {{ d.clientPaymentDate }}</p>
                                             </td>
                                         </tr>
                                     </tbody>

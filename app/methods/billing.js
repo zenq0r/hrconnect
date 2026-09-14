@@ -102,8 +102,16 @@ export const billingMethods = {
             this.switchTab('document-quotations');
             this.showNotify(`Invoice draft prepared from ${quotation.docNo}. Review it, then Save as Draft or Send to Client.`);
         },
-        async reviewPaymentProof(invoice, approved) {
+        // The server only ever records a binary decision (approved/not — see
+        // payment-proof-reviewed in api/billing-workflow.js): a rejected proof
+        // and a request for a new one leave the invoice in the exact same
+        // state, waiting for the client to resubmit. 'reject' vs 'new-proof' is
+        // purely which dialog copy Finance sees, so their note is framed for
+        // what they actually mean — a real decline vs. "try again with X fixed".
+        async reviewPaymentProof(invoice, decision) {
             if (!this.canVerifyPaymentProof || !invoice?.paymentProofUrl) { this.showNotify('Only HR Management or Finance can verify a payment proof.', 'error'); return; }
+            const approved = decision === 'approved';
+            const isNewProofRequest = decision === 'new-proof';
             // paymentRefNo is the reference the client themselves typed when they
             // submitted this proof (submitPaymentProof(), client-workflow.js) — it
             // is not something staff set in advance. Nothing here can read the
@@ -113,20 +121,23 @@ export const billingMethods = {
             // amount alone.
             const referenceReminder = approved && invoice.paymentRefNo ? ` Check the reference the client provided, ${invoice.paymentRefNo}, against what is actually shown on the attached proof before confirming.` : '';
             const { confirmed, note } = await this.askConfirmWithNote({
-                title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
+                title: approved ? 'Verify this payment?' : isNewProofRequest ? 'Request a new payment proof?' : 'Reject this payment?',
                 message: approved
                     ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.${referenceReminder}`
-                    : `${invoice.docNo} stays Unpaid. The client will be asked to upload a corrected proof.`,
-                confirmLabel: approved ? 'Verify and Mark Paid' : 'Reject Proof',
+                    : isNewProofRequest
+                        ? `${invoice.docNo} stays Unpaid. The client will be asked to upload a new proof of payment.`
+                        : `${invoice.docNo} stays Unpaid. The client will be told this payment was rejected.`,
+                confirmLabel: approved ? 'Verify and Mark Paid' : isNewProofRequest ? 'Request New Proof' : 'Reject Payment',
                 danger: !approved,
-                noteLabel: approved ? 'Verification note (optional)' : 'Reason for rejection',
-                notePlaceholder: approved ? 'Reference checked by Finance' : 'Explain what the client needs to correct'
+                noteLabel: approved ? 'Verification note (optional)' : isNewProofRequest ? "What's wrong with this proof? (optional)" : 'Reason for rejection',
+                notePlaceholder: approved ? 'Reference checked by Finance' : isNewProofRequest ? 'e.g. the amount shown does not match, image is unclear' : 'Explain why this payment is being rejected'
             });
             if (!confirmed) return;
             try {
                 await this.runBillingWorkflow('payment-proof-reviewed', invoice.id, { decision: approved ? 'approved' : 'rejected', note });
-                this.logAudit('UPDATE', `${approved ? 'Verified' : 'Rejected'} payment proof for ${invoice.docNo}`);
-                this.showNotify(approved ? `${invoice.docNo} is marked Paid.` : `Payment proof for ${invoice.docNo} was rejected; client has been notified.`);
+                const auditVerb = approved ? 'Verified payment proof for' : isNewProofRequest ? 'Requested a new payment proof for' : 'Rejected payment proof for';
+                this.logAudit('UPDATE', `${auditVerb} ${invoice.docNo}`);
+                this.showNotify(approved ? `${invoice.docNo} is marked Paid.` : `${invoice.docNo} stays Unpaid; client has been told.`);
             } catch (error) {
                 console.error('Payment proof review failed:', error);
                 this.showNotify(error.message || 'Unable to review the payment proof.', 'error');

@@ -199,12 +199,13 @@ export function createInitialState() {
             clientUpdateModal: { show: false, isEdit: false, updateId: '', original: null, project: null, form: { updateType: 'Progress Update', updateDate: '', message: '' } },
             clientReplyMessage: '',
             clientPanel: 'ov',
-            // Payment Reference No. and the receipt are collected together here —
-            // the client's own claimed reference alongside the evidence for it,
-            // submitted in one step rather than a bare file picker with no
-            // reference at all. `doc` is the invoice being proven; nulled out
-            // whenever the modal is closed so a stale reference can't be reused.
-            paymentProofModal: { show: false, doc: null, refNo: '', file: null, fileName: '', uploading: false, error: '' },
+            // A manual bank transfer's full proof, collected together in one
+            // required form rather than a bare file picker with no context: which
+            // bank the client paid from, whose account it was paid from, when and
+            // how much, the transfer reference, and the receipt itself. `doc` is
+            // the invoice being proven; nulled out whenever the modal is closed so
+            // a stale submission can't be reused.
+            paymentProofModal: { show: false, doc: null, bankName: '', accountType: '', accountHolderName: '', paymentDate: '', amount: '', refNo: '', file: null, fileName: '', uploading: false, error: '' },
             bulkPrintPreparing: false,
             editingReplyId: '',
             editingReplyMessage: '',
