@@ -34,6 +34,28 @@ export const clientWorkflowMethods = {
             if (!feature) return '';
             return `${feature.label} is available on the ${CLIENT_TIER_ORDER[feature.minTier]} tier and above.`;
         },
+        // Priority-tier: reaches Director/Superadmin directly by email — real
+        // and immediate, unlike an in-app notification the recipient might not
+        // be looking at — rather than waiting on the normal PIC-first queue.
+        // Reuses logAudit/notifyByEmail (already-deployed serverless routes) so
+        // this needs no new /api function on a plan that is already near its
+        // function-count ceiling.
+        escalateClientIssue(message) {
+            if (!this.clientTierAllows('issue-escalation')) { this.showNotify(this.clientTierLockMessage('issue-escalation'), 'error'); return false; }
+            const trimmed = String(message || '').trim();
+            if (!trimmed) { this.showNotify('Describe the issue before escalating it.', 'error'); return false; }
+            const clientName = this.clientPortalIdentity?.clientName || this.userProfile.name || 'A Priority client';
+            this.logAudit('CREATE', `Priority escalation from ${clientName}: ${trimmed.slice(0, 300)}`);
+            this.notifyByEmail({
+                to: [...this.emailsForRole('Director'), ...this.emailsForRole('Superadmin')],
+                subject: `Priority Escalation — ${clientName}`,
+                heading: 'A Priority client escalated an issue directly to you',
+                message: `${clientName} (${this.userProfile.email}) raised the following issue for immediate attention:\n\n${trimmed}`
+            });
+            this.clientEscalationMessage = '';
+            this.showNotify('Escalated to Director/Superadmin. You will be contacted directly.');
+            return true;
+        },
         canReplyAsClient(project) {
             // A secondary authorized contact's uid never matches the project's single
             // clientPortalUid (always the primary contact's), so authorize by the shared

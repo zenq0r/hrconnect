@@ -91,6 +91,46 @@
                                 <p class="zq-empty-state-text">Updates from your project team will appear here.</p>
                             </div>
                         </div>
+
+                        <!-- Premium+: portfolio-wide completion, on top of the per-project stage strip above -->
+                        <div v-if="clientTierAllows('project-progress-summary') && clientProjectProgressSummary.items.length" class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Project progress summary</h3><p class="zq-cp-sub">Average completion across every active project.</p></div>
+                                <span class="zq-cp-pill">{{ clientProjectProgressSummary.average }}% average</span>
+                            </div>
+                            <div class="zq-cp-status-grid">
+                                <div v-for="item in clientProjectProgressSummary.items" :key="`cp-progress-${item.id}`" class="zq-cp-status">
+                                    <div class="zq-cp-case-top"><div class="min-w-0"><p class="zq-cp-ref">{{ item.projectRef }}</p><p class="zq-cp-case-title">{{ item.title }}</p></div><span class="zq-cp-pill">{{ item.percent }}%</span></div>
+                                    <p class="mt-2 text-[10px] text-[var(--cp-faint)]">{{ item.stageLabel }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Priority: dedicated officer, auto-derived from the most recently active project's PIC -->
+                        <div v-if="clientTierAllows('officer-presence') && clientDedicatedOfficer" class="zq-cp-block">
+                            <div class="zq-cp-block-head"><div><h3 class="zq-cp-h3">Your account officer</h3><p class="zq-cp-sub">The officer currently handling your most active project.</p></div></div>
+                            <div class="zq-cp-ident">
+                                <div class="zq-cp-avatar"><img v-if="clientDedicatedOfficer.photo" :src="clientDedicatedOfficer.photo" alt="" class="h-full w-full rounded object-cover"><span v-else>{{ getInitials(clientDedicatedOfficer.name) }}</span></div>
+                                <div class="min-w-0 flex-1">
+                                    <p class="zq-cp-strong">{{ clientDedicatedOfficer.name }}</p>
+                                    <p class="text-[10px] text-[var(--cp-faint)]">{{ clientDedicatedOfficer.position }}</p>
+                                </div>
+                                <div class="shrink-0 text-right">
+                                    <span class="zq-cp-pill">{{ isEmployeeOnline(clientDedicatedOfficer) ? 'Online' : 'Offline' }}</span>
+                                    <p class="mt-1 text-[9px] text-[var(--cp-faint)]">{{ employeeLastSeen(clientDedicatedOfficer) }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Priority: any project targeted to complete within 3 days -->
+                        <div v-if="clientTierAllows('deadline-reminders') && clientUpcomingDeadlines.length" class="zq-cp-block">
+                            <div class="zq-cp-block-head"><div><h3 class="zq-cp-h3">Upcoming deadlines</h3><p class="zq-cp-sub">Projects targeted to complete within 3 days.</p></div></div>
+                            <div class="zq-cp-cases">
+                                <div v-for="project in clientUpcomingDeadlines" :key="`cp-deadline-${project.id}`" class="zq-cp-case">
+                                    <div class="zq-cp-case-top"><div class="min-w-0"><p class="zq-cp-ref">{{ project.projectRef }}</p><p class="zq-cp-case-title">{{ project.title }}</p></div><span class="zq-cp-pill">{{ project.dueState.label }}</span></div>
+                                </div>
+                            </div>
+                        </div>
                     </section>
 
                     <!-- ======================= DOCUMENTS & BILLING ======================= -->
@@ -107,6 +147,12 @@
                                     </button>
                                     <button v-else-if="filteredClientPortalDocs.length" type="button" @click="clientPanel = 'tb'" class="zq-cp-locked-btn" :title="clientTierLockMessage('account-statement')">
                                         <i class="fa-solid fa-lock"></i><span>Statement (CSV)</span>
+                                    </button>
+                                    <button v-if="projects.length && clientTierAllows('transaction-export')" type="button" @click="exportClientProjectRecords" class="zq-btn zq-btn-outline zq-btn-sm">
+                                        <i class="fa-solid fa-file-csv"></i><span>Projects (CSV)</span>
+                                    </button>
+                                    <button v-else-if="projects.length" type="button" @click="clientPanel = 'tb'" class="zq-cp-locked-btn" :title="clientTierLockMessage('transaction-export')">
+                                        <i class="fa-solid fa-lock"></i><span>Projects (CSV)</span>
                                     </button>
                                 </div>
                             </div>
@@ -176,6 +222,46 @@
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+
+                        <!-- Priority: expiryDate (staff-entered on upload) within 30 days, or already past -->
+                        <p v-if="clientTierAllows('expiry-alerts') && clientExpiringDocuments.length" class="zq-cp-note">
+                            <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>
+                            <span>
+                                <span class="zq-cp-strong">{{ clientExpiringDocuments.length }} document{{ clientExpiringDocuments.length === 1 ? '' : 's' }} expiring soon:</span>
+                                {{ clientExpiringDocuments.map(item => `${item.fileName} (${item.daysRemaining >= 0 ? item.daysRemaining + 'd left' : 'expired'})`).join(', ') }}
+                            </span>
+                        </p>
+
+                        <!-- Every tier: the same repository staff use to keep documents on file for this client -->
+                        <div class="zq-cp-block">
+                            <div class="zq-cp-block-head">
+                                <div><h3 class="zq-cp-h3">Your documents</h3><p class="zq-cp-sub">Files our team has kept on file for your account.</p></div>
+                                <div v-if="canUploadClientDocuments" class="zq-cp-actions">
+                                    <label class="text-[9px] font-bold text-[var(--cp-faint)]">Expiry (optional)<input type="date" v-model="clientDocuments.pendingExpiryDate" class="zq-input mt-0.5 block !py-1 !text-[10px]" title="Licence/document expiry date"></label>
+                                    <label class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
+                                        <i class="fa-solid" :class="clientDocuments.uploading ? 'fa-spinner fa-spin' : 'fa-cloud-arrow-up'"></i><span>{{ clientDocuments.uploading ? 'Uploading' : 'Upload Document' }}</span>
+                                        <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
+                                    </label>
+                                </div>
+                            </div>
+                            <div v-if="clientDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
+                            <div v-else-if="!clientDocuments.items.length" class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-regular fa-folder-open zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No documents on file yet</p>
+                                <p class="zq-empty-state-text">Files our team keeps on your account — licences, certificates and permits — appear here.</p>
+                            </div>
+                            <div v-else class="zq-cp-cases">
+                                <div v-for="item in clientDocuments.items" :key="item.id" class="zq-cp-case">
+                                    <div class="zq-cp-case-top">
+                                        <div class="min-w-0"><p class="zq-cp-case-title truncate">{{ item.fileName }}</p><p class="zq-cp-ref">{{ formatFileSize(item.fileSize) }} · {{ formatDateTime(item.uploadedAt) }}<span v-if="item.expiryDate"> · Expires {{ item.expiryDate }}</span></p></div>
+                                        <div class="flex shrink-0 gap-1.5">
+                                            <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
+                                            <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -299,6 +385,15 @@
                                 <li><span class="zq-cp-step-n">2</span><div><p class="zq-cp-ben-t">Say what you expected</p><p class="zq-cp-ben-d">What happened, and what should have happened instead.</p></div></li>
                                 <li><span class="zq-cp-step-n">3</span><div><p class="zq-cp-ben-t">Attach the evidence</p><p class="zq-cp-ben-d">A screenshot, or the document itself where it is relevant.</p></div></li>
                             </ol>
+                        </div>
+
+                        <!-- Priority: bypasses the normal channel above, straight to Director/Superadmin by email -->
+                        <div v-if="clientTierAllows('issue-escalation')" class="zq-cp-block">
+                            <div class="zq-cp-block-head"><div><h3 class="zq-cp-h3">Escalate to a Director</h3><p class="zq-cp-sub">For anything the normal channel hasn't resolved — reaches Director and Superadmin directly.</p></div></div>
+                            <textarea v-model="clientEscalationMessage" rows="3" class="zq-textarea" placeholder="Describe the issue and what you need."></textarea>
+                            <div class="zq-cp-actions mt-3">
+                                <button type="button" @click="escalateClientIssue(clientEscalationMessage)" :disabled="!clientEscalationMessage.trim()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-bolt"></i><span>Escalate now</span></button>
+                            </div>
                         </div>
                     </section>
 

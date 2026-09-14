@@ -397,6 +397,29 @@ export const billingMethods = {
             this.downloadCSV(rows, `zenqor_statement_${this.getLocalDateKey()}.csv`);
             this.showNotify('Statement downloaded.');
         },
+        // Premium+ export of the client's own projects — a distinct dataset
+        // from exportClientStatement (billing documents): stage, not money.
+        exportClientProjectRecords() {
+            if (!this.clientTierAllows('transaction-export')) {
+                this.showNotify(this.clientTierLockMessage('transaction-export'), 'error');
+                return;
+            }
+            const items = this.projects;
+            if (!items.length) { this.showNotify('There are no project records to export.', 'error'); return; }
+            const rows = [
+                ['ZENQOR HRMS/CDTS - CLIENT PROJECT RECORDS'],
+                ['Client', this.clientPortalIdentity.clientName || ''],
+                ['Generated', this.formatDateTime(new Date().toISOString())],
+                ['Projects', items.length],
+                [],
+                ['Project Ref', 'Title', 'Stage', 'Created', 'Last Updated']
+            ];
+            for (const project of items) {
+                rows.push([project.projectRef || '', project.title || '', project.status || '', project.createdAt || '', project.updatedAt || project.createdAt || '']);
+            }
+            this.downloadCSV(rows, `zenqor_project_records_${this.getLocalDateKey()}.csv`);
+            this.showNotify('Project records downloaded.');
+        },
         viewClaimRecord(claim) {
             this.claimPreview = { show: true, claim: JSON.parse(JSON.stringify(claim)), directorApprovalAttachment: '', directorApprovalAttachmentName: '', directorApprovalOriginalBytes: 0 };
         },

@@ -12,6 +12,16 @@ const PAYMENT_REVIEW_ROLES = new Set(['HR', 'Account']);
 // remains restricted to the full-access roles above.
 const DOCUMENT_ISSUE_ROLES = new Set(['Director', 'Superadmin', 'HR', 'Account']);
 
+// Same order/fallback as CLIENT_TIER_ORDER + canonicalClientTier in
+// app/constants/client-tiers.js — kept in sync by hand since api/ (CommonJS)
+// cannot import that ES module directly. An unknown/missing tier is Standard.
+const CLIENT_TIER_ORDER = ['Standard', 'Premium', 'Priority'];
+function clientTierIndexOf(value) {
+    const wanted = String(value || '').trim().toUpperCase();
+    const index = CLIENT_TIER_ORDER.findIndex(tier => tier.toUpperCase() === wanted);
+    return index === -1 ? 0 : index;
+}
+
 function clientOwnsCustomer(customer, email) {
     const normalized = normalizeEmail(email);
     if (!normalized || !customer) return false;
@@ -224,6 +234,19 @@ module.exports = async function handler(req, res) {
                 message: `${document.name || 'Client'} submitted payment proof for ${document.docNo}. Finance must verify it before settlement.`,
                 actionLabel: 'REVIEW PAYMENT'
             });
+            // Premium+ 'advanced-notifications': a receipt confirmation pushed back to
+            // the client themselves, immediately — Standard only learns the same thing
+            // by opening the portal and reading the status badge. This is a deliberately
+            // local, minimal copy of app/constants/client-tiers.js' tier ranking: api/
+            // runs as CommonJS on the server, app/ as ES modules in the browser, and the
+            // two are not meant to import across that boundary.
+            if (clientTierIndexOf(customer?.clientTier) >= 1) {
+                await createPortalNotifications(db, [identity.email], {
+                    title: `Payment proof received — ${document.docNo}`,
+                    message: `We received your payment proof for ${document.docNo}. Finance is reviewing it now.`,
+                    actionLabel: 'VIEW INVOICE'
+                });
+            }
             res.status(200).json({ success: true, recipients: count }); return;
         }
 

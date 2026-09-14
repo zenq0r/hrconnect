@@ -86,7 +86,7 @@ export const projectMethods = {
             this.clientReplyMessage = '';
             this.editingReplyId = '';
             this.editingReplyMessage = '';
-            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' };
+            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' };
         },
         editProjectFromPreview() {
             const project = this.projectPreview.project ? JSON.parse(JSON.stringify(this.projectPreview.project)) : null;

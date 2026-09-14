@@ -244,6 +244,12 @@ export const shellMethods = {
         },
         openClientPanel(panelKey) {
             this.clientPanel = CLIENT_PANELS.some(panel => panel.key === panelKey) ? panelKey : 'ov';
+            // The client's own Client Documents list is loaded on demand, the first
+            // time Documents & Billing is opened — the same on-demand loadClientDocuments()
+            // staff already use, just pointed at the signed-in client's own record.
+            if (this.clientPanel === 'dc' && this.userProfile.role === 'Client' && this.myClientRecord?.id && !this.clientDocuments.clientDirectoryId) {
+                this.loadClientDocuments(this.myClientRecord.id, this.myClientRecord.clientName, this.myClientRecord.clientEmail);
+            }
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
             if (this.currentTab !== 'client-portal') {

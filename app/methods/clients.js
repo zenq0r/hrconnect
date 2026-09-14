@@ -178,7 +178,7 @@ export const clientMethods = {
         },
         closeClientView() {
             this.clientView.show = false;
-            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' };
+            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' };
         },
         async openClientQuickViewForProject(project) {
             const cached = this.customers.find(c => c.id === project.clientDirectoryId);

@@ -1,5 +1,6 @@
 // Quotation/invoice arithmetic (subtotal, SST, grand total) and the billing
 // workflow queue that moves an accepted quotation through to a paid invoice.
+import { CLIENT_TIER_ORDER, canonicalClientTier } from "../constants/client-tiers.js";
 export const billingComputed = {
 
         docSubtotal() { return this.docForm.items.reduce((s, i) => s + (i.qty * i.price), 0); },
@@ -48,15 +49,34 @@ export const billingComputed = {
         canViewBillingWorkflow() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
         canManageBillingWorkflow() { return this.isFullAccessRole; },
         canVerifyPaymentProof() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
+        // Premium/Priority ranks above Standard, Priority above Premium — the
+        // "priority-queue" tier feature. A missing/unresolvable customer sorts
+        // as Standard (rank 0), never higher.
+        billingItemTierRank() {
+            return (item) => {
+                const customer = this.customers.find(c => c.id === String(item.raw?.customerId || item.billingClientId || ''));
+                return CLIENT_TIER_ORDER.indexOf(canonicalClientTier(customer?.clientTier));
+            };
+        },
+        // Template-facing label for the badge on each billing queue card —
+        // blank for Standard so the common case stays uncluttered.
+        billingItemTierLabel() {
+            return (item) => {
+                const rank = this.billingItemTierRank(item);
+                return rank > 0 ? CLIENT_TIER_ORDER[rank] : '';
+            };
+        },
         billingWorkflowQueue() {
             if (!this.canViewBillingWorkflow) return [];
             const isCentralReviewer = this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role);
+            const tierRank = this.billingItemTierRank;
+            const byTierThenDate = (dateKey) => (a, b) => (tierRank(b) - tierRank(a)) || String(dateKey(b) || '').localeCompare(String(dateKey(a) || ''));
             const submittedProofs = this.docHistory
                 .filter(item => item.type === 'Invoice' && item.status !== 'Draft' && item.paymentProofUrl)
                 .filter(item => isCentralReviewer || this.billingPicProjectIds.has(String(item.raw?.projectId || '')))
                 .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Verified' ? 'Payment verified' : item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
             if (!this.canManageBillingWorkflow) return submittedProofs
-                .sort((a, b) => String(b.paymentProofAt || b.date || '').localeCompare(String(a.paymentProofAt || a.date || '')));
+                .sort(byTierThenDate(item => item.paymentProofAt || item.date));
             const linkedInvoiceQuoteIds = new Set(this.docHistory
                 .filter(item => item.type === 'Invoice' && item.raw?.sourceQuotationId)
                 .map(item => item.raw.sourceQuotationId));
@@ -67,6 +87,6 @@ export const billingComputed = {
                 .filter(item => item.type === 'Invoice' && item.status === 'Draft')
                 .map(item => ({ ...item, workflowAction: 'edit-draft', workflowLabel: 'Finance draft' }));
             return [...acceptedQuotes, ...invoiceDrafts, ...submittedProofs]
-                .sort((a, b) => String(b.billingWorkflowUpdatedAt || b.paymentProofAt || b.clientDecisionAt || b.date || '').localeCompare(String(a.billingWorkflowUpdatedAt || a.paymentProofAt || a.clientDecisionAt || a.date || '')));
+                .sort(byTierThenDate(item => item.billingWorkflowUpdatedAt || item.paymentProofAt || item.clientDecisionAt || item.date));
         }
 };

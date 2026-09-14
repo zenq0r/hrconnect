@@ -116,6 +116,41 @@ test('canReplyAsClient is gated, so every caller inherits the check', () => {
     assert.match(body, /clientTierAllows\('client-reply'\)/);
 });
 
+test('core portal functions are never tier-gated: quotation decisions and payment proof', () => {
+    const src = appSource();
+    // Fixed-size windows, same technique as the export/reply enforcement test above —
+    // large enough to cover each method body without needing to know what follows it.
+    for (const method of ['decideQuotation', 'canDecideQuotation', 'handlePaymentProofUpload', 'canAttachPaymentProof']) {
+        const start = src.indexOf(`${method}(`);
+        assert.ok(start > -1, `${method} must exist`);
+        const body = src.slice(start, start + 1400);
+        assert.doesNotMatch(
+            body,
+            /clientTierAllows\(/,
+            `${method} must never gate a core function (quotation decisions and payment proof stay open on every tier)`
+        );
+    }
+});
+
+test('the new Premium+/Priority mechanisms are gated, not decorative', () => {
+    const src = appSource();
+    for (const [method, key] of [
+        ['exportClientProjectRecords', 'transaction-export'],
+        ['escalateClientIssue', 'issue-escalation']
+    ]) {
+        const start = src.indexOf(`${method}(`);
+        assert.ok(start > -1, `${method} must exist`);
+        const body = src.slice(start, start + 900);
+        assert.match(body, new RegExp(`clientTierAllows\\('${key}'\\)`), `${method} must refuse on its own`);
+    }
+    // billingWorkflowQueue's tier-aware sort must actually read a real customer
+    // tier, not a hardcoded rank — otherwise "priority-queue" would be decorative.
+    const queueStart = src.indexOf('billingItemTierRank() {');
+    assert.ok(queueStart > -1, 'billingItemTierRank must exist');
+    const queueBody = src.slice(queueStart, queueStart + 500);
+    assert.match(queueBody, /canonicalClientTier\(customer\?\.clientTier\)/);
+});
+
 test('firestore.rules enforces the reply tier server-side and fails closed', () => {
     const source = rules();
     assert.match(source, /function callerTierAllowsReply\(\)/);

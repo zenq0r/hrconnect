@@ -207,6 +207,7 @@ export function createInitialState() {
             projectViewMode: 'board',
             projectScopeFilter: 'all',
             clientPortalFilter: { type: 'all', status: 'all' },
+            clientEscalationMessage: '',
             expandedClientGroups: new Set(),
             draggingProject: null,
             dragOverStage: '',
@@ -228,7 +229,7 @@ export function createInitialState() {
             buttonContextLongPress: { timer: null, startX: 0, startY: 0, button: null },
             buttonContextHandlers: { contextmenu: null, touchstart: null, touchmove: null, touchend: null },
             projectPreview: { show: false, project: null, detailsReady: false },
-            clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
+            clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' },
             clientDocumentsUnsubscribe: null,
 
             // Public-site content management: Firestore-backed content consumed directly by

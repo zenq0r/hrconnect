@@ -267,7 +267,7 @@ export const uploadMethods = {
         },
         loadClientDocuments(clientDirectoryId, clientName = '', clientEmail = '') {
             if (this.clientDocumentsUnsubscribe) { this.clientDocumentsUnsubscribe(); this.clientDocumentsUnsubscribe = null; }
-            if (!clientDirectoryId) { this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' }; return; }
+            if (!clientDirectoryId) { this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' }; return; }
             this.clientDocuments.clientDirectoryId = clientDirectoryId;
             this.clientDocuments.clientName = clientName;
             this.clientDocuments.clientEmail = clientEmail;
@@ -314,6 +314,10 @@ export const uploadMethods = {
                 await uploadBytes(fileRef, file, { contentType });
                 const downloadURL = await getDownloadURL(fileRef);
                 const docId = `${clientDirectoryId}_${Date.now()}`;
+                // Optional: staff or the client themselves can date a licence/permit on
+                // upload so clientExpiringDocuments (Priority tier) has something real to
+                // warn about. Left blank, the document simply never appears in that list.
+                const expiryDate = String(this.clientDocuments.pendingExpiryDate || '').trim();
                 await setDoc(doc(db, 'client_documents', docId), {
                     clientDirectoryId,
                     clientName: this.clientDocuments.clientName,
@@ -324,11 +328,13 @@ export const uploadMethods = {
                     storagePath,
                     storageFileName,
                     downloadURL,
+                    expiryDate,
                     uploadedByUid: this.userProfile.uid,
                     uploadedByName: this.userProfile.name,
                     uploadedByEmail: this.userProfile.email,
                     uploadedAt: new Date().toISOString()
                 });
+                this.clientDocuments.pendingExpiryDate = '';
                 this.logAudit('UPLOAD_DOCUMENT', `Uploaded "${file.name}" for client ${this.clientDocuments.clientName}`);
                 this.showNotify('Document uploaded successfully.');
                 if (this.userProfile.role === 'Client') this.notifyByEmail({
