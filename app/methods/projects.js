@@ -848,7 +848,11 @@ export const projectMethods = {
                 const quotationStatuses = {
                     'Open': { label: 'SENT', detail: 'Awaiting Client decision', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
                     'Accepted': { label: 'ACCEPTED', detail: 'Client accepted this quotation', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
-                    'Rejected': { label: 'REJECTED', detail: 'Client declined this quotation', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' }
+                    'Rejected': { label: 'REJECTED', detail: 'Client declined this quotation', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+                    // Reached only from Accepted, via createInvoiceFromQuotation() —
+                    // the quotation itself is done; its own invoice's status is what
+                    // matters from here.
+                    'Invoiced': { label: 'INVOICED', detail: 'Converted to an invoice', className: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300' }
                 };
                 return quotationStatuses[item.status] || { label: 'DRAFT', detail: 'Not yet sent to Client', className: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
             }

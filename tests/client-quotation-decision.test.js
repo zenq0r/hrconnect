@@ -80,7 +80,20 @@ test('the client gate mirrors the rule before showing the buttons', () => {
 
 test('an accepted quotation does not read as a failure', () => {
     // The badge only knew Paid from everything else, so Accepted painted red.
-    assert.match(read('index.html'), /\['Paid', 'Accepted'\]\.includes\(d\.status\)/);
+    // Invoiced joined the same "not a failure" set later — the natural next
+    // stage once Staff prepares the invoice, not a status the badge had seen
+    // before, so it used to paint red too.
+    assert.match(read('index.html'), /\['Paid', 'Accepted', 'Invoiced'\]\.includes\(d\.status\)/);
+});
+
+test('a quotation the client accepted is never reported back to them as declined', () => {
+    // Once Staff convert an accepted quotation into an invoice, its own status
+    // moves on to 'Invoiced' — the client's one decision (Accept) must still
+    // read as Accept, not flip to Declined just because status is no longer
+    // the literal string 'Accepted'.
+    const markup = read('index.html');
+    assert.match(markup, /d\.status === 'Rejected' \? 'Declined' : 'Accepted'/);
+    assert.doesNotMatch(markup, /d\.status === 'Accepted' \? 'Accepted' : 'Declined'/);
 });
 
 test('payment proof cannot settle an invoice', () => {
@@ -155,6 +168,19 @@ test('the decision is stamped as the signed-in client, not as whoever is claimed
     const rule = docsRule();
     const branch = rule.slice(rule.indexOf("resource.data.type == 'Quotation'"));
     assert.match(branch, /request\.resource\.data\.clientDecisionByUid == request\.auth\.uid/);
+});
+
+test('the Staff-side status badge does not call an invoiced quotation a draft', () => {
+    // getActivityStatus() drives the "Recent Activities & Document List" badge
+    // Staff and Finance read to see where a quotation actually stands. Its
+    // per-status lookup used to cover only Open/Accepted/Rejected, so an
+    // Invoiced quotation — reached the moment Staff convert an accepted one —
+    // fell through to the same fallback as a quotation nobody had sent yet.
+    const { methodSource } = require('./helpers/sources');
+    const obj = new Function(`return { ${methodSource('getActivityStatus')} }`)();
+    const result = obj.getActivityStatus({ type: 'Quotation', status: 'Invoiced' });
+    assert.equal(result.label, 'INVOICED');
+    assert.notEqual(result.detail, 'Not yet sent to Client');
 });
 
 test('a recorded decision is never reported to the client as a failure', () => {
