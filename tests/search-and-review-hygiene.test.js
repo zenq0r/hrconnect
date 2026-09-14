@@ -62,3 +62,35 @@ test('verifying a payment proof names the invoice\'s own reference to check it a
     assert.match(fn, /invoice\.paymentRefNo/);
     assert.match(fn, /Check the reference on the proof/);
 });
+
+test('a document still reaches the client when the Storage bucket refuses CORS', () => {
+    // Forcing a Save-As with the real filename needs a fetch() against the
+    // Storage bucket, which needs the bucket's CORS config to admit this
+    // origin — confirmed live that it currently does not, so every attempt
+    // failed with a bare "Unable to download this document" toast and no
+    // way to reach the file at all. A failed fetch must fall back to the
+    // same plain-navigation window.open() viewClientDocument() already
+    // uses, which needs no CORS.
+    const fn = methodSource('downloadClientDocument');
+    const tryAt = fn.indexOf('await fetch(item.downloadURL)');
+    const catchAt = fn.indexOf('catch (error)');
+    const openAt = fn.indexOf("window.open(item.downloadURL, '_blank', 'noopener')");
+    assert.ok(tryAt > -1, 'must still attempt the forced-filename download first');
+    assert.ok(catchAt > tryAt && openAt > catchAt, 'a failed fetch must fall back to window.open() in the catch block');
+});
+
+test('a toast only joins the persisted notifications feed when it is worth keeping', () => {
+    // notificationsLog used to grow on every single showNotify() call —
+    // hundreds of routine confirmations, validation refusals, and other
+    // people's "is now online" pings a minute apart, none of it worth
+    // scrolling back through later. The toast itself still fires either
+    // way; only the permanent bell-feed entry is now gated.
+    const showNotify = methodSource('showNotify');
+    const guardAt = showNotify.indexOf('if (this.isNotableForNotificationsLog(msg, resolvedTone)) {');
+    const unshiftAt = showNotify.indexOf('this.notificationsLog.unshift(');
+    assert.ok(guardAt > -1 && unshiftAt > guardAt, 'notificationsLog.unshift must sit inside the isNotableForNotificationsLog guard');
+
+    const isNotable = methodSource('isNotableForNotificationsLog');
+    assert.match(isNotable, /if \(tone === 'error'\) return false;/, 'this account\'s own validation/permission refusals must not clutter the feed');
+    assert.match(isNotable, /is now \(online\|offline\)/, 'another user\'s presence pings must not clutter the feed');
+});

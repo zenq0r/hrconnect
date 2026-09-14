@@ -841,13 +841,18 @@ export const authMethods = {
             // It is cleared when the code is confirmed, when the challenge is
             // abandoned, and on any sign-out.
             this.setPendingSecondFactor(uid);
-            this.loginOtp = createLoginOtpState({ show: true, email, purpose: 'sign-in' });
+            // A device trusted on an earlier sign-in skips the emailed code
+            // entirely — tried first, silently. Shown as "Checking this
+            // device…" rather than painting the 6-box code form immediately:
+            // on a slower connection the trust check takes a moment, and
+            // showing the form only to swap it for the portal a beat later
+            // reads as "did it want a code or not?". Any trust-check failure
+            // falls through to the normal code request below.
+            this.loginOtp = createLoginOtpState({ show: true, checkingDevice: true, email, purpose: 'sign-in' });
+            if (await this.attemptTrustedDeviceSignIn(uid)) return;
+            this.loginOtp.checkingDevice = false;
             await this.$nextTick();
             this.focusOtpBox(0);
-            // A device trusted on an earlier sign-in skips the emailed code
-            // entirely — tried first, silently; any failure falls through to
-            // the normal request below.
-            if (await this.attemptTrustedDeviceSignIn(uid)) return;
             await this.requestLoginOtp();
         },
 

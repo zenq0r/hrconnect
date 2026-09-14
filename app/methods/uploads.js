@@ -362,6 +362,15 @@ export const uploadMethods = {
             window.open(item.downloadURL, '_blank', 'noopener');
         },
         async downloadClientDocument(item) {
+            // Fetching the file to force a Save-As with the real filename only
+            // works when the Storage bucket's CORS config admits this origin —
+            // it currently does not (confirmed live: every attempt fails with
+            // "No 'Access-Control-Allow-Origin' header is present"), so this
+            // always fell through to a bare failure toast with no way to reach
+            // the file at all. Fall back to the same plain-navigation approach
+            // viewClientDocument() already uses, which needs no CORS — worse
+            // (opens instead of force-downloading) but it actually gets the
+            // client to their file instead of a dead end.
             try {
                 const response = await fetch(item.downloadURL);
                 if (!response.ok) throw new Error('Download failed.');
@@ -375,8 +384,9 @@ export const uploadMethods = {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(blobUrl);
             } catch (error) {
-                console.error('Client document download failed:', error);
-                this.showNotify('Unable to download this document. Please try again.');
+                console.error('Direct document download failed, opening it instead:', error);
+                const opened = window.open(item.downloadURL, '_blank', 'noopener');
+                if (!opened) this.showNotify('Unable to open this document. Please try again.');
             }
         },
         requestDeleteClientDocument(item) {

@@ -52,6 +52,12 @@ export const createLoginOtpState = (overrides = {}) => ({
     // Only meaningful for purpose === 'sign-in' — see attemptTrustedDeviceSignIn
     // in app/methods/auth.js.
     trustDevice: false,
+    // True only for the moment startSignInOtp() is deciding whether a stored
+    // trust token skips the code entirely. Lets the screen show "Checking
+    // this device…" instead of painting the 6-box code form a beat before
+    // silently replacing it with the portal — confusing on a slower
+    // connection, since nothing on screen said whether a code was coming.
+    checkingDevice: false,
     ...overrides
 });
 
