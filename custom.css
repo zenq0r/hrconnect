@@ -1044,6 +1044,19 @@ html:not(.dark) #main-content .text-slate-500 { color: #556274; }
 .zq-kpi-card-label { margin-top: 8px; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.3; color: var(--zq-text-muted); }
 .zq-kpi-card-context { margin-top: 4px; font-size: 0.625rem; font-weight: 700; }
 
+/* Secondary KPI row — same shape, visually quieter: smaller value, no
+   head icon row, no hover-lift, so the primary row keeps the emphasis. */
+.zq-kpi-card-compact { padding: 10px 12px; min-height: 0; }
+.zq-kpi-card-compact:hover { transform: none; box-shadow: none; border-color: var(--zq-border); }
+.zq-kpi-card-compact .zq-kpi-card-value { margin-top: 0; font-size: 0.9375rem; font-weight: 800; }
+.zq-kpi-card-compact .zq-kpi-card-label { margin-top: 3px; font-size: 0.5625rem; }
+.zq-kpi-card-compact .zq-kpi-card-context { font-size: 0.5625rem; }
+
+/* Action Required panel — the same .zq-card shape, given a faint amber
+   accent so it reads as "needs a decision" without a loud color block. */
+.zq-action-panel { border-color: var(--zq-warning); border-width: 1px; }
+html.dark .zq-action-panel { border-color: rgba(217, 119, 6, 0.5); }
+
 /* ---- Form field system (Step 10) — one canonical control look shared by
    text/email/phone/number/date <input> (the visual treatment doesn't vary
    by `type`, so one class covers all of them), <select> and <textarea>.
@@ -1239,11 +1252,11 @@ html.dark .zq-input-flag, html.dark .zq-select-flag { border-color: #b45309; }
    pass instead of cramming more icon buttons into the row. ---- */
 .zq-table { width: 100%; text-align: left; border-collapse: collapse; }
 .zq-table thead th {
-    padding: 10px 12px; font-size: 0.6875rem; font-weight: 800; text-transform: uppercase;
+    padding: 8px 12px; font-size: 0.6875rem; font-weight: 800; text-transform: uppercase;
     letter-spacing: 0.04em; color: var(--zq-text-muted); border-bottom: 1px solid var(--zq-border);
     white-space: nowrap;
 }
-.zq-table tbody td { padding: 12px; font-size: 0.75rem; color: var(--zq-text); vertical-align: middle; }
+.zq-table tbody td { padding: 9px 12px; font-size: 0.75rem; color: var(--zq-text); vertical-align: middle; }
 .zq-table tbody tr { border-bottom: 1px solid var(--zq-border); transition: background-color var(--zq-transition); }
 .zq-table tbody tr:last-child { border-bottom: none; }
 .zq-table tbody tr:hover { background: var(--zq-surface-alt); }
@@ -1752,7 +1765,7 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 .dark #app .zq-main { background: #111827; }
 #app .zq-topbar {
-    min-height: 66px;
+    min-height: 58px;
     border-bottom-color: #e2e8f0 !important;
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03) !important;
 }
@@ -1766,8 +1779,8 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
     box-shadow: none !important;
 }
 #app .zq-sidebar > div:first-child { min-height: 70px; padding: 14px 16px !important; }
-#app .zq-sidebar nav { padding: 12px 10px; }
-#app .zq-nav-item { min-height: 40px; padding: 9px 11px; border-radius: 8px; }
+#app .zq-sidebar nav { padding: 10px 10px; }
+#app .zq-nav-item { min-height: 36px; padding: 7px 11px; border-radius: 8px; }
 #app .sidebar-item-active,
 #app .client-portal-theme .sidebar-item-active {
     background: #0f766e !important;
@@ -1794,6 +1807,11 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 #app .zq-kpi-card:hover { border-color: #99d9d0; box-shadow: 0 8px 18px rgba(15, 118, 110, 0.07); }
 .dark #app .zq-kpi-card { border-color: #334155; background: #1e293b; }
+/* Secondary KPI row overrides the min-height above it — same selector
+   specificity, later in the cascade, so this wins for the compact cards. */
+#app .zq-kpi-card-compact { min-height: 0; }
+#app .zq-kpi-card-compact:hover { border-color: #dbe3ec; box-shadow: none; }
+.dark #app .zq-kpi-card-compact:hover { border-color: #334155; }
 
 /* Client workspace: a standard page header, account summary and data cards. */
 #app .zq-client-workspace { max-width: 1280px; padding-top: 24px; padding-bottom: 32px; }

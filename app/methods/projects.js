@@ -767,10 +767,20 @@ export const projectMethods = {
             }
         },
         getActivityStatus(item) {
+            if (item.type === 'Quotation') {
+                const quotationStatuses = {
+                    'Open': { label: 'SENT', detail: 'Awaiting Client decision', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+                    'Accepted': { label: 'ACCEPTED', detail: 'Client accepted this quotation', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
+                    'Rejected': { label: 'REJECTED', detail: 'Client declined this quotation', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' }
+                };
+                return quotationStatuses[item.status] || { label: 'DRAFT', detail: 'Not yet sent to Client', className: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
+            }
             if (item.type === 'Invoice') {
-                return item.status === 'Paid'
-                    ? { label: 'PAID', detail: 'Payment received', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' }
-                    : { label: 'UNPAID', detail: 'Payment not received', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
+                if (item.status === 'Paid') return { label: 'PAID', detail: 'Payment received', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' };
+                if (item.status === 'Draft') return { label: 'DRAFT', detail: 'Not yet sent to Client', className: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
+                if (item.paymentProofReviewStatus === 'Submitted') return { label: 'UNDER REVIEW', detail: 'Payment proof awaiting Finance verification', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' };
+                if (item.paymentProofReviewStatus === 'Rejected') return { label: 'PROOF REJECTED', detail: 'Submitted payment proof needs a correction', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
+                return { label: 'UNPAID', detail: 'Payment not received', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
             }
             if (item.isClaim || ['Claim', 'Payment Voucher'].includes(item.documentType || item.type)) {
                 const isPaymentVoucher = (item.documentType || item.type) === 'Payment Voucher';

@@ -47,12 +47,18 @@ export const reportsComputed = {
 
         totalQuotations() { return this.docHistory.filter(d => d.type === 'Quotation').length; },
         totalQuotationValue() { return this.docHistory.filter(d => d.type === 'Quotation').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
+        // 'Open' is a quotation that has been sent and is still awaiting the
+        // Client's Accept/Reject decision — the dashboard's "Quotation Pending" KPI.
+        pendingQuotationsCount() { return this.docHistory.filter(d => d.type === 'Quotation' && d.status === 'Open').length; },
         paidInvoicesCount() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status === 'Paid').length; },
         unpaidInvoicesCount() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status !== 'Paid').length; },
 
         totalRevenuePending() { return this.docHistory.filter(d => d.type === 'Invoice' && d.status !== 'Paid').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
 
         activeEmployeesCount() { return this.employees.filter(e => e.status === 'Aktif').length; },
+        // Mirrors clientActiveProjectsCount (app/computed/client-portal.js) for the
+        // staff-facing KPI strip.
+        activeProjectsCount() { return this.projects.filter(p => p.status !== 'Completed & Done').length; },
 
         // CROSS-SYSTEM INSIGHT: staff workload measured across BOTH HR project assignments and client
         // activity assignments — only possible because HR and Client data live in the same system.

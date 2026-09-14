@@ -1,6 +1,17 @@
 // Every reactive field the portal starts with. One call per app instance, so
 // a signed-out session can be reset simply by rebuilding this object.
-import { SUPPORT_EMAIL, createEmailActionFlow, createLoginOtpState } from "./config.js";
+import { SUPPORT_EMAIL, createEmailActionFlow, createLoginOtpState, SIDEBAR_GROUPS_STORAGE_KEY } from "./config.js";
+
+function readSidebarGroupsCollapsed() {
+    try {
+        const raw = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+        // Private browsing, or storage disabled entirely — every group opens expanded.
+        return {};
+    }
+}
+
 export function createInitialState() {
         return {
             isLoggedIn: false,
@@ -45,6 +56,11 @@ export function createInitialState() {
             // The navigation stays hidden until the user opens it deliberately
             // from the single menu control, on desktop as well as on mobile.
             desktopSidebarOpen: false,
+            // Which sidebar groups a user has collapsed, keyed by group id
+            // ('ops' | 'billing' | 'admin'). Read once at boot from
+            // localStorage (see toggleSidebarGroup) so the preference survives
+            // a reload; absent = expanded.
+            sidebarGroupsCollapsed: readSidebarGroupsCollapsed(),
             chartTimeFilter: 'monthly',
             // Which month the executive KPI strip reads. Empty always means
             // the live month, so a session left open overnight rolls over

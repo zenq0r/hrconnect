@@ -58,6 +58,10 @@ export const createLoginOtpState = (overrides = {}) => ({
 export const WELCOME_GREETING_HOLD_MS = 2200;
 export const WELCOME_GREETING_FADE_MS = 800;
 
+// localStorage key for which sidebar nav groups a user has collapsed —
+// a per-browser display preference, never written to Firestore.
+export const SIDEBAR_GROUPS_STORAGE_KEY = 'zq_sidebar_groups_collapsed';
+
 // Bump the top entry's `version` (and add a new entry above it) whenever a meaningful feature ships.
 // The list is the release history shown under Settings; nothing here interrupts a sign-in.
 export const APP_CHANGELOG = [

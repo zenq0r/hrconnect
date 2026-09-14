@@ -5,7 +5,7 @@ import {
     doc,
     setDoc
 } from "../../firebase-config.js";
-import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS } from "../config.js";
+import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS, SIDEBAR_GROUPS_STORAGE_KEY } from "../config.js";
 import { CLIENT_PANELS, CLIENT_LEGACY_TABS } from "../constants/client-tiers.js";
 import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, homeTabFor } from "../views.js";
 
@@ -108,6 +108,17 @@ export const shellMethods = {
         toggleSidebar() {
             if (window.innerWidth < 768) this.mobileMenuOpen = !this.mobileMenuOpen;
             else this.desktopSidebarOpen = !this.desktopSidebarOpen;
+        },
+        isSidebarGroupCollapsed(groupKey) {
+            return Boolean(this.sidebarGroupsCollapsed[groupKey]);
+        },
+        toggleSidebarGroup(groupKey) {
+            this.sidebarGroupsCollapsed = { ...this.sidebarGroupsCollapsed, [groupKey]: !this.sidebarGroupsCollapsed[groupKey] };
+            try {
+                localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify(this.sidebarGroupsCollapsed));
+            } catch (error) {
+                // Private browsing, or storage disabled — the collapse still holds for this tab.
+            }
         },
         handleSidebarWheel(event) {
             // The portal shell intentionally locks the outer page. Route a

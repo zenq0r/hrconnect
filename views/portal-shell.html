@@ -48,9 +48,13 @@
                     </button>
 
                     <div class="pt-3 pb-1">
-                        <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</p>
+                        <button type="button" @click="toggleSidebarGroup('ops')" class="zq-sidebar-group-toggle w-full flex items-center justify-between px-3 py-1 rounded-md text-slate-500 hover:text-slate-300 transition" :aria-expanded="!isSidebarGroupCollapsed('ops')">
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest">{{ userProfile.role === 'Client' ? 'My Workspace' : 'Operation Center' }}</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] transition-transform" :class="{ '-rotate-90': isSidebarGroupCollapsed('ops') }"></i>
+                        </button>
                     </div>
 
+                    <div v-show="!isSidebarGroupCollapsed('ops')" class="space-y-1">
                     <button v-if="hasAccess('client-task')" type="button" @click="switchTab('client-task')" :class="{'sidebar-item-active': currentTab === 'client-task', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-task'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-list-check w-5 text-center"></i><span>Client Task</span>
                     </button>
@@ -71,7 +75,15 @@
                         <button type="button" @click="openClientPanel('up')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'up', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'up')}" class="zq-nav-item w-full"><i class="fa-solid fa-bell w-5 text-center"></i><span>Project Updates</span><span v-if="clientUpdatesTimeline.length" class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ clientUpdatesTimeline.length }}</span></button>
                         <button type="button" @click="openClientPanel('tb')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'tb', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'tb')}" class="zq-nav-item w-full"><i class="fa-solid fa-layer-group w-5 text-center"></i><span>Tier Benefits</span><span class="ml-auto rounded-full bg-slate-700 px-2 py-0.5 text-[9px] text-slate-300">{{ myClientTier }}</span></button>
                     </template>
-                    <div v-if="hasAccess('doc-generator')" class="pt-3 pb-1"><p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Billing &amp; Documents</p></div>
+                    </div>
+
+                    <div v-if="hasAccess('doc-generator') || hasAccess('document-quotations') || hasAccess('payslip-generator') || hasAccess('claims') || hasAccess('client-directory') || hasAccess('hr-employees') || hasAccess('reports') || hasAccess('website-content')" class="pt-3 pb-1">
+                        <button type="button" @click="toggleSidebarGroup('billing')" class="zq-sidebar-group-toggle w-full flex items-center justify-between px-3 py-1 rounded-md text-slate-500 hover:text-slate-300 transition" :aria-expanded="!isSidebarGroupCollapsed('billing')">
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest">Billing &amp; Documents</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] transition-transform" :class="{ '-rotate-90': isSidebarGroupCollapsed('billing') }"></i>
+                        </button>
+                    </div>
+                    <div v-show="!isSidebarGroupCollapsed('billing')" class="space-y-1">
                     <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="{'sidebar-item-active': currentTab === 'doc-generator', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'doc-generator'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-address-card w-5 text-center"></i><span>Client Information</span>
                     </button>
@@ -96,11 +108,16 @@
                     <button v-if="hasAccess('website-content')" type="button" @click="switchTab('website-content')" :class="{'sidebar-item-active': currentTab === 'website-content', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'website-content'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-photo-film w-5 text-center"></i><span>Website Management</span>
                     </button>
-
-                    <div v-if="hasAccess('settings') || hasAccess('profile') || hasAccess('audit-logs')" class="pt-3 pb-1">
-                        <p class="px-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">{{ userProfile.role === 'Client' ? 'My Account' : 'System & Admin' }}</p>
                     </div>
 
+                    <div v-if="hasAccess('settings') || hasAccess('profile') || hasAccess('audit-logs')" class="pt-3 pb-1">
+                        <button type="button" @click="toggleSidebarGroup('admin')" class="zq-sidebar-group-toggle w-full flex items-center justify-between px-3 py-1 rounded-md text-slate-500 hover:text-slate-300 transition" :aria-expanded="!isSidebarGroupCollapsed('admin')">
+                            <span class="text-[10px] font-extrabold uppercase tracking-widest">{{ userProfile.role === 'Client' ? 'My Account' : 'System & Admin' }}</span>
+                            <i class="fa-solid fa-chevron-down text-[9px] transition-transform" :class="{ '-rotate-90': isSidebarGroupCollapsed('admin') }"></i>
+                        </button>
+                    </div>
+
+                    <div v-show="!isSidebarGroupCollapsed('admin')" class="space-y-1">
                     <button v-if="hasAccess('audit-logs')" type="button" @click="switchTab('audit-logs')" :class="{'sidebar-item-active': currentTab === 'audit-logs', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'audit-logs'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-shield-halved w-5 text-center"></i><span>Audit & Security Log</span>
                     </button>
@@ -111,6 +128,7 @@
                         <i class="fa-solid fa-user-shield w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'Account & Security' : 'Profile & RBAC' }}</span>
                     </button>
                     <button v-if="userProfile.role === 'Client'" type="button" @click="openClientPanel('sp')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'sp', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'sp')}" class="zq-nav-item w-full"><i class="fa-solid fa-headset w-5 text-center"></i><span>Help &amp; Support</span></button>
+                    </div>
                 </nav>
 
                 <div class="zq-sidebar-footer p-3 border-t border-slate-800">
@@ -124,7 +142,7 @@
             <main id="main-content" role="main" aria-label="Portal workspace" :class="userProfile.role === 'Client' ? 'zq-client-main' : 'zq-staff-main'" class="zq-main flex-1 overflow-y-auto no-print bg-slate-50 dark:bg-brand-bg flex flex-col w-full">
                 
                 <!-- TOP NAVBAR -->
-                <header class="zq-topbar bg-white dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 px-4 md:px-8 py-3 flex items-center justify-between sticky top-0 z-30 gap-4 backdrop-blur-md">
+                <header class="zq-topbar bg-white dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700/80 px-4 md:px-8 py-2.5 flex items-center justify-between sticky top-0 z-30 gap-3 backdrop-blur-md">
                     <div class="flex items-center space-x-3 flex-1">
                         <button type="button" @click="toggleSidebar" class="text-slate-600 dark:text-slate-300 hover:text-brand-dark p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-base transition" title="Toggle Sidebar">
                             <i class="fa-solid fa-bars"></i>
@@ -138,8 +156,8 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center space-x-3 shrink-0">
-                        <div class="hidden sm:flex items-center bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-600">
+                    <div class="flex items-center space-x-2.5 shrink-0">
+                        <div class="hidden lg:flex items-center bg-slate-100 dark:bg-slate-700/60 p-1 rounded-xl text-xs font-bold border border-slate-200 dark:border-slate-600">
                             <button v-if="hasAccess('doc-generator')" type="button" @click="openClientInformation()" :class="currentTab === 'doc-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Clients</button>
                             <button v-if="hasAccess('payslip-generator')" type="button" @click="switchTab('payslip-generator')" :class="currentTab === 'payslip-generator' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Payroll</button>
                             <button v-if="hasAccess('claims')" type="button" @click="switchTab('claims')" :class="currentTab === 'claims' ? 'bg-brand-gold text-brand-dark shadow' : 'text-slate-600 dark:text-slate-300 hover:text-brand-dark'" class="px-3 py-1 rounded-lg transition">Claims</button>
