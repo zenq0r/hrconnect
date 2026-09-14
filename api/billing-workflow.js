@@ -273,22 +273,43 @@ module.exports = async function handler(req, res) {
             }
             const approved = req.body?.decision === 'approved';
             const note = safeNote(req.body?.note);
+            const previousStatus = document.status;
             const nextStatus = approved ? 'Paid' : 'Unpaid';
             const raw = { ...(document.raw || {}), status: nextStatus };
-            await documentRef.update({
-                status: nextStatus,
-                raw,
-                paymentProofReviewStatus: approved ? 'Verified' : 'Rejected',
-                paymentProofReviewedAt: timestamp,
-                paymentProofReviewedByUid: identity.uid,
-                paymentProofReviewedByName: caller?.name || identity.email,
-                paymentProofReviewNote: note,
-                billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
-                billingWorkflowUpdatedAt: timestamp,
-                billingClientId: customerId,
-                billingProjectId: project.id,
-                billingPicEmail: normalizeEmail(project.ownerEmail)
+            const eventRef = db.collection('billing_events').doc(`${documentId}_review_${String(document.paymentProofAt || timestamp).replace(/[^a-zA-Z0-9]/g, '')}`);
+            const created = await db.runTransaction(async (transaction) => {
+                if ((await transaction.get(eventRef)).exists) return false;
+                transaction.create(eventRef, {
+                    action,
+                    documentId,
+                    customerId,
+                    projectId: project.id,
+                    reviewedByUid: identity.uid,
+                    reviewedByName: caller?.name || identity.email,
+                    decision: approved ? 'approved' : 'rejected',
+                    originalStatus: previousStatus,
+                    newStatus: nextStatus,
+                    paymentProofUrl: document.paymentProofUrl || '',
+                    note,
+                    createdAt: timestamp
+                });
+                transaction.update(documentRef, {
+                    status: nextStatus,
+                    raw,
+                    paymentProofReviewStatus: approved ? 'Verified' : 'Rejected',
+                    paymentProofReviewedAt: timestamp,
+                    paymentProofReviewedByUid: identity.uid,
+                    paymentProofReviewedByName: caller?.name || identity.email,
+                    paymentProofReviewNote: note,
+                    billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
+                    billingWorkflowUpdatedAt: timestamp,
+                    billingClientId: customerId,
+                    billingProjectId: project.id,
+                    billingPicEmail: normalizeEmail(project.ownerEmail)
+                });
+                return true;
             });
+            if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
             const recipients = [customer?.clientEmail, ...(Array.isArray(customer?.additionalClientEmails) ? customer.additionalClientEmails : []), project?.ownerEmail, ...(await recipientsForRoles(db, ['Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
                 title: approved ? `Payment verified — ${document.docNo}` : `Payment proof needs attention — ${document.docNo}`,

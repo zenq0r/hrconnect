@@ -170,6 +170,7 @@
                                                 </div>
                                                 <p v-if="d.clientDecisionAt" class="zq-cp-cell-note">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
                                                 <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="zq-cp-cell-note is-act">Proof needs attention{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>
+                                                <p v-else-if="d.paymentProofReviewStatus === 'Verified'" class="zq-cp-cell-note is-done">Payment verified by {{ d.paymentProofReviewedByName || 'Finance' }} · {{ formatDateTime(d.paymentProofReviewedAt) }}</p>
                                                 <p v-else-if="d.paymentProofAt" class="zq-cp-cell-note is-done">Proof submitted — awaiting Finance verification</p>
                                             </td>
                                         </tr>
