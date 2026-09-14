@@ -350,3 +350,28 @@ test('firestore.rules compares the tier case-insensitively', () => {
     assert.match(body, /clientTier\.upper\(\) == 'PRIORITY'/);
     assert.match(body, /clientTier is string/, 'upper() on a missing field would error the rule');
 });
+
+test('the dashboard widget lists both Premium and Priority clients, Priority first', () => {
+    // The widget used to be Priority-only. Premium clients — the tier right
+    // below it — were entitled to real benefits (see CLIENT_TIER_FEATURES
+    // above) but never surfaced on the executive dashboard at all.
+    const obj = new Function(`${constantSource('CLIENT_TIER_ORDER', 'canonicalClientTier')}
+        return { ${methodSource('premiumAndPriorityClients')} };`)();
+    obj.customers = [
+        { id: 's1', clientName: 'Standard Co', clientTier: 'STANDARD' },
+        { id: 'p1', clientName: 'Premium Co', clientTier: 'PREMIUM' },
+        { id: 'r1', clientName: 'Priority Co', clientTier: 'PRIORITY' },
+        { id: 'u1', clientName: 'Unset Tier Co' }
+    ];
+    const result = obj.premiumAndPriorityClients();
+    assert.deepEqual(result.map(c => c.id), ['r1', 'p1'], 'Standard and clients with no tier must not appear, and Priority must sort ahead of Premium');
+});
+
+test('the dashboard widget renders Premium & Priority, not the old Priority-only wording', () => {
+    const dashboard = readSource('views/tab-dashboard.html');
+    assert.match(dashboard, /Premium &amp; Priority Clients/);
+    assert.match(dashboard, /v-if="premiumAndPriorityClients\.length"/);
+    assert.match(dashboard, /v-for="cust in premiumAndPriorityClients"/);
+    assert.match(dashboard, /No Premium or Priority-tier clients yet/);
+    assert.doesNotMatch(dashboard, />Priority Clients</, 'the old Priority-only heading must not still be shown');
+});
