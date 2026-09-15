@@ -197,6 +197,20 @@ test('Firebase Admin CommonJS runtime pins the compatible jose dependency', () =
     assert.equal(functionManifest.overrides['jwks-rsa'].jose, '4.15.9');
 });
 
+test('the Vercel deployment runs Node 24.x, matching the Project Settings value', () => {
+    // Vercel's own build log is explicit that a package.json engines.node
+    // wins over the Node.js Version configured in Project Settings — a stale
+    // "22.x" here silently downgraded every build regardless of what the
+    // dashboard said. The Firebase Cloud Functions runtime (functions/
+    // package.json) is deliberately left on Node 22: Firebase's own "Set
+    // Node.js version" docs currently only list 22, 20 and 18 as settable
+    // values for the Cloud Functions SDK, unlike Vercel.
+    const manifest = JSON.parse(readSource('package.json'));
+    assert.equal(manifest.engines.node, '24.x');
+    const lockfile = JSON.parse(readSource('package-lock.json'));
+    assert.equal(lockfile.packages[''].engines.node, '24.x', 'package-lock.json must stay in sync with package.json engines, or npm ci reintroduces the mismatch');
+});
+
 test('audit metadata extracts the trusted client IP and readable browser details', () => {
     assert.equal(getClientIp({ 'x-vercel-forwarded-for': '203.0.113.8, 10.0.0.1' }), '203.0.113.8');
     const metadata = parseUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36');
