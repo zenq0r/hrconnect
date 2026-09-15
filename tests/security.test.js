@@ -725,6 +725,32 @@ test('dynamic status colors include their dark-mode counterparts in the built st
     assert.match(theme, /text-brand-blue:not\(\[class\*="dark:text-"\]\)/);
 });
 
+test('an enabled dropdown never shows a not-allowed cursor, even when styled with .zq-input', () => {
+    // :read-only is not "has no readonly attribute" — per the CSS UI spec it
+    // matches ANY element that simply doesn't support user editing at all,
+    // and a <select> can never carry readonly, so every <select> matches
+    // :read-only unconditionally. .zq-input:read-only therefore painted
+    // cursor: not-allowed onto every enabled dropdown styled with .zq-input
+    // (Status, Payment Method, Bank Selection, Payment Receiver and dozens
+    // more across the app use .zq-input rather than .zq-select) — clicking
+    // still worked, since nothing was actually disabled, which is exactly
+    // what made the cursor misleading. [readonly] is the attribute selector:
+    // it only matches an element that genuinely carries the HTML attribute,
+    // which a <select> here never does.
+    const theme = readSource('custom.css');
+    assert.doesNotMatch(theme, /:read-only/, 'a bare :read-only pseudo-class would match every <select> again, disabled or not');
+    assert.match(theme, /\.zq-input\[readonly\], \.zq-textarea\[readonly\]/);
+
+    const html = readSource('index.html');
+    const selects = [...html.matchAll(/<select\b[^>]*>/g)].map(m => m[0]);
+    assert.ok(selects.length > 20, 'expected many <select> elements across the portal to check');
+    selects.forEach(tag => {
+        if (/\breadonly\b/.test(tag)) {
+            throw new Error(`a <select> cannot be meaningfully readonly, and would now render the disabled look: ${tag}`);
+        }
+    });
+});
+
 test('quotation and invoice workspace uses explicit paired light and dark theme surfaces', () => {
     const html = readSource('index.html');
     const theme = readSource('custom.css');

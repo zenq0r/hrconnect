@@ -1117,7 +1117,7 @@ html.dark .zq-otp-box:focus { box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.22); }
     .zq-otp-box-lg { width: 38px; height: 50px; font-size: 1.25rem; }
 }
 .zq-input:disabled, .zq-select:disabled, .zq-textarea:disabled,
-.zq-input:read-only, .zq-textarea:read-only {
+.zq-input[readonly], .zq-textarea[readonly] {
     background: var(--zq-surface-alt); color: var(--zq-text-muted); cursor: not-allowed;
 }
 .zq-textarea { resize: vertical; min-height: 80px; }
