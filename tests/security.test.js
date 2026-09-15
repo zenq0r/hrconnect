@@ -725,6 +725,26 @@ test('dynamic status colors include their dark-mode counterparts in the built st
     assert.match(theme, /text-brand-blue:not\(\[class\*="dark:text-"\]\)/);
 });
 
+test('every .zq-table sits inside an overflow-x-auto wrapper, so a wide table scrolls instead of breaking the viewport', () => {
+    // The Quotation/Invoice items table (Description + fixed-width Qty/Unit
+    // Price/Total/delete columns) needs ~600px+ to stay usable and there is
+    // no app-wide overflow-x: hidden safety net, so an un-wrapped .zq-table
+    // forces the whole page to scroll sideways on a phone screen instead of
+    // just the table — exactly what happened here until it was wrapped like
+    // every other table in the app.
+    const html = readSource('index.html');
+    const matches = [...html.matchAll(/<table class="zq-table/g)];
+    assert.ok(matches.length > 10, 'expected many .zq-table elements across the portal to check');
+    const unwrapped = matches.filter(m => {
+        const before = html.slice(Math.max(0, m.index - 200), m.index);
+        // The wrapping <div> may carry other classes (e.g. "mt-4 overflow-x-auto")
+        // or a v-if/v-else before its class attribute — only its presence
+        // somewhere in the immediately preceding markup matters here.
+        return !/<div\b[^>]*class="[^"]*overflow-x-auto[^"]*"[^>]*>\s*$/.test(before);
+    });
+    assert.equal(unwrapped.length, 0, `${unwrapped.length} .zq-table element(s) are missing their overflow-x-auto wrapper`);
+});
+
 test('an enabled dropdown never shows a not-allowed cursor, even when styled with .zq-input', () => {
     // :read-only is not "has no readonly attribute" — per the CSS UI spec it
     // matches ANY element that simply doesn't support user editing at all,

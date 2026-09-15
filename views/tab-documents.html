@@ -126,26 +126,28 @@
                                 </button>
                             </div>
 
-                            <table class="zq-table">
-                                <thead>
-                                    <tr class="bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 text-[11px] uppercase tracking-wider font-extrabold">
-                                        <th class="p-3 border border-slate-200 dark:border-slate-600">Description / Product</th>
-                                        <th class="p-3 border border-slate-200 dark:border-slate-600 w-24 text-center">Qty</th>
-                                        <th class="p-3 border border-slate-200 dark:border-slate-600 w-36 text-right">Unit Price (RM)</th>
-                                        <th class="p-3 border border-slate-200 dark:border-slate-600 w-36 text-right">Total (RM)</th>
-                                        <th class="p-3 border border-slate-200 dark:border-slate-600 w-12 text-center"></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr v-for="(item, idx) in docForm.items" :key="idx" class="border-b dark:border-slate-700">
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-desc-' + idx" class="sr-only">Description</label><input :id="'item-desc-' + idx" :name="'itemDesc_' + idx" type="text" v-model="item.desc" placeholder="Service description / payment phase..." class="zq-input font-medium"></td>
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-qty-' + idx" class="sr-only">Quantity</label><input :id="'item-qty-' + idx" :name="'itemQty_' + idx" type="number" v-model="item.qty" min="1" class="zq-input text-center font-bold"></td>
-                                        <td class="p-2 border dark:border-slate-600"><label :for="'item-price-' + idx" class="sr-only">Unit Price</label><input :id="'item-price-' + idx" :name="'itemPrice_' + idx" type="number" v-model="item.price" step="0.01" min="0" class="zq-input text-right font-semibold"></td>
-                                        <td class="p-2 border dark:border-slate-600 text-right font-extrabold text-xs bg-slate-50 dark:bg-slate-700/50 dark:text-white">{{ formatCurrency(item.qty * item.price) }}</td>
-                                        <td class="p-2 border dark:border-slate-600 text-center"><button type="button" @click="removeDocItem(idx)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Remove item"><i class="fa-solid fa-trash text-xs"></i></button></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <div class="overflow-x-auto">
+                                <table class="zq-table">
+                                    <thead>
+                                        <tr class="bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 text-[11px] uppercase tracking-wider font-extrabold">
+                                            <th class="p-3 border border-slate-200 dark:border-slate-600">Description / Product</th>
+                                            <th class="p-3 border border-slate-200 dark:border-slate-600 w-24 text-center">Qty</th>
+                                            <th class="p-3 border border-slate-200 dark:border-slate-600 w-36 text-right">Unit Price (RM)</th>
+                                            <th class="p-3 border border-slate-200 dark:border-slate-600 w-36 text-right">Total (RM)</th>
+                                            <th class="p-3 border border-slate-200 dark:border-slate-600 w-12 text-center"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr v-for="(item, idx) in docForm.items" :key="idx" class="border-b dark:border-slate-700">
+                                            <td class="p-2 border dark:border-slate-600"><label :for="'item-desc-' + idx" class="sr-only">Description</label><input :id="'item-desc-' + idx" :name="'itemDesc_' + idx" type="text" v-model="item.desc" placeholder="Service description / payment phase..." class="zq-input font-medium"></td>
+                                            <td class="p-2 border dark:border-slate-600"><label :for="'item-qty-' + idx" class="sr-only">Quantity</label><input :id="'item-qty-' + idx" :name="'itemQty_' + idx" type="number" v-model="item.qty" min="1" class="zq-input text-center font-bold"></td>
+                                            <td class="p-2 border dark:border-slate-600"><label :for="'item-price-' + idx" class="sr-only">Unit Price</label><input :id="'item-price-' + idx" :name="'itemPrice_' + idx" type="number" v-model="item.price" step="0.01" min="0" class="zq-input text-right font-semibold"></td>
+                                            <td class="p-2 border dark:border-slate-600 text-right font-extrabold text-xs bg-slate-50 dark:bg-slate-700/50 dark:text-white">{{ formatCurrency(item.qty * item.price) }}</td>
+                                            <td class="p-2 border dark:border-slate-600 text-center"><button type="button" @click="removeDocItem(idx)" class="zq-btn zq-btn-destructive zq-btn-icon zq-btn-sm" title="Remove item"><i class="fa-solid fa-trash text-xs"></i></button></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
 
                             <div class="flex justify-between items-center mt-3">
                                 <button type="button" @click="addDocItem" class="zq-btn zq-btn-outline zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Item</span></button>
