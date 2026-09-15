@@ -94,7 +94,18 @@ export const billingComputed = {
             const invoiceDrafts = this.docHistory
                 .filter(item => item.type === 'Invoice' && item.status === 'Draft')
                 .map(item => ({ ...item, workflowAction: 'edit-draft', workflowLabel: 'Finance draft' }));
-            return [...acceptedQuotes, ...invoiceDrafts, ...submittedProofs]
+            // Finalized (Status left Draft, via saveDocRecord()) but never
+            // explicitly sent — sendInvoiceToClient() is the only thing that
+            // moves this along. A record with no deliveryStatus at all is a
+            // legacy invoice, already effectively delivered under the old
+            // rules, so it is deliberately excluded here rather than asked to
+            // be sent again. Once a client uploads proof the same invoice
+            // moves into submittedProofs instead, so this list is only ever
+            // pre-send.
+            const readyToSend = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.status === 'Unpaid' && item.deliveryStatus && item.deliveryStatus !== 'Sent')
+                .map(item => ({ ...item, workflowAction: 'send-invoice', workflowLabel: 'Ready to send' }));
+            return [...acceptedQuotes, ...invoiceDrafts, ...readyToSend, ...submittedProofs]
                 .sort(byTierThenDate(item => item.billingWorkflowUpdatedAt || item.paymentProofAt || item.clientDecisionAt || item.date));
         }
 };

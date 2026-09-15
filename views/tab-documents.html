@@ -65,6 +65,15 @@
                                         <option value="Cancelled">Cancelled</option>
                                     </template>
                                 </select>
+                                <!-- Delivery Status is separate from Status (the payment state) —
+                                     it is the only thing that governs whether the client can see
+                                     this invoice at all. It only ever changes via saveDocRecord()
+                                     (Draft <-> Ready to Send) or sendInvoiceToClient() (-> Sent),
+                                     never by picking a Status option here. -->
+                                <p v-if="docForm.type === 'Invoice' && docForm.deliveryStatus" class="mt-1.5 text-[10px] font-bold uppercase tracking-wide" :class="docForm.deliveryStatus === 'Sent' ? 'text-emerald-600 dark:text-emerald-400' : docForm.deliveryStatus === 'Ready to Send' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'">
+                                    <i class="fa-solid" :class="docForm.deliveryStatus === 'Sent' ? 'fa-check-double' : docForm.deliveryStatus === 'Ready to Send' ? 'fa-clock' : 'fa-lock'"></i>
+                                    Delivery: {{ docForm.deliveryStatus }}
+                                </p>
                             </div>
                             <div>
                                 <label for="doc-payment-method" class="zq-label">PAYMENT METHOD</label>
@@ -149,7 +158,14 @@
                                     <i class="fa-solid fa-print"></i><span>Print Document</span>
                                 </button>
                                 <button v-if="canManageDocuments" type="button" @click="saveDocRecord" class="zq-btn zq-btn-primary">
-                                    <i class="fa-solid" :class="docForm.type === 'Invoice' && docForm.status === 'Unpaid' ? 'fa-paper-plane' : 'fa-floppy-disk'"></i><span>{{ docForm.type === 'Invoice' && docForm.status === 'Unpaid' ? 'Send Invoice to Client' : 'Save Document' }}</span>
+                                    <i class="fa-solid fa-floppy-disk"></i><span>Save Document</span>
+                                </button>
+                                <!-- A genuinely separate, explicit action from Save — the only
+                                     button that makes this invoice visible to the client and
+                                     fires its notification/email (sendInvoiceToClient()). Saving
+                                     with Status = Unpaid alone never sends anything. -->
+                                <button v-if="editingDocId && docForm.type === 'Invoice' && docForm.status === 'Unpaid' && docForm.deliveryStatus !== 'Sent' && canManageBillingWorkflow" type="button" @click="sendInvoiceToClient({ id: editingDocId, docNo: docForm.docNo, name: docForm.clientName, status: docForm.status, deliveryStatus: docForm.deliveryStatus, raw: docForm })" class="zq-btn zq-btn-info">
+                                    <i class="fa-solid fa-paper-plane"></i><span>Send Invoice to Client</span>
                                 </button>
                             </div>
 

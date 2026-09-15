@@ -23,16 +23,34 @@ beforeEach(async () => {
         'docs/Q2': quotation({ docNo: 'QT-2026-002', raw: { customerId: 'CUST-2', clientEmail: 'someone@elsewhere.com', projectId: 'P-2' } }),
         'docs/I1': invoice(),
         'docs/D1': invoice({ status: 'Draft', docNo: 'INV-DRAFT' }),
+        // Finalized (Status left Draft via saveDocRecord()) but Send Invoice to
+        // Client (sendInvoiceToClient()) has not fired yet.
+        'docs/I2': invoice({ docNo: 'INV-2026-002', deliveryStatus: 'Ready to Send' }),
+        // The one state a client may actually read an invoice at, alongside
+        // I1 (no deliveryStatus field at all — a legacy record).
+        'docs/I3': invoice({ docNo: 'INV-2026-003', deliveryStatus: 'Sent' }),
     });
 });
 
 test('a client reads their own quotation and invoice, and nobody else\'s', async () => {
     const { db } = as('client');
     await assertSucceeds(db.doc('docs/Q1').get());
+    // No deliveryStatus field at all — a legacy record, already delivered
+    // under the rules that predate this field, so it stays visible.
     await assertSucceeds(db.doc('docs/I1').get());
     await assertFails(db.doc('docs/Q2').get());
     // An unsent invoice draft stays with Finance.
     await assertFails(db.doc('docs/D1').get());
+});
+
+test('an invoice that is finalized but not yet sent stays with Finance, just like a Draft', async () => {
+    const { db } = as('client');
+    await assertFails(db.doc('docs/I2').get());
+});
+
+test('sendInvoiceToClient() flipping deliveryStatus to Sent is what actually makes an invoice readable', async () => {
+    const { db } = as('client');
+    await assertSucceeds(db.doc('docs/I3').get());
 });
 
 test('the portal\'s own document queries are allowed for a client', async () => {

@@ -169,6 +169,21 @@ service cloud.firestore {
         data.status != 'Draft';
     }
 
+    // deliveryStatus (not status, the payment state) governs whether a client
+    // may read an invoice at all — see sendInvoiceToClient(),
+    // app/methods/billing.js, the only place it ever becomes 'Sent'. A record
+    // with no deliveryStatus field is one saved before this field existed:
+    // treated as already delivered UNLESS it is still literally a Draft,
+    // which stayed hidden under the old status-only rule too — a legacy
+    // Draft must not become newly readable just because it predates this
+    // field, the same way a legacy Paid/Unpaid invoice must not become newly
+    // HIDDEN by it.
+    function clientCanReadInvoice(data) {
+      return data.type != 'Invoice' ||
+        data.deliveryStatus == 'Sent' ||
+        (!('deliveryStatus' in data) && data.status != 'Draft');
+    }
+
     // IT is trusted with the public zenqor-tech website's content collections
     // (Portfolio galleries, Services, page-text overrides) alongside Superadmin/
     // Director, but NOT with the rest of what isAdmin() unlocks (payroll, HR,
@@ -624,16 +639,17 @@ service cloud.firestore {
         // A PIC may read only sent invoices indexed to that PIC. Drafts,
         // quotations and another project's billing data stay unavailable.
         isDocumentProjectPic(resource.data) ||
-        // An invoice draft belongs to the Finance workspace until it is formally
-        // issued. Clients never see a partial/unsent bill in their document list.
-        (isClient() && (resource.data.type != 'Invoice' || resource.data.status != 'Draft') && resource.data.raw.clientEmail == request.auth.token.email) ||
+        // An invoice draft or one merely prepared-but-not-yet-sent belongs to
+        // the Finance workspace until Send Invoice to Client is actually
+        // pressed — see clientCanReadInvoice() above.
+        (isClient() && clientCanReadInvoice(resource.data) && resource.data.raw.clientEmail == request.auth.token.email) ||
         (
           // Multi-user Client Portal: a secondary authorized email (see
           // customers/{id}.additionalClientEmails) doesn't match raw.clientEmail
           // (always the primary contact's), so fall back to the linked customer
           // record the same way client_documents does.
           isClient() &&
-          (resource.data.type != 'Invoice' || resource.data.status != 'Draft') &&
+          clientCanReadInvoice(resource.data) &&
           resource.data.raw.customerId is string &&
           resource.data.raw.customerId.size() > 0 &&
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)

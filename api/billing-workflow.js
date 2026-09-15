@@ -263,11 +263,29 @@ module.exports = async function handler(req, res) {
             if (!customer || !project) {
                 res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. It was not sent.' }); return;
             }
+            // deliveryStatus, not status, is what actually governs whether a
+            // client can read this invoice (see firestore.rules) — this is the
+            // one place it ever becomes 'Sent'. The source quotation's status
+            // moves to 'Invoiced' in the same transaction: previously a separate
+            // client-side write, now atomic with the send itself.
+            const sourceQuotationId = String(document.raw?.sourceQuotationId || '');
             const eventRef = db.collection('billing_events').doc(`${documentId}_invoice_sent`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, sentByUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                transaction.update(documentRef, {
+                    deliveryStatus: 'Sent',
+                    billingWorkflowStatus: 'Sent to Client',
+                    invoiceSentAt: timestamp,
+                    invoiceSentByUid: identity.uid,
+                    invoiceSentByName: caller?.name || identity.email,
+                    billingClientId: customerId,
+                    billingProjectId: project.id,
+                    billingPicEmail: normalizeEmail(project.ownerEmail)
+                });
+                if (sourceQuotationId) {
+                    transaction.update(db.collection('docs').doc(sourceQuotationId), { status: 'Invoiced', invoiceDocId: documentId, invoiceCreatedAt: timestamp });
+                }
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
