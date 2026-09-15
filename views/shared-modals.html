@@ -100,33 +100,124 @@
         <div v-if="clientView.show" class="zq-drawer-overlay z-[102] no-print" role="dialog" aria-modal="true" aria-label="Client Information" @click.self="closeClientView()">
             <div class="zq-drawer zq-drawer-lg">
                 <div class="zq-modal-header">
-                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="zq-modal-title mt-1">Client Information</h3><p class="zq-modal-description">Registered company and contact information.</p></div>
+                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="zq-modal-title mt-1">Client Information</h3><p class="zq-modal-description">Read-only view of the Client Registration record — always the current data on file.</p></div>
                     <button type="button" @click="closeClientView()" aria-label="Close client information" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="zq-modal-body">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+
+                    <!-- 1. CLIENT SUMMARY -->
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p><p v-if="clientView.client.companyType || clientView.client.industry" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ [clientView.client.companyType, clientView.client.industry].filter(Boolean).join(' · ') }}</p></div>
-                            <div class="flex shrink-0 items-center gap-1.5">
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Client / Company Name</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">Permanent Client ID: {{ clientView.client.clientId }}</p></div>
+                            <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                                 <span v-if="clientView.client.id && isNewClient(clientView.client.id)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 text-[9px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
-                                <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning · {{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }}</span>
+                                <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning Client</span>
                                 <span :class="clientTierMeta(clientView.client.clientTier).badgeClass" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ clientTierMeta(clientView.client.clientTier).label }}</span>
-                                <span :class="clientHealthScore(clientView.client).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase" :title="'Health Score: ' + clientHealthScore(clientView.client).score + '/100'">{{ clientHealthScore(clientView.client).label }} · {{ clientHealthScore(clientView.client).score }}</span>
+                                <span :class="clientHealthScore(clientView.client).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase" :title="'Risk / Client Score: ' + clientHealthScore(clientView.client).score + '/100'">{{ clientHealthScore(clientView.client).label }} · {{ clientHealthScore(clientView.client).score }}</span>
                             </div>
                         </div>
+                        <p v-if="clientView.client.id" class="mt-2 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }} on record</p>
                         <div v-if="canManageClients && clientView.client.id" class="mt-3 flex items-center gap-1.5 border-t border-slate-200 dark:border-slate-700 pt-3">
                             <span class="text-[10px] font-bold text-slate-400 dark:text-slate-400">Set Tier:</span>
                             <button type="button" v-for="tier in ['Standard','Premium','Priority']" :key="`tier-${tier}`" @click="updateClientTier(clientView.client, tier); clientView.client.clientTier = tier" :class="clientView.client.clientTier === tier ? clientTierMeta(tier).badgeClass + ' ring-2 ring-offset-1 ring-brand-blue' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" class="rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase transition">{{ tier }}</button>
                         </div>
                     </div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Contact Person</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Position</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
-                    <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
-                    <div v-if="clientView.client.clientNotes" class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Internal Notes</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p></div>
-                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+
+                    <!-- 2. COMPANY PROFILE -->
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Company Profile</p>
+                        <div class="mt-3 space-y-2.5">
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Client / Company Name</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientName || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Business Registration No. — New Format</p><p class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientBrnNew || '—' }}</p></div>
+                            <div v-if="clientView.client.clientBrnOld"><p class="font-bold text-slate-400 dark:text-slate-400">Business Registration No. — Old Format</p><p class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientBrnOld }}</p></div>
+                            <div v-if="clientView.client.clientTin"><p class="font-bold text-slate-400 dark:text-slate-400">Tax Identification No. (TIN)</p><p class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientTin }}</p></div>
+                            <div v-if="clientView.client.companyType"><p class="font-bold text-slate-400 dark:text-slate-400">Company Type</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.companyType }}</p></div>
+                            <div v-if="clientView.client.industry"><p class="font-bold text-slate-400 dark:text-slate-400">Industry / Business Category</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.industry }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Client Tier</p><p class="mt-0.5"><span :class="clientTierMeta(clientView.client.clientTier).badgeClass" class="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase">{{ clientTierMeta(clientView.client.clientTier).label }}</span></p></div>
+                        </div>
+                    </div>
+
+                    <!-- 3. PRIMARY CONTACT -->
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Primary Contact</p>
+                        <div class="mt-3 space-y-2.5">
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Contact Person</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Position</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Phone Number</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Email Address — Primary Contact</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail || '—' }}</p></div>
+                        </div>
+                    </div>
+
+                    <!-- 4. ADDITIONAL AUTHORIZED CONTACTS -->
+                    <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Additional Authorized Contacts</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Kept as a separate field from Email Address — Primary Contact, never merged with it.</p>
+                        <div v-if="clientView.client.additionalClientEmails && clientView.client.additionalClientEmails.length" class="mt-2.5 flex flex-wrap gap-1.5">
+                            <span v-for="email in clientView.client.additionalClientEmails" :key="email" class="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[10.5px] font-semibold text-slate-700 dark:text-slate-200 break-all"><i class="fa-solid fa-envelope mr-1 text-slate-400 dark:text-slate-400"></i>{{ email }}</span>
+                        </div>
+                        <p v-else class="mt-2.5 text-slate-400 dark:text-slate-500">No additional authorized emails on record.</p>
+                    </div>
+
+                    <!-- 5. REGISTERED ADDRESS -->
+                    <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Registered Address</p>
+                        <p class="mt-2 whitespace-pre-line rounded-lg bg-slate-50 dark:bg-slate-900/40 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p>
+                    </div>
+
+                    <!-- 6. RELATED RECORDS -->
+                    <div v-if="clientView.client.id" class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Related Records</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Click any figure to open those records.</p>
+                        <div class="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <button type="button" @click="closeClientView(); viewClientBoard(clientView.client)" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).totalProjects }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Total Projects</p>
+                            </button>
+                            <button type="button" @click="closeClientView(); viewClientBoard(clientView.client)" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).activeProjects }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Active Projects</p>
+                            </button>
+                            <button type="button" @click="closeClientView(); viewClientBoard(clientView.client)" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).completedProjects }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Completed Projects</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).totalQuotations }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Total Quotations</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).totalInvoices }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Total Invoices</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-amber-600 dark:text-amber-400">{{ clientRelatedRecordCounts(clientView.client).unpaidInvoices }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Unpaid Invoices</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{{ clientRelatedRecordCounts(clientView.client).paidInvoices }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Paid Invoices</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 7. INTERNAL INFORMATION (staff-only; never shown in Client Portal) -->
+                    <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Internal Information</p>
+                        <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Date Registered</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.createdAt ? formatDateTime(clientView.client.createdAt) : '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Last Updated</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.updatedAt ? formatDateTime(clientView.client.updatedAt) : '—' }}</p></div>
+                            <div v-if="clientView.client.createdByName"><p class="font-bold text-slate-400 dark:text-slate-400">Created By</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.createdByName }}</p></div>
+                            <div v-if="clientView.client.updatedByName"><p class="font-bold text-slate-400 dark:text-slate-400">Last Updated By</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.updatedByName }}</p></div>
+                        </div>
+                        <div v-if="canManageClients" class="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+                            <p class="font-bold text-slate-400 dark:text-slate-400">Internal Notes <span class="font-normal normal-case text-slate-400 dark:text-slate-500">(staff only — never shown in Client Portal)</span></p>
+                            <p v-if="clientView.client.clientNotes" class="mt-1.5 whitespace-pre-line rounded-lg bg-slate-50 dark:bg-slate-900/40 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p>
+                            <p v-else class="mt-1.5 text-slate-400 dark:text-slate-500">No internal notes on record.</p>
+                        </div>
+                    </div>
+
+                    <div v-if="clientView.client.id" id="client-doc-history" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <div class="mb-3"><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Documents & Billing History</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Every quotation and invoice created for this client.</p></div>
                         <div v-if="!clientDocHistory(clientView.client).length" class="zq-empty-state zq-empty-state-compact">
                             <i class="fa-regular fa-file-invoice zq-empty-state-icon" aria-hidden="true"></i>
@@ -178,6 +269,19 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- CLIENT ACTIVITY -->
+                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Activity</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Recent activity across projects, quotations, invoices and payments for this client.</p>
+                        <div v-if="!clientRecentActivity(clientView.client).length" class="mt-2.5 text-slate-400 dark:text-slate-500">No activity recorded yet.</div>
+                        <ul v-else class="mt-2.5 space-y-2">
+                            <li v-for="(event, idx) in clientRecentActivity(clientView.client)" :key="idx" class="flex items-start gap-2.5">
+                                <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"><i :class="event.icon" class="fa-solid text-[9px]"></i></span>
+                                <div class="min-w-0"><p class="font-semibold text-slate-700 dark:text-slate-200">{{ event.text }}</p><p class="text-[10px] text-slate-400 dark:text-slate-500">{{ event.label }}</p></div>
+                            </li>
+                        </ul>
                     </div>
                 </div>
                 </div>
