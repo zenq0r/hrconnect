@@ -165,9 +165,27 @@ export const dutyRosterMethods = {
                 }, { merge: true });
                 this.logAudit('UPDATE', `Published duty roster for week ${weekKey}`);
                 this.showNotify('Roster published.');
+                this.notifyAssignedStaffOfPublishedRoster(weekKey, week);
             } catch (error) {
                 console.error('Publish roster failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'publish this roster'));
             }
+        },
+        // Fire-and-forget, same as every other notifyByEmail() call in this
+        // app — reuses the existing /api/notify endpoint (which writes the
+        // in-app bell notification and sends the email), so publishing a
+        // roster needs no new API route.
+        notifyAssignedStaffOfPublishedRoster(weekKey, week) {
+            const empNos = new Set();
+            (week.shifts || []).forEach(shift => (shift.assignedEmpNos || []).forEach(empNo => empNos.add(empNo)));
+            const emails = [...empNos].map(empNo => this.employees.find(e => e.empNo === empNo)?.email).filter(Boolean);
+            if (!emails.length) return;
+            this.notifyByEmail({
+                to: emails,
+                subject: `Duty Roster Published — Week of ${weekKey}`,
+                heading: 'New Duty Roster Published',
+                message: `The duty roster for the week of ${weekKey} has been published. Open Duty Roster in the portal to see your assigned shifts.`,
+                ctaLabel: 'View Duty Roster'
+            });
         }
 };

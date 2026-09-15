@@ -92,6 +92,41 @@ export const attendanceMethods = {
                 this.showNotify(this.getFirestoreWriteError(error, 'clock out'));
             }
         },
+        // Own attendance records still open from a day before today — the
+        // person almost certainly forgot to clock out. Filters this.attendanceRecords
+        // by own email rather than assuming the list is already self-scoped:
+        // for HR/Account/Admin it holds every employee's records, and this is
+        // what narrows it back down to their own.
+        myStaleAttendanceRecords() {
+            const email = String(this.userProfile.email || '').trim().toLowerCase();
+            const today = this.getLocalDateKey();
+            return this.attendanceRecords.filter(record => record.status === 'Clocked In' && record.date < today && String(record.empEmail || '').trim().toLowerCase() === email);
+        },
+        // Same check, company-wide — only meaningful for a role that actually
+        // reads every employee's records (canCorrectAttendance); for anyone
+        // else this.attendanceRecords is already scoped to their own, so it
+        // silently equals myStaleAttendanceRecords().
+        companyStaleAttendanceRecords() {
+            const today = this.getLocalDateKey();
+            return this.attendanceRecords.filter(record => record.status === 'Clocked In' && record.date < today);
+        },
+        // Run once per sign-in (see initFirebaseRealtime's portalDataReadyPromise,
+        // right where ensureMonthlyArchives runs) rather than on every realtime
+        // update — nobody needs this toast twice because a colleague's document
+        // synced a second later.
+        checkForgottenClockOuts() {
+            const mine = this.myStaleAttendanceRecords();
+            if (mine.length) {
+                const dates = mine.map(record => record.date).join(', ');
+                this.showNotify(`You have ${mine.length} attendance record${mine.length > 1 ? 's' : ''} still open from a previous day (${dates}) — it looks like you forgot to clock out. Contact HR to correct it.`);
+            }
+            if (this.canCorrectAttendance) {
+                const companyCount = this.companyStaleAttendanceRecords().length;
+                if (companyCount) {
+                    this.showNotify(`${companyCount} attendance record${companyCount > 1 ? 's' : ''} company-wide look${companyCount > 1 ? '' : 's'} like a forgotten clock-out. Check Attendance to correct ${companyCount > 1 ? 'them' : 'it'}.`);
+                }
+            }
+        },
         // Records for the selected date, newest-first by empNo — used by the
         // HR/Admin table. Self-service history (views/tab-attendance.html for
         // a role without canCorrectAttendance) reads this.attendanceRecords

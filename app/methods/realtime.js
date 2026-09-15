@@ -471,6 +471,10 @@ export const realtimeMethods = {
                 // Only after every collection has arrived — closing a month from a
                 // half-loaded snapshot would freeze understated totals into the package.
                 this.ensureMonthlyArchives();
+                // Same reasoning: attendanceRecords must be fully in before this
+                // can tell a genuinely stale open clock-in apart from one that
+                // just hasn't synced yet.
+                this.checkForgottenClockOuts();
                 return true;
             });
             return this.portalDataReadyPromise;

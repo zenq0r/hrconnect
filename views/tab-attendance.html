@@ -29,6 +29,29 @@
                         </div>
                     </div>
 
+                    <div v-if="myStaleAttendanceRecords().length" class="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-4 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                        <span>It looks like you forgot to clock out on {{ myStaleAttendanceRecords().map(r => formatDateWithDay(r.date)).join(', ') }}. Contact HR to have {{ myStaleAttendanceRecords().length > 1 ? 'these records' : 'this record' }} corrected.</span>
+                    </div>
+
+                    <div v-if="canCorrectAttendance && companyStaleAttendanceRecords().length" class="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-4">
+                        <div class="flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300 mb-3">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                            <span><strong>{{ companyStaleAttendanceRecords().length }} attendance record{{ companyStaleAttendanceRecords().length > 1 ? 's' : '' }}</strong> {{ companyStaleAttendanceRecords().length > 1 ? 'look' : 'looks' }} like a forgotten clock-out — still "Clocked In" from a previous day.</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div v-for="record in companyStaleAttendanceRecords()" :key="`stale-${record.id}`" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white dark:bg-slate-800/60 px-3 py-2">
+                                <span class="text-xs">
+                                    <span class="font-bold text-slate-900 dark:text-slate-100">{{ record.name }}</span>
+                                    <span class="text-slate-400"> &middot; {{ record.empNo }} &middot; {{ formatDateWithDay(record.date) }} &middot; clocked in {{ attendanceTimeLabel(record.clockInAt) }}</span>
+                                </span>
+                                <button type="button" @click="openAttendanceCorrectionModal(record)" class="zq-btn zq-btn-info zq-btn-sm">
+                                    <i class="fa-solid fa-pen"></i><span>Correct</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="canCorrectAttendance" class="zq-card p-6">
                         <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
                             <h3 class="zq-text-section-title"><i class="fa-solid fa-users text-brand-blue mr-2"></i>Attendance &mdash; {{ formatDateWithDay(attendanceSelectedDate) }}</h3>

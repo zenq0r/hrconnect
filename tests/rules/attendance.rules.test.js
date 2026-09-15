@@ -52,6 +52,12 @@ test('clocking out only succeeds from Clocked In, and only touches clockOutAt/st
     await assertSucceeds(db.doc('attendance/E-STAFF_2026-09-16').update({ clockOutAt: serverTimestamp(), status: 'Clocked Out' }));
 });
 
+test('a self clock-out is refused once too much time has passed since clock-in — a stale record needs HR correction instead', async () => {
+    const { db } = as('staff');
+    await seed({ 'attendance/E-STAFF_2026-09-10': { ...clockInPayload({ date: '2026-09-10' }), clockInAt: new Date('2026-09-10T00:30:00.000Z') } });
+    await assertFails(db.doc('attendance/E-STAFF_2026-09-10').update({ clockOutAt: serverTimestamp(), status: 'Clocked Out' }));
+});
+
 test('a staff member cannot clock out twice', async () => {
     const { db } = as('staff');
     await seed({ 'attendance/E-STAFF_2026-09-16': { ...clockInPayload(), clockInAt: new Date('2026-09-16T00:30:00.000Z'), clockOutAt: new Date('2026-09-16T09:00:00.000Z'), status: 'Clocked Out' } });

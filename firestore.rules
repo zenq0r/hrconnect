@@ -950,6 +950,15 @@ service cloud.firestore {
         resource.data.status == 'Clocked In' &&
         request.resource.data.status == 'Clocked Out' &&
         request.resource.data.clockOutAt == request.time &&
+        // Self clock-out is same-shift only: within 20 hours of the clock-in
+        // this same rule already forced to be request.time. Without this, a
+        // staff member could "clock out" a record left open for days,
+        // stamping today's time onto it and fabricating a multi-day shift —
+        // the app's own UI never offers this (myTodayAttendanceRecord() only
+        // looks at today), but the rule must refuse it too, not just hide the
+        // button. A stale record like that is exactly what HR's correction
+        // path (isAttendanceCorrection() above) exists to close out instead.
+        request.time < resource.data.clockInAt + duration.value(20, 'h') &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clockOutAt', 'status'])
       );
       allow delete: if isAdmin();
