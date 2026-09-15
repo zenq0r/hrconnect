@@ -80,20 +80,44 @@ export const clientMethods = {
             this.clientInformationModal.form = this.emptyClientInformationForm();
             this.switchTab('client-directory');
         },
+        // Format-checks one address; deliberately not exported/shared beyond
+        // this file's two email fields, which are the only place free-typed
+        // email text reaches Firestore without going through a real sign-in.
+        isValidEmailAddress(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''));
+        },
         async saveClientInformation() {
             if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
             const form = this.clientInformationModal.form;
             if (!form.clientName || !form.clientPhone || !form.clientAddress1) return this.showNotify('Enter Client Name, Phone, and Address Line 1.');
             if (!/^\d{5}$/.test(String(form.clientPostcode || '')) || !form.clientCity || !form.clientState) return this.showNotify('Enter a valid 5-digit postcode, City, and State.');
+            // Email Address (Primary Contact) and Additional Authorized Emails are
+            // validated and rejected here, never silently deduplicated or merged
+            // into each other — a duplicate or malformed entry must be corrected
+            // by the person typing it, not quietly dropped underneath them.
+            const clientEmail = String(form.clientEmail || '').trim().toLowerCase();
+            if (clientEmail && !this.isValidEmailAddress(clientEmail)) {
+                return this.showNotify(`"${String(form.clientEmail).trim()}" is not a valid Email Address.`);
+            }
+            const rawAdditionalEntries = String(form.additionalClientEmailsText || '').split(',').map(entry => entry.trim()).filter(Boolean);
+            if (!rawAdditionalEntries.length) {
+                return this.showNotify('Additional Authorized Emails is required — enter at least one email address (separate multiple with commas).');
+            }
+            const additionalClientEmails = [];
+            const seenAdditionalEmails = new Set();
+            for (const rawEntry of rawAdditionalEntries) {
+                const email = rawEntry.toLowerCase();
+                if (!this.isValidEmailAddress(email)) return this.showNotify(`"${rawEntry}" in Additional Authorized Emails is not a valid email address.`);
+                if (clientEmail && email === clientEmail) return this.showNotify(`"${rawEntry}" is already used as the Email Address (Primary Contact) — remove it from Additional Authorized Emails.`);
+                if (seenAdditionalEmails.has(email)) return this.showNotify(`"${rawEntry}" is listed more than once in Additional Authorized Emails — each email must be unique.`);
+                seenAdditionalEmails.add(email);
+                additionalClientEmails.push(email);
+            }
             this.clientInformationModal.saving = true;
             try {
                 const isNewRecord = !form.id;
                 const docId = form.id || doc(collection(db, 'customers')).id;
                 const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
-                const clientEmail = String(form.clientEmail || '').trim().toLowerCase();
-                const additionalClientEmails = [...new Set(String(form.additionalClientEmailsText || '')
-                    .split(',').map(email => email.trim().toLowerCase()).filter(email => email && email.includes('@')))]
-                    .filter(email => email !== clientEmail);
                 const registeredEmails = new Set([
                     clientEmail,
                     ...additionalClientEmails

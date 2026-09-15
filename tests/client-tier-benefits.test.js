@@ -213,7 +213,10 @@ test('Client Directory email matches are unique and missing matches fail clearly
     assert.match(claims, /client\/email-not-registered/);
     assert.match(app, /const conflictingCustomer = this\.customers\.find\(customer =>/);
     assert.match(app, /Keep each client login email on one record only/);
-    assert.match(app, /\[\.\.\.new Set\(String\(form\.additionalClientEmailsText/);
+    // Duplicates and malformed entries are rejected, not silently deduplicated
+    // — see 'Email Address and Additional Authorized Emails are validated,
+    // not silently deduplicated or merged' below for the full behavior.
+    assert.doesNotMatch(app, /\[\.\.\.new Set\(String\(form\.additionalClientEmailsText/);
 });
 
 test('the portal prints the registered Client ID, never the Firestore document key', () => {

@@ -59,8 +59,12 @@
                                 <div><label for="client-info-contact" class="zq-label">Contact Person</label><input id="client-info-contact" v-model="clientInformationModal.form.clientContactPerson" autocomplete="name" placeholder="Officer or director name" class="zq-input"></div>
                                 <div><label for="client-info-position" class="zq-label">Position</label><input id="client-info-position" v-model="clientInformationModal.form.clientPosition" placeholder="Director / Executive" class="zq-input"></div>
                                 <div><label for="client-info-phone" class="zq-label">Phone Number *</label><input id="client-info-phone" v-model="clientInformationModal.form.clientPhone" required autocomplete="tel" placeholder="+60 13-XXXX XXX" class="zq-input"></div>
-                                <div><label for="client-info-email" class="zq-label">Email Address</label><input id="client-info-email" v-model="clientInformationModal.form.clientEmail" type="email" autocomplete="email" placeholder="email@company.com" class="zq-input"></div>
-                                <div class="md:col-span-2 xl:col-span-4"><label for="client-info-additional-email" class="zq-label">Additional Authorized Emails <span class="font-normal normal-case">(optional, separated by commas)</span></label><input id="client-info-additional-email" v-model="clientInformationModal.form.additionalClientEmailsText" placeholder="finance@example.com, authorised@example.com" class="zq-input"></div>
+                                <div><label for="client-info-email" class="zq-label">Email Address &mdash; Primary Contact</label><input id="client-info-email" v-model="clientInformationModal.form.clientEmail" type="email" autocomplete="email" placeholder="email@company.com" class="zq-input"></div>
+                                <div class="md:col-span-2 xl:col-span-4">
+                                    <label for="client-info-additional-email" class="zq-label">Additional Authorized Emails *</label>
+                                    <input id="client-info-additional-email" v-model="clientInformationModal.form.additionalClientEmailsText" required placeholder="finance@company.com, admin@company.com" class="zq-input" aria-describedby="client-info-additional-email-hint">
+                                    <p id="client-info-additional-email-hint" class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">Separate multiple email addresses with commas.<br>Example: finance@company.com, admin@company.com</p>
+                                </div>
                             </div>
                         </section>
     
