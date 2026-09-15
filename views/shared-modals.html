@@ -414,6 +414,55 @@
             </form>
         </div>
 
+        <!-- MODAL SHIF JADUAL TUGAS -->
+        <div v-if="dutyRosterModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="dutyRosterModal.isEdit ? 'Edit Shift' : 'Add Shift'">
+            <form @submit.prevent="saveDutyRosterShift" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">{{ dutyRosterModal.isEdit ? 'Edit Shift' : 'Add Shift' }}</h3>
+                    <button type="button" @click="dutyRosterModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div><label for="roster-modal-label" class="zq-label">Shift Label *</label><input id="roster-modal-label" name="rosterModalLabel" v-model="dutyRosterModal.form.label" required placeholder="e.g. Pagi, Petang" class="zq-input font-semibold"></div>
+                    <div><label for="roster-modal-date" class="zq-label">Date *</label><input id="roster-modal-date" name="rosterModalDate" type="date" v-model="dutyRosterModal.form.date" required class="zq-input"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label for="roster-modal-start" class="zq-label">Start Time *</label><input id="roster-modal-start" name="rosterModalStart" type="time" v-model="dutyRosterModal.form.startTime" required class="zq-input"></div>
+                        <div><label for="roster-modal-end" class="zq-label">End Time *</label><input id="roster-modal-end" name="rosterModalEnd" type="time" v-model="dutyRosterModal.form.endTime" required class="zq-input"></div>
+                    </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="dutyRosterModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Shift</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MODAL PEMBETULAN KEHADIRAN -->
+        <div v-if="attendanceCorrectionModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Correct Attendance Record">
+            <form @submit.prevent="saveAttendanceCorrection" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Correct Attendance &mdash; {{ attendanceCorrectionModal.record?.name }}</h3>
+                    <button type="button" @click="attendanceCorrectionModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <p class="text-slate-400">{{ formatDateWithDay(attendanceCorrectionModal.record?.date) }}</p>
+                    <div><label for="att-modal-clockin" class="zq-label">Clock In *</label><input id="att-modal-clockin" name="attModalClockIn" type="datetime-local" v-model="attendanceCorrectionModal.clockInInput" required class="zq-input"></div>
+                    <div>
+                        <label for="att-modal-status" class="zq-label">Status *</label>
+                        <select id="att-modal-status" name="attModalStatus" v-model="attendanceCorrectionModal.status" class="zq-input">
+                            <option value="Clocked In">Clocked In</option>
+                            <option value="Clocked Out">Clocked Out</option>
+                        </select>
+                    </div>
+                    <div v-if="attendanceCorrectionModal.status === 'Clocked Out'"><label for="att-modal-clockout" class="zq-label">Clock Out *</label><input id="att-modal-clockout" name="attModalClockOut" type="datetime-local" v-model="attendanceCorrectionModal.clockOutInput" required class="zq-input"></div>
+                    <div><label for="att-modal-note" class="zq-label">Reason for Correction *</label><textarea id="att-modal-note" name="attModalNote" v-model="attendanceCorrectionModal.correctionNote" rows="3" required placeholder="e.g. Staff forgot to clock out, corrected after confirming with them directly." class="zq-input normal-case"></textarea></div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="attendanceCorrectionModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Correction</button>
+                </div>
+            </form>
+        </div>
+
         <div v-if="userModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access'">
             <form @submit.prevent="savePortalUser" class="zq-modal">
                 <div class="zq-modal-header">

@@ -21,6 +21,8 @@ import { adminUserMethods } from "./methods/admin-users.js";
 import { websiteContentMethods } from "./methods/website-content.js";
 import { contextMenuMethods } from "./methods/context-menu.js";
 import { hrMethods } from "./methods/hr.js";
+import { attendanceMethods } from "./methods/attendance.js";
+import { dutyRosterMethods } from "./methods/duty-roster.js";
 import { realtimeMethods } from "./methods/realtime.js";
 
 export const portalMethods = {
@@ -36,6 +38,8 @@ export const portalMethods = {
     ...websiteContentMethods,
     ...contextMenuMethods,
     ...hrMethods,
+    ...attendanceMethods,
+    ...dutyRosterMethods,
     ...realtimeMethods,
 };
 

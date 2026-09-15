@@ -17,6 +17,12 @@ export const accessComputed = {
         // includes HR for everything else on the employee record.
         canEditLockedIdentityFields() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
         canManageEmployees() { return this.hasModulePermission('hr-employees', 'edit'); },
+        // Every staff role can open Attendance/Duty Roster to clock themselves
+        // in or view their own roster — that visibility comes from RBAC_ROLES,
+        // not from these two. These gate the second, narrower ability: correcting
+        // someone else's clock event, or building/publishing the week's shifts.
+        canCorrectAttendance() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
+        canManageDutyRoster() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
         canManageClients() { return this.hasModulePermission('client-directory', 'edit'); },
         // Was Director-only. Superadmin now holds it too: an account that can
         // delete a Client Task could not create one, which is not a coherent

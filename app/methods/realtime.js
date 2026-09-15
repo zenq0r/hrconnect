@@ -149,6 +149,20 @@ export const realtimeMethods = {
                 : ['Staff', 'IT'].includes(role)
                     ? query(collection(db, 'employees'), where('email', '==', this.userProfile.email))
                     : null;
+            // Must mirror the attendance read rule in firestore.rules: HR/Account
+            // join Superadmin/Director in reading every record; every other
+            // internal role (Staff, IT) reads only its own clock events. Client
+            // has no attendance module at all, hence the role !== 'Client' guard.
+            const canReadAllAttendance = ['Superadmin', 'Director', 'HR', 'Account'].includes(role);
+            const attendanceSource = canReadAllAttendance
+                ? collection(db, 'attendance')
+                : role !== 'Client'
+                    ? query(collection(db, 'attendance'), where('empEmail', '==', this.userProfile.email))
+                    : null;
+            // Duty roster rules already narrow a Draft week to HR/Admin/Account —
+            // every other internal role only ever receives Published weeks back
+            // from this same unfiltered collection() listener.
+            const dutyRosterSource = role !== 'Client' ? collection(db, 'duty_roster') : null;
             const projectsSources = role === 'Client'
                 // clientDirectoryId is a required field on every project (see
                 // hasValidProjectLinks in firestore.rules), so this covers both the primary
@@ -294,6 +308,12 @@ export const realtimeMethods = {
                 subscribeWithReadySignal(doc(db, "settings", "company_profile"), (snapshot) => { if (snapshot.exists()) this.company = this.hydrateCompanyAddress(snapshot.data()); }, 'company settings'),
                 employeesSource
                     ? subscribeWithReadySignal(employeesSource, (snapshot) => { this.employees = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'employees')
+                    : Promise.resolve(),
+                attendanceSource
+                    ? subscribeWithReadySignal(attendanceSource, (snapshot) => { this.attendanceRecords = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'attendance')
+                    : Promise.resolve(),
+                dutyRosterSource
+                    ? subscribeWithReadySignal(dutyRosterSource, (snapshot) => { this.dutyRosterWeeks = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'duty roster')
                     : Promise.resolve(),
                 (this.hasAccess('client-directory') || this.hasAccess('doc-generator'))
                     ? subscribeWithReadySignal(collection(db, "customers"), (snapshot) => {

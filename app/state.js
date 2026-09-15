@@ -273,6 +273,18 @@ export function createInitialState() {
             // confirmStep: null (picker) -> 'handover' or 'complete' (confirmation sub-view)
             markProjectDoneModal: { show: false, project: null, newOwnerEmpNo: '', confirmStep: null, saving: false },
             employees: [],
+            attendanceRecords: [],
+            attendanceSelectedDate: new Date().toISOString().slice(0, 10),
+            dutyRosterWeeks: [],
+            dutyRosterWeekOffset: 0,
+            dutyRosterModal: {
+                show: false,
+                isEdit: false,
+                weekKey: '',
+                shiftId: '',
+                form: { label: 'Pagi', date: '', startTime: '08:00', endTime: '17:00' }
+            },
+            attendanceCorrectionModal: { show: false, record: null, clockInInput: '', clockOutInput: '', status: 'Clocked In', correctionNote: '' },
             customers: [],
             users: [],
             auditLogs: [],

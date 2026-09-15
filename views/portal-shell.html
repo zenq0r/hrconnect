@@ -67,6 +67,12 @@
                     <button v-if="hasAccess('project-activities') && !hasAccess('client-task')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>
+                    <button v-if="hasAccess('attendance')" type="button" @click="switchTab('attendance')" :class="{'sidebar-item-active': currentTab === 'attendance', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'attendance'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-clock w-5 text-center"></i><span>Attendance</span>
+                    </button>
+                    <button v-if="hasAccess('duty-roster')" type="button" @click="switchTab('duty-roster')" :class="{'sidebar-item-active': currentTab === 'duty-roster', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'duty-roster'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-calendar-days w-5 text-center"></i><span>Duty Roster</span>
+                    </button>
                     <!-- Documents, Updates, Benefits and Support are panels of the single
                          Client Workspace page, so these deep-link into it rather than
                          switching route. Active state follows the panel, not currentTab. -->

@@ -488,6 +488,31 @@ service cloud.firestore {
         ]);
     }
 
+    // clockInAt/clockOutAt MUST be the serverTimestamp() sentinel: Firestore
+    // Rules resolve it to request.time before this function ever sees it, so
+    // a forged client-side Date can never land in either field — the one
+    // deviation in this app from every other feature's plain ISO-string
+    // timestamp, because this is the one field a spoofed device clock could
+    // otherwise falsify.
+    function isSelfAttendanceRecord(data) {
+      return data.empEmail is string && data.empEmail == request.auth.token.email;
+    }
+
+    // HR/Admin correcting a mistaken clock event — same shape as
+    // isAdminClaimCorrection() above: stamped with who corrected it, and
+    // scoped to exactly the fields a correction may touch. HR is included
+    // here (unlike isAdminClaimCorrection, Admin-only) because attendance
+    // corrections are routine HR work, not a financial-record override.
+    function isAttendanceCorrection() {
+      return (isAdmin() || isHR()) &&
+        request.resource.data.empNo == resource.data.empNo &&
+        request.resource.data.lastEditedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'clockInAt', 'clockOutAt', 'status',
+          'lastEditedByUid', 'lastEditedByName', 'lastEditedAt', 'correctionNote'
+        ]);
+    }
+
     // The company profile is the letterhead: clients read it on the support
     // page, staff print it onto quotations and invoices. Every signed-in
     // session may read that one document; the rest of this collection, such
@@ -895,6 +920,50 @@ service cloud.firestore {
         // and without this the write is refused after the UI has said yes.
         isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
       );
+      allow delete: if isAdmin();
+    }
+
+    // Attendance — self-service clock in/out, one document per employee per
+    // calendar day (doc id = `${empNo}_${date}`), which also doubles as the
+    // double-clock-in guard: a second create at the same derived id fails
+    // outright, no query needed.
+    match /attendance/{attendanceId} {
+      allow read: if isAdmin() || isHR() || isAccount() || (
+        isApprovedStaffSession() && isSelfAttendanceRecord(resource.data)
+      );
+      allow create: if isApprovedStaffSession() &&
+        attendanceId == request.resource.data.empNo + '_' + request.resource.data.date &&
+        request.resource.data.empEmail == request.auth.token.email &&
+        // empEmail alone is not enough — nothing above stops a signed-in staff
+        // member from putting a colleague's empNo in the payload while keeping
+        // their own email. This confirms the claimed empNo actually belongs to
+        // the signed-in email, the same way claims/vouchers trust empNo only
+        // after it is tied to an employee record elsewhere in this file.
+        get(/databases/$(database)/documents/employees/$(request.resource.data.empNo)).data.email == request.auth.token.email &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.clockInAt == request.time &&
+        request.resource.data.clockOutAt == null &&
+        request.resource.data.status == 'Clocked In';
+      allow update: if isAttendanceCorrection() || (
+        isApprovedStaffSession() &&
+        isSelfAttendanceRecord(resource.data) &&
+        resource.data.status == 'Clocked In' &&
+        request.resource.data.status == 'Clocked Out' &&
+        request.resource.data.clockOutAt == request.time &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clockOutAt', 'status'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Duty Roster — one document per week (doc id = Monday's date). HR/Admin
+    // build a Draft, which stays invisible to everyone else until Published.
+    match /duty_roster/{weekId} {
+      allow read: if isAdmin() || isHR() || isAccount() || (
+        isApprovedStaffSession() && resource.data.status == 'Published'
+      );
+      allow create, update: if (isAdmin() || isHR()) &&
+        request.resource.data.weekStartDate == weekId &&
+        request.resource.data.status in ['Draft', 'Published'];
       allow delete: if isAdmin();
     }
 

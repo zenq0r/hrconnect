@@ -20,7 +20,8 @@ import {
     writeBatch,
     runTransaction,
     query,
-    where
+    where,
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
     getAuth,
@@ -151,6 +152,7 @@ export {
     runTransaction,
     query,
     where,
+    serverTimestamp,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     signOut,

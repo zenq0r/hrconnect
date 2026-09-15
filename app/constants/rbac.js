@@ -7,15 +7,16 @@ export const RBAC_ROLES = {
     // (content/site_text). Restricted to Superadmin/Director/IT only — see
     // isContentAdmin() in firestore.rules, which grants write on exactly these
     // collections to that same set of roles (not the full isAdmin() surface).
-    'Director': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'reports', 'profile'],
-    'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'reports', 'profile'],
+    'Director': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'reports', 'profile'],
+    'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'attendance', 'duty-roster', 'reports', 'profile'],
     // IT staff are employees too: Claims is where they file and follow their
-    // own claims and vouchers, as the Staff role does.
-    'IT': ['dashboard', 'project-activities', 'claims', 'website-content', 'audit-logs', 'settings', 'profile'],
+    // own claims and vouchers, as the Staff role does. Attendance/Duty Roster
+    // are the same — every internal role clocks in and views its own roster.
+    'IT': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
-    'Staff': ['dashboard', 'project-activities', 'claims', 'profile']
+    'Staff': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'profile']
 };
 
 // Human names for the RBAC modules above. The sidebar writes its own labels
@@ -30,6 +31,8 @@ export const MODULE_LABELS = {
     'claims': 'Claims & Vouchers',
     'client-directory': 'Client Registration',
     'hr-employees': 'HR Employees',
+    'attendance': 'Attendance',
+    'duty-roster': 'Duty Roster',
     'reports': 'Reports & Analytics',
     'website-content': 'Website Management',
     'audit-logs': 'Audit & Security Log',
@@ -99,6 +102,16 @@ export const MODULE_ACTIONS = {
     'hr-employees': {
         edit: { all: ['Director', 'Superadmin', 'HR'] },
         remove: { all: FULL_ACCESS_ROLES },
+    },
+    'attendance': {
+        edit: { all: ['Director', 'Superadmin', 'HR'], own: ['Account', 'IT', 'Staff'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'Everyone clocks themselves in and out. Superadmin, Director and HR correct any record — recorded, and never in the same write as the clock event itself.',
+    },
+    'duty-roster': {
+        edit: { all: ['Director', 'Superadmin', 'HR'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'HR defines shifts and assigns staff. Everyone else views their own published roster only.',
     },
     'reports': {
         edit: { all: FULL_ACCESS_ROLES },
