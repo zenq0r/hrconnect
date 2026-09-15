@@ -42,8 +42,14 @@ export const reportsComputed = {
             this.docHistory.forEach(d => { const k = this.periodKeyOf(d.date); if (k) keys.add(k); });
             this.payslipHistory.forEach(p => { const k = this.periodKeyOf(p.date); if (k) keys.add(k); });
             [...this.claimsHistory, ...this.paymentVouchers].forEach(c => { const k = this.periodKeyOf(this.claimDateOf(c)); if (k) keys.add(k); });
+            this.attendanceRecords.forEach(r => { const k = this.periodKeyOf(r.date); if (k) keys.add(k); });
             return [...keys].sort().reverse();
         },
+
+        // Follows the same reportPeriod scope as the export cards above it, so
+        // what is shown on screen always matches what exportCSV('attendance')
+        // downloads.
+        reportPeriodAttendanceSummary() { return this.attendanceSummaryForPeriod(this.reportPeriod); },
 
         totalQuotations() { return this.docHistory.filter(d => d.type === 'Quotation').length; },
         totalQuotationValue() { return this.docHistory.filter(d => d.type === 'Quotation').reduce((s, d) => s + (Number(d.amount) || 0), 0); },
