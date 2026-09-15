@@ -71,10 +71,18 @@ export const billingComputed = {
             const isCentralReviewer = this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role);
             const tierRank = this.billingItemTierRank;
             const byTierThenDate = (dateKey) => (a, b) => (tierRank(b) - tierRank(a)) || String(dateKey(b) || '').localeCompare(String(dateKey(a) || ''));
+            // Paid is the workflow's final state. status !== 'Paid' (rather than
+            // paymentProofReviewStatus !== 'Verified') is the guard, because a
+            // manually-marked-Paid invoice — status set straight from the Invoice
+            // form, bypassing reviewPaymentProof() entirely, e.g. a cash payment —
+            // must stop demanding action here too, whatever its review status
+            // happens to still read. Nothing about the proof itself is touched:
+            // it stays on the invoice for Invoice History / Audit History either
+            // way, this only removes it from the outstanding-action queue.
             const submittedProofs = this.docHistory
-                .filter(item => item.type === 'Invoice' && item.status !== 'Draft' && item.paymentProofUrl)
+                .filter(item => item.type === 'Invoice' && item.status !== 'Draft' && item.status !== 'Paid' && item.paymentProofUrl)
                 .filter(item => isCentralReviewer || this.billingPicProjectIds.has(String(item.raw?.projectId || '')))
-                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Verified' ? 'Payment verified' : item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
+                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
             if (!this.canManageBillingWorkflow) return submittedProofs
                 .sort(byTierThenDate(item => item.paymentProofAt || item.date));
             const linkedInvoiceQuoteIds = new Set(this.docHistory

@@ -196,3 +196,21 @@ test('Finance sees what the client claimed about their payment right on the revi
     assert.match(dashboard, /item\.clientPaymentDate/);
     assert.match(dashboard, /item\.clientPaymentAmount/);
 });
+
+test('Paid is a final state: a verified invoice drops out of Action Required, not just its Approve/Reject buttons', () => {
+    // Approve used to only hide the two review buttons — the card itself, and
+    // its slot in the "N Billing Items" count, stayed forever, because the
+    // queue's own filter never excluded a Paid invoice once it had a proof
+    // attached. status !== 'Paid' (not paymentProofReviewStatus !== 'Verified')
+    // is the guard, so an invoice marked Paid by hand straight from the
+    // Invoice form — bypassing reviewPaymentProof() entirely — also stops
+    // demanding action, whatever its review status happens to still read.
+    const fn = methodSource('billingWorkflowQueue');
+    const submittedProofsAt = fn.indexOf('submittedProofs');
+    assert.ok(submittedProofsAt > -1, 'billingWorkflowQueue must build its submittedProofs list');
+    const filterLine = fn.slice(submittedProofsAt, fn.indexOf('\n', submittedProofsAt) + 200);
+    assert.match(filterLine, /item\.status !== 'Paid'/);
+    // The now-unreachable "Payment verified" queue-card label is gone — a
+    // Verified/Paid item never reaches the map() that would have shown it.
+    assert.doesNotMatch(fn, /'Payment verified'/);
+});
