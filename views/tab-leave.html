@@ -1,0 +1,109 @@
+<!-- =====================================================================
+     LEAVE REQUESTS
+     ===================================================================== -->
+                <div v-show="currentTab === 'leave'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="zq-text-page-title">Leave Requests</h2>
+                            <p class="zq-page-header-desc">Submit and track leave requests through HR approval.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button v-if="editingLeaveId" type="button" @click="cancelEditLeaveRequest" class="zq-btn zq-btn-ghost">Cancel Edit</button>
+                            <button type="button" @click="saveLeaveRequest" class="zq-btn zq-btn-primary"><i class="fa-solid fa-floppy-disk"></i><span>{{ editingLeaveId ? 'Update Leave Request' : 'Submit Leave Request' }}</span></button>
+                        </div>
+                    </div>
+
+                    <!-- ===================== LEAVE REQUEST FORM ===================== -->
+                    <div class="bg-white dark:bg-slate-800/90 rounded-2xl border border-slate-200 dark:border-slate-700/80 shadow-md p-4 md:p-6 space-y-5">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-700 pb-4">
+                            <h3 class="text-xs font-extrabold text-brand-dark dark:text-white tracking-wider uppercase flex items-center">
+                                <i class="fa-solid fa-file-circle-plus text-brand-gold mr-2 text-base"></i>
+                                {{ editingLeaveId ? 'EDIT LEAVE REQUEST' : 'NEW LEAVE REQUEST' }}
+                            </h3>
+                            <div>
+                                <label for="leave-emp-select" class="sr-only">Select Employee</label>
+                                <select id="leave-emp-select" name="leaveEmpSelect" v-model="selectedLeaveEmployeeId" @change="selectEmployeeForLeave($event)" class="p-2 border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-semibold bg-slate-50 dark:bg-slate-700 text-brand-dark dark:text-white w-full sm:w-64 focus:ring-2 focus:ring-brand-gold">
+                                    <option value="">-- Auto-Fill HR Employee --</option>
+                                    <option v-for="emp in employees" :key="`leave-emp-${emp.empNo}`" :value="emp.empNo">{{ emp.empNo }} - {{ emp.name }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div><label for="leave-name" class="zq-label">Applicant Name *</label><input id="leave-name" name="leaveName" type="text" v-model="leaveForm.name" required placeholder="Employee Name" class="zq-input font-bold"></div>
+                            <div><label for="leave-emp-no" class="zq-label">Employee ID *</label><input id="leave-emp-no" name="leaveEmpNo" type="text" v-model="leaveForm.empNo" class="zq-input font-extrabold"></div>
+                            <div>
+                                <label for="leave-type" class="zq-label">Leave Type *</label>
+                                <select id="leave-type" name="leaveType" v-model="leaveForm.leaveType" class="zq-input font-bold">
+                                    <option v-for="type in leaveTypes" :key="type" :value="type">{{ type }}</option>
+                                </select>
+                            </div>
+                            <div><label for="leave-total-days" class="zq-label">Total Days</label><input id="leave-total-days" name="leaveTotalDays" :value="leaveForm.totalDays" disabled aria-readonly="true" class="zq-input font-extrabold"></div>
+                            <div><label for="leave-start" class="zq-label">Start Date *</label><input id="leave-start" name="leaveStart" type="date" v-model="leaveForm.startDate" @change="recalculateLeaveDays" required class="zq-input"></div>
+                            <div><label for="leave-end" class="zq-label">End Date *</label><input id="leave-end" name="leaveEnd" type="date" v-model="leaveForm.endDate" @change="recalculateLeaveDays" required class="zq-input"></div>
+                            <div class="sm:col-span-2 lg:col-span-4"><label for="leave-reason" class="zq-label">Reason *</label><textarea id="leave-reason" name="leaveReason" v-model="leaveForm.reason" rows="2" required placeholder="Briefly explain the reason for this leave" class="zq-input normal-case"></textarea></div>
+                        </div>
+                    </div>
+
+                    <div class="zq-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-plane-departure text-brand-blue mr-2"></i>Leave Request History</h3>
+                            <span class="zq-text-small font-bold">Total: {{ leaveRequests.length }}</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Applicant</th>
+                                        <th>Type</th>
+                                        <th>Dates</th>
+                                        <th>Reason</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-center w-32">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="lr in [...leaveRequests].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))" :key="lr.id" @contextmenu.prevent="openContextMenu($event, leaveRequestRowMenuItems(lr))" v-longpress="(touch) => openContextMenu(touch, leaveRequestRowMenuItems(lr))">
+                                        <td>
+                                            <span class="font-bold text-brand-dark dark:text-white block">{{ lr.name }}</span>
+                                            <span class="text-slate-400 text-[10px] block">{{ lr.empNo }}</span>
+                                        </td>
+                                        <td><span class="font-bold text-brand-blue dark:text-blue-400">{{ lr.leaveType }}</span></td>
+                                        <td>
+                                            <span class="block">{{ lr.startDate }} &ndash; {{ lr.endDate }}</span>
+                                            <span class="text-slate-400 text-[10px] block">{{ lr.totalDays }} day(s)</span>
+                                        </td>
+                                        <td class="max-w-xs"><span class="block truncate" :title="lr.reason">{{ lr.reason }}</span></td>
+                                        <td class="text-center">
+                                            <span :class="{
+                                                'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300': lr.status === 'Pending HR',
+                                                'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300': lr.status === 'Approved',
+                                                'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300': lr.status === 'Rejected'
+                                            }" class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase">{{ lr.status }}</span>
+                                            <p v-if="lr.approvedByName" class="mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300">Approved by {{ lr.approvedByName }}</p>
+                                            <p v-if="lr.rejectedByName" class="mt-1 text-[10px] font-semibold text-red-700 dark:text-red-300">Rejected by {{ lr.rejectedByName }}</p>
+                                            <p v-if="lr.lastEditedByName" class="mt-1 text-[9px] text-slate-400"><i class="fa-solid fa-pen"></i> Corrected by {{ lr.lastEditedByName }}</p>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                                <button v-if="canDecideLeaveRequest(lr)" @click="approveLeaveRequest(lr)" class="zq-btn zq-btn-success zq-btn-icon" title="Approve"><i class="fa-solid fa-check"></i></button>
+                                                <button v-if="canDecideLeaveRequest(lr)" @click="rejectLeaveRequest(lr)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Reject"><i class="fa-solid fa-xmark"></i></button>
+                                                <button v-if="canEditLeaveRequest(lr)" @click="editLeaveRequest(lr)" class="zq-btn zq-btn-info zq-btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                                                <button v-if="isFullAccessRole" @click="openLeaveCorrectionModal(lr)" class="zq-btn zq-btn-neutral zq-btn-icon" title="Correct"><i class="fa-solid fa-pen-to-square"></i></button>
+                                                <button v-if="canDelete" @click="deleteLeaveRequest(lr)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="leaveRequests.length === 0" class="zq-table-empty">
+                                        <td colspan="6">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="zq-empty-state-icon fa-solid fa-plane-departure"></i>
+                                                <p class="zq-empty-state-title">No leave requests yet</p>
+                                                <p class="zq-empty-state-text">Submitted leave requests will appear here for HR review and approval.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>

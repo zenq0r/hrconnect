@@ -199,6 +199,15 @@ export const contextMenuMethods = {
                 this.canManageDutyRoster ? { label: 'Remove Shift', icon: 'fa-trash', danger: true, action: () => this.removeDutyRosterShift(shift) } : null
             ];
         },
+        leaveRequestRowMenuItems(record) {
+            return [
+                this.canEditLeaveRequest(record) ? { label: 'Edit Leave Request', icon: 'fa-pen', action: () => this.editLeaveRequest(record) } : null,
+                this.isFullAccessRole ? { label: 'Correct Leave Request', icon: 'fa-pen-to-square', action: () => this.openLeaveCorrectionModal(record) } : null,
+                this.canDecideLeaveRequest(record) ? { label: 'Approve', icon: 'fa-circle-check', action: () => this.approveLeaveRequest(record) } : null,
+                this.canDecideLeaveRequest(record) ? { label: 'Reject', icon: 'fa-circle-xmark', danger: true, action: () => this.rejectLeaveRequest(record) } : null,
+                this.canDelete ? { label: 'Delete Leave Request', icon: 'fa-trash', danger: true, action: () => this.deleteLeaveRequest(record) } : null
+            ];
+        },
         clientDocumentMenuItems(item) {
             return [
                 { label: 'View', icon: 'fa-eye', action: () => this.viewClientDocument(item) },

@@ -463,6 +463,34 @@
             </form>
         </div>
 
+        <!-- MODAL PEMBETULAN PERMOHONAN CUTI -->
+        <div v-if="leaveCorrectionModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Correct Leave Request">
+            <form @submit.prevent="saveLeaveCorrection" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Correct Leave Request &mdash; {{ leaveCorrectionModal.record?.name }}</h3>
+                    <button type="button" @click="leaveCorrectionModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs" v-if="leaveCorrectionModal.record">
+                    <div>
+                        <label for="leave-corr-type" class="zq-label">Leave Type *</label>
+                        <select id="leave-corr-type" name="leaveCorrType" v-model="leaveCorrectionModal.record.leaveType" class="zq-input font-bold">
+                            <option v-for="type in leaveTypes" :key="type" :value="type">{{ type }}</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label for="leave-corr-start" class="zq-label">Start Date *</label><input id="leave-corr-start" name="leaveCorrStart" type="date" v-model="leaveCorrectionModal.record.startDate" required class="zq-input"></div>
+                        <div><label for="leave-corr-end" class="zq-label">End Date *</label><input id="leave-corr-end" name="leaveCorrEnd" type="date" v-model="leaveCorrectionModal.record.endDate" required class="zq-input"></div>
+                    </div>
+                    <div><label for="leave-corr-reason" class="zq-label">Reason *</label><textarea id="leave-corr-reason" name="leaveCorrReason" v-model="leaveCorrectionModal.record.reason" rows="2" required class="zq-input normal-case"></textarea></div>
+                    <div><label for="leave-corr-note" class="zq-label">Reason for Correction *</label><textarea id="leave-corr-note" name="leaveCorrNote" v-model="leaveCorrectionModal.correctionNote" rows="2" required placeholder="e.g. Employee's end date was entered wrong; corrected after confirming with them directly." class="zq-input normal-case"></textarea></div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="leaveCorrectionModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Correction</button>
+                </div>
+            </form>
+        </div>
+
         <div v-if="userModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="userModal.isEdit ? 'Update Portal Access' : 'Add Portal Access'">
             <form @submit.prevent="savePortalUser" class="zq-modal">
                 <div class="zq-modal-header">

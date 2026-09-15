@@ -285,6 +285,11 @@ export function createInitialState() {
                 form: { label: 'Pagi', date: '', startTime: '08:00', endTime: '17:00' }
             },
             attendanceCorrectionModal: { show: false, record: null, clockInInput: '', clockOutInput: '', status: 'Clocked In', correctionNote: '' },
+            leaveRequests: [],
+            selectedLeaveEmployeeId: '',
+            editingLeaveId: null,
+            leaveForm: { id: '', empNo: '', name: '', empEmail: '', position: '', dept: '', leaveType: 'Annual', startDate: '', endDate: '', totalDays: 1, reason: '' },
+            leaveCorrectionModal: { show: false, record: null, correctionNote: '' },
             customers: [],
             users: [],
             auditLogs: [],
@@ -361,6 +366,7 @@ export function createInitialState() {
             accessRequests: [],
             accessRequestModal: { show: false, saving: false, requestedRole: '', reason: '', error: '' },
 
+            leaveTypes: ['Annual', 'Medical', 'Emergency', 'Unpaid', 'Maternity', 'Paternity'],
             claimSubCategories: {
                 'Medical': [
                     'Clinic / Hospital Treatment',

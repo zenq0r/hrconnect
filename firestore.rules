@@ -967,6 +967,68 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Leave Requests — single-stage approval (unlike claims' three): a staff
+    // member files a request, HR decides, and Superadmin/Director may correct
+    // or decide directly at any time. Account is deliberately not part of this
+    // workflow — leave is not a financial record — so it reads only its own
+    // requests, the same as Staff and IT.
+    function isSelfLeaveRequest(data) {
+      return data.empEmail is string && data.empEmail == request.auth.token.email;
+    }
+
+    function leaveDecisionKeys() {
+      return ['status', 'approvedByUid', 'approvedByName', 'approvedByEmail', 'approvedByRole', 'approvedAt',
+              'rejectedByUid', 'rejectedByName', 'rejectedByRole', 'rejectedAt'];
+    }
+
+    // Deliberately its own function rather than a call into isClaimDecision():
+    // that helper is claims/payment_vouchers' three-stage pipeline specifically
+    // (tests/module-actions.test.js and tests/money-enforcement.test.js both
+    // count its call sites to hold that pipeline to exactly three transitions
+    // each), and leave is a single-stage decision on an unrelated collection.
+    // The body is intentionally the same shape — a decision moves status
+    // between two allowed sets and touches only the decision's own fields.
+    function isLeaveDecision(fromStatuses, toStatuses, allowedKeys) {
+      return resource.data.status in fromStatuses &&
+        request.resource.data.status in toStatuses &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys) &&
+        (request.resource.data.status != 'Rejected' || request.resource.data.rejectedByUid == request.auth.uid) &&
+        (request.resource.data.status != 'Approved' || request.resource.data.approvedByUid == request.auth.uid);
+    }
+
+    // Same shape as isAdminClaimCorrection() — stamped, and the status never
+    // moves in the same write, so a correction is never mistaken for a decision.
+    function isLeaveCorrection() {
+      return isAdmin() &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.lastEditedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'leaveType', 'startDate', 'endDate', 'totalDays', 'reason', 'name', 'position', 'dept', 'empEmail',
+          'lastEditedByUid', 'lastEditedByName', 'lastEditedAt'
+        ]);
+    }
+
+    match /leave_requests/{leaveId} {
+      allow read: if isAdmin() || isHR() || (
+        isApprovedStaffSession() && isSelfLeaveRequest(resource.data)
+      );
+      allow create: if isApprovedStaffSession() &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.empEmail == request.auth.token.email &&
+        get(/databases/$(database)/documents/employees/$(request.resource.data.empNo)).data.email == request.auth.token.email &&
+        request.resource.data.status == 'Pending HR';
+      allow update: if isLeaveCorrection() || (
+        isApprovedStaffSession() &&
+        isSelfLeaveRequest(resource.data) &&
+        resource.data.status == 'Pending HR' &&
+        request.resource.data.status == 'Pending HR' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveType', 'startDate', 'endDate', 'totalDays', 'reason'])
+      ) || (
+        (isHR() || isAdmin()) && isLeaveDecision(['Pending HR'], ['Approved', 'Rejected'], leaveDecisionKeys())
+      );
+      allow delete: if isAdmin();
+    }
+
     match /projects/{projectId} {
       allow read: if isAuthenticated() && (
         // Director/Superadmin can supervise every process. Other internal

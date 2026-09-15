@@ -163,6 +163,15 @@ export const realtimeMethods = {
             // every other internal role only ever receives Published weeks back
             // from this same unfiltered collection() listener.
             const dutyRosterSource = role !== 'Client' ? collection(db, 'duty_roster') : null;
+            // Leave is single-stage (HR decides), so unlike claims/vouchers,
+            // Account is not part of the review chain and reads only its own
+            // requests here — matching the leave_requests read rule exactly.
+            const canReadAllLeaveRequests = ['Superadmin', 'Director', 'HR'].includes(role);
+            const leaveRequestsSource = canReadAllLeaveRequests
+                ? collection(db, 'leave_requests')
+                : role !== 'Client'
+                    ? query(collection(db, 'leave_requests'), where('empEmail', '==', this.userProfile.email))
+                    : null;
             const projectsSources = role === 'Client'
                 // clientDirectoryId is a required field on every project (see
                 // hasValidProjectLinks in firestore.rules), so this covers both the primary
@@ -314,6 +323,9 @@ export const realtimeMethods = {
                     : Promise.resolve(),
                 dutyRosterSource
                     ? subscribeWithReadySignal(dutyRosterSource, (snapshot) => { this.dutyRosterWeeks = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'duty roster')
+                    : Promise.resolve(),
+                leaveRequestsSource
+                    ? subscribeWithReadySignal(leaveRequestsSource, (snapshot) => { this.leaveRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'leave requests')
                     : Promise.resolve(),
                 (this.hasAccess('client-directory') || this.hasAccess('doc-generator'))
                     ? subscribeWithReadySignal(collection(db, "customers"), (snapshot) => {

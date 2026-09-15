@@ -23,6 +23,7 @@ import { contextMenuMethods } from "./methods/context-menu.js";
 import { hrMethods } from "./methods/hr.js";
 import { attendanceMethods } from "./methods/attendance.js";
 import { dutyRosterMethods } from "./methods/duty-roster.js";
+import { leaveMethods } from "./methods/leave.js";
 import { realtimeMethods } from "./methods/realtime.js";
 
 export const portalMethods = {
@@ -40,6 +41,7 @@ export const portalMethods = {
     ...hrMethods,
     ...attendanceMethods,
     ...dutyRosterMethods,
+    ...leaveMethods,
     ...realtimeMethods,
 };
 

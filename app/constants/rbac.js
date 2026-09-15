@@ -7,16 +7,17 @@ export const RBAC_ROLES = {
     // (content/site_text). Restricted to Superadmin/Director/IT only — see
     // isContentAdmin() in firestore.rules, which grants write on exactly these
     // collections to that same set of roles (not the full isAdmin() surface).
-    'Director': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'reports', 'profile'],
-    'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'attendance', 'duty-roster', 'reports', 'profile'],
+    'Director': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'profile'],
+    'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'attendance', 'duty-roster', 'leave', 'reports', 'profile'],
     // IT staff are employees too: Claims is where they file and follow their
-    // own claims and vouchers, as the Staff role does. Attendance/Duty Roster
-    // are the same — every internal role clocks in and views its own roster.
-    'IT': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'website-content', 'audit-logs', 'settings', 'profile'],
+    // own claims and vouchers, as the Staff role does. Attendance/Duty Roster/
+    // Leave are the same — every internal role clocks in, views its own
+    // roster, and files its own leave requests.
+    'IT': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
-    'Staff': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'profile']
+    'Staff': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'profile']
 };
 
 // Human names for the RBAC modules above. The sidebar writes its own labels
@@ -33,6 +34,7 @@ export const MODULE_LABELS = {
     'hr-employees': 'HR Employees',
     'attendance': 'Attendance',
     'duty-roster': 'Duty Roster',
+    'leave': 'Leave Requests',
     'reports': 'Reports & Analytics',
     'website-content': 'Website Management',
     'audit-logs': 'Audit & Security Log',
@@ -112,6 +114,11 @@ export const MODULE_ACTIONS = {
         edit: { all: ['Director', 'Superadmin', 'HR'] },
         remove: { all: FULL_ACCESS_ROLES },
         note: 'HR defines shifts and assigns staff. Everyone else views their own published roster only.',
+    },
+    'leave': {
+        edit: { all: ['Director', 'Superadmin', 'HR'], own: ['Account', 'IT', 'Staff'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'Everyone files their own leave request and edits it while still pending. HR decides; Superadmin and Director decide or correct any request at any stage — Account plays no role in this workflow, unlike Claims.',
     },
     'reports': {
         edit: { all: FULL_ACCESS_ROLES },
