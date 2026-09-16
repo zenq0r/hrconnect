@@ -209,7 +209,7 @@ test('Paid is a final state: a verified invoice drops out of Action Required, no
     const submittedProofsAt = fn.indexOf('submittedProofs');
     assert.ok(submittedProofsAt > -1, 'billingWorkflowQueue must build its submittedProofs list');
     const filterLine = fn.slice(submittedProofsAt, fn.indexOf('\n', submittedProofsAt) + 200);
-    assert.match(filterLine, /item\.status !== 'Paid'/);
+    assert.match(filterLine, /!\['Draft', 'Paid', 'Cancelled'\]\.includes\(item\.status\)/);
     // The now-unreachable "Payment verified" queue-card label is gone — a
     // Verified/Paid item never reaches the map() that would have shown it.
     assert.doesNotMatch(fn, /'Payment verified'/);

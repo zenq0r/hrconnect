@@ -214,6 +214,6 @@ test('an issued invoice is cancelled rather than deleted, and a paid one is neit
     assert.match(page, /Cancel Invoice/);
     // A cancelled invoice keeps its history but leaves the review queue:
     // there is nothing left for Finance to verify on it.
-    assert.match(app, /!\['Draft', 'Cancelled'\]\.includes\(item\.status\) && item\.paymentProofUrl/);
+    assert.match(app, /!\['Draft', 'Paid', 'Cancelled'\]\.includes\(item\.status\) && item\.paymentProofUrl/);
     assert.match(app, /\['Paid', 'Cancelled'\]\.includes\(d\.status\)/);
 });

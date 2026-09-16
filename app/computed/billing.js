@@ -152,7 +152,7 @@ export const billingComputed = {
             const submittedProofs = this.docHistory
                 .filter(item => item.type === 'Invoice' && !['Draft', 'Paid', 'Cancelled'].includes(item.status) && item.paymentProofUrl)
                 .filter(item => isCentralReviewer || this.billingPicProjectIds.has(String(item.raw?.projectId || '')))
-                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Verified' ? 'Payment verified' : item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
+                .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
             if (!this.canManageBillingWorkflow) return submittedProofs
                 .sort(byTierThenDate(item => item.paymentProofAt || item.date));
             const linkedInvoiceQuoteIds = new Set(this.docHistory
