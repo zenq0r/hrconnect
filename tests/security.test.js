@@ -562,13 +562,13 @@ test('Staff and IT keep their project board without read access to the Client Di
     // customers stays closed to Staff/IT, so this.customers is empty for them and
     // the Client Task parent gate has to be skipped rather than hiding every
     // project — including the ones where they are the PIC.
-    assert.match(rules, /match \/customers\/\{customerId\} \{\s*allow read: if isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\)/);
+    assert.match(rules, /match \/customers\/\{customerId\} \{\s*allow read: if isFinanceOrHR\(\)/);
     assert.match(app, /canReadClientDirectory\(\) \{ return this\.hasAccess\('client-directory'\) \|\| this\.hasAccess\('doc-generator'\); \}/);
     assert.match(app, /if \(!this\.canReadClientDirectory\) return true;/);
 
     // The client file repository stays closed to Staff, so the project preview must
     // not subscribe to it and then paint a permission error over their own project.
-    assert.match(rules, /match \/client_documents\/\{documentId\} \{\s*allow read: if isAuthenticated\(\) &&\s*\(\s*isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\) \|\| isIT\(\)/);
+    assert.match(rules, /match \/client_documents\/\{documentId\} \{\s*allow read: if isAuthenticated\(\) &&\s*\(\s*isFinanceOrHR\(\) \|\| isIT\(\)/);
     assert.match(app, /canViewClientDocuments\(\) \{ return \['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Client'\]\.includes\(this\.userProfile\.role\); \}/);
     assert.match(app, /if \(this\.canViewClientDocuments\) this\.loadClientDocuments\(/);
 });

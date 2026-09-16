@@ -116,6 +116,38 @@ service cloud.firestore {
     function isClient() {
       return isAuthenticated() && hasActiveRole('Client');
     }
+
+    // Superadmin, Director, HR and Account — the finance/personnel roles
+    // that together gate payroll, billing, employee and claims records
+    // throughout this file. Equivalent to
+    // isFinanceOrHR() (isAdmin() is
+    // isSuperadmin() || isDirector(), so this also covers every
+    // isFinanceOrHR() chain in this file), but fetches
+    // the caller's users/{uid} record once instead of once per role — the
+    // rules engine's 1,000-expression-per-request budget is shared across
+    // every branch of an `allow` condition, charged whether or not that
+    // branch ends up being the one that matches, and this exact 4-role
+    // combination used to be the busiest repeated check in the file
+    // (claims/payment_vouchers' multi-branch update rules hit that budget
+    // on some denied writes before this consolidation).
+    function isFinanceOrHR() {
+      let record = getUserRecord();
+      return isApprovedStaffSession() && !recordIsLocked(record) && (
+        record.role == 'HR' ||
+        ((record.role == 'Superadmin' || record.role == 'Director' || record.role == 'Account') && secondFactorCleared())
+      );
+    }
+
+    // Superadmin or Director, with HR added — the narrower admin+HR pairing
+    // used for corrections and duty-roster management. Same single-fetch
+    // shape as isFinanceOrHR() above; equivalent to isAdminOrHR().
+    function isAdminOrHR() {
+      let record = getUserRecord();
+      return isApprovedStaffSession() && !recordIsLocked(record) && (
+        record.role == 'HR' ||
+        ((record.role == 'Superadmin' || record.role == 'Director') && secondFactorCleared())
+      );
+    }
     // Client tier gate. The tiers, and which features each opens, are defined in
     // app.js (CLIENT_TIER_ORDER / CLIENT_TIER_FEATURES); this mirrors the one
     // boundary that has to hold server-side -- replying is Premium and above.
@@ -150,7 +182,7 @@ service cloud.firestore {
     // projects/{projectId} create rule and project_ref_counters below read
     // this function.
     function canCreateProject() {
-      return isSuperadmin() || isDirector() || isHR() || isAccount() || isIT() || isStaff();
+      return isFinanceOrHR() || isIT() || isStaff();
     }
 
     // The project's PIC, or a staff member with an activity on it: exactly the
@@ -444,11 +476,13 @@ service cloud.firestore {
     }
 
     function claimFinalDecisionKeys() {
-      return claimForwardKeys().concat([
+      return [
+        'status', 'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole', 'approvalHistory',
+        'rejectedByUid', 'rejectedByName', 'rejectedByRole', 'rejectedAt',
         'finalDecision', 'settlementStatus', 'statusDetail', 'approvalPath', 'approvalPreviousStatus', 'bypassedReviews',
         'approvedByUid', 'approvedByName', 'approvedByEmail', 'approvedByRole', 'approvedAt',
         'directorApprovalAttachment', 'directorApprovalAttachmentName', 'directorApprovalOriginalBytes'
-      ]);
+      ];
     }
 
     // A rejection or an approval names whoever made it, never whoever the
@@ -504,7 +538,7 @@ service cloud.firestore {
     // here (unlike isAdminClaimCorrection, Admin-only) because attendance
     // corrections are routine HR work, not a financial-record override.
     function isAttendanceCorrection() {
-      return (isAdmin() || isHR()) &&
+      return (isAdminOrHR()) &&
         request.resource.data.empNo == resource.data.empNo &&
         request.resource.data.lastEditedByUid == request.auth.uid &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -619,10 +653,10 @@ service cloud.firestore {
     }
 
     match /employees/{empId} {
-      allow read: if isAdmin() || isHR() || isAccount() || (
+      allow read: if isFinanceOrHR() || (
         (isStaff() || isIT()) && resource.data.email == request.auth.token.email
       );
-      allow create: if isAdmin() || isHR();
+      allow create: if isAdminOrHR();
       allow delete: if isAdmin();
       // National ID/Passport, Bank Account and EPF/SOCSO may be set once at create
       // (HR's isHR() clause above still applies there), but on an UPDATE to an
@@ -651,16 +685,16 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow read: if isAdmin() || isHR() || isAccount() || (
+      allow read: if isFinanceOrHR() || (
         isClient() && customerEmailMatches(resource.data, request.auth.token.email)
       );
-      allow create, update: if isAdmin() || isHR() || isAccount();
+      allow create, update: if isFinanceOrHR();
       allow delete: if isAdmin();
     }
 
     match /docs/{docId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() || isIT() ||
+        isFinanceOrHR() || isIT() ||
         // A PIC may read only sent invoices indexed to that PIC. Drafts,
         // quotations and another project's billing data stay unavailable.
         isDocumentProjectPic(resource.data) ||
@@ -680,9 +714,9 @@ service cloud.firestore {
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
         )
       );
-      allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+      allow create: if (isFinanceOrHR()) &&
         billingTotalsConsistent(request.resource.data);
-      allow update: if ((isSuperadmin() || isDirector() || isHR() || isAccount()) && billingTotalsAccepted()) || (
+      allow update: if ((isFinanceOrHR()) && billingTotalsAccepted()) || (
         // A client records their own decision on their own open quotation, and
         // nothing else. Ownership is established the same two ways the read
         // rule above allows: the primary contact, or an authorized secondary
@@ -748,14 +782,14 @@ service cloud.firestore {
     // tracks who uploaded what, when, and the Storage path/download URL.
     match /client_documents/{documentId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() || isIT() ||
+        isFinanceOrHR() || isIT() ||
         (isClient() && customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.clientDirectoryId)).data, request.auth.token.email))
       );
       allow create: if isAuthenticated() &&
         request.resource.data.clientDirectoryId is string &&
         request.resource.data.clientDirectoryId.size() > 0 &&
         (
-          isSuperadmin() || isDirector() || isHR() || isAccount() ||
+          isFinanceOrHR() ||
           (isClient() &&
             customerEmailMatches(get(/databases/$(database)/documents/customers/$(request.resource.data.clientDirectoryId)).data, request.auth.token.email))
         ) &&
@@ -771,7 +805,7 @@ service cloud.firestore {
         request.resource.data.fileSize > 0 &&
         request.resource.data.fileSize <= 10485760;
       allow update: if false;
-      allow delete: if isSuperadmin() || isDirector() || isHR() || isAccount();
+      allow delete: if isFinanceOrHR();
     }
 
     // Password reset tokens for the custom (non-Firebase-hosted) reset flow — written and
@@ -810,28 +844,28 @@ service cloud.firestore {
 
     match /payslips/{payslipId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() ||
+        isFinanceOrHR() ||
         (isSelfServiceEmployee() && resource.data.raw.empEmail == request.auth.token.email)
       );
-      allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+      allow create: if (isFinanceOrHR()) &&
         payslipFiguresConsistent(request.resource.data);
-      allow update: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+      allow update: if (isFinanceOrHR()) &&
         payslipFiguresAccepted();
       allow delete: if isAdmin();
     }
 
     match /claims/{claimId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() ||
+        isFinanceOrHR() ||
         (isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email)
       );
       allow create: if isAuthenticated() &&
         request.resource.data.createdByUid == request.auth.uid && (
           (isSelfServiceEmployee() && request.resource.data.empEmail == request.auth.token.email) ||
-          isAdmin() || isHR() || isAccount()
+          isFinanceOrHR()
         );
       allow update: if isAdminClaimCorrection() || (
-        (isAdmin() || isHR()) &&
+        (isAdminOrHR()) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'position', 'dept', 'empEmail'
         ])
@@ -850,7 +884,7 @@ service cloud.firestore {
         request.resource.data.status == 'Pending HR' &&
         request.resource.data.empNo == resource.data.empNo &&
         ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
-          ((isAdmin() || isHR() || isAccount()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
+          ((isFinanceOrHR()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
           'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose', 'category',
@@ -873,7 +907,7 @@ service cloud.firestore {
     // Payment Vouchers — dedicated collection, independent from Claims (same approval workflow/roles).
     match /payment_vouchers/{voucherId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() ||
+        isFinanceOrHR() ||
         (isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email)
       );
       allow create: if isAuthenticated() && (
@@ -884,7 +918,7 @@ service cloud.firestore {
         ))
       );
       allow update: if isAdminClaimCorrection() || (
-        (isAdmin() || isHR()) &&
+        (isAdminOrHR()) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'name', 'position', 'dept', 'empEmail'
         ])
@@ -903,7 +937,7 @@ service cloud.firestore {
         request.resource.data.status == 'Pending HR' &&
         request.resource.data.empNo == resource.data.empNo &&
         ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
-          ((isAdmin() || isHR() || isAccount()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
+          ((isFinanceOrHR()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'type', 'documentType', 'date', 'paymentDate', 'name', 'position', 'dept',
           'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose', 'category',
@@ -928,7 +962,7 @@ service cloud.firestore {
     // double-clock-in guard: a second create at the same derived id fails
     // outright, no query needed.
     match /attendance/{attendanceId} {
-      allow read: if isAdmin() || isHR() || isAccount() || (
+      allow read: if isFinanceOrHR() || (
         isApprovedStaffSession() && isSelfAttendanceRecord(resource.data)
       );
       allow create: if isApprovedStaffSession() &&
@@ -967,10 +1001,10 @@ service cloud.firestore {
     // Duty Roster — one document per week (doc id = Monday's date). HR/Admin
     // build a Draft, which stays invisible to everyone else until Published.
     match /duty_roster/{weekId} {
-      allow read: if isAdmin() || isHR() || isAccount() || (
+      allow read: if isFinanceOrHR() || (
         isApprovedStaffSession() && resource.data.status == 'Published'
       );
-      allow create, update: if (isAdmin() || isHR()) &&
+      allow create, update: if (isAdminOrHR()) &&
         request.resource.data.weekStartDate == weekId &&
         request.resource.data.status in ['Draft', 'Published'];
       allow delete: if isAdmin();
@@ -1018,7 +1052,7 @@ service cloud.firestore {
     }
 
     match /leave_requests/{leaveId} {
-      allow read: if isAdmin() || isHR() || (
+      allow read: if isAdminOrHR() || (
         isApprovedStaffSession() && isSelfLeaveRequest(resource.data)
       );
       allow create: if isApprovedStaffSession() &&
@@ -1104,7 +1138,7 @@ service cloud.firestore {
             'completedAt', 'completedByUid', 'completedByEmail'
           ])
       ) || (
-        (isAdmin() || isHR()) &&
+        (isAdminOrHR()) &&
           request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'ownerName', 'ownerEmail', 'ownerPosition', 'ownerDepartment'
@@ -1364,7 +1398,7 @@ service cloud.firestore {
       // isStaff() is the 'Staff' role specifically, not staff-in-general. Read is
       // the same set that has the Reports module in ROLE_ACCESS and that already
       // reads docs/payslips: Superadmin, Director, HR, Account.
-      allow read: if isAdmin() || isHR() || isAccount();
+      allow read: if isFinanceOrHR();
       // Only Superadmin/Director may close or re-close a period, mirroring
       // canCloseAccountingPeriod in app.js.
       allow create, update: if isAdmin();

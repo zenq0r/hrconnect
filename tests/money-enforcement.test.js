@@ -145,7 +145,7 @@ test('the money rules are actually wired to the collections they protect', () =>
     const source = rules();
 
     const docs = source.slice(source.indexOf('match /docs/{docId}'), source.indexOf('match /billing_events/'));
-    assert.match(docs, /allow create: if \(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) &&\s*billingTotalsConsistent\(request\.resource\.data\);/);
+    assert.match(docs, /allow create: if \(isFinanceOrHR\(\)\) &&\s*billingTotalsConsistent\(request\.resource\.data\);/);
     assert.match(docs, /billingTotalsAccepted\(\)/);
 
     const payslips = source.slice(source.indexOf('match /payslips/'), source.indexOf('match /claims/'));
