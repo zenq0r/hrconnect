@@ -46,7 +46,7 @@
                                         <span class="text-[9px] text-slate-400">{{ shift.startTime }}&ndash;{{ shift.endTime }}</span>
                                     </div>
                                     <div class="flex flex-wrap gap-1">
-                                        <span v-for="name in shift.assignedNames" :key="name" class="inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-blue/10 text-brand-blue">{{ name }}</span>
+                                        <span v-for="name in shift.assignedNames" :key="name" :title="name" class="inline-block max-w-[120px] truncate align-bottom px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-blue/10 text-brand-blue">{{ name }}</span>
                                         <span v-if="!shift.assignedNames.length" class="text-[9px] text-slate-400 italic">Unassigned</span>
                                     </div>
                                     <select v-if="canManageDutyRoster" @change="$event.target.value && toggleStaffOnShift(shift, employees.find(e => e.empNo === $event.target.value)); $event.target.value = ''" class="zq-input !py-1 !text-[10px] w-full" :aria-label="'Add or remove staff on ' + shift.label">
