@@ -486,11 +486,13 @@ service cloud.firestore {
     }
 
     // A rejection or an approval names whoever made it, never whoever the
-    // payload claims made it.
-    function isClaimDecision(fromStatuses, toStatuses, allowedKeys) {
+    // payload claims made it. Takes the write's affectedKeys() (see
+    // canUpdateClaimOrVoucher() below) instead of computing its own
+    // diff() — every caller already has one to share.
+    function isClaimDecision(affected, fromStatuses, toStatuses, allowedKeys) {
       return resource.data.status in fromStatuses &&
         request.resource.data.status in toStatuses &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys) &&
+        affected.hasOnly(allowedKeys) &&
         (request.resource.data.status != 'Rejected' || request.resource.data.rejectedByUid == request.auth.uid) &&
         (request.resource.data.status != 'Approved' || request.resource.data.approvedByUid == request.auth.uid);
     }
@@ -509,17 +511,87 @@ service cloud.firestore {
     // it, and the edit is stamped with who made it (the portal also records it
     // in the audit log). Approval and correction stay two separate acts, each
     // with its own trail.
-    function isAdminClaimCorrection() {
-      return isAdmin() &&
+    // `admin` is the caller's isAdmin() result, already computed once by
+    // canUpdateClaimOrVoucher() below — see the note there.
+    function isAdminClaimCorrection(admin, affected) {
+      return admin &&
         request.resource.data.status == resource.data.status &&
         request.resource.data.lastEditedByUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        affected.hasOnly([
           'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
           'empNo', 'empEmail', 'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose',
           'category', 'subCategory', 'amount', 'receiptNo', 'description',
           'receiptAttachment', 'receiptAttachmentName', 'receiptAttachmentOriginalBytes',
           'lastEditedByUid', 'lastEditedByName', 'lastEditedAt'
         ]);
+    }
+
+    // Shared by claims/{claimId} and payment_vouchers/{voucherId} below: both
+    // collections ran this identical 7-branch decision as two literal
+    // copies before this consolidation — only selfEditableKeys differs
+    // (payment_vouchers edits paymentDate/voucherNo where claims edits
+    // expenseDate/receiptNo).
+    //
+    // Two things are computed ONCE here and threaded through every branch,
+    // instead of being recomputed inside isHR()/isAccount()/isAdmin()/
+    // isAdminClaimCorrection()/isClaimDecision() calls scattered across the
+    // 7 branches: `affected` (request.resource.data's diff against
+    // resource.data — a full document diff is not cheap) and the caller's
+    // users/{uid} record (each of isHR()/isAccount()/isAdmin() used to
+    // fetch it independently, so a compound check like
+    // isAdmin() || isHR() || isAccount() cost 3 fetches). hr/account/admin
+    // below reproduce isHR()/isAccount()/isAdmin() exactly (same
+    // isApprovedStaffSession(), secondFactorCleared() and lock semantics),
+    // just against one shared fetch. Combined, this and the branch
+    // reordering below are what closed the "maximum of 1,000 expressions"
+    // failures some denied writes to this rule used to hit.
+    //
+    // Branches are ordered by how often they actually fire, not by how the
+    // workflow reads top-to-bottom: every claim/voucher passes through the
+    // three-stage decision (HR forward, Account forward, Director/
+    // Superadmin final) at least once per stage over its life, so those go
+    // first — an admin correction or an HR identity sync is rare, and now
+    // only gets evaluated once the common cases have already failed to
+    // match. `||` has no side effects between branches, so reordering
+    // changes nothing about which writes are allowed, only how much work a
+    // typical one costs to check.
+    function canUpdateClaimOrVoucher(affected, selfEditableKeys) {
+      let record = getUserRecord();
+      let staffSession = isApprovedStaffSession();
+      let unlocked = !recordIsLocked(record);
+      let sfa = secondFactorCleared();
+      let hr = staffSession && unlocked && record.role == 'HR';
+      let account = staffSession && unlocked && sfa && record.role == 'Account';
+      let admin = staffSession && unlocked && sfa && (record.role == 'Superadmin' || record.role == 'Director');
+      let financeOrHr = hr || account || admin;
+      return (
+        hr && isClaimDecision(affected, ['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
+      ) || (
+        account && isClaimDecision(affected, ['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
+      ) || (
+        // Superadmin approves alongside Director: the client gate lets them,
+        // and without this the write is refused after the UI has said yes.
+        admin && isClaimDecision(affected, ['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
+      ) || (
+        isAuthenticated() &&
+        resource.data.status == 'Pending HR' &&
+        request.resource.data.status == 'Pending HR' &&
+        request.resource.data.empNo == resource.data.empNo &&
+        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
+          (financeOrHr && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
+        affected.hasOnly(selfEditableKeys)
+      ) || isAdminClaimCorrection(admin, affected) || (
+        (hr || admin) && affected.hasOnly(['name', 'position', 'dept', 'empEmail'])
+      ) || (
+        admin &&
+        resource.data.status == 'Approved' &&
+        request.resource.data.status == 'Approved' &&
+        affected.hasOnly([
+          'documentType', 'type', 'finalDecision', 'settlementStatus', 'statusDetail',
+          'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole',
+          'approvalPath'
+        ])
+      );
     }
 
     // clockInAt/clockOutAt MUST be the serverTimestamp() sentinel: Firestore
@@ -864,42 +936,15 @@ service cloud.firestore {
           (isSelfServiceEmployee() && request.resource.data.empEmail == request.auth.token.email) ||
           isFinanceOrHR()
         );
-      allow update: if isAdminClaimCorrection() || (
-        (isAdminOrHR()) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'position', 'dept', 'empEmail'
-        ])
-      ) || (
-        isAdmin() &&
-        resource.data.status == 'Approved' &&
-        request.resource.data.status == 'Approved' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'documentType', 'type', 'finalDecision', 'settlementStatus', 'statusDetail',
-          'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole',
-          'approvalPath'
-        ])
-      ) || (
-        isAuthenticated() &&
-        resource.data.status == 'Pending HR' &&
-        request.resource.data.status == 'Pending HR' &&
-        request.resource.data.empNo == resource.data.empNo &&
-        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
-          ((isFinanceOrHR()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      allow update: if canUpdateClaimOrVoucher(
+        request.resource.data.diff(resource.data).affectedKeys(),
+        [
           'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
           'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose', 'category',
           'subCategory', 'amount', 'receiptNo', 'description', 'receiptAttachment',
           'receiptAttachmentName', 'receiptAttachmentOriginalBytes', 'createdByUid',
           'createdByEmail', 'createdAt'
-        ])
-      ) || (
-        isHR() && isClaimDecision(['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
-      ) || (
-        isAccount() && isClaimDecision(['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
-      ) || (
-        // Superadmin approves alongside Director: the client gate lets them,
-        // and without this the write is refused after the UI has said yes.
-        isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
+        ]
       );
       allow delete: if isAdmin();
     }
@@ -917,42 +962,15 @@ service cloud.firestore {
           isHR() || isAccount()
         ))
       );
-      allow update: if isAdminClaimCorrection() || (
-        (isAdminOrHR()) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'position', 'dept', 'empEmail'
-        ])
-      ) || (
-        isAdmin() &&
-        resource.data.status == 'Approved' &&
-        request.resource.data.status == 'Approved' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'documentType', 'type', 'finalDecision', 'settlementStatus', 'statusDetail',
-          'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole',
-          'approvalPath'
-        ])
-      ) || (
-        isAuthenticated() &&
-        resource.data.status == 'Pending HR' &&
-        request.resource.data.status == 'Pending HR' &&
-        request.resource.data.empNo == resource.data.empNo &&
-        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
-          ((isFinanceOrHR()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      allow update: if canUpdateClaimOrVoucher(
+        request.resource.data.diff(resource.data).affectedKeys(),
+        [
           'type', 'documentType', 'date', 'paymentDate', 'name', 'position', 'dept',
           'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose', 'category',
           'subCategory', 'amount', 'voucherNo', 'description', 'receiptAttachment',
           'receiptAttachmentName', 'receiptAttachmentOriginalBytes', 'createdByUid',
           'createdByEmail', 'createdAt'
-        ])
-      ) || (
-        isHR() && isClaimDecision(['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
-      ) || (
-        isAccount() && isClaimDecision(['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
-      ) || (
-        // Superadmin approves alongside Director: the client gate lets them,
-        // and without this the write is refused after the UI has said yes.
-        isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
+        ]
       );
       allow delete: if isAdmin();
     }

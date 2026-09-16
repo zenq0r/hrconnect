@@ -152,10 +152,15 @@ test('the money rules are actually wired to the collections they protect', () =>
     assert.match(payslips, /payslipFiguresConsistent\(request\.resource\.data\)/);
     assert.match(payslips, /payslipFiguresAccepted\(\)/);
 
-    // An approver moves a claim along; they do not get to change the sum on the
-    // way. Both pipelines (claims and payment vouchers) have three transitions.
-    const claims = source.slice(source.indexOf('match /claims/'), source.indexOf('match /projects/'));
-    assert.equal((claims.match(/isClaimDecision\(\[/g) || []).length, 6);
+    // An approver moves a claim along; they do not get to change the sum on
+    // the way. claims and payment_vouchers now share one
+    // canUpdateClaimOrVoucher() function (defined before either match block)
+    // instead of each carrying its own copy of the three-transition
+    // decision, so the transitions appear once there, not twice per
+    // collection — but both collections' update rules must call into it.
+    const sharedUpdateRule = source.slice(source.indexOf('function canUpdateClaimOrVoucher'), source.indexOf('match /attendance/'));
+    assert.equal((sharedUpdateRule.match(/isClaimDecision\(affected, \[/g) || []).length, 3);
+    assert.equal((sharedUpdateRule.match(/allow update: if canUpdateClaimOrVoucher\(/g) || []).length, 2, 'claims and payment_vouchers');
 });
 
 test('a legacy record keeps working, but its figures cannot move unchecked', () => {
