@@ -35,10 +35,15 @@ test('the decision cannot alter anything the quotation says', () => {
 });
 
 test('ownership is checked the same two ways the read rule allows', () => {
+    const rules = read('firestore.rules');
     const rule = docsRule();
+    // Both branches share one docClientOwnsRecord() helper rather than each
+    // spelling out the ownership check in full — see its definition.
+    const helper = rules.slice(rules.indexOf('function docClientOwnsRecord('), rules.indexOf('function hasMatchingPendingAccess'));
     // Primary contact, or an authorized secondary email on the linked customer.
-    assert.match(rule, /resource\.data\.raw\.clientEmail == request\.auth\.token\.email/);
-    assert.match(rule, /customerEmailMatches\(get\(\/databases\/\$\(database\)\/documents\/customers\/\$\(resource\.data\.raw\.customerId\)\)\.data, request\.auth\.token\.email\)/);
+    assert.match(helper, /data\.raw\.clientEmail == request\.auth\.token\.email/);
+    assert.match(helper, /customerEmailMatches\(get\(\/databases\/\$\(database\)\/documents\/customers\/\$\(data\.raw\.customerId\)\)\.data, request\.auth\.token\.email\)/);
+    assert.equal((rule.match(/docClientOwnsRecord\(resource\.data\)/g) || []).length, 2, 'the Quotation-decision and Invoice-payment-proof branches must both use it');
     assert.match(rule, /isClient\(\) &&/);
 });
 

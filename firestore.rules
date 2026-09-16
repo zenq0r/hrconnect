@@ -289,6 +289,19 @@ service cloud.firestore {
       );
     }
 
+    // A client "owns" a docs/{docId} record two ways: as the primary
+    // contact (raw.clientEmail), or as an authorized secondary email on the
+    // linked customer record (customerEmailMatches() above) — the same
+    // ownership check docs/{docId}'s Quotation-decision and
+    // Invoice-payment-proof update branches both used to spell out in full.
+    function docClientOwnsRecord(data) {
+      return data.raw.clientEmail == request.auth.token.email || (
+        data.raw.customerId is string &&
+        data.raw.customerId.size() > 0 &&
+        customerEmailMatches(get(/databases/$(database)/documents/customers/$(data.raw.customerId)).data, request.auth.token.email)
+      );
+    }
+
     function hasMatchingPendingAccess() {
       return isAuthenticated() &&
         request.auth.token.email is string &&
@@ -797,13 +810,7 @@ service cloud.firestore {
         resource.data.type == 'Quotation' &&
         resource.data.status == 'Open' &&
         request.resource.data.status in ['Accepted', 'Rejected'] &&
-        (
-          resource.data.raw.clientEmail == request.auth.token.email || (
-            resource.data.raw.customerId is string &&
-            resource.data.raw.customerId.size() > 0 &&
-            customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
-          )
-        ) &&
+        docClientOwnsRecord(resource.data) &&
         // The decision is stamped as whoever is signed in, never as whoever the
         // payload claims. Without this a client could accept their own quotation
         // and attribute it to someone else, which is the whole point of the stamp.
@@ -820,13 +827,7 @@ service cloud.firestore {
         isClient() &&
         resource.data.type == 'Invoice' &&
         resource.data.status != 'Paid' &&
-        (
-          resource.data.raw.clientEmail == request.auth.token.email || (
-            resource.data.raw.customerId is string &&
-            resource.data.raw.customerId.size() > 0 &&
-            customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
-          )
-        ) &&
+        docClientOwnsRecord(resource.data) &&
         request.resource.data.paymentProofByUid == request.auth.uid &&
         // paymentRefNo and the clientPayment* fields are the client's own claim
         // about the transfer they made — which bank, whose account, when and how
@@ -1162,17 +1163,18 @@ service cloud.firestore {
             'ownerName', 'ownerEmail', 'ownerPosition', 'ownerDepartment'
           ])
       ) || (
+        // Presence heartbeat and PIC-photo sync share one branch: same
+        // owner-only guard, same untouched ownerEmpNo, and neither ever
+        // touches the project's stage, client or owner identity — see
+        // setCurrentEmployeePresence()/syncCurrentOwnerPhoto() in
+        // app/methods/presence.js, which write these on separate schedules
+        // but have no need to be held to separate allow branches for it.
         isApprovedStaffSession() &&
         resource.data.ownerEmail == request.auth.token.email &&
         request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'ownerPresenceStatus', 'ownerPresenceUpdatedAt', 'ownerLastSeen'
+          'ownerPresenceStatus', 'ownerPresenceUpdatedAt', 'ownerLastSeen', 'ownerPhoto'
         ])
-      ) || (
-        isApprovedStaffSession() &&
-        resource.data.ownerEmail == request.auth.token.email &&
-        request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerPhoto'])
       ) || (
         // Maintenance of the activity-assignee access index (see the read rule
         // above). Only the project's own PIC or a Project Manager may touch it,
