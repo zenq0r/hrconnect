@@ -34,6 +34,28 @@ export const clientWorkflowMethods = {
             if (!feature) return '';
             return `${feature.label} is available on the ${CLIENT_TIER_ORDER[feature.minTier]} tier and above.`;
         },
+        // Priority-tier: reaches Director/Superadmin directly by email — real
+        // and immediate, unlike an in-app notification the recipient might not
+        // be looking at — rather than waiting on the normal PIC-first queue.
+        // Reuses logAudit/notifyByEmail (already-deployed serverless routes) so
+        // this needs no new /api function on a plan that is already near its
+        // function-count ceiling.
+        escalateClientIssue(message) {
+            if (!this.clientTierAllows('issue-escalation')) { this.showNotify(this.clientTierLockMessage('issue-escalation'), 'error'); return false; }
+            const trimmed = String(message || '').trim();
+            if (!trimmed) { this.showNotify('Describe the issue before escalating it.', 'error'); return false; }
+            const clientName = this.clientPortalIdentity?.clientName || this.userProfile.name || 'A Priority client';
+            this.logAudit('CREATE', `Priority escalation from ${clientName}: ${trimmed.slice(0, 300)}`);
+            this.notifyByEmail({
+                to: [...this.emailsForRole('Director'), ...this.emailsForRole('Superadmin')],
+                subject: `Priority Escalation — ${clientName}`,
+                heading: 'A Priority client escalated an issue directly to you',
+                message: `${clientName} (${this.userProfile.email}) raised the following issue for immediate attention:\n\n${trimmed}`
+            });
+            this.clientEscalationMessage = '';
+            this.showNotify('Escalated to Director/Superadmin. You will be contacted directly.');
+            return true;
+        },
         canReplyAsClient(project) {
             // A secondary authorized contact's uid never matches the project's single
             // clientPortalUid (always the primary contact's), so authorize by the shared
@@ -267,18 +289,63 @@ export const clientWorkflowMethods = {
             if (d?.type !== 'Invoice') return d?.status || 'Open';
             if (d.status === 'Cancelled') return 'Cancelled';
             if (d.paymentProofReviewStatus === 'Verified' || d.status === 'Paid') return 'Paid';
-            if (d.paymentProofReviewStatus === 'Submitted') return 'Payment Under Review';
+            if (d.paymentProofReviewStatus === 'Submitted') return 'Pending Verification';
             if (d.paymentProofReviewStatus === 'Rejected') return 'Proof Needs Attention';
             return d.status || 'Unpaid';
         },
-        async handlePaymentProofUpload(event, d) {
+        // Payment Reference No. and the receipt used to be collected separately —
+        // the reference was typed by staff when the invoice was first created,
+        // before the client had even paid, which nothing could actually verify.
+        // The full proof — which bank, whose account, when, how much, the
+        // reference and the receipt — now comes from the client themselves,
+        // together, in one modal, at the moment they submit proof of a payment
+        // they have already made. Amount defaults to the invoice's own total —
+        // the common case is paying it in full — but stays editable for a
+        // partial or already-adjusted payment.
+        openPaymentProofModal(d) {
+            if (!this.canAttachPaymentProof(d)) { this.showNotify('Proof cannot be attached to this invoice.', 'error'); return; }
+            this.paymentProofModal = { show: true, doc: d, bankName: '', accountType: '', accountHolderName: '', paymentDate: this.getLocalDateKey(), amount: d?.amount != null ? String(d.amount) : '', refNo: '', file: null, fileName: '', uploading: false, error: '' };
+        },
+        closePaymentProofModal() {
+            if (this.paymentProofModal.uploading) return;
+            this.paymentProofModal = { show: false, doc: null, bankName: '', accountType: '', accountHolderName: '', paymentDate: '', amount: '', refNo: '', file: null, fileName: '', uploading: false, error: '' };
+        },
+        async selectPaymentProofFile(event) {
             const file = event.target.files[0];
             event.target.value = '';
             if (!file) return;
-            if (!this.canAttachPaymentProof(d)) { this.showNotify('Proof cannot be attached to this invoice.', 'error'); return; }
+            try {
+                await this.validateClientDocumentFile(file);
+                this.paymentProofModal.file = file;
+                this.paymentProofModal.fileName = file.name;
+                this.paymentProofModal.error = '';
+            } catch (error) {
+                this.paymentProofModal.file = null;
+                this.paymentProofModal.fileName = '';
+                this.paymentProofModal.error = error.message || 'That file could not be used.';
+            }
+        },
+        async submitPaymentProof() {
+            const d = this.paymentProofModal.doc;
+            const bankName = this.paymentProofModal.bankName;
+            const accountType = this.paymentProofModal.accountType;
+            const accountHolderName = this.paymentProofModal.accountHolderName.trim();
+            const paymentDate = this.paymentProofModal.paymentDate;
+            const amount = Number(this.paymentProofModal.amount);
+            const refNo = this.paymentProofModal.refNo.trim();
+            const file = this.paymentProofModal.file;
+            if (!bankName) { this.paymentProofModal.error = 'Select the bank you paid from.'; return; }
+            if (!accountType) { this.paymentProofModal.error = 'Select whether you paid from a Personal or a Business account.'; return; }
+            if (!accountHolderName) { this.paymentProofModal.error = accountType === 'Business' ? 'Enter the company name on the paying account.' : 'Enter the name on the paying account.'; return; }
+            if (!paymentDate) { this.paymentProofModal.error = 'Enter the date you made the payment.'; return; }
+            if (!amount || amount <= 0) { this.paymentProofModal.error = 'Enter the amount you paid.'; return; }
+            if (!refNo) { this.paymentProofModal.error = 'Enter the payment reference number from your bank transfer.'; return; }
+            if (!file) { this.paymentProofModal.error = 'Attach your receipt or payment screenshot.'; return; }
+            if (!d || !this.canAttachPaymentProof(d)) { this.paymentProofModal.error = 'Proof cannot be attached to this invoice.'; return; }
             const clientDirectoryId = this.userProfile.clientDirectoryId || d.raw?.customerId || '';
-            if (!clientDirectoryId) { this.showNotify('Your account is not linked to a client record yet.', 'error'); return; }
-            this.paymentProofUploadingFor = d.id;
+            if (!clientDirectoryId) { this.paymentProofModal.error = 'Your account is not linked to a client record yet.'; return; }
+            this.paymentProofModal.uploading = true;
+            this.paymentProofModal.error = '';
             try {
                 const contentType = await this.validateClientDocumentFile(file);
                 const safeName = String(file.name || 'payment-proof').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
@@ -302,6 +369,12 @@ export const clientWorkflowMethods = {
                     purpose: 'Payment Proof',
                     linkedDocId: d.id,
                     linkedDocNo: d.docNo || '',
+                    clientPaymentBank: bankName,
+                    clientPaymentAccountType: accountType,
+                    clientPaymentAccountHolder: accountHolderName,
+                    clientPaymentDate: paymentDate,
+                    clientPaymentAmount: amount,
+                    paymentRefNo: refNo,
                     uploadedByUid: this.userProfile.uid,
                     uploadedByName: this.userProfile.name,
                     uploadedByEmail: this.userProfile.email,
@@ -310,11 +383,18 @@ export const clientWorkflowMethods = {
                 await updateDoc(doc(db, 'docs', d.id), {
                     paymentProofUrl: downloadURL,
                     paymentProofName: file.name,
+                    clientPaymentBank: bankName,
+                    clientPaymentAccountType: accountType,
+                    clientPaymentAccountHolder: accountHolderName,
+                    clientPaymentDate: paymentDate,
+                    clientPaymentAmount: amount,
+                    paymentRefNo: refNo,
                     paymentProofAt: new Date().toISOString(),
                     paymentProofByUid: this.userProfile.uid,
                     paymentProofByName: this.userProfile.name || this.userProfile.email
                 });
-                this.logAudit('UPDATE', `Client attached payment proof to ${d.docNo}`);
+                this.logAudit('UPDATE', `Client attached payment proof to ${d.docNo} (${bankName}, ${accountType}, ref: ${refNo})`);
+                this.closePaymentProofModal();
                 // The proof is on the invoice now. If routing it for review fails,
                 // the client is not told the upload failed; the team is emailed.
                 try {
@@ -332,9 +412,9 @@ export const clientWorkflowMethods = {
                 }
             } catch (error) {
                 console.error('Payment proof upload failed:', error);
-                this.showNotify(this.getFirestoreWriteError(error, 'submit your payment proof'), 'error');
+                this.paymentProofModal.error = this.getFirestoreWriteError(error, 'submit your payment proof');
             } finally {
-                this.paymentProofUploadingFor = '';
+                this.paymentProofModal.uploading = false;
             }
         },
         async sendClientReply() {

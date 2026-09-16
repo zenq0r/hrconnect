@@ -120,6 +120,61 @@ test('client conversations are read by the people on that project', async () => 
     await assertFails(as('otherStaff').db.collection('project_client_updates').get());
 });
 
+// ---- Project creation (open to any staff role, per canCreateProject) ------
+
+test('any staff role may create a project, a Client never can', async () => {
+    await seed({ 'customers/CUST-1': { clientName: 'CLIENT CO', clientTaskCreatedAt: '2026-09-01T00:00:00.000Z' } });
+    const newProject = (overrides = {}) => ({
+        projectType: 'DOC', projectRef: 'DOC-2026-000001', title: 'A DOCUMENT PROJECT',
+        clientDirectoryId: 'CUST-1', clientPortalUid: 'u-client', clientName: 'CLIENT CO', clientEmail: 'buyer@clientco.com',
+        ownerEmpNo: 'E1', ownerName: 'PIC STAFF', ownerEmail: 'staff@zenqor.com.my',
+        status: 'Project Planning',
+        createdByUid: 'u-staff', createdByEmail: 'staff@zenqor.com.my', updatedByUid: 'u-staff', updatedByEmail: 'staff@zenqor.com.my',
+        ...overrides,
+    });
+    // Staff — not Director/Superadmin — creating a brand-new project.
+    await assertSucceeds(as('staff').db.doc('projects/P-new').set(newProject()));
+    // A Client account can never create one, regardless of what it sends.
+    await assertFails(as('client').db.doc('projects/P-c1').set(newProject({
+        createdByUid: 'u-client', createdByEmail: 'buyer@clientco.com', updatedByUid: 'u-client', updatedByEmail: 'buyer@clientco.com',
+    })));
+});
+
+test('a project reference counter can only ever move forward by exactly 1', async () => {
+    const { db } = as('staff');
+    // Must start at 1 — no seeding a counter mid-sequence on create.
+    await assertFails(db.doc('project_ref_counters/DOC_2026').set({ count: 5 }));
+    await assertSucceeds(db.doc('project_ref_counters/DOC_2026').set({ count: 1 }));
+    // From 1, only 2 is a legal next write — never a skip, never backward.
+    await assertFails(db.doc('project_ref_counters/DOC_2026').set({ count: 4 }));
+    await assertFails(db.doc('project_ref_counters/DOC_2026').set({ count: 1 }));
+    await assertSucceeds(db.doc('project_ref_counters/DOC_2026').set({ count: 2 }));
+    // A Client account has no reason to ever touch this collection.
+    await assertFails(as('client').db.doc('project_ref_counters/DOC_2026').set({ count: 3 }));
+});
+
+// ---- Trusted devices --------------------------------------------------
+
+test('a staff account reads and revokes only its own trusted device', async () => {
+    await seed({
+        'trusted_devices/hash-staff-1': { uid: 'u-staff', label: 'Chrome on Windows 10/11', createdAt: '2026-09-01T00:00:00.000Z', expiresAt: '2026-10-01T00:00:00.000Z', lastUsedAt: '2026-09-01T00:00:00.000Z', revoked: false },
+        'trusted_devices/hash-other-1': { uid: 'u-staff2', label: 'Safari on macOS', createdAt: '2026-09-01T00:00:00.000Z', expiresAt: '2026-10-01T00:00:00.000Z', lastUsedAt: '2026-09-01T00:00:00.000Z', revoked: false },
+    });
+    // Its own — readable. Someone else's, and another staff role's own — neither,
+    // even a Director's, since this is a self-service revoke list, not an
+    // admin one.
+    await assertSucceeds(as('staff').db.doc('trusted_devices/hash-staff-1').get());
+    await assertFails(as('staff').db.doc('trusted_devices/hash-other-1').get());
+    await assertFails(as('director').db.doc('trusted_devices/hash-staff-1').get());
+    // No client-side write ever creates or renews one — /api/verify-login-otp
+    // (Admin SDK) is the only path, independent of who is signed in.
+    await assertFails(as('staff').db.doc('trusted_devices/hash-new').set({ uid: 'u-staff', label: 'Forged', createdAt: '2026-09-01T00:00:00.000Z', expiresAt: '2099-01-01T00:00:00.000Z', lastUsedAt: '2026-09-01T00:00:00.000Z', revoked: false }));
+    await assertFails(as('staff').db.doc('trusted_devices/hash-staff-1').update({ expiresAt: '2099-01-01T00:00:00.000Z' }));
+    // Revoke — its own succeeds, someone else's does not.
+    await assertFails(as('staff').db.doc('trusted_devices/hash-other-1').delete());
+    await assertSucceeds(as('staff').db.doc('trusted_devices/hash-staff-1').delete());
+});
+
 // ---- Billing documents ----------------------------------------------------
 
 test('Finance issues a quotation whose totals agree, and only then', async () => {

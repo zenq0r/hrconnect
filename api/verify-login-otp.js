@@ -1,11 +1,18 @@
 // Confirms an email OTP: the one required before a new password may be set,
-// and the one a privileged role must clear before the portal opens.
+// and the one a privileged role must clear before the portal opens. Also
+// verifies a trusted-device token as an alternative to the emailed code for
+// a sign-in, and issues a new one when the code path succeeds with "trust
+// this device" checked — kept in this same file/route rather than a new
+// serverless function (see trusted_devices in firestore.rules).
 const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const crypto = require('crypto');
-const { hashOtp } = require('./_security');
+const { hashOtp, hashResetToken } = require('./_security');
 const { resolvePasswordResetContext, resolveSignInContext } = require('./_passwordResetOtp');
+const { enforceRateLimit } = require('./_rateLimit');
+const { parseUserAgent } = require('./_auditMetadata');
 
 const MAX_ATTEMPTS = 5;
+const TRUSTED_DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function safeEqual(a, b) {
     const left = Buffer.from(String(a));
@@ -23,10 +30,33 @@ module.exports = async function handler(req, res) {
             return;
         }
 
-        const { code } = req.body || {};
+        const { code, trustedDeviceToken, trustDevice } = req.body || {};
+        const db = getAdminFirestore();
+
+        // A trusted device skips the emailed code entirely, for a sign-in only —
+        // resetting a password always requires the code, trusted device or not.
+        // resolveSignInContext independently re-verifies the caller's idToken, so
+        // the uid this checks against is never taken from the request body.
+        if (purpose === 'sign-in' && trustedDeviceToken && typeof trustedDeviceToken === 'string') {
+            const signInContext = await resolveSignInContext(getAdminAuth(), req.body);
+            const rate = await enforceRateLimit(db, { scope: 'trusted-device-verify', key: signInContext.uid, limit: 10, windowMs: 5 * 60 * 1000 });
+            if (!rate.allowed) { res.setHeader('Retry-After', String(rate.retryAfterSeconds)); res.status(429).json({ valid: false, error: 'Too many attempts. Please try again shortly.' }); return; }
+            const deviceRef = db.collection('trusted_devices').doc(hashResetToken(trustedDeviceToken));
+            const deviceSnap = await deviceRef.get();
+            const device = deviceSnap.exists ? deviceSnap.data() : null;
+            if (!device || device.uid !== signInContext.uid || device.revoked || new Date(device.expiresAt).getTime() < Date.now()) {
+                res.status(400).json({ valid: false, error: 'This device is no longer trusted. Enter the code from your email instead.' }); return;
+            }
+            await deviceRef.update({ lastUsedAt: new Date().toISOString() });
+            const adminAuth = getAdminAuth();
+            const current = (await adminAuth.getUser(signInContext.uid)).customClaims || {};
+            await adminAuth.setCustomUserClaims(signInContext.uid, { ...current, sfa: signInContext.authTime });
+            res.status(200).json({ valid: true });
+            return;
+        }
+
         if (!code || typeof code !== 'string') { res.status(400).json({ valid: false, error: 'Enter the code from your email.' }); return; }
 
-        const db = getAdminFirestore();
         const reset = purpose === 'sign-in'
             ? await resolveSignInContext(getAdminAuth(), req.body)
             : await resolvePasswordResetContext(db, req.body);
@@ -60,13 +90,32 @@ module.exports = async function handler(req, res) {
         // What firestore.rules and storage.rules actually check: the sign-in
         // this code confirmed. Until the session's token carries it, the roles
         // that need a code get nothing from the database.
+        let trustedDevicePayload = {};
         if (purpose === 'sign-in') {
             const adminAuth = getAdminAuth();
             const current = (await adminAuth.getUser(reset.uid)).customClaims || {};
             await adminAuth.setCustomUserClaims(reset.uid, { ...current, sfa: reset.authTime });
+
+            if (trustDevice === true) {
+                const rawToken = crypto.randomBytes(32).toString('hex');
+                const { browser, os } = parseUserAgent(req.headers['user-agent']);
+                const now = new Date();
+                const expiresAt = new Date(now.getTime() + TRUSTED_DEVICE_TTL_MS).toISOString();
+                await db.collection('trusted_devices').doc(hashResetToken(rawToken)).set({
+                    uid: reset.uid,
+                    label: `${browser} on ${os}`,
+                    createdAt: now.toISOString(),
+                    expiresAt,
+                    lastUsedAt: now.toISOString(),
+                    revoked: false
+                });
+                // The raw token is returned exactly once — only its hash is ever
+                // stored, the same way an OTP code and a reset token already are.
+                trustedDevicePayload = { trustedDeviceToken: rawToken, trustedDeviceExpiresAt: expiresAt };
+            }
         }
 
-        res.status(200).json({ valid: true });
+        res.status(200).json({ valid: true, ...trustedDevicePayload });
     } catch (error) {
         console.error('verify-login-otp error:', error);
         res.status(error.statusCode || 500).json({ valid: false, error: error.statusCode ? error.message : 'Unable to verify the code right now. Please try again.' });

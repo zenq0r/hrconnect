@@ -18,7 +18,7 @@
                     <div class="zq-card p-6">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="zq-text-section-title"><i class="fa-solid fa-users text-brand-blue mr-2"></i>Registered Client Directory</h3>
-                            <span class="zq-text-small font-bold">Total Clients: {{ customers.length }}</span>
+                            <span class="zq-text-small font-bold">{{ searchQuery ? `Showing: ${filteredCustomers.length} of ${customers.length}` : `Total Clients: ${customers.length}` }}</span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="zq-table">
@@ -32,7 +32,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="(cust, idx) in customers" :key="idx" @contextmenu.prevent="openContextMenu($event, clientDirectoryRowMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientDirectoryRowMenuItems(cust))">
+                                    <tr v-for="(cust, idx) in filteredCustomers" :key="idx" @contextmenu.prevent="openContextMenu($event, clientDirectoryRowMenuItems(cust))" v-longpress="(touch) => openContextMenu(touch, clientDirectoryRowMenuItems(cust))">
                                         <td class="font-bold">{{ cust.clientSSM || '-' }}</td>
                                         <td>
                                             <div class="flex items-start gap-2.5">
@@ -72,13 +72,19 @@
                                             </div>
                                         </td>
                                     </tr>
-                                    <tr v-if="customers.length === 0" class="zq-table-empty">
+                                    <tr v-if="filteredCustomers.length === 0" class="zq-table-empty">
                                         <td colspan="5">
                                             <div class="zq-empty-state zq-empty-state-compact">
                                                 <i class="fa-solid fa-users zq-empty-state-icon" aria-hidden="true"></i>
-                                                <p class="zq-empty-state-title">No clients yet</p>
-                                                <p class="zq-empty-state-text">Register your first client here before creating projects, quotations or invoices.</p>
-                                                <div v-if="canManageClients" class="zq-empty-state-action"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Client Information</span></button></div>
+                                                <template v-if="customers.length && searchQuery">
+                                                    <p class="zq-empty-state-title">No clients match "{{ searchQuery }}"</p>
+                                                    <div class="zq-empty-state-action"><button type="button" @click="searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear search</button></div>
+                                                </template>
+                                                <template v-else>
+                                                    <p class="zq-empty-state-title">No clients yet</p>
+                                                    <p class="zq-empty-state-text">Register your first client here before creating projects, quotations or invoices.</p>
+                                                    <div v-if="canManageClients" class="zq-empty-state-action"><button type="button" @click="openClientInformation()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Client Information</span></button></div>
+                                                </template>
                                             </div>
                                         </td>
                                     </tr>

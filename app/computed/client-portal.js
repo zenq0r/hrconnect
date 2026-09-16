@@ -1,8 +1,11 @@
 // Everything a signed-in person sees about themselves: their own payslips,
 // claims and documents, and the client account's tier, timeline and totals.
 import { CLIENT_TIER_ORDER, canonicalClientTier, CLIENT_TIER_FEATURES, CLIENT_SUPPORT_CHANNELS, CLIENT_TIMELINE_PREVIEW_COUNT } from "../constants/client-tiers.js";
+import { MALAYSIA_BANKS, CLIENT_PAYMENT_ACCOUNT_TYPES } from "../constants/malaysia-banks.js";
 export const clientPortalComputed = {
         currentYear() { return new Date().getFullYear(); },
+        malaysiaBanks() { return MALAYSIA_BANKS; },
+        clientPaymentAccountTypes() { return CLIENT_PAYMENT_ACCOUNT_TYPES; },
         payslipYtdMultiplier() {
             const month = Number(String(this.payForm.month || '').split('-')[1]);
             return month >= 1 && month <= 12 ? month : new Date().getMonth() + 1;
@@ -174,5 +177,68 @@ export const clientPortalComputed = {
         },
         myUnpaidInvoicesCount() { return this.myClientDocs.filter(d => d.type === 'Invoice' && d.status !== 'Paid').length; },
         myUnpaidInvoicesAmount() { return this.myClientDocs.filter(d => d.type === 'Invoice' && d.status !== 'Paid').reduce((sum, d) => sum + (Number(d.amount) || 0), 0); },
-        myPaidInvoicesAmount() { return this.myClientDocs.filter(d => d.type === 'Invoice' && d.status === 'Paid').reduce((sum, d) => sum + (Number(d.amount) || 0), 0); }
+        myPaidInvoicesAmount() { return this.myClientDocs.filter(d => d.type === 'Invoice' && d.status === 'Paid').reduce((sum, d) => sum + (Number(d.amount) || 0), 0); },
+
+        // ---- Premium+ / Priority tier features -------------------------------
+        // Stage-by-stage completion per active project, plus a portfolio-wide
+        // average — the Overview panel already renders a per-project stage-dot
+        // strip for every tier; this is the aggregate percentage on top of it.
+        clientProjectProgressSummary() {
+            const stageCount = this.projectStages.length || 1;
+            const active = this.projects.filter(project => project.status !== 'Completed & Done');
+            const items = active.map(project => {
+                const stageIndex = Math.max(0, this.projectStages.indexOf(project.status));
+                const percent = Math.round(((stageIndex + 1) / stageCount) * 100);
+                return { id: project.id, projectRef: project.projectRef, title: project.title, stageLabel: project.status, percent };
+            });
+            const average = items.length ? Math.round(items.reduce((sum, item) => sum + item.percent, 0) / items.length) : 0;
+            return { items, average };
+        },
+
+        // The officer currently in charge of this client's most recently active
+        // project — auto-derived, not a separate staff-assigned field, so it
+        // tracks whoever is actually handling the account today.
+        clientDedicatedOfficer() {
+            const active = this.projects
+                .filter(project => project.status !== 'Completed & Done' && project.ownerEmail)
+                .sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+            const project = active[0];
+            if (!project) return null;
+            const employee = this.employees.find(emp => emp.empNo === project.ownerEmpNo || String(emp.email || '').toLowerCase() === String(project.ownerEmail || '').toLowerCase());
+            return {
+                // The presence-relevant fields (email, presenceStatus, presenceUpdatedAt/
+                // lastSeen) come straight from the employee record so isEmployeeOnline()
+                // can be called on this object exactly as it would on `employee` itself.
+                ...(employee || {}),
+                name: project.ownerName || employee?.name || project.ownerEmail,
+                email: employee?.email || project.ownerEmail,
+                position: project.ownerPosition || employee?.position || 'Account Officer',
+                empNo: employee?.empNo || project.ownerEmpNo || '',
+                photo: employee ? this.employeePhotoByEmail(employee.email) : ''
+            };
+        },
+
+        // Projects with a target completion date (project.targetDate — already
+        // client-readable, unlike project_activities which stays staff-only)
+        // due within 3 days, reusing the same day-math projectTargetDateState()
+        // already computes for the staff Project Activities board.
+        clientUpcomingDeadlines() {
+            return this.projects
+                .filter(project => project.status !== 'Completed & Done' && project.targetDate)
+                .map(project => ({ ...project, dueState: this.projectTargetDateState(project) }))
+                .filter(project => project.dueState.daysRemaining !== null && project.dueState.daysRemaining <= 3)
+                .sort((a, b) => a.dueState.daysRemaining - b.dueState.daysRemaining);
+        },
+
+        // client_documents whose staff-entered expiryDate falls within 30 days
+        // (or has already passed), soonest first. Left blank on upload, a
+        // document simply never appears here.
+        clientExpiringDocuments() {
+            const now = Date.now();
+            const horizon = now + (30 * 24 * 60 * 60 * 1000);
+            return this.clientDocuments.items
+                .filter(item => item.expiryDate && Date.parse(item.expiryDate) <= horizon)
+                .map(item => ({ ...item, daysRemaining: Math.ceil((Date.parse(item.expiryDate) - now) / 86400000) }))
+                .sort((a, b) => a.daysRemaining - b.daysRemaining);
+        }
 };

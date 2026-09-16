@@ -95,8 +95,10 @@ export const billingMethods = {
                 type: 'Invoice',
                 docNo: '',
                 status: 'Draft',
-                paymentRefNo: '',
-                paymentAttachment: '',
+                // Not visible to the client and no notification/email fires for
+                // either state — see saveDocRecord() and sendInvoiceToClient().
+                // Only sendInvoiceToClient() ever moves this to 'Sent'.
+                deliveryStatus: 'Not Sent',
                 sourceQuotationId: quotation.id,
                 sourceQuotationNo: quotation.docNo || '',
                 date: new Date().toISOString().substr(0, 10),
@@ -105,25 +107,44 @@ export const billingMethods = {
             this.clientSavedForDocument = Boolean(this.docForm.customerId);
             this.generateDocNo();
             this.switchTab('document-quotations');
-            this.showNotify(`Invoice draft prepared from ${quotation.docNo}. Review it, then Save as Draft or Send to Client.`);
+            this.showNotify(`Invoice draft prepared from ${quotation.docNo}. Review it, then save it and Send Invoice to Client when ready.`);
         },
-        async reviewPaymentProof(invoice, approved) {
+        // The server only ever records a binary decision (approved/not — see
+        // payment-proof-reviewed in api/billing-workflow.js): a rejected proof
+        // and a request for a new one leave the invoice in the exact same
+        // state, waiting for the client to resubmit. 'reject' vs 'new-proof' is
+        // purely which dialog copy Finance sees, so their note is framed for
+        // what they actually mean — a real decline vs. "try again with X fixed".
+        async reviewPaymentProof(invoice, decision) {
             if (!this.canVerifyPaymentProof || !invoice?.paymentProofUrl) { this.showNotify('Only HR Management or Finance can verify a payment proof.', 'error'); return; }
+            const approved = decision === 'approved';
+            const isNewProofRequest = decision === 'new-proof';
+            // paymentRefNo is the reference the client themselves typed when they
+            // submitted this proof (submitPaymentProof(), client-workflow.js) — it
+            // is not something staff set in advance. Nothing here can read the
+            // uploaded receipt's own content, but showing what the client claimed
+            // right where Finance is about to confirm gives them something concrete
+            // to check the attached proof against, rather than approving on the
+            // amount alone.
+            const referenceReminder = approved && invoice.paymentRefNo ? ` Check the reference the client provided, ${invoice.paymentRefNo}, against what is actually shown on the attached proof before confirming.` : '';
             const { confirmed, note } = await this.askConfirmWithNote({
-                title: approved ? 'Verify this payment?' : 'Reject this payment proof?',
+                title: approved ? 'Verify this payment?' : isNewProofRequest ? 'Request a new payment proof?' : 'Reject this payment?',
                 message: approved
-                    ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.`
-                    : `${invoice.docNo} stays Unpaid. The client will be asked to upload a corrected proof.`,
-                confirmLabel: approved ? 'Verify and Mark Paid' : 'Reject Proof',
+                    ? `${invoice.docNo} will be marked Paid. The client, PIC and Director will be notified.${referenceReminder}`
+                    : isNewProofRequest
+                        ? `${invoice.docNo} stays Unpaid. The client will be asked to upload a new proof of payment.`
+                        : `${invoice.docNo} stays Unpaid. The client will be told this payment was rejected.`,
+                confirmLabel: approved ? 'Verify and Mark Paid' : isNewProofRequest ? 'Request New Proof' : 'Reject Payment',
                 danger: !approved,
-                noteLabel: approved ? 'Verification note (optional)' : 'Reason for rejection',
-                notePlaceholder: approved ? 'Reference checked by Finance' : 'Explain what the client needs to correct'
+                noteLabel: approved ? 'Verification note (optional)' : isNewProofRequest ? "What's wrong with this proof? (optional)" : 'Reason for rejection',
+                notePlaceholder: approved ? 'Reference checked by Finance' : isNewProofRequest ? 'e.g. the amount shown does not match, image is unclear' : 'Explain why this payment is being rejected'
             });
             if (!confirmed) return;
             try {
                 await this.runBillingWorkflow('payment-proof-reviewed', invoice.id, { decision: approved ? 'approved' : 'rejected', note });
-                this.logAudit('UPDATE', `${approved ? 'Verified' : 'Rejected'} payment proof for ${invoice.docNo}`);
-                this.showNotify(approved ? `${invoice.docNo} is marked Paid.` : `Payment proof for ${invoice.docNo} was rejected; client has been notified.`);
+                const auditVerb = approved ? 'Verified payment proof for' : isNewProofRequest ? 'Requested a new payment proof for' : 'Rejected payment proof for';
+                this.logAudit('UPDATE', `${auditVerb} ${invoice.docNo}`);
+                this.showNotify(approved ? `${invoice.docNo} is marked Paid.` : `${invoice.docNo} stays Unpaid; client has been told.`);
             } catch (error) {
                 console.error('Payment proof review failed:', error);
                 this.showNotify(error.message || 'Unable to review the payment proof.', 'error');
@@ -224,8 +245,14 @@ export const billingMethods = {
         
         async saveDocRecord() {
             try {
-                if (this.attachmentUploadState.payment) { this.showNotify('Wait for the payment attachment upload to finish.'); return false; }
                 if (!this.canManageDocuments) { this.showNotify('You do not have permission to save documents.'); return false; }
+                // A status left over from switching Document Type (e.g. an Invoice's
+                // 'Unpaid' surviving a switch to Quotation) would save a value the
+                // record's own type never offers as an option, and a Quotation stuck
+                // that way can never be accepted or declined by its client. Catch it
+                // here as a backstop even though onDocTypeChange() already resets it.
+                const statusOptionsByType = { Quotation: ['Open', 'Accepted', 'Rejected', 'Invoiced'], Invoice: ['Draft', 'Unpaid', 'Paid', 'Partial', 'Cancelled'] };
+                if (!(statusOptionsByType[this.docForm.type] || []).includes(this.docForm.status)) { this.showNotify(`Status "${this.docForm.status}" is not valid for a ${this.docForm.type}. Re-select the Status field and try again.`); return false; }
                 // firestore.rules refuses these too, but a rule can only answer
                 // "denied" — say which figure is wrong while the person is still
                 // looking at it.
@@ -233,13 +260,18 @@ export const billingMethods = {
                 if (this.docSubtotal < 0) { this.showNotify('The line items add up to a negative amount. Check the unit prices.'); return false; }
                 if (discount < 0) { this.showNotify('A discount cannot be a negative amount.'); return false; }
                 if (discount > this.docSubtotal) { this.showNotify('The discount is larger than the subtotal it is taken off.'); return false; }
-                if (['Paid', 'Partial'].includes(this.docForm.status) && (!this.docForm.paymentRefNo || this.docForm.paymentRefNo.trim() === '')) { this.showNotify("Payment Reference No. is REQUIRED."); return false; }
                 const normalizedDocForm = this.normalizeOfficialRecord(this.docForm);
                 normalizedDocForm.clientEmail = String(this.docForm.clientEmail || '').trim().toLowerCase();
                 Object.assign(this.docForm, normalizedDocForm);
                 const docId = String(this.editingDocId || Date.now());
                 const linkedProject = this.projects.find(project => String(project.id || '') === String(this.docForm.projectId || ''));
-                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', paymentRefNo: this.docForm.paymentRefNo || '', paymentAttachment: this.docForm.paymentAttachment || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, subtotal: this.docSubtotal, sst: this.docSST, discount: Number(this.docForm.discount) || 0, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
+                // paymentRefNo and paymentAttachment are deliberately NOT written here —
+                // they are the client's own transfer reference and receipt, submitted
+                // through submitPaymentProof() (app/methods/client-workflow.js) only
+                // after the client has actually paid. Staff cannot know either before
+                // that, and merge:true below means omitting them here never clobbers
+                // whatever the client has already submitted on a re-save of this doc.
+                const payload = { id: docId, type: this.docForm.type, docNo: this.docForm.docNo, status: this.docForm.status || (this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open'), paymentMethod: this.docForm.paymentMethod || 'Bank Transfer', paymentBank: this.docForm.paymentBank || '', paymentReceiver: this.docForm.paymentReceiver || '', date: this.docForm.date, name: this.docForm.clientName, amount: this.docGrandTotal, subtotal: this.docSubtotal, sst: this.docSST, discount: Number(this.docForm.discount) || 0, billingClientId: String(this.docForm.customerId || '').trim(), billingProjectId: String(this.docForm.projectId || '').trim(), billingPicEmail: String(linkedProject?.ownerEmail || '').trim().toLowerCase(), raw: JSON.parse(JSON.stringify(this.docForm)) };
                 if (!this.clientSavedForDocument) { this.showNotify('Select a registered client before saving this document.'); return false; }
                 // Hard guarantee, not just an implied one: every document must carry
                 // its client's real customers/{id}, never just a name snapshot — two
@@ -253,17 +285,42 @@ export const billingMethods = {
                 if (['Quotation', 'Invoice'].includes(payload.type) && String(linkedProject?.clientDirectoryId || '') !== String(payload.raw.customerId || '')) { this.showNotify('The selected project belongs to a different Client ID. Select a project under the current Client before saving.'); return false; }
                 const previous = this.docHistory.find(item => item.id === docId);
                 const isQuotationBeingIssued = payload.type === 'Quotation' && payload.status === 'Open' && (!previous || !previous.quotationIssuedAt);
-                const isInvoiceBeingSent = payload.type === 'Invoice' && payload.status === 'Unpaid' && (!previous || previous.status === 'Draft' || !previous.invoiceSentAt);
                 if (isQuotationBeingIssued) {
                     payload.quotationIssuedAt = new Date().toISOString();
                     payload.quotationIssuedByUid = this.userProfile.uid;
                 }
-                if (isInvoiceBeingSent) {
-                    payload.invoiceWorkflowStatus = 'Sending to Client';
-                    payload.raw.invoiceWorkflowStatus = 'Sending to Client';
-                } else if (payload.type === 'Invoice' && payload.status === 'Draft') {
-                    payload.invoiceWorkflowStatus = 'Draft — Finance Review';
-                    payload.raw.invoiceWorkflowStatus = 'Draft — Finance Review';
+                // deliveryStatus is deliberately separate from Status (the payment
+                // state): it is the ONLY thing that ever makes an invoice visible to
+                // the client or fires its notification/email — see
+                // sendInvoiceToClient(), the sole place either happens. Saving here,
+                // whatever Status is picked, never sends anything by itself.
+                if (payload.type === 'Invoice') {
+                    let deliveryStatus;
+                    if (payload.status === 'Draft') {
+                        deliveryStatus = 'Not Sent';
+                    } else if (previous?.deliveryStatus === 'Sent') {
+                        // Already sent — a later correction must never un-send it.
+                        deliveryStatus = 'Sent';
+                    } else if (!previous || previous.status === 'Draft') {
+                        // Brand new, or just leaving Draft for the first time — still
+                        // not visible to the client until Send Invoice to Client fires.
+                        deliveryStatus = 'Ready to Send';
+                    } else {
+                        // A record saved before this field existed, already past
+                        // Draft — it was already effectively delivered under the old
+                        // rules. Preserve that so editing it now (a correction) can
+                        // never retroactively hide it from the client.
+                        deliveryStatus = 'Sent';
+                    }
+                    payload.deliveryStatus = deliveryStatus;
+                    payload.raw.deliveryStatus = deliveryStatus;
+                    if (deliveryStatus === 'Not Sent') {
+                        payload.invoiceWorkflowStatus = 'Draft — Finance Review';
+                        payload.raw.invoiceWorkflowStatus = 'Draft — Finance Review';
+                    } else if (deliveryStatus === 'Ready to Send') {
+                        payload.invoiceWorkflowStatus = 'Ready to Send';
+                        payload.raw.invoiceWorkflowStatus = 'Ready to Send';
+                    }
                 }
                 await setDoc(doc(db, "docs", docId), payload, { merge: true });
                 this.editingDocId = docId;
@@ -287,23 +344,52 @@ export const billingMethods = {
                         ctaLabel: 'VIEW QUOTATION'
                     });
                 }
-                if (isInvoiceBeingSent) {
-                    if (payload.raw.sourceQuotationId) await updateDoc(doc(db, 'docs', payload.raw.sourceQuotationId), { status: 'Invoiced', invoiceDocId: docId, invoiceCreatedAt: new Date().toISOString() });
-                    try { await this.runBillingWorkflow('invoice-sent', docId); }
-                    catch (workflowError) { console.error('Invoice notification workflow failed:', workflowError); this.showNotify('Invoice was saved, but its notification will be retried from the billing queue.', 'error'); return false; }
-                    this.notifyByEmail({
-                        to: payload.raw.clientEmail,
-                        subject: `Invoice Ready — ${payload.docNo}`,
-                        heading: 'Your Invoice Is Ready',
-                        message: `Invoice ${payload.docNo} for ${payload.name || 'your account'} is ready in the Client Portal. Please review it and upload payment proof once payment is made.`,
-                        ctaLabel: 'VIEW INVOICE'
-                    });
-                    this.showNotify(`Invoice sent to Client and recorded in the billing workflow.`);
+                if (isQuotationBeingIssued) {
+                    this.showNotify('Quotation sent to Client.');
+                } else if (payload.type === 'Invoice' && payload.status === 'Draft') {
+                    this.showNotify('Invoice draft saved. It is not visible to the Client.');
+                } else if (payload.type === 'Invoice' && payload.deliveryStatus === 'Ready to Send') {
+                    this.showNotify('Invoice saved. It is still not visible to the Client — use "Send Invoice to Client" when ready.');
                 } else {
-                    this.showNotify(isQuotationBeingIssued ? 'Quotation sent to Client.' : payload.status === 'Draft' ? 'Invoice draft saved. It is not visible to the Client.' : 'Document saved.');
+                    this.showNotify('Document saved.');
                 }
                 return true;
             } catch (error) { console.error('Document save failed:', error); this.showNotify('Unable to save document. Check the attachment size and try again.'); return false; }
+        },
+        // The one and only place an invoice becomes visible to the client and
+        // its notification/email fires — deliberately never a side effect of
+        // saveDocRecord(). api/billing-workflow.js's invoice-sent action does
+        // the actual write (deliveryStatus, billingWorkflowStatus, the source
+        // quotation's status, all in one server transaction) and is already
+        // restricted to Director/Superadmin (INVOICE_MANAGEMENT_ROLES) — the
+        // same roles canManageBillingWorkflow gates here, so this button is
+        // never shown to someone the server would refuse anyway.
+        async sendInvoiceToClient(invoice) {
+            if (!this.canManageBillingWorkflow) { this.showNotify('Only a Director or Superadmin can send an invoice to the client.', 'error'); return; }
+            if (!invoice?.id) { this.showNotify('Save this invoice before sending it.', 'error'); return; }
+            if (invoice.status !== 'Unpaid') { this.showNotify('Finish preparing this invoice — Status must be Unpaid — before sending it.', 'error'); return; }
+            if (invoice.deliveryStatus === 'Sent') { this.showNotify('This invoice has already been sent to the client.'); return; }
+            if (!await this.askConfirm({
+                title: 'Send this invoice to the client?',
+                message: `${invoice.docNo} will become visible in the Client Portal, and ${invoice.name || 'the client'} will be emailed and notified. This cannot be undone.`,
+                confirmLabel: 'Send Invoice to Client'
+            })) return;
+            try {
+                await this.runBillingWorkflow('invoice-sent', invoice.id);
+                if (this.editingDocId === invoice.id) { this.docForm.deliveryStatus = 'Sent'; }
+                this.logAudit('UPDATE', `Sent invoice ${invoice.docNo} to ${invoice.name || 'client'}`);
+                this.notifyByEmail({
+                    to: invoice.raw?.clientEmail,
+                    subject: `Invoice Ready — ${invoice.docNo}`,
+                    heading: 'Your Invoice Is Ready',
+                    message: `Invoice ${invoice.docNo} for ${invoice.name || 'your account'} is ready in the Client Portal. Please review it and upload payment proof once payment is made.`,
+                    ctaLabel: 'VIEW INVOICE'
+                });
+                this.showNotify(`${invoice.docNo} sent to client.`);
+            } catch (error) {
+                console.error('Send invoice failed:', error);
+                this.showNotify(error.message || 'Unable to send this invoice. Please try again.', 'error');
+            }
         },
         async savePayslipRecord() {
             try {
@@ -337,6 +423,17 @@ export const billingMethods = {
         },
         addDocItem() { this.docForm.items.push({ desc: '', qty: 1, price: 0 }); },
         removeDocItem(idx) { this.docForm.items.splice(idx, 1); },
+        // Quotation and Invoice each have their own Status options (Open/Accepted/
+        // Rejected/Invoiced vs Draft/Unpaid/Paid/Partial/Cancelled). Switching
+        // Document Type must carry docForm.status into the new type's own default
+        // — left alone, the previous type's value survives as a string the new
+        // type's <select> has no matching <option> for, and a Quotation saved that
+        // way can never be accepted or declined (canDecideQuotation() requires an
+        // exact 'Open').
+        onDocTypeChange() {
+            this.docForm.status = this.docForm.type === 'Invoice' ? 'Unpaid' : 'Open';
+            this.generateDocNo();
+        },
         generateDocNo(includeCurrentNumber = false) {
             if (this.editingDocId) return;
             const prefix = this.docForm.type === 'Invoice' ? 'INV' : 'QT';
@@ -475,12 +572,35 @@ export const billingMethods = {
             this.downloadCSV(rows, `zenqor_statement_${this.getLocalDateKey()}.csv`);
             this.showNotify('Statement downloaded.');
         },
+        // Premium+ export of the client's own projects — a distinct dataset
+        // from exportClientStatement (billing documents): stage, not money.
+        exportClientProjectRecords() {
+            if (!this.clientTierAllows('transaction-export')) {
+                this.showNotify(this.clientTierLockMessage('transaction-export'), 'error');
+                return;
+            }
+            const items = this.projects;
+            if (!items.length) { this.showNotify('There are no project records to export.', 'error'); return; }
+            const rows = [
+                ['ZENQOR HRMS/CDTS - CLIENT PROJECT RECORDS'],
+                ['Client', this.clientPortalIdentity.clientName || ''],
+                ['Generated', this.formatDateTime(new Date().toISOString())],
+                ['Projects', items.length],
+                [],
+                ['Project Ref', 'Title', 'Stage', 'Created', 'Last Updated']
+            ];
+            for (const project of items) {
+                rows.push([project.projectRef || '', project.title || '', project.status || '', project.createdAt || '', project.updatedAt || project.createdAt || '']);
+            }
+            this.downloadCSV(rows, `zenqor_project_records_${this.getLocalDateKey()}.csv`);
+            this.showNotify('Project records downloaded.');
+        },
         viewClaimRecord(claim) {
             this.claimPreview = { show: true, claim: JSON.parse(JSON.stringify(claim)), directorApprovalAttachment: '', directorApprovalAttachmentName: '', directorApprovalOriginalBytes: 0 };
         },
         editRecord(item) {
             this.mobileMenuOpen = false;
-            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.status || item.raw.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); this.clientSavedForDocument = Boolean(this.docForm.customerId); } this.switchTab('document-quotations'); }
+            if (item.isDoc) { this.editingDocId = item.id; if (item.raw) { this.docForm = JSON.parse(JSON.stringify(item.raw)); this.docForm.status = item.status || item.raw.status || (item.type === 'Invoice' ? 'Unpaid' : 'Open'); this.docForm.deliveryStatus = item.deliveryStatus || item.raw.deliveryStatus || ''; this.clientSavedForDocument = Boolean(this.docForm.customerId); } this.switchTab('document-quotations'); }
             else if (item.isPay) { this.editingPayId = item.id; if (item.raw) { this.payForm = JSON.parse(JSON.stringify(item.raw)); this.selectedPayEmployeeId = this.payForm.empNo || ''; } this.autoCalculatePayroll(); this.switchTab('payslip-generator'); }
             else if (item.isVoucher) this.editPaymentVoucher(item);
             else if (item.isClaim) this.editClaimRecord(item);

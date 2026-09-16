@@ -1,0 +1,64 @@
+<!-- =====================================================================
+     DUTY ROSTER
+     ===================================================================== -->
+                <div v-show="currentTab === 'duty-roster'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div class="flex flex-wrap justify-between items-center gap-3">
+                        <div>
+                            <h2 class="zq-text-page-title">Duty Roster</h2>
+                            <p class="zq-page-header-desc">Weekly shift schedule.</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" @click="shiftDutyRosterWeek(-1)" class="zq-btn zq-btn-ghost zq-btn-icon" title="Previous Week"><i class="fa-solid fa-chevron-left"></i></button>
+                            <button type="button" @click="resetDutyRosterWeek()" class="zq-btn zq-btn-ghost zq-btn-sm">This Week</button>
+                            <button type="button" @click="shiftDutyRosterWeek(1)" class="zq-btn zq-btn-ghost zq-btn-icon" title="Next Week"><i class="fa-solid fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+
+                    <div v-if="myWeekRoster().length" class="zq-card p-5">
+                        <h3 class="zq-text-section-title mb-3"><i class="fa-solid fa-user-clock text-brand-blue mr-2"></i>My Shifts This Week</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span v-for="shift in myWeekRoster()" :key="shift.shiftId" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-brand-blue/10 text-brand-blue">
+                                <i class="fa-solid fa-calendar-day"></i>{{ formatDateWithDay(shift.date) }} &middot; {{ shift.label }} ({{ shift.startTime }}&ndash;{{ shift.endTime }})
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="zq-card p-6">
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                            <h3 class="zq-text-section-title">
+                                <i class="fa-solid fa-calendar-days text-brand-blue mr-2"></i>Week of {{ formatDateWithDay(activeDutyRosterWeekKey()) }}
+                                <span :class="activeDutyRosterWeek().status === 'Published' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="ml-2 inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold align-middle">{{ activeDutyRosterWeek().status }}</span>
+                            </h3>
+                            <button v-if="canManageDutyRoster" type="button" @click="publishDutyRosterWeek()" class="zq-btn zq-btn-primary zq-btn-sm">
+                                <i class="fa-solid fa-paper-plane"></i><span>Publish Week</span>
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+                            <div v-for="date in dutyRosterWeekDates(activeDutyRosterWeekKey())" :key="date" class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <span class="zq-text-small font-extrabold">{{ formatDateWithDay(date).split(',')[0] }}</span>
+                                    <span class="text-slate-400 text-[10px]">{{ date }}</span>
+                                </div>
+                                <div v-for="shift in dutyRosterShiftsForDate(date)" :key="shift.shiftId" class="rounded-lg bg-slate-50 dark:bg-slate-800/60 p-2 space-y-1.5" @contextmenu.prevent="openContextMenu($event, dutyRosterShiftMenuItems(shift))" v-longpress="(touch) => openContextMenu(touch, dutyRosterShiftMenuItems(shift))">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-bold text-slate-700 dark:text-slate-200">{{ shift.label }}</span>
+                                        <span class="text-[9px] text-slate-400">{{ shift.startTime }}&ndash;{{ shift.endTime }}</span>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                        <span v-for="name in shift.assignedNames" :key="name" :title="name" class="inline-block max-w-[120px] truncate align-bottom px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-blue/10 text-brand-blue">{{ name }}</span>
+                                        <span v-if="!shift.assignedNames.length" class="text-[9px] text-slate-400 italic">Unassigned</span>
+                                    </div>
+                                    <select v-if="canManageDutyRoster" @change="$event.target.value && toggleStaffOnShift(shift, employees.find(e => e.empNo === $event.target.value)); $event.target.value = ''" class="zq-input !py-1 !text-[10px] w-full" :aria-label="'Add or remove staff on ' + shift.label">
+                                        <option value="">+ Add / remove staff</option>
+                                        <option v-for="emp in employees" :key="emp.empNo" :value="emp.empNo">{{ shift.assignedEmpNos.includes(emp.empNo) ? 'Remove' : 'Add' }}: {{ emp.name }}</option>
+                                    </select>
+                                </div>
+                                <button v-if="canManageDutyRoster" type="button" @click="openDutyRosterModal(null, date)" class="zq-btn zq-btn-ghost zq-btn-sm w-full">
+                                    <i class="fa-solid fa-plus"></i><span>Add Shift</span>
+                                </button>
+                                <p v-if="!canManageDutyRoster && dutyRosterShiftsForDate(date).length === 0" class="text-[10px] text-slate-400 italic text-center py-2">No shift</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>

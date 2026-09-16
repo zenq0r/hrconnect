@@ -86,6 +86,11 @@ test('nothing that runs before sign-in reaches a method that has not been fetche
         'app/methods/presence.js': {
             syncAssignedProjectPresence: 'signed-in', // presence only runs inside a session
         },
+        'app/methods/shell.js': {
+            // openClientPanel('dc'): only ever reached by a signed-in Client clicking
+            // a sidebar/rail button, same category as syncAssignedProjectPresence above.
+            loadClientDocuments: 'signed-in',
+        },
     };
 
     const eagerFiles = [

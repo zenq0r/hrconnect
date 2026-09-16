@@ -20,7 +20,7 @@
                                 <button type="button" @click="projectViewMode = 'board'" :class="{ 'is-active': projectViewMode === 'board' }" :aria-pressed="projectViewMode === 'board'"><i class="fa-solid fa-table-columns mr-1.5"></i>Board</button>
                                 <button type="button" @click="projectViewMode = 'list'" :class="{ 'is-active': projectViewMode === 'list' }" :aria-pressed="projectViewMode === 'list'"><i class="fa-solid fa-list mr-1.5"></i>List</button>
                             </div>
-                            <button v-if="canManageProjects" type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary">
+                            <button v-if="canCreateProject" type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary">
                                 <i class="fa-solid fa-plus"></i><span>Add Project</span>
                             </button>
                         </div>
@@ -212,7 +212,7 @@
                                                 <p class="zq-empty-state-title">{{ projects.length ? 'No matching projects' : 'No projects yet' }}</p>
                                                 <p class="zq-empty-state-text">{{ projects.length ? 'No projects match your current scope or search.' : 'Projects will appear here once they are created.' }}</p>
                                                 <div v-if="projects.length && (projectScopeFilter !== 'all' || searchQuery)" class="zq-empty-state-action"><button type="button" @click="projectScopeFilter = 'all'; searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear filters</button></div>
-                                                <div v-else-if="!projects.length && canManageProjects" class="zq-empty-state-action"><button type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Project</span></button></div>
+                                                <div v-else-if="!projects.length && canCreateProject" class="zq-empty-state-action"><button type="button" @click="openProjectModal()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-plus"></i><span>Add Project</span></button></div>
                                             </div>
                                         </td>
                                     </tr>
@@ -299,10 +299,13 @@
                                 <section>
                                     <div class="mb-3 flex items-center justify-between gap-3">
                                         <div><h4 class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Documents</h4><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Centralized repository — JPG, PNG and PDF files shared between your team and the client.</p></div>
-                                        <label v-if="canUploadClientDocuments" class="shrink-0 cursor-pointer rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
-                                            <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>{{ clientDocuments.uploading ? 'Uploading…' : 'Upload Document' }}
-                                            <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
-                                        </label>
+                                        <div v-if="canUploadClientDocuments" class="flex shrink-0 items-center gap-2">
+                                            <label class="text-[9px] font-bold text-slate-500 dark:text-slate-400">Expiry (optional)<input type="date" v-model="clientDocuments.pendingExpiryDate" class="zq-input mt-0.5 block !py-1 !text-[10px]" title="Licence/document expiry date — used for Priority-tier expiry warnings"></label>
+                                            <label class="cursor-pointer rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
+                                                <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>{{ clientDocuments.uploading ? 'Uploading…' : 'Upload Document' }}
+                                                <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
+                                            </label>
+                                        </div>
                                     </div>
                                     <div v-if="!canViewClientDocuments" class="zq-empty-state zq-empty-state-compact"><i class="fa-solid fa-lock zq-empty-state-icon" aria-hidden="true"></i><p class="zq-empty-state-title">Documents not available for your role</p><p class="zq-empty-state-text">The client document repository is handled by Director, Superadmin, HR, Account and IT. Your project activities are unaffected.</p></div>
                                     <div v-else-if="clientDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
@@ -315,7 +318,7 @@
                                     <div v-else class="space-y-2">
                                         <div v-for="item in clientDocuments.items" :key="item.id" @contextmenu.prevent="openContextMenu($event, clientDocumentMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, clientDocumentMenuItems(item))" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
                                             <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
-                                            <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}</p></div>
+                                            <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}<span v-if="item.expiryDate"> · Expires {{ item.expiryDate }}</span></p></div>
                                             <div class="flex shrink-0 gap-1.5">
                                                 <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
                                                 <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
@@ -409,15 +412,22 @@
                             <section class="mt-5">
                                 <h4 class="zq-form-section-title">Project Identity</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <label class="zq-label">Project Reference *<input v-model="projectModal.form.projectRef" required :disabled="projectModal.isEdit" class="zq-input mt-1.5 uppercase"><span v-if="projectModal.isEdit" class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-400">Locked after creation to keep linked activities and client updates consistent.</span></label>
-                                    <label class="zq-label">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" class="zq-input mt-1.5 uppercase"></label>
+                                    <label v-if="!projectModal.isEdit" class="zq-label">Project Type *<select v-model="projectModal.form.projectType" @change="onProjectTypeChange" required class="zq-input mt-1.5"><option value="">-- Select Project Type --</option><option v-for="type in projectTypes" :key="type.key" :value="type.key">{{ type.label }} ({{ type.prefix }})</option></select><span class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-400">Generates the project reference below.</span></label>
+                                    <label v-else class="zq-label">Project Type<p class="zq-input mt-1.5 flex items-center bg-slate-50 dark:bg-slate-900/40 text-slate-500 dark:text-slate-400">{{ projectTypes.find(t => t.key === projectModal.form.projectType)?.label || 'Legacy project (no type on record)' }}</p></label>
+                                    <label class="zq-label">Project Reference *<input :value="projectModal.refGenerating ? 'Generating…' : projectModal.form.projectRef" required disabled class="zq-input mt-1.5 uppercase"><span class="mt-1 block text-[9px] font-semibold text-slate-400 dark:text-slate-400">{{ projectModal.isEdit ? 'Locked after creation to keep linked activities and client updates consistent.' : 'Generated automatically once a Project Type is selected — never typed by hand.' }}</span></label>
+                                    <label class="zq-label">Project Title *<input v-model="projectModal.form.title" required :disabled="projectModal.isEdit && !canManageProjects" placeholder="e.g. Service Agreement — Client Name" spellcheck="true" class="zq-input mt-1.5 uppercase"></label>
+                                </div>
+                                <div v-if="projectModal.form.projectType === 'GOV'" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                                    <label class="zq-label">State / Wilayah Persekutuan *<select v-model="projectModal.form.govState" @change="onProjectGovStateChange" :disabled="projectModal.isEdit && !canManageProjects" required class="zq-input mt-1.5"><option value="">-- Select State --</option><option v-for="entry in malaysiaStates" :key="entry.state" :value="entry.state">{{ entry.state }}</option></select></label>
+                                    <label class="zq-label">Local Authority / PBT *<select v-model="projectModal.form.govPbt" :disabled="(projectModal.isEdit && !canManageProjects) || !projectModal.form.govState" required class="zq-input mt-1.5"><option value="">-- Select Local Authority --</option><option v-for="pbt in projectGovLocalAuthorities" :key="pbt" :value="pbt">{{ pbt }}</option></select></label>
+                                    <label class="zq-label">Application Type *<select v-model="projectModal.form.govApplicationType" :disabled="projectModal.isEdit && !canManageProjects" required class="zq-input mt-1.5"><option value="">-- Select Application Type --</option><option v-for="appType in govApplicationTypes" :key="appType" :value="appType">{{ appType }}</option></select></label>
                                 </div>
                             </section>
 
                             <section class="mt-5">
                                 <h4 class="zq-form-section-title">Client &amp; Person In Charge</h4>
                                 <div class="mt-2 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <template v-if="canManageProjects">
+                                    <template v-if="canManageProjects || !projectModal.isEdit">
                                         <label class="zq-label">Client Name — Client Directory *<select v-model="projectModal.form.clientDirectoryId" @change="selectProjectClientDirectory" required class="zq-input mt-1.5"><option value="">-- Select Client Directory --</option><option v-for="client in customers" :key="client.id" :value="client.id">{{ client.clientName }}{{ client.clientSSM ? ` · ${client.clientSSM}` : '' }}</option></select><span v-if="projectModal.form.clientName" class="mt-1.5 block text-[10px] font-semibold text-brand-blue">Linked: {{ projectModal.form.clientName }}</span></label>
                                         <div>
                                             <label class="zq-label">Client Portal Access *<select v-model="projectModal.form.clientPortalUid" @change="selectProjectClientAccess" required class="zq-input mt-1.5 normal-case"><option value="">-- Select Client Portal Account --</option><option v-for="clientUser in projectClientAccessUsers" :key="clientUser.id" :value="clientUser.id">{{ clientUser.name }} · {{ clientUser.email }}</option></select></label>

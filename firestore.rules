@@ -116,6 +116,38 @@ service cloud.firestore {
     function isClient() {
       return isAuthenticated() && hasActiveRole('Client');
     }
+
+    // Superadmin, Director, HR and Account — the finance/personnel roles
+    // that together gate payroll, billing, employee and claims records
+    // throughout this file. Equivalent to
+    // isFinanceOrHR() (isAdmin() is
+    // isSuperadmin() || isDirector(), so this also covers every
+    // isFinanceOrHR() chain in this file), but fetches
+    // the caller's users/{uid} record once instead of once per role — the
+    // rules engine's 1,000-expression-per-request budget is shared across
+    // every branch of an `allow` condition, charged whether or not that
+    // branch ends up being the one that matches, and this exact 4-role
+    // combination used to be the busiest repeated check in the file
+    // (claims/payment_vouchers' multi-branch update rules hit that budget
+    // on some denied writes before this consolidation).
+    function isFinanceOrHR() {
+      let record = getUserRecord();
+      return isApprovedStaffSession() && !recordIsLocked(record) && (
+        record.role == 'HR' ||
+        ((record.role == 'Superadmin' || record.role == 'Director' || record.role == 'Account') && secondFactorCleared())
+      );
+    }
+
+    // Superadmin or Director, with HR added — the narrower admin+HR pairing
+    // used for corrections and duty-roster management. Same single-fetch
+    // shape as isFinanceOrHR() above; equivalent to isAdminOrHR().
+    function isAdminOrHR() {
+      let record = getUserRecord();
+      return isApprovedStaffSession() && !recordIsLocked(record) && (
+        record.role == 'HR' ||
+        ((record.role == 'Superadmin' || record.role == 'Director') && secondFactorCleared())
+      );
+    }
     // Client tier gate. The tiers, and which features each opens, are defined in
     // app.js (CLIENT_TIER_ORDER / CLIENT_TIER_FEATURES); this mirrors the one
     // boundary that has to hold server-side -- replying is Premium and above.
@@ -143,6 +175,16 @@ service cloud.firestore {
       return isAdmin();
     }
 
+    // Any staff role (never Client) may CREATE a project — every creation is
+    // still audited client-side (logAudit). This is deliberately narrower in
+    // scope than isProjectManager(), which stays the read/update/delete
+    // authority over EXISTING projects everywhere else in this file; only the
+    // projects/{projectId} create rule and project_ref_counters below read
+    // this function.
+    function canCreateProject() {
+      return isFinanceOrHR() || isIT() || isStaff();
+    }
+
     // The project's PIC, or a staff member with an activity on it: exactly the
     // two staff grants of the projects read rule.
     function staffWorksOnProject(projectId) {
@@ -157,6 +199,21 @@ service cloud.firestore {
         data.billingPicEmail == request.auth.token.email &&
         data.type == 'Invoice' &&
         data.status != 'Draft';
+    }
+
+    // deliveryStatus (not status, the payment state) governs whether a client
+    // may read an invoice at all — see sendInvoiceToClient(),
+    // app/methods/billing.js, the only place it ever becomes 'Sent'. A record
+    // with no deliveryStatus field is one saved before this field existed:
+    // treated as already delivered UNLESS it is still literally a Draft,
+    // which stayed hidden under the old status-only rule too — a legacy
+    // Draft must not become newly readable just because it predates this
+    // field, the same way a legacy Paid/Unpaid invoice must not become newly
+    // HIDDEN by it.
+    function clientCanReadInvoice(data) {
+      return data.type != 'Invoice' ||
+        data.deliveryStatus == 'Sent' ||
+        (!('deliveryStatus' in data) && data.status != 'Draft');
     }
 
     // IT is trusted with the public zenqor-tech website's content collections
@@ -205,6 +262,92 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/customers/$(clientDirectoryId)).data.clientTaskCreatedAt.size() > 0;
     }
 
+    // Shared by project_activities/{activityId} below: `project` (the
+    // parent projects/{projectId} document) is fetched ONCE by the caller
+    // and threaded through, instead of being fetched independently — for
+    // the same path — inside each of these checks the way the create rule
+    // used to (twice: once in its role gate, once to cross-check
+    // projectOwnerEmail) and the update rule used to (three separate
+    // branches, three separate fetches of the same document).
+    function canCreateProjectActivity(project, data) {
+      return (isProjectManager() || (isApprovedStaffSession() && project.ownerEmail == request.auth.token.email)) &&
+        data.projectOwnerEmail == project.ownerEmail &&
+        data.createdByUid == request.auth.uid &&
+        data.projectId is string &&
+        data.projectId.size() > 0 &&
+        data.activityType is string &&
+        data.activityType.size() > 0 &&
+        data.assignedEmpNo is string &&
+        data.assignedEmpNo.size() > 0 &&
+        data.assignedEmail is string &&
+        data.assignedEmail.size() > 0 &&
+        data.summary is string &&
+        data.summary.size() > 0 &&
+        data.dueDate is string &&
+        data.status == 'Scheduled';
+    }
+
+    // The PIC-only edit, its completion, and a committed handover's index
+    // refresh — three of project_activities' five update branches, all
+    // gated on the caller still being the parent project's current PIC.
+    // getAfter() (the handover branch) reads post-write state and cannot
+    // share `project` — a pre-write fetch — so it keeps its own call.
+    function canUpdateProjectActivity(project, affected) {
+      return (
+        isApprovedStaffSession() &&
+        project.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectId == resource.data.projectId &&
+        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
+        request.resource.data.status == resource.data.status &&
+        affected.hasOnly([
+          'activityType', 'summary', 'dueDate', 'assignedEmpNo', 'assignedName', 'assignedEmail', 'assignedPosition', 'details', 'updatedAt', 'updatedByUid', 'updatedByEmail'
+        ])
+      ) || (
+        isApprovedStaffSession() &&
+        project.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
+        request.resource.data.status == 'Done' &&
+        request.resource.data.completedByUid == request.auth.uid &&
+        request.resource.data.completedByEmail == request.auth.token.email &&
+        affected.hasOnly([
+          'status', 'completedAt', 'completedByUid', 'completedByEmail'
+        ])
+      ) || (
+        // The outgoing PIC can refresh the safe owner-email index only when a
+        // project handover is committed in the same batch. getAfter() prevents
+        // a standalone activity write from granting access to another user.
+        isApprovedStaffSession() &&
+        project.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectOwnerEmail == getAfter(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail &&
+        affected.hasOnly(['projectOwnerEmail'])
+      );
+    }
+
+    // Shared by project_client_updates/{updateId}'s create rule: `project`
+    // is fetched ONCE and threaded through both the staff and client
+    // branches, instead of the four independent fetches of the same
+    // projects/{projectId} document (clientDirectoryId, ownerEmail,
+    // clientPortalUid, clientDirectoryId again) it used to make.
+    function canCreateProjectClientUpdate(project, data) {
+      return data.clientDirectoryId == project.clientDirectoryId && (
+        (
+          isApprovedStaffSession() &&
+          data.senderRole != 'Client' &&
+          (isProjectManager() || project.ownerEmail == request.auth.token.email) &&
+          project.clientPortalUid == data.clientPortalUid
+        ) || (
+          // A secondary client contact's own uid never matches the project's
+          // single clientPortalUid, so authorize by clientDirectoryId claim
+          // instead (mirrors the projects read rule's secondary-contact path).
+          isClient() &&
+          callerTierAllowsReply() &&
+          data.senderRole == 'Client' &&
+          data.clientPortalUid == request.auth.uid &&
+          project.clientDirectoryId == request.auth.token.clientDirectoryId
+        )
+      );
+    }
+
     // The company domains are for staff and management, and for nobody else. A
     // Client is by definition somebody outside the company, so their sign-in
     // address must NOT be on an approved company domain — the mirror image of
@@ -229,6 +372,19 @@ service cloud.firestore {
         'additionalClientEmails' in customerData &&
         customerData.additionalClientEmails is list &&
         email in customerData.additionalClientEmails
+      );
+    }
+
+    // A client "owns" a docs/{docId} record two ways: as the primary
+    // contact (raw.clientEmail), or as an authorized secondary email on the
+    // linked customer record (customerEmailMatches() above) — the same
+    // ownership check docs/{docId}'s Quotation-decision and
+    // Invoice-payment-proof update branches both used to spell out in full.
+    function docClientOwnsRecord(data) {
+      return data.raw.clientEmail == request.auth.token.email || (
+        data.raw.customerId is string &&
+        data.raw.customerId.size() > 0 &&
+        customerEmailMatches(get(/databases/$(database)/documents/customers/$(data.raw.customerId)).data, request.auth.token.email)
       );
     }
 
@@ -419,19 +575,23 @@ service cloud.firestore {
     }
 
     function claimFinalDecisionKeys() {
-      return claimForwardKeys().concat([
+      return [
+        'status', 'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole', 'approvalHistory',
+        'rejectedByUid', 'rejectedByName', 'rejectedByRole', 'rejectedAt',
         'finalDecision', 'settlementStatus', 'statusDetail', 'approvalPath', 'approvalPreviousStatus', 'bypassedReviews',
         'approvedByUid', 'approvedByName', 'approvedByEmail', 'approvedByRole', 'approvedAt',
         'directorApprovalAttachment', 'directorApprovalAttachmentName', 'directorApprovalOriginalBytes'
-      ]);
+      ];
     }
 
     // A rejection or an approval names whoever made it, never whoever the
-    // payload claims made it.
-    function isClaimDecision(fromStatuses, toStatuses, allowedKeys) {
+    // payload claims made it. Takes the write's affectedKeys() (see
+    // canUpdateClaimOrVoucher() below) instead of computing its own
+    // diff() — every caller already has one to share.
+    function isClaimDecision(affected, fromStatuses, toStatuses, allowedKeys) {
       return resource.data.status in fromStatuses &&
         request.resource.data.status in toStatuses &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys) &&
+        affected.hasOnly(allowedKeys) &&
         (request.resource.data.status != 'Rejected' || request.resource.data.rejectedByUid == request.auth.uid) &&
         (request.resource.data.status != 'Approved' || request.resource.data.approvedByUid == request.auth.uid);
     }
@@ -450,16 +610,111 @@ service cloud.firestore {
     // it, and the edit is stamped with who made it (the portal also records it
     // in the audit log). Approval and correction stay two separate acts, each
     // with its own trail.
-    function isAdminClaimCorrection() {
-      return isAdmin() &&
+    // `admin` is the caller's isAdmin() result, already computed once by
+    // canUpdateClaimOrVoucher() below — see the note there.
+    function isAdminClaimCorrection(admin, affected) {
+      return admin &&
         request.resource.data.status == resource.data.status &&
         request.resource.data.lastEditedByUid == request.auth.uid &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        affected.hasOnly([
           'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
           'empNo', 'empEmail', 'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose',
           'category', 'subCategory', 'amount', 'receiptNo', 'description',
           'receiptAttachment', 'receiptAttachmentName', 'receiptAttachmentOriginalBytes',
           'lastEditedByUid', 'lastEditedByName', 'lastEditedAt'
+        ]);
+    }
+
+    // Shared by claims/{claimId} and payment_vouchers/{voucherId} below: both
+    // collections ran this identical 7-branch decision as two literal
+    // copies before this consolidation — only selfEditableKeys differs
+    // (payment_vouchers edits paymentDate/voucherNo where claims edits
+    // expenseDate/receiptNo).
+    //
+    // Two things are computed ONCE here and threaded through every branch,
+    // instead of being recomputed inside isHR()/isAccount()/isAdmin()/
+    // isAdminClaimCorrection()/isClaimDecision() calls scattered across the
+    // 7 branches: `affected` (request.resource.data's diff against
+    // resource.data — a full document diff is not cheap) and the caller's
+    // users/{uid} record (each of isHR()/isAccount()/isAdmin() used to
+    // fetch it independently, so a compound check like
+    // isAdmin() || isHR() || isAccount() cost 3 fetches). hr/account/admin
+    // below reproduce isHR()/isAccount()/isAdmin() exactly (same
+    // isApprovedStaffSession(), secondFactorCleared() and lock semantics),
+    // just against one shared fetch. Combined, this and the branch
+    // reordering below are what closed the "maximum of 1,000 expressions"
+    // failures some denied writes to this rule used to hit.
+    //
+    // Branches are ordered by how often they actually fire, not by how the
+    // workflow reads top-to-bottom: every claim/voucher passes through the
+    // three-stage decision (HR forward, Account forward, Director/
+    // Superadmin final) at least once per stage over its life, so those go
+    // first — an admin correction or an HR identity sync is rare, and now
+    // only gets evaluated once the common cases have already failed to
+    // match. `||` has no side effects between branches, so reordering
+    // changes nothing about which writes are allowed, only how much work a
+    // typical one costs to check.
+    function canUpdateClaimOrVoucher(affected, selfEditableKeys) {
+      let record = getUserRecord();
+      let staffSession = isApprovedStaffSession();
+      let unlocked = !recordIsLocked(record);
+      let sfa = secondFactorCleared();
+      let hr = staffSession && unlocked && record.role == 'HR';
+      let account = staffSession && unlocked && sfa && record.role == 'Account';
+      let admin = staffSession && unlocked && sfa && (record.role == 'Superadmin' || record.role == 'Director');
+      let financeOrHr = hr || account || admin;
+      return (
+        hr && isClaimDecision(affected, ['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
+      ) || (
+        account && isClaimDecision(affected, ['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
+      ) || (
+        // Superadmin approves alongside Director: the client gate lets them,
+        // and without this the write is refused after the UI has said yes.
+        admin && isClaimDecision(affected, ['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
+      ) || (
+        isAuthenticated() &&
+        resource.data.status == 'Pending HR' &&
+        request.resource.data.status == 'Pending HR' &&
+        request.resource.data.empNo == resource.data.empNo &&
+        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
+          (financeOrHr && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
+        affected.hasOnly(selfEditableKeys)
+      ) || isAdminClaimCorrection(admin, affected) || (
+        (hr || admin) && affected.hasOnly(['name', 'position', 'dept', 'empEmail'])
+      ) || (
+        admin &&
+        resource.data.status == 'Approved' &&
+        request.resource.data.status == 'Approved' &&
+        affected.hasOnly([
+          'documentType', 'type', 'finalDecision', 'settlementStatus', 'statusDetail',
+          'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole',
+          'approvalPath'
+        ])
+      );
+    }
+
+    // clockInAt/clockOutAt MUST be the serverTimestamp() sentinel: Firestore
+    // Rules resolve it to request.time before this function ever sees it, so
+    // a forged client-side Date can never land in either field — the one
+    // deviation in this app from every other feature's plain ISO-string
+    // timestamp, because this is the one field a spoofed device clock could
+    // otherwise falsify.
+    function isSelfAttendanceRecord(data) {
+      return data.empEmail is string && data.empEmail == request.auth.token.email;
+    }
+
+    // HR/Admin correcting a mistaken clock event — same shape as
+    // isAdminClaimCorrection() above: stamped with who corrected it, and
+    // scoped to exactly the fields a correction may touch. HR is included
+    // here (unlike isAdminClaimCorrection, Admin-only) because attendance
+    // corrections are routine HR work, not a financial-record override.
+    function isAttendanceCorrection() {
+      return (isAdminOrHR()) &&
+        request.resource.data.empNo == resource.data.empNo &&
+        request.resource.data.lastEditedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'clockInAt', 'clockOutAt', 'status',
+          'lastEditedByUid', 'lastEditedByName', 'lastEditedAt', 'correctionNote'
         ]);
     }
 
@@ -569,10 +824,10 @@ service cloud.firestore {
     }
 
     match /employees/{empId} {
-      allow read: if isAdmin() || isHR() || isAccount() || (
+      allow read: if isFinanceOrHR() || (
         (isStaff() || isIT()) && resource.data.email == request.auth.token.email
       );
-      allow create: if isAdmin() || isHR();
+      allow create: if isAdminOrHR();
       allow delete: if isAdmin();
       // National ID/Passport, Bank Account and EPF/SOCSO may be set once at create
       // (HR's isHR() clause above still applies there), but on an UPDATE to an
@@ -601,37 +856,38 @@ service cloud.firestore {
     }
 
     match /customers/{customerId} {
-      allow read: if isAdmin() || isHR() || isAccount() || (
+      allow read: if isFinanceOrHR() || (
         isClient() && customerEmailMatches(resource.data, request.auth.token.email)
       );
-      allow create, update: if isAdmin() || isHR() || isAccount();
+      allow create, update: if isFinanceOrHR();
       allow delete: if isAdmin();
     }
 
     match /docs/{docId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() || isIT() ||
+        isFinanceOrHR() || isIT() ||
         // A PIC may read only sent invoices indexed to that PIC. Drafts,
         // quotations and another project's billing data stay unavailable.
         isDocumentProjectPic(resource.data) ||
-        // An invoice draft belongs to the Finance workspace until it is formally
-        // issued. Clients never see a partial/unsent bill in their document list.
-        (isClient() && (resource.data.type != 'Invoice' || resource.data.status != 'Draft') && resource.data.raw.clientEmail == request.auth.token.email) ||
+        // An invoice draft or one merely prepared-but-not-yet-sent belongs to
+        // the Finance workspace until Send Invoice to Client is actually
+        // pressed — see clientCanReadInvoice() above.
+        (isClient() && clientCanReadInvoice(resource.data) && resource.data.raw.clientEmail == request.auth.token.email) ||
         (
           // Multi-user Client Portal: a secondary authorized email (see
           // customers/{id}.additionalClientEmails) doesn't match raw.clientEmail
           // (always the primary contact's), so fall back to the linked customer
           // record the same way client_documents does.
           isClient() &&
-          (resource.data.type != 'Invoice' || resource.data.status != 'Draft') &&
+          clientCanReadInvoice(resource.data) &&
           resource.data.raw.customerId is string &&
           resource.data.raw.customerId.size() > 0 &&
           customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
         )
       );
-      allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+      allow create: if (isFinanceOrHR()) &&
         billingTotalsConsistent(request.resource.data);
-      allow update: if ((isSuperadmin() || isDirector() || isHR() || isAccount()) && billingTotalsAccepted()) || (
+      allow update: if ((isFinanceOrHR()) && billingTotalsAccepted()) || (
         // A client records their own decision on their own open quotation, and
         // nothing else. Ownership is established the same two ways the read
         // rule above allows: the primary contact, or an authorized secondary
@@ -640,13 +896,7 @@ service cloud.firestore {
         resource.data.type == 'Quotation' &&
         resource.data.status == 'Open' &&
         request.resource.data.status in ['Accepted', 'Rejected'] &&
-        (
-          resource.data.raw.clientEmail == request.auth.token.email || (
-            resource.data.raw.customerId is string &&
-            resource.data.raw.customerId.size() > 0 &&
-            customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
-          )
-        ) &&
+        docClientOwnsRecord(resource.data) &&
         // The decision is stamped as whoever is signed in, never as whoever the
         // payload claims. Without this a client could accept their own quotation
         // and attribute it to someone else, which is the whole point of the stamp.
@@ -663,16 +913,15 @@ service cloud.firestore {
         isClient() &&
         resource.data.type == 'Invoice' &&
         resource.data.status != 'Paid' &&
-        (
-          resource.data.raw.clientEmail == request.auth.token.email || (
-            resource.data.raw.customerId is string &&
-            resource.data.raw.customerId.size() > 0 &&
-            customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.raw.customerId)).data, request.auth.token.email)
-          )
-        ) &&
+        docClientOwnsRecord(resource.data) &&
         request.resource.data.paymentProofByUid == request.auth.uid &&
+        // paymentRefNo and the clientPayment* fields are the client's own claim
+        // about the transfer they made — which bank, whose account, when and how
+        // much — typed alongside the proof in the same submission, not something
+        // staff set in advance (see submitPaymentProof(), app/methods/client-workflow.js).
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName'
+          'paymentProofUrl', 'paymentProofName', 'paymentProofAt', 'paymentProofByUid', 'paymentProofByName', 'paymentRefNo',
+          'clientPaymentBank', 'clientPaymentAccountType', 'clientPaymentAccountHolder', 'clientPaymentDate', 'clientPaymentAmount'
         ])
       );
       // Finance is the Account role. It may remove only official billing
@@ -729,14 +978,14 @@ service cloud.firestore {
     // tracks who uploaded what, when, and the Storage path/download URL.
     match /client_documents/{documentId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() || isIT() ||
+        isFinanceOrHR() || isIT() ||
         (isClient() && customerEmailMatches(get(/databases/$(database)/documents/customers/$(resource.data.clientDirectoryId)).data, request.auth.token.email))
       );
       allow create: if isAuthenticated() &&
         request.resource.data.clientDirectoryId is string &&
         request.resource.data.clientDirectoryId.size() > 0 &&
         (
-          isSuperadmin() || isDirector() || isHR() || isAccount() ||
+          isFinanceOrHR() ||
           (isClient() &&
             customerEmailMatches(get(/databases/$(database)/documents/customers/$(request.resource.data.clientDirectoryId)).data, request.auth.token.email))
         ) &&
@@ -752,7 +1001,7 @@ service cloud.firestore {
         request.resource.data.fileSize > 0 &&
         request.resource.data.fileSize <= 10485760;
       allow update: if false;
-      allow delete: if isSuperadmin() || isDirector() || isHR() || isAccount();
+      allow delete: if isFinanceOrHR();
     }
 
     // Password reset tokens for the custom (non-Firebase-hosted) reset flow — written and
@@ -771,6 +1020,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // "Trust this device" — lets a sign-in skip the emailed code for 30 days.
+    // Only /api/verify-login-otp (Admin SDK) may mint or renew one, after
+    // independently re-verifying who is signing in; a user may list and
+    // delete (revoke) only their own, which is all the Settings > Trusted
+    // Devices screen needs. Never updatable — a compromised token cannot be
+    // extended or re-pointed at a different device, only replaced by a fresh
+    // sign-in through the normal code challenge.
+    match /trusted_devices/{deviceId} {
+      allow read: if isAuthenticated() && resource.data.uid == request.auth.uid;
+      allow create, update: if false;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
     // Per-account API abuse counters are maintained only by server-side Admin SDK code.
     match /security_rate_limits/{limitId} {
       allow read, write: if false;
@@ -778,62 +1040,35 @@ service cloud.firestore {
 
     match /payslips/{payslipId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() ||
+        isFinanceOrHR() ||
         (isSelfServiceEmployee() && resource.data.raw.empEmail == request.auth.token.email)
       );
-      allow create: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+      allow create: if (isFinanceOrHR()) &&
         payslipFiguresConsistent(request.resource.data);
-      allow update: if (isSuperadmin() || isDirector() || isHR() || isAccount()) &&
+      allow update: if (isFinanceOrHR()) &&
         payslipFiguresAccepted();
       allow delete: if isAdmin();
     }
 
     match /claims/{claimId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() ||
+        isFinanceOrHR() ||
         (isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email)
       );
       allow create: if isAuthenticated() &&
         request.resource.data.createdByUid == request.auth.uid && (
           (isSelfServiceEmployee() && request.resource.data.empEmail == request.auth.token.email) ||
-          isAdmin() || isHR() || isAccount()
+          isFinanceOrHR()
         );
-      allow update: if isAdminClaimCorrection() || (
-        (isAdmin() || isHR()) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'position', 'dept', 'empEmail'
-        ])
-      ) || (
-        isAdmin() &&
-        resource.data.status == 'Approved' &&
-        request.resource.data.status == 'Approved' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'documentType', 'type', 'finalDecision', 'settlementStatus', 'statusDetail',
-          'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole',
-          'approvalPath'
-        ])
-      ) || (
-        isAuthenticated() &&
-        resource.data.status == 'Pending HR' &&
-        request.resource.data.status == 'Pending HR' &&
-        request.resource.data.empNo == resource.data.empNo &&
-        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
-          ((isAdmin() || isHR() || isAccount()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      allow update: if canUpdateClaimOrVoucher(
+        request.resource.data.diff(resource.data).affectedKeys(),
+        [
           'type', 'documentType', 'date', 'expenseDate', 'name', 'position', 'dept',
           'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose', 'category',
           'subCategory', 'amount', 'receiptNo', 'description', 'receiptAttachment',
           'receiptAttachmentName', 'receiptAttachmentOriginalBytes', 'createdByUid',
           'createdByEmail', 'createdAt'
-        ])
-      ) || (
-        isHR() && isClaimDecision(['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
-      ) || (
-        isAccount() && isClaimDecision(['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
-      ) || (
-        // Superadmin approves alongside Director: the client gate lets them,
-        // and without this the write is refused after the UI has said yes.
-        isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
+        ]
       );
       allow delete: if isAdmin();
     }
@@ -841,7 +1076,7 @@ service cloud.firestore {
     // Payment Vouchers — dedicated collection, independent from Claims (same approval workflow/roles).
     match /payment_vouchers/{voucherId} {
       allow read: if isAuthenticated() && (
-        isAdmin() || isHR() || isAccount() ||
+        isFinanceOrHR() ||
         (isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email)
       );
       allow create: if isAuthenticated() && (
@@ -851,42 +1086,130 @@ service cloud.firestore {
           isHR() || isAccount()
         ))
       );
-      allow update: if isAdminClaimCorrection() || (
-        (isAdmin() || isHR()) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'name', 'position', 'dept', 'empEmail'
-        ])
-      ) || (
-        isAdmin() &&
-        resource.data.status == 'Approved' &&
-        request.resource.data.status == 'Approved' &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'documentType', 'type', 'finalDecision', 'settlementStatus', 'statusDetail',
-          'assignedToUid', 'assignedToName', 'assignedToEmail', 'assignedToRole',
-          'approvalPath'
-        ])
-      ) || (
-        isAuthenticated() &&
-        resource.data.status == 'Pending HR' &&
-        request.resource.data.status == 'Pending HR' &&
-        request.resource.data.empNo == resource.data.empNo &&
-        ((isSelfServiceEmployee() && resource.data.empEmail == request.auth.token.email) ||
-          ((isAdmin() || isHR() || isAccount()) && 'createdByUid' in resource.data && resource.data.createdByUid == request.auth.uid)) &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+      allow update: if canUpdateClaimOrVoucher(
+        request.resource.data.diff(resource.data).affectedKeys(),
+        [
           'type', 'documentType', 'date', 'paymentDate', 'name', 'position', 'dept',
           'payeeName', 'payeeType', 'payeeReference', 'paymentPurpose', 'category',
           'subCategory', 'amount', 'voucherNo', 'description', 'receiptAttachment',
           'receiptAttachmentName', 'receiptAttachmentOriginalBytes', 'createdByUid',
           'createdByEmail', 'createdAt'
-        ])
+        ]
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Attendance — self-service clock in/out, one document per employee per
+    // calendar day (doc id = `${empNo}_${date}`), which also doubles as the
+    // double-clock-in guard: a second create at the same derived id fails
+    // outright, no query needed.
+    match /attendance/{attendanceId} {
+      allow read: if isFinanceOrHR() || (
+        isApprovedStaffSession() && isSelfAttendanceRecord(resource.data)
+      );
+      allow create: if isApprovedStaffSession() &&
+        attendanceId == request.resource.data.empNo + '_' + request.resource.data.date &&
+        request.resource.data.empEmail == request.auth.token.email &&
+        // empEmail alone is not enough — nothing above stops a signed-in staff
+        // member from putting a colleague's empNo in the payload while keeping
+        // their own email. This confirms the claimed empNo actually belongs to
+        // the signed-in email, the same way claims/vouchers trust empNo only
+        // after it is tied to an employee record elsewhere in this file.
+        get(/databases/$(database)/documents/employees/$(request.resource.data.empNo)).data.email == request.auth.token.email &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.clockInAt == request.time &&
+        request.resource.data.clockOutAt == null &&
+        request.resource.data.status == 'Clocked In';
+      allow update: if isAttendanceCorrection() || (
+        isApprovedStaffSession() &&
+        isSelfAttendanceRecord(resource.data) &&
+        resource.data.status == 'Clocked In' &&
+        request.resource.data.status == 'Clocked Out' &&
+        request.resource.data.clockOutAt == request.time &&
+        // Self clock-out is same-shift only: within 20 hours of the clock-in
+        // this same rule already forced to be request.time. Without this, a
+        // staff member could "clock out" a record left open for days,
+        // stamping today's time onto it and fabricating a multi-day shift —
+        // the app's own UI never offers this (myTodayAttendanceRecord() only
+        // looks at today), but the rule must refuse it too, not just hide the
+        // button. A stale record like that is exactly what HR's correction
+        // path (isAttendanceCorrection() above) exists to close out instead.
+        request.time < resource.data.clockInAt + duration.value(20, 'h') &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clockOutAt', 'status'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Duty Roster — one document per week (doc id = Monday's date). HR/Admin
+    // build a Draft, which stays invisible to everyone else until Published.
+    match /duty_roster/{weekId} {
+      allow read: if isFinanceOrHR() || (
+        isApprovedStaffSession() && resource.data.status == 'Published'
+      );
+      allow create, update: if (isAdminOrHR()) &&
+        request.resource.data.weekStartDate == weekId &&
+        request.resource.data.status in ['Draft', 'Published'];
+      allow delete: if isAdmin();
+    }
+
+    // Leave Requests — single-stage approval (unlike claims' three): a staff
+    // member files a request, HR decides, and Superadmin/Director may correct
+    // or decide directly at any time. Account is deliberately not part of this
+    // workflow — leave is not a financial record — so it reads only its own
+    // requests, the same as Staff and IT.
+    function isSelfLeaveRequest(data) {
+      return data.empEmail is string && data.empEmail == request.auth.token.email;
+    }
+
+    function leaveDecisionKeys() {
+      return ['status', 'approvedByUid', 'approvedByName', 'approvedByEmail', 'approvedByRole', 'approvedAt',
+              'rejectedByUid', 'rejectedByName', 'rejectedByRole', 'rejectedAt'];
+    }
+
+    // Deliberately its own function rather than a call into isClaimDecision():
+    // that helper is claims/payment_vouchers' three-stage pipeline specifically
+    // (tests/module-actions.test.js and tests/money-enforcement.test.js both
+    // count its call sites to hold that pipeline to exactly three transitions
+    // each), and leave is a single-stage decision on an unrelated collection.
+    // The body is intentionally the same shape — a decision moves status
+    // between two allowed sets and touches only the decision's own fields.
+    function isLeaveDecision(fromStatuses, toStatuses, allowedKeys) {
+      return resource.data.status in fromStatuses &&
+        request.resource.data.status in toStatuses &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedKeys) &&
+        (request.resource.data.status != 'Rejected' || request.resource.data.rejectedByUid == request.auth.uid) &&
+        (request.resource.data.status != 'Approved' || request.resource.data.approvedByUid == request.auth.uid);
+    }
+
+    // Same shape as isAdminClaimCorrection() — stamped, and the status never
+    // moves in the same write, so a correction is never mistaken for a decision.
+    function isLeaveCorrection() {
+      return isAdmin() &&
+        request.resource.data.status == resource.data.status &&
+        request.resource.data.lastEditedByUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'leaveType', 'startDate', 'endDate', 'totalDays', 'reason', 'name', 'position', 'dept', 'empEmail',
+          'lastEditedByUid', 'lastEditedByName', 'lastEditedAt'
+        ]);
+    }
+
+    match /leave_requests/{leaveId} {
+      allow read: if isAdminOrHR() || (
+        isApprovedStaffSession() && isSelfLeaveRequest(resource.data)
+      );
+      allow create: if isApprovedStaffSession() &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.empEmail == request.auth.token.email &&
+        get(/databases/$(database)/documents/employees/$(request.resource.data.empNo)).data.email == request.auth.token.email &&
+        request.resource.data.status == 'Pending HR';
+      allow update: if isLeaveCorrection() || (
+        isApprovedStaffSession() &&
+        isSelfLeaveRequest(resource.data) &&
+        resource.data.status == 'Pending HR' &&
+        request.resource.data.status == 'Pending HR' &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveType', 'startDate', 'endDate', 'totalDays', 'reason'])
       ) || (
-        isHR() && isClaimDecision(['Pending HR'], ['Pending Account', 'Rejected'], claimForwardKeys())
-      ) || (
-        isAccount() && isClaimDecision(['Pending Account'], ['Pending Director', 'Rejected'], claimForwardKeys())
-      ) || (
-        // Superadmin approves alongside Director: the client gate lets them,
-        // and without this the write is refused after the UI has said yes.
-        isAdmin() && isClaimDecision(['Pending HR', 'Pending Account', 'Pending Director'], ['Approved', 'Rejected'], claimFinalDecisionKeys())
+        (isHR() || isAdmin()) && isLeaveDecision(['Pending HR'], ['Approved', 'Rejected'], leaveDecisionKeys())
       );
       allow delete: if isAdmin();
     }
@@ -923,7 +1246,7 @@ service cloud.firestore {
           isClient() && resource.data.clientDirectoryId == request.auth.token.clientDirectoryId
         )
       );
-      allow create: if isProjectManager() &&
+      allow create: if (isProjectManager() || canCreateProject()) &&
         request.resource.data.createdByUid == request.auth.uid &&
         request.resource.data.createdByEmail == request.auth.token.email &&
         request.resource.data.updatedByUid == request.auth.uid &&
@@ -957,23 +1280,24 @@ service cloud.firestore {
             'completedAt', 'completedByUid', 'completedByEmail'
           ])
       ) || (
-        (isAdmin() || isHR()) &&
+        (isAdminOrHR()) &&
           request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly([
             'ownerName', 'ownerEmail', 'ownerPosition', 'ownerDepartment'
           ])
       ) || (
+        // Presence heartbeat and PIC-photo sync share one branch: same
+        // owner-only guard, same untouched ownerEmpNo, and neither ever
+        // touches the project's stage, client or owner identity — see
+        // setCurrentEmployeePresence()/syncCurrentOwnerPhoto() in
+        // app/methods/presence.js, which write these on separate schedules
+        // but have no need to be held to separate allow branches for it.
         isApprovedStaffSession() &&
         resource.data.ownerEmail == request.auth.token.email &&
         request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'ownerPresenceStatus', 'ownerPresenceUpdatedAt', 'ownerLastSeen'
+          'ownerPresenceStatus', 'ownerPresenceUpdatedAt', 'ownerLastSeen', 'ownerPhoto'
         ])
-      ) || (
-        isApprovedStaffSession() &&
-        resource.data.ownerEmail == request.auth.token.email &&
-        request.resource.data.ownerEmpNo == resource.data.ownerEmpNo &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerPhoto'])
       ) || (
         // Maintenance of the activity-assignee access index (see the read rule
         // above). Only the project's own PIC or a Project Manager may touch it,
@@ -1012,6 +1336,28 @@ service cloud.firestore {
       allow delete: if isProjectManager();
     }
 
+    // One document per Project Type per year (id "PREFIX_YEAR", e.g.
+    // "DOC_2026"), holding only a running count — the source of every new
+    // project's reference number (see generateProjectRef() in
+    // app/methods/projects.js). Written inside a client-side Firestore
+    // transaction so two staff members creating a project at the same moment
+    // can never be handed the same reference, even though projects/{id} reads
+    // are PIC-scoped and neither of them can see the other's project. count
+    // may only move forward by exactly 1 per write — never jump, never reset.
+    // isProjectManager() (Superadmin/Director) used to be OR'd in here too,
+    // but it is already a subset of canCreateProject() (isFinanceOrHR()
+    // already covers Superadmin/Director) — it never admitted anyone
+    // canCreateProject() didn't, it just cost this rule a second
+    // getUserRecord() fetch on every denied caller.
+    match /project_ref_counters/{counterId} {
+      allow read: if canCreateProject();
+      allow create: if canCreateProject() &&
+        request.resource.data.count == 1;
+      allow update: if canCreateProject() &&
+        request.resource.data.count == resource.data.count + 1;
+      allow delete: if false;
+    }
+
     match /project_activities/{activityId} {
       // Activity Type, Assigned To and all other activity details are private to
       // the project's current PIC (or a Project Manager), plus the one staff
@@ -1026,47 +1372,14 @@ service cloud.firestore {
         isApprovedStaffSession() &&
         resource.data.assignedEmail == request.auth.token.email
       );
-      allow create: if (
-        isProjectManager() ||
-        (isApprovedStaffSession() &&
-          get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail == request.auth.token.email)
-      ) &&
-        exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
-        request.resource.data.projectOwnerEmail == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail &&
-        request.resource.data.createdByUid == request.auth.uid &&
-        request.resource.data.projectId is string &&
-        request.resource.data.projectId.size() > 0 &&
-        request.resource.data.activityType is string &&
-        request.resource.data.activityType.size() > 0 &&
-        request.resource.data.assignedEmpNo is string &&
-        request.resource.data.assignedEmpNo.size() > 0 &&
-        request.resource.data.assignedEmail is string &&
-        request.resource.data.assignedEmail.size() > 0 &&
-        request.resource.data.summary is string &&
-        request.resource.data.summary.size() > 0 &&
-        request.resource.data.dueDate is string &&
-        request.resource.data.status == 'Scheduled';
-      allow update: if (
-        isProjectManager()
-      ) || (
-        isApprovedStaffSession() &&
-        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
-        request.resource.data.projectId == resource.data.projectId &&
-        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'activityType', 'summary', 'dueDate', 'assignedEmpNo', 'assignedName', 'assignedEmail', 'assignedPosition', 'details', 'updatedAt', 'updatedByUid', 'updatedByEmail'
-        ])
-      ) || (
-        isApprovedStaffSession() &&
-        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
-        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
-        request.resource.data.status == 'Done' &&
-        request.resource.data.completedByUid == request.auth.uid &&
-        request.resource.data.completedByEmail == request.auth.token.email &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'completedAt', 'completedByUid', 'completedByEmail'
-        ])
+      allow create: if exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
+        canCreateProjectActivity(
+          get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data,
+          request.resource.data
+        );
+      allow update: if isProjectManager() || canUpdateProjectActivity(
+        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data,
+        request.resource.data.diff(resource.data).affectedKeys()
       ) || (
         // The assignee closes out their own scheduled work — the dashboard's
         // "My Assigned Project Activities" card is built around exactly this.
@@ -1074,6 +1387,8 @@ service cloud.firestore {
         // Type, Assigned To, the summary and both access indexes stay immutable:
         // an assignee can neither retarget an activity nor widen their own access
         // through it, and cannot reopen one either (status must become 'Done').
+        // No projects/ fetch needed — ownership here is the activity's own
+        // assignedEmail, not the parent project's PIC.
         isApprovedStaffSession() &&
         resource.data.assignedEmail == request.auth.token.email &&
         request.resource.data.status == 'Done' &&
@@ -1081,16 +1396,6 @@ service cloud.firestore {
         request.resource.data.completedByEmail == request.auth.token.email &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'completedAt', 'completedByUid', 'completedByEmail'
-        ])
-      ) || (
-        // The outgoing PIC can refresh the safe owner-email index only when a
-        // project handover is committed in the same batch. getAfter() prevents
-        // a standalone activity write from granting access to another user.
-        isApprovedStaffSession() &&
-        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
-        request.resource.data.projectOwnerEmail == getAfter(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'projectOwnerEmail'
         ])
       );
       allow delete: if isProjectManager();
@@ -1126,25 +1431,9 @@ service cloud.firestore {
         request.resource.data.message is string &&
         request.resource.data.message.size() > 0 &&
         exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
-        request.resource.data.clientDirectoryId == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientDirectoryId && (
-          (
-            isApprovedStaffSession() &&
-            request.resource.data.senderRole != 'Client' &&
-            (
-              isProjectManager() ||
-              get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail == request.auth.token.email
-            ) &&
-            get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientPortalUid == request.resource.data.clientPortalUid
-          ) || (
-            // A secondary client contact's own uid never matches the project's
-            // single clientPortalUid, so authorize by clientDirectoryId claim
-            // instead (mirrors the projects read rule's secondary-contact path).
-            isClient() &&
-            callerTierAllowsReply() &&
-            request.resource.data.senderRole == 'Client' &&
-            request.resource.data.clientPortalUid == request.auth.uid &&
-            get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientDirectoryId == request.auth.token.clientDirectoryId
-          )
+        canCreateProjectClientUpdate(
+          get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data,
+          request.resource.data
         );
       allow update: if isProjectManager() || (
         isApprovedStaffSession() &&
@@ -1200,7 +1489,7 @@ service cloud.firestore {
       // isStaff() is the 'Staff' role specifically, not staff-in-general. Read is
       // the same set that has the Reports module in ROLE_ACCESS and that already
       // reads docs/payslips: Superadmin, Director, HR, Account.
-      allow read: if isAdmin() || isHR() || isAccount();
+      allow read: if isFinanceOrHR();
       // Only Superadmin/Director may close or re-close a period, mirroring
       // canCloseAccountingPeriod in app.js.
       allow create, update: if isAdmin();

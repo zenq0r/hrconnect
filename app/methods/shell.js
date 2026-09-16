@@ -5,7 +5,7 @@ import {
     doc,
     setDoc
 } from "../../firebase-config.js";
-import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS } from "../config.js";
+import { WELCOME_GREETING_HOLD_MS, WELCOME_GREETING_FADE_MS, SIDEBAR_GROUPS_STORAGE_KEY } from "../config.js";
 import { CLIENT_PANELS, CLIENT_LEGACY_TABS } from "../constants/client-tiers.js";
 import { ALWAYS_LOADED_VIEWS, loadView, viewForTab, homeTabFor } from "../views.js";
 
@@ -108,6 +108,17 @@ export const shellMethods = {
         toggleSidebar() {
             if (window.innerWidth < 768) this.mobileMenuOpen = !this.mobileMenuOpen;
             else this.desktopSidebarOpen = !this.desktopSidebarOpen;
+        },
+        isSidebarGroupCollapsed(groupKey) {
+            return Boolean(this.sidebarGroupsCollapsed[groupKey]);
+        },
+        toggleSidebarGroup(groupKey) {
+            this.sidebarGroupsCollapsed = { ...this.sidebarGroupsCollapsed, [groupKey]: !this.sidebarGroupsCollapsed[groupKey] };
+            try {
+                localStorage.setItem(SIDEBAR_GROUPS_STORAGE_KEY, JSON.stringify(this.sidebarGroupsCollapsed));
+            } catch (error) {
+                // Private browsing, or storage disabled — the collapse still holds for this tab.
+            }
         },
         handleSidebarWheel(event) {
             // The portal shell intentionally locks the outer page. Route a
@@ -227,12 +238,33 @@ export const shellMethods = {
             }
             window.history.pushState({ zenqorPortal: true, tab: tabName }, '', window.location.href);
             this.currentTab = tabName;
+            // The search box's own text otherwise survives the navigation and
+            // keeps filtering whatever list or KPI count the new screen has —
+            // most visibly the Dashboard's Project Progress cards silently
+            // reading 0 because of text typed on a completely different tab.
+            // A caller that deliberately hands a filter to the next screen
+            // (e.g. viewEmployeeProjectAssignments()) sets searchQuery AFTER
+            // calling switchTab(), so this clear never fights it.
+            this.searchQuery = '';
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            // Own Trusted Devices list, loaded on demand the first time it's shown
+            // this session — the same on-demand pattern loadClientDocuments() already
+            // uses for the Client Portal's own documents. The block itself lives in
+            // tab-settings.html's 'profile' branch (Account & Security / Profile &
+            // RBAC), not 'settings' (Global Company Settings) — both tab ids must be
+            // checked here, or the list never loads through any real navigation.
+            if ((tabName === 'settings' || tabName === 'profile') && this.userProfile.uid && !this.trustedDevices.loaded) this.loadTrustedDevices();
         },
         openClientPanel(panelKey) {
             this.clientPanel = CLIENT_PANELS.some(panel => panel.key === panelKey) ? panelKey : 'ov';
+            // The client's own Client Documents list is loaded on demand, the first
+            // time Documents & Billing is opened — the same on-demand loadClientDocuments()
+            // staff already use, just pointed at the signed-in client's own record.
+            if (this.clientPanel === 'dc' && this.userProfile.role === 'Client' && this.myClientRecord?.id && !this.clientDocuments.clientDirectoryId) {
+                this.loadClientDocuments(this.myClientRecord.id, this.myClientRecord.clientName, this.myClientRecord.clientEmail);
+            }
             this.mobileMenuOpen = false;
             this.desktopSidebarOpen = false;
             if (this.currentTab !== 'client-portal') {

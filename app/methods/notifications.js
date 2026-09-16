@@ -20,11 +20,33 @@ export const notificationMethods = {
                 : 'success';
         },
         showNotify(msg, tone = '') {
-            this.notification = { show: true, message: msg, tone: tone || this.notificationTone(msg) };
+            const resolvedTone = tone || this.notificationTone(msg);
+            this.notification = { show: true, message: msg, tone: resolvedTone };
             setTimeout(() => { this.notification.show = false; }, 3500);
-            this.notificationsLog.unshift({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, message: msg, read: false, timestamp: new Date().toISOString() });
-            if (this.notificationsLog.length > 30) this.notificationsLog.length = 30;
-            this.scheduleNotificationsSync();
+            // Every one of these used to go straight into the persisted bell
+            // feed too — hundreds of routine confirmations, validation
+            // refusals and other people's "is now online" pings a minute
+            // apart, none of it worth scrolling back through later. The toast
+            // above already told the person what just happened, in the
+            // moment; the feed is now reserved for the messages actually
+            // worth a permanent record — this account's own successful,
+            // non-routine actions — and cross-user business events still
+            // arrive separately via portal_notifications (see
+            // notificationsForDisplay()), unaffected by this.
+            if (this.isNotableForNotificationsLog(msg, resolvedTone)) {
+                this.notificationsLog.unshift({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, message: msg, read: false, timestamp: new Date().toISOString() });
+                if (this.notificationsLog.length > 30) this.notificationsLog.length = 30;
+                this.scheduleNotificationsSync();
+            }
+        },
+        // Deliberately conservative: exclude the two clear, high-volume
+        // categories of noise (another user's presence, and this user's own
+        // permission/validation refusals) rather than trying to enumerate
+        // every message worth keeping.
+        isNotableForNotificationsLog(msg, tone) {
+            if (tone === 'error') return false;
+            if (/\bis now (online|offline)\.?$/i.test(String(msg || ''))) return false;
+            return true;
         },
         scheduleNotificationsSync() {
             if (!this.userProfile.uid) return;

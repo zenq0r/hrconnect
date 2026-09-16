@@ -123,6 +123,27 @@
                                     </div>
                                     <p v-if="!appChangelog.length" class="zq-empty-state-text">No update history yet — new releases will be listed here as they're published.</p>
                                 </div>
+
+                                <div class="sm:col-span-2 pt-5 mt-2 border-t border-slate-200 dark:border-slate-700">
+                                    <h3 class="zq-text-section-title"><i class="fa-solid fa-mobile-screen-button text-brand-blue mr-2"></i>Trusted Devices</h3>
+                                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Devices you chose to trust for 30 days at sign-in — they skip the emailed verification code. Revoke one to require the code there again.</p>
+                                    <div v-if="trustedDevices.loading" class="zq-loading-state mt-3"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading trusted devices…</p></div>
+                                    <p v-else-if="trustedDevices.error" class="zq-error-text mt-3">{{ trustedDevices.error }}</p>
+                                    <div v-else-if="!trustedDevices.items.length" class="zq-empty-state zq-empty-state-compact mt-3">
+                                        <i class="fa-regular fa-mobile-screen-button zq-empty-state-icon" aria-hidden="true"></i>
+                                        <p class="zq-empty-state-title">No trusted devices</p>
+                                        <p class="zq-empty-state-text">Check "Trust this device" the next time you enter your verification code.</p>
+                                    </div>
+                                    <div v-else class="mt-3 space-y-2">
+                                        <div v-for="device in trustedDevices.items" :key="device.id" class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30 px-3 py-2.5">
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-extrabold text-brand-dark dark:text-white truncate">{{ device.label || 'Unknown device' }}</p>
+                                                <p class="text-[10px] text-slate-500 dark:text-slate-400">Last used {{ formatDateTime(device.lastUsedAt || device.createdAt) }} · {{ Date.parse(device.expiresAt) > Date.now() ? `Expires ${formatDateTime(device.expiresAt)}` : 'Expired' }}</p>
+                                            </div>
+                                            <button type="button" @click="revokeTrustedDevice(device)" class="zq-btn zq-btn-destructive zq-btn-sm shrink-0"><i class="fa-solid fa-ban"></i><span>Revoke</span></button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- STAFF PORTAL — raising an access request (everyone who is not already full access) -->

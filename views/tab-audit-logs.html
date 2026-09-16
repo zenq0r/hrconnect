@@ -35,9 +35,17 @@
                         </div>
                         <p v-if="auditRetention.message" class="zq-success-text mt-3">{{ auditRetention.message }}</p>
                         <p v-if="auditRetention.error" class="zq-error-text mt-3">{{ auditRetention.error }}</p>
+                        <p v-if="auditRetentionIsShort && !auditRetention.loading" class="mt-3 flex items-start gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                            <span>This keeps security &amp; activity events for under 90 days. Many compliance regimes expect a financial system's audit trail to survive 1–7 years — worth a deliberate decision, not left on a default.</span>
+                        </p>
                     </div>
 
                     <div class="zq-card p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-list-check text-brand-blue mr-2"></i>Activity Log</h3>
+                            <span class="zq-text-small font-bold">{{ searchQuery ? `Showing: ${filteredAuditLogs.length} of ${auditLogs.length}` : `Total Events: ${auditLogs.length}` }}</span>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="zq-table">
                                 <thead>
@@ -50,7 +58,7 @@
                                     </tr>
                                 </thead>
                                 <tbody class="font-mono">
-                                    <tr v-for="log in auditLogs" :key="log.id">
+                                    <tr v-for="log in filteredAuditLogs" :key="log.id">
                                         <td class="text-slate-500 dark:text-slate-400 whitespace-nowrap">{{ new Date(log.timestamp).toLocaleString('en-MY') }}</td>
                                         <td class="text-brand-dark dark:text-slate-200"><span class="block font-bold">{{ log.userName || log.user }}</span><span v-if="log.userName" class="block text-[10px] text-slate-400">{{ log.user }}</span><span v-if="log.role" class="mt-1 inline-block rounded bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 text-[9px]">{{ log.role }}</span></td>
                                         <td>
@@ -64,12 +72,18 @@
                                         <td class="text-slate-700 dark:text-slate-300"><span class="block">{{ log.details }}</span><span v-if="log.module" class="mt-1 block text-[9px] uppercase tracking-wide text-slate-400">Module: {{ log.module }}</span><span v-if="log.uid" class="block text-[9px] text-slate-400">UID: {{ log.uid }}</span></td>
                                         <td class="text-slate-500 dark:text-slate-400 min-w-[220px]"><span class="block font-bold text-slate-700 dark:text-slate-300">{{ log.ip || 'Unavailable' }}</span><span class="block">{{ log.browser || 'Unknown Browser' }}</span><span v-if="log.os || log.device" class="block text-[10px]">{{ log.os || 'Unknown OS' }} · {{ log.device || 'Unknown Device' }}</span><span class="block max-w-xs truncate text-[9px] text-slate-400" :title="log.userAgent || log.browser">{{ log.userAgent || log.browser }}</span></td>
                                     </tr>
-                                    <tr v-if="!auditLogs.length" class="zq-table-empty">
+                                    <tr v-if="!filteredAuditLogs.length" class="zq-table-empty">
                                         <td colspan="5">
                                             <div class="zq-empty-state zq-empty-state-compact">
                                                 <i class="fa-solid fa-shield-halved zq-empty-state-icon" aria-hidden="true"></i>
-                                                <p class="zq-empty-state-title">No audit events yet</p>
-                                                <p class="zq-empty-state-text">Security and compliance events will be recorded here automatically as they happen.</p>
+                                                <template v-if="auditLogs.length && searchQuery">
+                                                    <p class="zq-empty-state-title">No events match "{{ searchQuery }}"</p>
+                                                    <div class="zq-empty-state-action"><button type="button" @click="searchQuery = ''" class="zq-filter-reset"><i class="fa-solid fa-rotate-left"></i>Clear search</button></div>
+                                                </template>
+                                                <template v-else>
+                                                    <p class="zq-empty-state-title">No audit events yet</p>
+                                                    <p class="zq-empty-state-text">Security and compliance events will be recorded here automatically as they happen.</p>
+                                                </template>
                                             </div>
                                         </td>
                                     </tr>

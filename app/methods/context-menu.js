@@ -188,6 +188,26 @@ export const contextMenuMethods = {
                 this.canDeleteEmployees ? { label: 'Delete Employee', icon: 'fa-trash', danger: true, action: () => this.requestEmployeeAction('delete', emp) } : null
             ];
         },
+        attendanceRowMenuItems(record) {
+            return [
+                this.canCorrectAttendance ? { label: 'Correct Attendance', icon: 'fa-pen', action: () => this.openAttendanceCorrectionModal(record) } : null
+            ];
+        },
+        dutyRosterShiftMenuItems(shift) {
+            return [
+                this.canManageDutyRoster ? { label: 'Edit Shift', icon: 'fa-pen', action: () => this.openDutyRosterModal(shift) } : null,
+                this.canManageDutyRoster ? { label: 'Remove Shift', icon: 'fa-trash', danger: true, action: () => this.removeDutyRosterShift(shift) } : null
+            ];
+        },
+        leaveRequestRowMenuItems(record) {
+            return [
+                this.canEditLeaveRequest(record) ? { label: 'Edit Leave Request', icon: 'fa-pen', action: () => this.editLeaveRequest(record) } : null,
+                this.isFullAccessRole ? { label: 'Correct Leave Request', icon: 'fa-pen-to-square', action: () => this.openLeaveCorrectionModal(record) } : null,
+                this.canDecideLeaveRequest(record) ? { label: 'Approve', icon: 'fa-circle-check', action: () => this.approveLeaveRequest(record) } : null,
+                this.canDecideLeaveRequest(record) ? { label: 'Reject', icon: 'fa-circle-xmark', danger: true, action: () => this.rejectLeaveRequest(record) } : null,
+                this.canDelete ? { label: 'Delete Leave Request', icon: 'fa-trash', danger: true, action: () => this.deleteLeaveRequest(record) } : null
+            ];
+        },
         clientDocumentMenuItems(item) {
             return [
                 { label: 'View', icon: 'fa-eye', action: () => this.viewClientDocument(item) },

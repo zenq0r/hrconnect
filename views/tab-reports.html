@@ -58,6 +58,60 @@
                                 <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
                             </button>
                         </div>
+                        <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-sm space-y-4">
+                            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl font-bold"><i class="fa-solid fa-clock"></i></div>
+                            <h3 class="text-base font-bold text-brand-dark dark:text-white">Attendance Report</h3>
+                            <button type="button" @click="exportCSV('attendance')" class="zq-btn zq-btn-outline w-full">
+                                <i class="fa-solid fa-download"></i><span>Export CSV / Excel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ATTENDANCE SUMMARY — follows the same reportPeriod scope as the
+                         export cards above; Late is judged against whichever Duty Roster
+                         shift the employee was actually assigned that day, and Absent only
+                         counts a date a Published roster actually scheduled them to work. -->
+                    <div class="zq-card p-6">
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-1">
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-clock text-brand-blue mr-2"></i>Attendance Summary</h3>
+                            <span class="zq-text-small font-bold">{{ reportPeriod ? periodLabel(reportPeriod) : 'All periods' }}</span>
+                        </div>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-4">Late is judged against the employee's assigned Duty Roster shift for that day; Absent only counts a day a published roster actually scheduled them to work.</p>
+                        <dl class="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4 mb-4">
+                            <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Days Present</dt><dd class="text-sm font-extrabold text-brand-dark dark:text-white">{{ reportPeriodAttendanceSummary.totals.daysPresent }}</dd></div>
+                            <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Hours Worked</dt><dd class="text-sm font-extrabold text-brand-dark dark:text-white">{{ reportPeriodAttendanceSummary.totals.hoursWorked.toFixed(1) }}</dd></div>
+                            <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Late</dt><dd class="text-sm font-extrabold text-amber-600 dark:text-amber-400">{{ reportPeriodAttendanceSummary.totals.lateCount }}</dd></div>
+                            <div><dt class="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Absent</dt><dd class="text-sm font-extrabold text-red-600 dark:text-red-400">{{ reportPeriodAttendanceSummary.totals.absentCount }}</dd></div>
+                        </dl>
+                        <div v-if="reportPeriodAttendanceSummary.rows.length" class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th class="text-right">Days Present</th>
+                                        <th class="text-right">Hours Worked</th>
+                                        <th class="text-right">Late</th>
+                                        <th class="text-right">Absent</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="row in reportPeriodAttendanceSummary.rows" :key="`att-${row.empNo}`">
+                                        <td>
+                                            <span class="font-bold text-slate-900 dark:text-slate-100 block">{{ row.name }}</span>
+                                            <span class="text-slate-400 text-[10px] block">{{ row.empNo }}</span>
+                                        </td>
+                                        <td class="text-right font-bold text-slate-700 dark:text-slate-200">{{ row.daysPresent }}</td>
+                                        <td class="text-right font-bold text-slate-700 dark:text-slate-200">{{ row.hoursWorked.toFixed(1) }}</td>
+                                        <td class="text-right font-bold" :class="row.lateCount ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'">{{ row.lateCount }}</td>
+                                        <td class="text-right font-bold" :class="row.absentCount ? 'text-red-600 dark:text-red-400' : 'text-slate-400'">{{ row.absentCount }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div v-else class="zq-empty-state zq-empty-state-compact">
+                            <i class="zq-empty-state-icon fa-solid fa-clock"></i>
+                            <p class="zq-empty-state-title">No attendance data for this period</p>
+                        </div>
                     </div>
 
                     <!-- MONTHLY PACKAGES — every completed month is frozen on the first

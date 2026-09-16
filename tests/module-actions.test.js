@@ -144,18 +144,27 @@ test('each delete is on the module\'s own screen, not only somewhere else', () =
 
 test('an administrator\'s correction of a claim is stamped, audited, and kept apart from approval', () => {
     const rules = readSource('firestore.rules');
-    const correction = rules.slice(rules.indexOf('function isAdminClaimCorrection()'), rules.indexOf('match /settings/'));
-    assert.match(correction, /isAdmin\(\) &&/);
+    const correction = rules.slice(rules.indexOf('function isAdminClaimCorrection('), rules.indexOf('function canUpdateClaimOrVoucher'));
+    // `admin` is canUpdateClaimOrVoucher()'s single-fetch isAdmin() equivalent,
+    // passed in rather than computed by this function itself — see the note
+    // above canUpdateClaimOrVoucher() in firestore.rules.
+    assert.match(correction, /function isAdminClaimCorrection\(admin, affected\) \{\s*return admin &&/);
     // The status cannot move in the same write, so an amount is never changed
     // inside an approval.
     assert.match(correction, /request\.resource\.data\.status == resource\.data\.status/);
     assert.match(correction, /request\.resource\.data\.lastEditedByUid == request\.auth\.uid/);
-    assert.equal((rules.match(/allow update: if isAdminClaimCorrection\(\) \|\| \(/g) || []).length, 2, 'claims and payment_vouchers');
+    // claims and payment_vouchers now share one canUpdateClaimOrVoucher()
+    // function (see the note above it in firestore.rules) instead of each
+    // carrying its own literal copy of this 7-branch decision, so
+    // isAdminClaimCorrection() is called once, not twice — but both
+    // collections' allow update rules must call into that shared function.
+    assert.equal((rules.match(/\|\| isAdminClaimCorrection\(admin, affected\) \|\|/g) || []).length, 1, 'the shared update rule must include the correction branch');
+    assert.equal((rules.match(/allow update: if canUpdateClaimOrVoucher\(/g) || []).length, 2, 'claims and payment_vouchers');
     // Approvals still may not touch the amount.
     // A decision moves only the decision fields: the amount, like everything
     // else the claimant filed, is not among them. tests/rules/ sends these
     // writes to the rules engine itself.
-    assert.equal((rules.match(/isClaimDecision\(\[/g) || []).length, 6, 'three decisions in each of claims and payment vouchers');
+    assert.equal((rules.match(/isClaimDecision\(affected, \[/g) || []).length, 3, 'HR forward, Account forward, and the final Superadmin/Director decision');
     assert.doesNotMatch(rules.slice(rules.indexOf('function claimForwardKeys'), rules.indexOf('function isClaimDecision')), /'amount'/);
 
     const claims = readSource('app/methods/claims.js');

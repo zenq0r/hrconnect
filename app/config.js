@@ -49,14 +49,33 @@ export const createLoginOtpState = (overrides = {}) => ({
     email: '',
     purpose: '',
     cooldownSeconds: 0,
+    // Only meaningful for purpose === 'sign-in' — see attemptTrustedDeviceSignIn
+    // in app/methods/auth.js.
+    trustDevice: false,
+    // True only for the moment startSignInOtp() is deciding whether a stored
+    // trust token skips the code entirely. Lets the screen show "Checking
+    // this device…" instead of painting the 6-box code form a beat before
+    // silently replacing it with the portal — confusing on a slower
+    // connection, since nothing on screen said whether a code was coming.
+    checkingDevice: false,
     ...overrides
 });
+
+// localStorage key prefix for a trusted-device token, namespaced per uid so a
+// shared browser signing into a second account never reuses the first
+// account's trust. The token itself is opaque; only its sha256 hash is ever
+// sent to or stored on the server (see api/verify-login-otp.js).
+export const TRUSTED_DEVICE_KEY_PREFIX = 'zq_trusted_device_';
 
 // Sign-in greeting timing. HOLD covers the fade in plus the pause that follows;
 // FADE must stay >= the CSS transition on .zq-welcome-greeting or the overlay
 // would unmount mid-fade and vanish instead of easing away.
 export const WELCOME_GREETING_HOLD_MS = 2200;
 export const WELCOME_GREETING_FADE_MS = 800;
+
+// localStorage key for which sidebar nav groups a user has collapsed —
+// a per-browser display preference, never written to Firestore.
+export const SIDEBAR_GROUPS_STORAGE_KEY = 'zq_sidebar_groups_collapsed';
 
 // Bump the top entry's `version` (and add a new entry above it) whenever a meaningful feature ships.
 // The list is the release history shown under Settings; nothing here interrupts a sign-in.

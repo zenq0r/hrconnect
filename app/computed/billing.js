@@ -7,6 +7,7 @@ import {
     billingStageOfDocument,
     isBillingBranchStage
 } from "../constants/billing-workflow.js";
+import { CLIENT_TIER_ORDER, canonicalClientTier } from "../constants/client-tiers.js";
 
 // A project is "open" for billing purposes until it is finished. Nothing is
 // excluded by reference prefix: staff name their own references, and a rule
@@ -123,17 +124,37 @@ export const billingComputed = {
         canViewBillingWorkflow() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
         canManageBillingWorkflow() { return this.isFullAccessRole; },
         canVerifyPaymentProof() { return this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role) || this.isBillingProjectPic; },
+        // Premium/Priority ranks above Standard, Priority above Premium — the
+        // "priority-queue" tier feature. A missing/unresolvable customer sorts
+        // as Standard (rank 0), never higher.
+        billingItemTierRank() {
+            return (item) => {
+                const customer = this.customers.find(c => c.id === String(item.raw?.customerId || item.billingClientId || ''));
+                return CLIENT_TIER_ORDER.indexOf(canonicalClientTier(customer?.clientTier));
+            };
+        },
+        // Template-facing label for the badge on each billing queue card —
+        // blank for Standard so the common case stays uncluttered.
+        billingItemTierLabel() {
+            return (item) => {
+                const rank = this.billingItemTierRank(item);
+                return rank > 0 ? CLIENT_TIER_ORDER[rank] : '';
+            };
+        },
         billingWorkflowQueue() {
             if (!this.canViewBillingWorkflow) return [];
             const isCentralReviewer = this.isFullAccessRole || ['HR', 'Account'].includes(this.userProfile.role);
+            const tierRank = this.billingItemTierRank;
+            const byTierThenDate = (dateKey) => (a, b) => (tierRank(b) - tierRank(a)) || String(dateKey(b) || '').localeCompare(String(dateKey(a) || ''));
+            // Paid is the workflow's final state, and a cancelled invoice is
+            // closed — its proof stays in the history but there is nothing left
+            // for Finance to verify either way.
             const submittedProofs = this.docHistory
-                // A cancelled invoice is closed: its proof stays in the history
-                // but there is nothing left for Finance to verify.
-                .filter(item => item.type === 'Invoice' && !['Draft', 'Cancelled'].includes(item.status) && item.paymentProofUrl)
+                .filter(item => item.type === 'Invoice' && !['Draft', 'Paid', 'Cancelled'].includes(item.status) && item.paymentProofUrl)
                 .filter(item => isCentralReviewer || this.billingPicProjectIds.has(String(item.raw?.projectId || '')))
                 .map(item => ({ ...item, workflowAction: 'review-proof', workflowLabel: item.paymentProofReviewStatus === 'Verified' ? 'Payment verified' : item.paymentProofReviewStatus === 'Rejected' ? 'Review replacement proof' : 'Verify payment proof' }));
             if (!this.canManageBillingWorkflow) return submittedProofs
-                .sort((a, b) => String(b.paymentProofAt || b.date || '').localeCompare(String(a.paymentProofAt || a.date || '')));
+                .sort(byTierThenDate(item => item.paymentProofAt || item.date));
             const linkedInvoiceQuoteIds = new Set(this.docHistory
                 .filter(item => item.type === 'Invoice' && item.raw?.sourceQuotationId)
                 .map(item => item.raw.sourceQuotationId));
@@ -141,12 +162,25 @@ export const billingComputed = {
                 .filter(item => item.type === 'Quotation' && item.status === 'Accepted' && !linkedInvoiceQuoteIds.has(item.id))
                 // Ordered oldest first within the group: the quotation a client
                 // accepted two weeks ago is the one still waiting on an invoice.
+                // This is the tie-breaker the final sort's stability preserves
+                // when two quotations share the same tier rank and date.
                 .sort((a, b) => String(a.clientDecisionAt || a.date || '').localeCompare(String(b.clientDecisionAt || b.date || '')))
                 .map(item => ({ ...item, workflowAction: 'issue-invoice', workflowLabel: 'Prepare invoice' }));
             const invoiceDrafts = this.docHistory
                 .filter(item => item.type === 'Invoice' && item.status === 'Draft')
                 .map(item => ({ ...item, workflowAction: 'edit-draft', workflowLabel: 'Finance draft' }));
-            return [...acceptedQuotes, ...invoiceDrafts, ...submittedProofs]
-                .sort((a, b) => String(b.billingWorkflowUpdatedAt || b.paymentProofAt || b.clientDecisionAt || b.date || '').localeCompare(String(a.billingWorkflowUpdatedAt || a.paymentProofAt || a.clientDecisionAt || a.date || '')));
+            // Finalized (Status left Draft, via saveDocRecord()) but never
+            // explicitly sent — sendInvoiceToClient() is the only thing that
+            // moves this along. A record with no deliveryStatus at all is a
+            // legacy invoice, already effectively delivered under the old
+            // rules, so it is deliberately excluded here rather than asked to
+            // be sent again. Once a client uploads proof the same invoice
+            // moves into submittedProofs instead, so this list is only ever
+            // pre-send.
+            const readyToSend = this.docHistory
+                .filter(item => item.type === 'Invoice' && item.status === 'Unpaid' && item.deliveryStatus && item.deliveryStatus !== 'Sent')
+                .map(item => ({ ...item, workflowAction: 'send-invoice', workflowLabel: 'Ready to send' }));
+            return [...acceptedQuotes, ...invoiceDrafts, ...readyToSend, ...submittedProofs]
+                .sort(byTierThenDate(item => item.billingWorkflowUpdatedAt || item.paymentProofAt || item.clientDecisionAt || item.date));
         }
 };

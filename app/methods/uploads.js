@@ -164,20 +164,6 @@ export const uploadMethods = {
                 throw new Error('The attachment could not be uploaded. Please try again.');
             }
         },
-        async handleAttachmentUpload(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            this.attachmentUploadState.payment = true;
-            try {
-                this.docForm.paymentAttachment = await this.prepareImageAttachment(file);
-                this.showNotify('Payment attachment is ready to be saved.');
-            } catch (error) {
-                console.error('Payment attachment upload failed:', error);
-                this.docForm.paymentAttachment = '';
-                this.showNotify(this.getUploadErrorMessage(error));
-                e.target.value = '';
-            } finally { this.attachmentUploadState.payment = false; e.target.value = ''; }
-        },
         async handleClaimAttachmentUpload(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -267,7 +253,7 @@ export const uploadMethods = {
         },
         loadClientDocuments(clientDirectoryId, clientName = '', clientEmail = '') {
             if (this.clientDocumentsUnsubscribe) { this.clientDocumentsUnsubscribe(); this.clientDocumentsUnsubscribe = null; }
-            if (!clientDirectoryId) { this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' }; return; }
+            if (!clientDirectoryId) { this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' }; return; }
             this.clientDocuments.clientDirectoryId = clientDirectoryId;
             this.clientDocuments.clientName = clientName;
             this.clientDocuments.clientEmail = clientEmail;
@@ -314,6 +300,10 @@ export const uploadMethods = {
                 await uploadBytes(fileRef, file, { contentType });
                 const downloadURL = await getDownloadURL(fileRef);
                 const docId = `${clientDirectoryId}_${Date.now()}`;
+                // Optional: staff or the client themselves can date a licence/permit on
+                // upload so clientExpiringDocuments (Priority tier) has something real to
+                // warn about. Left blank, the document simply never appears in that list.
+                const expiryDate = String(this.clientDocuments.pendingExpiryDate || '').trim();
                 await setDoc(doc(db, 'client_documents', docId), {
                     clientDirectoryId,
                     clientName: this.clientDocuments.clientName,
@@ -324,11 +314,13 @@ export const uploadMethods = {
                     storagePath,
                     storageFileName,
                     downloadURL,
+                    expiryDate,
                     uploadedByUid: this.userProfile.uid,
                     uploadedByName: this.userProfile.name,
                     uploadedByEmail: this.userProfile.email,
                     uploadedAt: new Date().toISOString()
                 });
+                this.clientDocuments.pendingExpiryDate = '';
                 this.logAudit('UPLOAD_DOCUMENT', `Uploaded "${file.name}" for client ${this.clientDocuments.clientName}`);
                 this.showNotify('Document uploaded successfully.');
                 if (this.userProfile.role === 'Client') this.notifyByEmail({
@@ -356,6 +348,15 @@ export const uploadMethods = {
             window.open(item.downloadURL, '_blank', 'noopener');
         },
         async downloadClientDocument(item) {
+            // Fetching the file to force a Save-As with the real filename only
+            // works when the Storage bucket's CORS config admits this origin —
+            // it currently does not (confirmed live: every attempt fails with
+            // "No 'Access-Control-Allow-Origin' header is present"), so this
+            // always fell through to a bare failure toast with no way to reach
+            // the file at all. Fall back to the same plain-navigation approach
+            // viewClientDocument() already uses, which needs no CORS — worse
+            // (opens instead of force-downloading) but it actually gets the
+            // client to their file instead of a dead end.
             try {
                 const response = await fetch(item.downloadURL);
                 if (!response.ok) throw new Error('Download failed.');
@@ -369,8 +370,9 @@ export const uploadMethods = {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(blobUrl);
             } catch (error) {
-                console.error('Client document download failed:', error);
-                this.showNotify('Unable to download this document. Please try again.');
+                console.error('Direct document download failed, opening it instead:', error);
+                const opened = window.open(item.downloadURL, '_blank', 'noopener');
+                if (!opened) this.showNotify('Unable to open this document. Please try again.');
             }
         },
         requestDeleteClientDocument(item) {

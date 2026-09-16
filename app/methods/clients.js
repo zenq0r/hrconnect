@@ -80,20 +80,44 @@ export const clientMethods = {
             this.clientInformationModal.form = this.emptyClientInformationForm();
             this.switchTab('client-directory');
         },
+        // Format-checks one address; deliberately not exported/shared beyond
+        // this file's two email fields, which are the only place free-typed
+        // email text reaches Firestore without going through a real sign-in.
+        isValidEmailAddress(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''));
+        },
         async saveClientInformation() {
             if (!this.canManageClients) { this.showNotify('You do not have permission to save client records.'); return false; }
             const form = this.clientInformationModal.form;
             if (!form.clientName || !form.clientPhone || !form.clientAddress1) return this.showNotify('Enter Client Name, Phone, and Address Line 1.');
             if (!/^\d{5}$/.test(String(form.clientPostcode || '')) || !form.clientCity || !form.clientState) return this.showNotify('Enter a valid 5-digit postcode, City, and State.');
+            // Email Address (Primary Contact) and Additional Authorized Emails are
+            // validated and rejected here, never silently deduplicated or merged
+            // into each other — a duplicate or malformed entry must be corrected
+            // by the person typing it, not quietly dropped underneath them.
+            const clientEmail = String(form.clientEmail || '').trim().toLowerCase();
+            if (clientEmail && !this.isValidEmailAddress(clientEmail)) {
+                return this.showNotify(`"${String(form.clientEmail).trim()}" is not a valid Email Address.`);
+            }
+            const rawAdditionalEntries = String(form.additionalClientEmailsText || '').split(',').map(entry => entry.trim()).filter(Boolean);
+            if (!rawAdditionalEntries.length) {
+                return this.showNotify('Additional Authorized Emails is required — enter at least one email address (separate multiple with commas).');
+            }
+            const additionalClientEmails = [];
+            const seenAdditionalEmails = new Set();
+            for (const rawEntry of rawAdditionalEntries) {
+                const email = rawEntry.toLowerCase();
+                if (!this.isValidEmailAddress(email)) return this.showNotify(`"${rawEntry}" in Additional Authorized Emails is not a valid email address.`);
+                if (clientEmail && email === clientEmail) return this.showNotify(`"${rawEntry}" is already used as the Email Address (Primary Contact) — remove it from Additional Authorized Emails.`);
+                if (seenAdditionalEmails.has(email)) return this.showNotify(`"${rawEntry}" is listed more than once in Additional Authorized Emails — each email must be unique.`);
+                seenAdditionalEmails.add(email);
+                additionalClientEmails.push(email);
+            }
             this.clientInformationModal.saving = true;
             try {
                 const isNewRecord = !form.id;
                 const docId = form.id || doc(collection(db, 'customers')).id;
                 const existingCust = !isNewRecord ? this.customers.find(c => c.id === docId) : null;
-                const clientEmail = String(form.clientEmail || '').trim().toLowerCase();
-                const additionalClientEmails = [...new Set(String(form.additionalClientEmailsText || '')
-                    .split(',').map(email => email.trim().toLowerCase()).filter(email => email && email.includes('@')))]
-                    .filter(email => email !== clientEmail);
                 const registeredEmails = new Set([
                     clientEmail,
                     ...additionalClientEmails
@@ -165,11 +189,27 @@ export const clientMethods = {
             }
         },
         openClientView(cust) {
+            // Client Information is read-only here — every field is copied
+            // straight from the Client Registration record, never recomputed
+            // or merged, so what's shown always matches what's actually
+            // stored. BRN falls back to splitting the combined clientSSM
+            // string only for a record saved before clientBrnNew/clientBrnOld
+            // existed as their own fields.
+            const splitBrn = this.splitClientSSM(cust.clientSSM);
             this.clientView.client = {
-                id: cust.id || '', clientId: cust.clientId || '', clientName: cust.clientName || '-', clientSSM: cust.clientSSM || '-', clientContactPerson: cust.clientContactPerson || '-',
+                id: cust.id || '', clientId: cust.clientId || '', clientName: cust.clientName || '-', clientSSM: cust.clientSSM || '-',
+                // Carried through so the Related Records "Total/Active/Completed
+                // Projects" tiles can hand this object straight to
+                // viewClientBoard(), which gates on clientTaskCreatedAt — without
+                // it, every click would wrongly report the client as unregistered.
+                clientTaskCreatedAt: cust.clientTaskCreatedAt || '',
+                clientBrnNew: cust.clientBrnNew || splitBrn.newBrn, clientBrnOld: cust.clientBrnOld || splitBrn.oldBrn, clientTin: cust.clientTin || '',
+                clientContactPerson: cust.clientContactPerson || '-',
                 clientPosition: cust.clientPosition || '-', clientEmail: cust.clientEmail || '-', clientPhone: cust.clientPhone || '-',
+                additionalClientEmails: Array.isArray(cust.additionalClientEmails) ? cust.additionalClientEmails : [],
                 clientAddress: cust.clientAddress || '', clientAddress1: cust.clientAddress1 || cust.clientAddress || '', clientAddress2: cust.clientAddress2 || '', clientAddress3: cust.clientAddress3 || '', clientCity: cust.clientCity || '', clientState: cust.clientState || '',
-                clientPostcode: cust.clientPostcode || '', clientCountry: cust.clientCountry || 'Malaysia', clientTier: cust.clientTier || 'Standard', companyType: cust.companyType || '', industry: cust.industry || '', clientNotes: cust.clientNotes || ''
+                clientPostcode: cust.clientPostcode || '', clientCountry: cust.clientCountry || 'Malaysia', clientTier: cust.clientTier || 'Standard', companyType: cust.companyType || '', industry: cust.industry || '', clientNotes: cust.clientNotes || '',
+                createdAt: cust.createdAt || '', createdByName: cust.createdByName || '', updatedAt: cust.updatedAt || '', updatedByName: cust.updatedByName || ''
             };
             this.clientView.show = true;
             // Same guard as the project preview: client_documents is closed to
@@ -178,7 +218,7 @@ export const clientMethods = {
         },
         closeClientView() {
             this.clientView.show = false;
-            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' };
+            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' };
         },
         async openClientQuickViewForProject(project) {
             const cached = this.customers.find(c => c.id === project.clientDirectoryId);
@@ -315,6 +355,80 @@ export const clientMethods = {
             return items
                 .map(d => ({ ...d, tagClass: d.type === 'Invoice' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200', isDoc: true }))
                 .sort((a, b) => new Date(b.date) - new Date(a.date));
+        },
+        // Related Records summary strip: counts derived live from this.projects
+        // and clientDocHistory() — never a stored/cached number, so it can
+        // never drift from the actual linked records.
+        clientRelatedRecordCounts(cust) {
+            if (!cust?.id) return { totalProjects: 0, activeProjects: 0, completedProjects: 0, totalQuotations: 0, totalInvoices: 0, unpaidInvoices: 0, paidInvoices: 0 };
+            const clientProjects = this.projects.filter(p => p.clientDirectoryId === cust.id);
+            const completedProjects = clientProjects.filter(p => p.status === 'Completed & Done').length;
+            const docs = this.clientDocHistory(cust);
+            const invoices = docs.filter(d => d.type === 'Invoice');
+            return {
+                totalProjects: clientProjects.length,
+                activeProjects: clientProjects.length - completedProjects,
+                completedProjects,
+                totalQuotations: docs.filter(d => d.type === 'Quotation').length,
+                totalInvoices: invoices.length,
+                unpaidInvoices: invoices.filter(d => d.status === 'Unpaid' || d.status === 'Partial').length,
+                paidInvoices: invoices.filter(d => d.status === 'Paid').length
+            };
+        },
+        // Client Activity: a compact chronological feed built entirely from
+        // data already loaded for this client (project/document creation, the
+        // billing workflow's own timestamps, the client record's last edit) —
+        // never a separate stored log, so it can't fall out of sync with the
+        // records it describes.
+        clientRecentActivity(cust) {
+            if (!cust?.id) return [];
+            // createdAt is not written on every record type; every save this
+            // codebase makes mints its Firestore id as Date.now(), so the id
+            // doubles as a precise creation timestamp when the field is absent
+            // (see recordCreatedAt() — this needs a raw sortable ms value,
+            // not that helper's pre-formatted string).
+            const recordTimestampMs = (item) => {
+                if (item?.createdAt) {
+                    const ms = Date.parse(item.createdAt);
+                    if (Number.isFinite(ms)) return ms;
+                }
+                const idMillis = Number(item?.id);
+                if (Number.isInteger(idMillis) && idMillis > Date.UTC(2020, 0, 1) && idMillis <= Date.now()) return idMillis;
+                return null;
+            };
+            const events = [];
+            this.projects.filter(p => p.clientDirectoryId === cust.id).forEach(p => {
+                const at = recordTimestampMs(p);
+                if (at) events.push({ at, icon: 'fa-folder-plus', text: `Project created: ${p.projectRef || p.title || 'Untitled project'}` });
+            });
+            this.clientDocHistory(cust).forEach(d => {
+                const createdAt = recordTimestampMs(d);
+                if (createdAt) events.push({ at: createdAt, icon: d.type === 'Invoice' ? 'fa-file-invoice-dollar' : 'fa-file-signature', text: `${d.type} created: ${d.docNo}` });
+                const decisionMs = Date.parse(d.clientDecisionAt || '');
+                if (Number.isFinite(decisionMs)) events.push({ at: decisionMs, icon: d.status === 'Rejected' ? 'fa-circle-xmark' : 'fa-circle-check', text: `Quotation ${d.status === 'Rejected' ? 'declined' : 'accepted'}: ${d.docNo}` });
+                const sentMs = Date.parse(d.invoiceSentAt || '');
+                if (Number.isFinite(sentMs)) events.push({ at: sentMs, icon: 'fa-paper-plane', text: `Invoice sent to client: ${d.docNo}` });
+                const proofMs = Date.parse(d.paymentProofAt || '');
+                if (Number.isFinite(proofMs)) events.push({ at: proofMs, icon: 'fa-receipt', text: `Payment proof submitted: ${d.docNo}` });
+                const reviewedMs = Date.parse(d.paymentProofReviewedAt || '');
+                if (Number.isFinite(reviewedMs)) events.push({ at: reviewedMs, icon: d.status === 'Paid' ? 'fa-circle-check' : 'fa-circle-xmark', text: `Payment ${d.status === 'Paid' ? 'verified' : 'reviewed'}: ${d.docNo}` });
+            });
+            const updatedMs = Date.parse(cust.updatedAt || '');
+            if (Number.isFinite(updatedMs) && cust.updatedAt !== cust.createdAt) {
+                events.push({ at: updatedMs, icon: 'fa-pen', text: `Client information updated${cust.updatedByName ? ' by ' + cust.updatedByName : ''}` });
+            }
+            return events
+                .sort((a, b) => b.at - a.at)
+                .slice(0, 8)
+                .map(e => ({ ...e, label: this.formatDateTime(e.at) }));
+        },
+        // Related Records counts double as a table of contents for this same
+        // drawer: clicking one scrolls straight to the section that already
+        // lists those records, instead of opening a second screen.
+        scrollClientViewTo(anchorId) {
+            this.$nextTick(() => {
+                document.getElementById(anchorId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
         },
         // Billing records must be shown against the project they were issued
         // for, not every project handled by the same PIC or every project for

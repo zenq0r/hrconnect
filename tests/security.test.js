@@ -61,7 +61,10 @@ test('starting the password reset OTP actually dispatches the request', () => {
 test('password reset renders its OTP field inline and not behind a separate popup', () => {
     const html = readSource('index.html');
 
-    assert.match(html, /id="password-reset-otp-code" name="passwordResetOtpCode"/);
+    // One box per digit now (see onOtpDigitInput()/app/methods/auth.js), ids
+    // reset-otp-0..5 — still the six-digit code from loginOtp.code, still
+    // rendered where the form is rather than in a popup of its own.
+    assert.match(html, /:id="`reset-otp-\$\{i - 1\}`"/);
     assert.match(html, /<template v-if="loginOtp\.show">/);
     assert.doesNotMatch(html, /EMAIL OTP FOR PASSWORD RESET ONLY/);
 });
@@ -194,6 +197,20 @@ test('Firebase Admin CommonJS runtime pins the compatible jose dependency', () =
     assert.equal(functionManifest.overrides['jwks-rsa'].jose, '4.15.9');
 });
 
+test('the Vercel deployment runs Node 24.x, matching the Project Settings value', () => {
+    // Vercel's own build log is explicit that a package.json engines.node
+    // wins over the Node.js Version configured in Project Settings — a stale
+    // "22.x" here silently downgraded every build regardless of what the
+    // dashboard said. The Firebase Cloud Functions runtime (functions/
+    // package.json) is deliberately left on Node 22: Firebase's own "Set
+    // Node.js version" docs currently only list 22, 20 and 18 as settable
+    // values for the Cloud Functions SDK, unlike Vercel.
+    const manifest = JSON.parse(readSource('package.json'));
+    assert.equal(manifest.engines.node, '24.x');
+    const lockfile = JSON.parse(readSource('package-lock.json'));
+    assert.equal(lockfile.packages[''].engines.node, '24.x', 'package-lock.json must stay in sync with package.json engines, or npm ci reintroduces the mismatch');
+});
+
 test('audit metadata extracts the trusted client IP and readable browser details', () => {
     assert.equal(getClientIp({ 'x-vercel-forwarded-for': '203.0.113.8, 10.0.0.1' }), '203.0.113.8');
     const metadata = parseUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36');
@@ -209,12 +226,51 @@ test('audit retention validates supported units and calculates expiry duration',
     assert.equal(normalizeRetention(1, 'minute'), null);
 });
 
-test('RBAC sign-in has no trusted-device bypass', () => {
-    const appSource = readSource('app.js');
+// "Trust this device" was deliberately absent (see prior revision of this
+// test) until the user explicitly asked for one, with three conditions: a
+// real expiry, a client-visible revoke, and no weakening of the second
+// factor itself. This locks in that a trusted-device sign-in still stamps
+// sfa to the CURRENT sign-in's own auth_time (the exact mechanism
+// secondFactorCleared() checks) rather than skipping the stamp — a device
+// bypass that skipped the code but never (re-)stamped sfa would pass this
+// check once and then fail every later request, or worse, would have had to
+// stamp some other value to "work", which is the actual bypass this test
+// exists to catch.
+test('a trusted-device sign-in still stamps sfa to this sign-in\'s own auth_time', () => {
     const otpSource = readSource('api/verify-login-otp.js');
-    assert.doesNotMatch(appSource, /checkTrustedDevice|trustDevice|revokeTrustedDeviceAccess|forgetTrustedDevice/);
-    assert.doesNotMatch(otpSource, /trusted_login_devices|trustedUntil|trustDevice/);
-    assert.equal(fs.existsSync(path.join(__dirname, '..', 'api', '_trustedDevice.js')), false);
+    const start = otpSource.indexOf("trustedDeviceToken && typeof trustedDeviceToken === 'string'");
+    assert.ok(start > -1, 'the trusted-device branch must exist');
+    const body = otpSource.slice(start, otpSource.indexOf('if (!code ', start));
+    assert.match(body, /resolveSignInContext\(getAdminAuth\(\), req\.body\)/, 'the caller\'s idToken must be independently re-verified — never a body-supplied uid');
+    assert.match(body, /sfa: signInContext\.authTime/, 'the current sign-in\'s own auth_time, not a stored or skipped value');
+    assert.match(body, /enforceRateLimit\(/, 'a guessable-secret check needs the same rate limiting other login-adjacent routes have');
+    assert.match(body, /device\.revoked|device\.uid !== signInContext\.uid|new Date\(device\.expiresAt\)/, 'revoked, wrong-account and expired tokens must all be checked');
+});
+
+test('trusted-device tokens are hashed at rest, exactly like OTP codes and reset tokens', () => {
+    const otpSource = readSource('api/verify-login-otp.js');
+    // The raw token is generated, returned once, and only its hash is ever
+    // written to Firestore — the same discipline hashOtp()/hashResetToken()
+    // already enforce for the codes and links this file already handles.
+    const issueStart = otpSource.indexOf('trustDevice === true');
+    assert.ok(issueStart > -1, 'trust-device issuance must exist');
+    const issueBody = otpSource.slice(issueStart, issueStart + 900);
+    assert.match(issueBody, /crypto\.randomBytes\(32\)/, 'the token must be a real random secret, not a derivable value');
+    assert.match(issueBody, /hashResetToken\(rawToken\)/, 'only the hash is used as the stored document id/lookup key');
+    // The stored document body itself — between .set({ and its closing }) —
+    // must never contain the raw token, only fields derived independently of it.
+    const setStart = issueBody.indexOf('.set({');
+    const setBody = issueBody.slice(setStart, issueBody.indexOf('});', setStart));
+    assert.doesNotMatch(setBody, /rawToken/, 'the raw token must never be written into the stored document');
+});
+
+test('a signed-in user can only read or revoke their own trusted devices', () => {
+    const rules = readSource('firestore.rules');
+    const start = rules.indexOf('match /trusted_devices/');
+    assert.ok(start > -1, 'the trusted_devices rule must exist');
+    const block = rules.slice(start, rules.indexOf('}', rules.indexOf('}', start) + 1));
+    assert.match(block, /resource\.data\.uid == request\.auth\.uid/);
+    assert.match(block, /allow create, update: if false/, 'only the server (Admin SDK) may mint or renew a trust token');
 });
 
 test('API rate-limit identifiers are deterministic and do not expose user identifiers', () => {
@@ -422,7 +478,11 @@ test('only the current project PIC can load or manage project activity details',
     const html = readSource('index.html');
 
     assert.match(rules, /resource\.data\.projectOwnerEmail == request\.auth\.token\.email/);
-    assert.match(rules, /request\.resource\.data\.projectOwnerEmail == get\(\/databases\/\$\(database\)\/documents\/projects\/\$\(request\.resource\.data\.projectId\)\)\.data\.ownerEmail/);
+    // canCreateProjectActivity() (shared by project_activities' create rule)
+    // is where the projectOwnerEmail cross-check now lives, against a
+    // `project` fetched once by the caller instead of get() inline.
+    assert.match(rules, /function canCreateProjectActivity\(project, data\) \{[\s\S]*?data\.projectOwnerEmail == project\.ownerEmail/);
+    assert.match(rules, /allow create: if exists\(\/databases\/\$\(database\)\/documents\/projects\/\$\(request\.resource\.data\.projectId\)\) &&\s*canCreateProjectActivity\(/);
     assert.match(rules, /getAfter\(\/databases\/\$\(database\)\/documents\/projects\/\$\(resource\.data\.projectId\)\)\.data\.ownerEmail/);
     assert.match(app, /where\('projectOwnerEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
     assert.match(app, /canViewProjectActivityDetails\(project\)/);
@@ -506,13 +566,13 @@ test('Staff and IT keep their project board without read access to the Client Di
     // customers stays closed to Staff/IT, so this.customers is empty for them and
     // the Client Task parent gate has to be skipped rather than hiding every
     // project — including the ones where they are the PIC.
-    assert.match(rules, /match \/customers\/\{customerId\} \{\s*allow read: if isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\)/);
+    assert.match(rules, /match \/customers\/\{customerId\} \{\s*allow read: if isFinanceOrHR\(\)/);
     assert.match(app, /canReadClientDirectory\(\) \{ return this\.hasAccess\('client-directory'\) \|\| this\.hasAccess\('doc-generator'\); \}/);
     assert.match(app, /if \(!this\.canReadClientDirectory\) return true;/);
 
     // The client file repository stays closed to Staff, so the project preview must
     // not subscribe to it and then paint a permission error over their own project.
-    assert.match(rules, /match \/client_documents\/\{documentId\} \{\s*allow read: if isAuthenticated\(\) &&\s*\(\s*isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\) \|\| isIT\(\)/);
+    assert.match(rules, /match \/client_documents\/\{documentId\} \{\s*allow read: if isAuthenticated\(\) &&\s*\(\s*isFinanceOrHR\(\) \|\| isIT\(\)/);
     assert.match(app, /canViewClientDocuments\(\) \{ return \['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Client'\]\.includes\(this\.userProfile\.role\); \}/);
     assert.match(app, /if \(this\.canViewClientDocuments\) this\.loadClientDocuments\(/);
 });
@@ -681,6 +741,52 @@ test('dynamic status colors include their dark-mode counterparts in the built st
     });
     assert.match(theme, /Theme compatibility layer/);
     assert.match(theme, /text-brand-blue:not\(\[class\*="dark:text-"\]\)/);
+});
+
+test('every .zq-table sits inside an overflow-x-auto wrapper, so a wide table scrolls instead of breaking the viewport', () => {
+    // The Quotation/Invoice items table (Description + fixed-width Qty/Unit
+    // Price/Total/delete columns) needs ~600px+ to stay usable and there is
+    // no app-wide overflow-x: hidden safety net, so an un-wrapped .zq-table
+    // forces the whole page to scroll sideways on a phone screen instead of
+    // just the table — exactly what happened here until it was wrapped like
+    // every other table in the app.
+    const html = readSource('index.html');
+    const matches = [...html.matchAll(/<table class="zq-table/g)];
+    assert.ok(matches.length > 10, 'expected many .zq-table elements across the portal to check');
+    const unwrapped = matches.filter(m => {
+        const before = html.slice(Math.max(0, m.index - 200), m.index);
+        // The wrapping <div> may carry other classes (e.g. "mt-4 overflow-x-auto")
+        // or a v-if/v-else before its class attribute — only its presence
+        // somewhere in the immediately preceding markup matters here.
+        return !/<div\b[^>]*class="[^"]*overflow-x-auto[^"]*"[^>]*>\s*$/.test(before);
+    });
+    assert.equal(unwrapped.length, 0, `${unwrapped.length} .zq-table element(s) are missing their overflow-x-auto wrapper`);
+});
+
+test('an enabled dropdown never shows a not-allowed cursor, even when styled with .zq-input', () => {
+    // :read-only is not "has no readonly attribute" — per the CSS UI spec it
+    // matches ANY element that simply doesn't support user editing at all,
+    // and a <select> can never carry readonly, so every <select> matches
+    // :read-only unconditionally. .zq-input:read-only therefore painted
+    // cursor: not-allowed onto every enabled dropdown styled with .zq-input
+    // (Status, Payment Method, Bank Selection, Payment Receiver and dozens
+    // more across the app use .zq-input rather than .zq-select) — clicking
+    // still worked, since nothing was actually disabled, which is exactly
+    // what made the cursor misleading. [readonly] is the attribute selector:
+    // it only matches an element that genuinely carries the HTML attribute,
+    // which a <select> here never does.
+    const theme = readSource('custom.css');
+    assert.doesNotMatch(theme, /:read-only/, 'a bare :read-only pseudo-class would match every <select> again, disabled or not');
+    assert.match(theme, /\.zq-input\[readonly\], \.zq-textarea\[readonly\]/);
+
+    const html = readSource('index.html');
+    const selects = [...html.matchAll(/<select\b[^>]*>/g)].map(m => m[0]);
+    assert.ok(selects.length > 20, 'expected many <select> elements across the portal to check');
+    selects.forEach(tag => {
+        if (/\breadonly\b/.test(tag)) {
+            throw new Error(`a <select> cannot be meaningfully readonly, and would now render the disabled look: ${tag}`);
+        }
+    });
 });
 
 test('quotation and invoice workspace uses explicit paired light and dark theme surfaces', () => {

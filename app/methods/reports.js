@@ -43,6 +43,101 @@ export const reportMethods = {
             const claims = [...this.claimsHistory, ...this.paymentVouchers].filter(c => !period || this.periodKeyOf(this.claimDateOf(c)) === period);
             return { docs, payslips, claims };
         },
+
+        // ---- Attendance summary -------------------------------------------
+        // A Firestore Timestamp (what clockInAt/clockOutAt resolve to once read
+        // back from a snapshot) needs toDate()/toMillis() first — it is not a
+        // value `new Date()` understands the way a plain ISO string is.
+        timestampToMillis(value) {
+            if (!value) return 0;
+            if (typeof value.toMillis === 'function') return value.toMillis();
+            const parsed = new Date(value);
+            return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+        },
+        attendanceHoursFor(record) {
+            const inMs = this.timestampToMillis(record.clockInAt);
+            const outMs = this.timestampToMillis(record.clockOutAt);
+            if (!inMs || !outMs || outMs <= inMs) return 0;
+            return (outMs - inMs) / 3600000;
+        },
+        // The earliest Published shift assigning this empNo on this date, if
+        // any. "Late" is judged against whichever shift they were actually
+        // rostered on — this app has no single fixed office-hours assumption,
+        // since Duty Roster is how shifts are actually assigned.
+        shiftStartTimeFor(empNo, date) {
+            let earliest = null;
+            this.dutyRosterWeeks.forEach(week => {
+                if (week.status !== 'Published') return;
+                (week.shifts || []).forEach(shift => {
+                    if (shift.date !== date || !(shift.assignedEmpNos || []).includes(empNo)) return;
+                    if (!earliest || shift.startTime < earliest) earliest = shift.startTime;
+                });
+            });
+            return earliest;
+        },
+        attendanceIsLate(record) {
+            const shiftStart = this.shiftStartTimeFor(record.empNo, record.date);
+            if (!shiftStart || !record.clockInAt) return false;
+            const clockInMs = this.timestampToMillis(record.clockInAt);
+            if (!clockInMs) return false;
+            const clockInDate = new Date(clockInMs);
+            const actual = `${String(clockInDate.getHours()).padStart(2, '0')}:${String(clockInDate.getMinutes()).padStart(2, '0')}`;
+            return actual > shiftStart;
+        },
+        // Every date within `period` (YYYY-MM, or '' for all periods) that a
+        // Published roster assigned a shift to a given empNo — the baseline
+        // "was scheduled to work" that turns a missing attendance record into
+        // a real Absent, rather than assuming every weekday is a workday.
+        scheduledDatesByEmpNoForPeriod(period) {
+            const map = {};
+            this.dutyRosterWeeks.forEach(week => {
+                if (week.status !== 'Published') return;
+                (week.shifts || []).forEach(shift => {
+                    if (period && this.periodKeyOf(shift.date) !== period) return;
+                    (shift.assignedEmpNos || []).forEach(empNo => {
+                        if (!map[empNo]) map[empNo] = new Set();
+                        map[empNo].add(shift.date);
+                    });
+                });
+            });
+            return map;
+        },
+        attendanceRecordsForPeriod(period) {
+            return this.attendanceRecords.filter(r => !period || this.periodKeyOf(r.date) === period);
+        },
+        // Per-employee Days Present / Hours Worked / Late / Absent for one
+        // period, plus the totals row. Present is any clock-in on record
+        // (clocked out or not); Absent counts only dates a Published roster
+        // actually scheduled the employee to work.
+        attendanceSummaryForPeriod(period) {
+            const records = this.attendanceRecordsForPeriod(period);
+            const scheduled = this.scheduledDatesByEmpNoForPeriod(period);
+            const byEmp = {};
+            const ensureRow = (empNo, name) => {
+                if (!byEmp[empNo]) byEmp[empNo] = { empNo, name: name || empNo, daysPresent: 0, hoursWorked: 0, lateCount: 0, absentCount: 0 };
+                return byEmp[empNo];
+            };
+            records.forEach(record => {
+                const row = ensureRow(record.empNo, record.name);
+                row.daysPresent += 1;
+                row.hoursWorked += this.attendanceHoursFor(record);
+                if (this.attendanceIsLate(record)) row.lateCount += 1;
+            });
+            Object.entries(scheduled).forEach(([empNo, dates]) => {
+                const employee = this.employees.find(e => e.empNo === empNo);
+                const row = ensureRow(empNo, employee?.name);
+                const attendedDates = new Set(records.filter(r => r.empNo === empNo).map(r => r.date));
+                dates.forEach(date => { if (!attendedDates.has(date)) row.absentCount += 1; });
+            });
+            const rows = Object.values(byEmp).sort((a, b) => a.name.localeCompare(b.name));
+            const totals = rows.reduce((acc, row) => ({
+                daysPresent: acc.daysPresent + row.daysPresent,
+                hoursWorked: acc.hoursWorked + row.hoursWorked,
+                lateCount: acc.lateCount + row.lateCount,
+                absentCount: acc.absentCount + row.absentCount
+            }), { daysPresent: 0, hoursWorked: 0, lateCount: 0, absentCount: 0 });
+            return { rows, totals };
+        },
         // Frozen totals for one closed month. Money is rounded to sen here so the
         // stored package matches what was exported, rather than re-deriving later.
         buildPeriodSummary(period) {
@@ -214,6 +309,15 @@ export const reportMethods = {
                         c.receiptNo || c.voucherNo || '', c.documentType || c.type || '', c.date || c.expenseDate || c.paymentDate || '',
                         c.name || '', c.empNo || '', c.dept || '', c.category || '', c.status || '', Number(c.amount || 0).toFixed(2)
                     ])
+                ];
+            } else if (type === 'attendance') {
+                filename = `Laporan_Kehadiran_ZENQOR_${suffix}.csv`;
+                const { rows: summaryRows, totals } = this.attendanceSummaryForPeriod(scope);
+                rows = [
+                    ['No Pekerja', 'Nama', 'Hari Hadir', 'Jam Bekerja', 'Lewat', 'Tidak Hadir'],
+                    ...summaryRows.map(r => [r.empNo, r.name, r.daysPresent, r.hoursWorked.toFixed(1), r.lateCount, r.absentCount]),
+                    [],
+                    ['JUMLAH', '', totals.daysPresent, totals.hoursWorked.toFixed(1), totals.lateCount, totals.absentCount]
                 ];
             }
 

@@ -9,6 +9,7 @@ import {
     updateDoc,
     getDocs,
     writeBatch,
+    runTransaction,
     query,
     where
 } from "../../firebase-config.js";
@@ -86,7 +87,7 @@ export const projectMethods = {
             this.clientReplyMessage = '';
             this.editingReplyId = '';
             this.editingReplyMessage = '';
-            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' };
+            this.clientDocuments = { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' };
         },
         editProjectFromPreview() {
             const project = this.projectPreview.project ? JSON.parse(JSON.stringify(this.projectPreview.project)) : null;
@@ -430,12 +431,57 @@ export const projectMethods = {
             return project.ownerLastSeen ? `Last seen ${this.formatDateTime(project.ownerLastSeen)}` : 'Offline — no recent activity';
         },
         openProjectModal(project = null) {
-            if (project ? !this.canEditProject(project) : !this.canManageProjects) { this.showNotify(project ? 'Only Director, Superadmin, or this project\'s Person In Charge may edit this project.' : 'Only Director and Superadmin may create new projects.'); return; }
-            const emptyForm = { id: '', projectRef: `PRJ-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`, title: '', clientDirectoryId: '', clientPortalUid: '', clientName: '', clientEmail: '', clientSSM: '', clientTier: 'Standard', ownerEmpNo: '', ownerName: '', ownerEmail: '', ownerPhoto: '', ownerPosition: '', ownerDepartment: '', ownerAssignedAt: '', ownerPresenceStatus: 'Offline', ownerPresenceUpdatedAt: '', ownerLastSeen: '', status: 'Project Planning', startDate: '', targetDate: '', description: '' };
-            this.projectModal = { show: true, isEdit: Boolean(project), form: project ? JSON.parse(JSON.stringify(project)) : emptyForm };
+            if (project ? !this.canEditProject(project) : !this.canCreateProject) { this.showNotify(project ? 'Only Director, Superadmin, or this project\'s Person In Charge may edit this project.' : 'You do not have permission to create new projects.'); return; }
+            // projectRef is no longer hand-typed: it is filled in by
+            // generateProjectRef() once a Project Type is chosen (see the Project
+            // Identity section of the modal). Left blank here, not seeded, so an
+            // unfilled Project Type never ships a project with a fake reference.
+            const emptyForm = { id: '', projectType: '', projectRef: '', title: '', clientDirectoryId: '', clientPortalUid: '', clientName: '', clientEmail: '', clientSSM: '', clientTier: 'Standard', ownerEmpNo: '', ownerName: '', ownerEmail: '', ownerPhoto: '', ownerPosition: '', ownerDepartment: '', ownerAssignedAt: '', ownerPresenceStatus: 'Offline', ownerPresenceUpdatedAt: '', ownerLastSeen: '', status: 'Project Planning', startDate: '', targetDate: '', description: '', govState: '', govPbt: '', govApplicationType: '' };
+            this.projectModal = { show: true, isEdit: Boolean(project), refGenerating: false, form: project ? JSON.parse(JSON.stringify(project)) : emptyForm };
         },
         closeProjectModal() {
             this.projectModal.show = false;
+        },
+        // Atomic, collision-proof numbering: projects/{id} reads are PIC-scoped
+        // for non-admin staff (firestore.rules), so a client-side "scan what I can
+        // see and +1" approach (the pattern generateDocNo() uses for quotations/
+        // invoices, safe there because docs has no such per-user read
+        // restriction) could hand two different staff members the same reference.
+        // A Firestore transaction against a small counter document cannot.
+        async generateProjectRef(prefix) {
+            if (!prefix) { this.projectModal.form.projectRef = ''; return; }
+            this.projectModal.refGenerating = true;
+            try {
+                const year = new Date().getFullYear();
+                const counterRef = doc(db, 'project_ref_counters', `${prefix}_${year}`);
+                const next = await runTransaction(db, async (transaction) => {
+                    const snapshot = await transaction.get(counterRef);
+                    const count = (snapshot.exists() ? snapshot.data().count : 0) + 1;
+                    transaction.set(counterRef, { count, updatedAt: new Date().toISOString() });
+                    return count;
+                });
+                this.projectModal.form.projectRef = `${prefix}-${year}-${String(next).padStart(6, '0')}`;
+            } catch (error) {
+                console.error('Project reference generation failed:', error);
+                this.showNotify('Unable to generate a project reference right now. Please try again.', 'error');
+                this.projectModal.form.projectRef = '';
+            } finally {
+                this.projectModal.refGenerating = false;
+            }
+        },
+        onProjectTypeChange() {
+            const type = this.projectTypes.find(t => t.key === this.projectModal.form.projectType);
+            if (type) this.generateProjectRef(type.prefix);
+            if (this.projectModal.form.projectType !== 'GOV') {
+                this.projectModal.form.govState = '';
+                this.projectModal.form.govPbt = '';
+                this.projectModal.form.govApplicationType = '';
+            }
+        },
+        onProjectGovStateChange() {
+            // Local Authority options depend on the chosen state — clear a
+            // selection that no longer belongs to the list.
+            this.projectModal.form.govPbt = '';
         },
         async saveProject() {
             const source = this.projectModal.form;
@@ -443,7 +489,9 @@ export const projectMethods = {
             const original = isEdit ? this.projects.find(p => p.id === source.id) : null;
             if (isEdit && !original) { this.showNotify('This project no longer exists. It may have been deleted.'); this.closeProjectModal(); return; }
             const isAdminEditor = this.canManageProjects;
-            const authorized = isEdit ? (isAdminEditor || this.isProjectOwner(original)) : isAdminEditor;
+            // Creating is open to any staff role (canCreateProject); editing an
+            // EXISTING project stays admin-or-owner, unchanged.
+            const authorized = isEdit ? (isAdminEditor || this.isProjectOwner(original)) : this.canCreateProject;
             if (!authorized) { this.showNotify('You do not have permission to save this project.'); return; }
             if (!source.status || !this.projectStages.includes(source.status)) { this.showNotify('Invalid project stage.'); return; }
             const now = new Date().toISOString();
@@ -477,7 +525,21 @@ export const projectMethods = {
                 return;
             }
 
-            if (!source.projectRef?.trim() || !source.title?.trim()) { this.showNotify('Project reference and title are required.'); return; }
+            if (!isEdit) {
+                if (!source.projectType) { this.showNotify('Select a Project Type before saving — this is what generates the project reference.'); return; }
+                if (!source.projectRef?.trim()) {
+                    // The transaction may still be in flight (a fast double-click, or
+                    // a slow network) — retry once synchronously rather than block
+                    // the save on a race that usually resolves in well under a second.
+                    const type = this.projectTypes.find(t => t.key === source.projectType);
+                    if (type) await this.generateProjectRef(type.prefix);
+                    if (!source.projectRef?.trim()) { this.showNotify('Still generating the project reference — try saving again in a moment.'); return; }
+                }
+                if (source.projectType === 'GOV' && (!source.govState || !source.govPbt || !source.govApplicationType)) {
+                    this.showNotify('Select State, Local Authority and Application Type for a Government project.'); return;
+                }
+            }
+            if (!source.title?.trim()) { this.showNotify('Project title is required.'); return; }
             if (!source.clientDirectoryId || !source.clientPortalUid || !source.clientEmail) { this.showNotify('Select a Client Directory record and its matching Client Portal Access account.'); return; }
             const authorizedClientAccount = this.projectClientAccessUsers.find(user => user.id === source.clientPortalUid && String(user.email || '').trim().toLowerCase() === String(source.clientEmail || '').trim().toLowerCase());
             if (!authorizedClientAccount) { this.showNotify('The selected Client Portal account is not authorized in this Client Directory. Save its email under Client Portal Access first.'); return; }
@@ -485,6 +547,10 @@ export const projectMethods = {
             const projectId = source.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             const payload = this.normalizeOfficialRecord({
                 projectRef: isEdit ? original.projectRef : source.projectRef,
+                // Absent on every project created before this change — a legacy
+                // PRJ-... record simply has no projectType, and every template
+                // that reads it null-guards rather than assuming it is set.
+                projectType: isEdit ? (original.projectType || '') : source.projectType,
                 title: source.title,
                 clientDirectoryId: source.clientDirectoryId,
                 clientPortalUid: source.clientPortalUid,
@@ -515,6 +581,17 @@ export const projectMethods = {
                 updatedByEmail: this.userProfile.email,
                 ...(isEdit ? {} : { createdAt: now, createdByUid: this.userProfile.uid, createdByEmail: this.userProfile.email })
             });
+            // Kept out of normalizeOfficialRecord above: govState/govPbt would be
+            // uppercased (neither key matches its protected-field pattern), and an
+            // uppercased value would never match the exact-case option text in
+            // malaysia-locations.js — the select would show as unselected on
+            // every edit despite the data being there. govApplicationType is
+            // naturally protected (its key contains "type") but is included here
+            // too, to keep all three GOV fields written together in one place.
+            const govFields = (isEdit ? original?.projectType : source.projectType) === 'GOV'
+                ? { govState: source.govState, govPbt: source.govPbt, govApplicationType: source.govApplicationType }
+                : {};
+            Object.assign(payload, govFields);
             try {
                 const ownerChanged = isEdit && String(original?.ownerEmail || '').trim().toLowerCase() !== payload.ownerEmail;
                 if (!isEdit && !this.customers.find(customer => customer.id === payload.clientDirectoryId)?.clientTaskCreatedAt) {
@@ -767,10 +844,24 @@ export const projectMethods = {
             }
         },
         getActivityStatus(item) {
+            if (item.type === 'Quotation') {
+                const quotationStatuses = {
+                    'Open': { label: 'SENT', detail: 'Awaiting Client decision', className: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+                    'Accepted': { label: 'ACCEPTED', detail: 'Client accepted this quotation', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' },
+                    'Rejected': { label: 'REJECTED', detail: 'Client declined this quotation', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+                    // Reached only from Accepted, via createInvoiceFromQuotation() —
+                    // the quotation itself is done; its own invoice's status is what
+                    // matters from here.
+                    'Invoiced': { label: 'INVOICED', detail: 'Converted to an invoice', className: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300' }
+                };
+                return quotationStatuses[item.status] || { label: 'DRAFT', detail: 'Not yet sent to Client', className: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
+            }
             if (item.type === 'Invoice') {
-                return item.status === 'Paid'
-                    ? { label: 'PAID', detail: 'Payment received', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' }
-                    : { label: 'UNPAID', detail: 'Payment not received', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
+                if (item.status === 'Paid') return { label: 'PAID', detail: 'Payment received', className: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300' };
+                if (item.status === 'Draft') return { label: 'DRAFT', detail: 'Not yet sent to Client', className: 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
+                if (item.paymentProofReviewStatus === 'Submitted') return { label: 'UNDER REVIEW', detail: 'Payment proof awaiting Finance verification', className: 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300' };
+                if (item.paymentProofReviewStatus === 'Rejected') return { label: 'PROOF REJECTED', detail: 'Submitted payment proof needs a correction', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
+                return { label: 'UNPAID', detail: 'Payment not received', className: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' };
             }
             if (item.isClaim || ['Claim', 'Payment Voucher'].includes(item.documentType || item.type)) {
                 const isPaymentVoucher = (item.documentType || item.type) === 'Payment Voucher';

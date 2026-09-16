@@ -35,10 +35,15 @@ test('the decision cannot alter anything the quotation says', () => {
 });
 
 test('ownership is checked the same two ways the read rule allows', () => {
+    const rules = read('firestore.rules');
     const rule = docsRule();
+    // Both branches share one docClientOwnsRecord() helper rather than each
+    // spelling out the ownership check in full — see its definition.
+    const helper = rules.slice(rules.indexOf('function docClientOwnsRecord('), rules.indexOf('function hasMatchingPendingAccess'));
     // Primary contact, or an authorized secondary email on the linked customer.
-    assert.match(rule, /resource\.data\.raw\.clientEmail == request\.auth\.token\.email/);
-    assert.match(rule, /customerEmailMatches\(get\(\/databases\/\$\(database\)\/documents\/customers\/\$\(resource\.data\.raw\.customerId\)\)\.data, request\.auth\.token\.email\)/);
+    assert.match(helper, /data\.raw\.clientEmail == request\.auth\.token\.email/);
+    assert.match(helper, /customerEmailMatches\(get\(\/databases\/\$\(database\)\/documents\/customers\/\$\(data\.raw\.customerId\)\)\.data, request\.auth\.token\.email\)/);
+    assert.equal((rule.match(/docClientOwnsRecord\(resource\.data\)/g) || []).length, 2, 'the Quotation-decision and Invoice-payment-proof branches must both use it');
     assert.match(rule, /isClient\(\) &&/);
 });
 
@@ -46,8 +51,8 @@ test('staff keep their own write path, while Finance may delete billing document
     const rule = docsRule();
     // The same four roles as before, now also holding their document to totals
     // that add up — see tests/money-enforcement.test.js.
-    assert.match(rule, /allow create: if \(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) &&/);
-    assert.match(rule, /allow update: if \(\(isSuperadmin\(\) \|\| isDirector\(\) \|\| isHR\(\) \|\| isAccount\(\)\) && billingTotalsAccepted\(\)\) \|\|/);
+    assert.match(rule, /allow create: if \(isFinanceOrHR\(\)\) &&/);
+    assert.match(rule, /allow update: if \(\(isFinanceOrHR\(\)\) && billingTotalsAccepted\(\)\) \|\|/);
     assert.match(rule, /allow delete: if isAdmin\(\) \|\| \(isAccount\(\) && resource\.data\.type in \['Invoice', 'Quotation'\]\);/);
 });
 
@@ -80,7 +85,20 @@ test('the client gate mirrors the rule before showing the buttons', () => {
 
 test('an accepted quotation does not read as a failure', () => {
     // The badge only knew Paid from everything else, so Accepted painted red.
-    assert.match(read('index.html'), /\['Paid', 'Accepted'\]\.includes\(d\.status\)/);
+    // Invoiced joined the same "not a failure" set later — the natural next
+    // stage once Staff prepares the invoice, not a status the badge had seen
+    // before, so it used to paint red too.
+    assert.match(read('index.html'), /\['Paid', 'Accepted', 'Invoiced'\]\.includes\(d\.status\)/);
+});
+
+test('a quotation the client accepted is never reported back to them as declined', () => {
+    // Once Staff convert an accepted quotation into an invoice, its own status
+    // moves on to 'Invoiced' — the client's one decision (Accept) must still
+    // read as Accept, not flip to Declined just because status is no longer
+    // the literal string 'Accepted'.
+    const markup = read('index.html');
+    assert.match(markup, /d\.status === 'Rejected' \? 'Declined' : 'Accepted'/);
+    assert.doesNotMatch(markup, /d\.status === 'Accepted' \? 'Accepted' : 'Declined'/);
 });
 
 test('payment proof cannot settle an invoice', () => {
@@ -94,9 +112,14 @@ test('payment proof cannot settle an invoice', () => {
     assert.ok(allowed, 'the proof branch must constrain affectedKeys');
     const fields = allowed[1].match(/'[^']+'/g).map(f => f.replace(/'/g, ''));
     assert.deepEqual(fields.sort(), [
-        'paymentProofAt', 'paymentProofByName', 'paymentProofByUid', 'paymentProofName', 'paymentProofUrl'
+        'clientPaymentAccountHolder', 'clientPaymentAccountType', 'clientPaymentAmount', 'clientPaymentBank', 'clientPaymentDate',
+        'paymentProofAt', 'paymentProofByName', 'paymentProofByUid', 'paymentProofName', 'paymentProofUrl', 'paymentRefNo'
     ]);
     assert.ok(!fields.includes('status'), 'a client must never be able to mark an invoice Paid');
+    // amount is the invoice's own issued total and must stay as issued; the
+    // client's OWN claimed payment figure is the distinctly-named
+    // clientPaymentAmount, asserted present above — the two are never the
+    // same field.
     assert.ok(!fields.includes('amount'), 'the amount owed must stay as issued');
     // The uploader is stamped as themselves, not as whoever they claim.
     assert.match(rule, /request\.resource\.data\.paymentProofByUid == request\.auth\.uid/);
@@ -104,14 +127,19 @@ test('payment proof cannot settle an invoice', () => {
 
 test('the proof upload reuses the audited client document path', () => {
     const app = read('app.js');
-    const start = app.indexOf('async handlePaymentProofUpload(');
+    const start = app.indexOf('async submitPaymentProof(');
     const fn = app.slice(start, app.indexOf('async sendClientReply()', start));
+    // The reference and receipt are required together, before anything else runs.
+    assert.match(fn, /if \(!refNo\)/);
+    assert.match(fn, /if \(!file\)/);
     // Same Storage layout the storage rules already bound to the owning client.
     assert.match(fn, /client_documents\/\$\{clientDirectoryId\}\/\$\{storageFileName\}/);
     assert.match(fn, /validateClientDocumentFile\(file\)/);
     // Filed in the repository as well, so it is findable without the invoice.
     assert.match(fn, /purpose: 'Payment Proof'/);
     assert.match(fn, /linkedDocId: d\.id/);
+    // The client's own claimed reference travels with the proof itself.
+    assert.match(fn, /paymentRefNo: refNo/);
     // And it never touches status.
     const update = fn.slice(fn.indexOf("updateDoc(doc(db, 'docs'"));
     assert.doesNotMatch(update.slice(0, 400), /status:/);
@@ -157,6 +185,19 @@ test('the decision is stamped as the signed-in client, not as whoever is claimed
     assert.match(branch, /request\.resource\.data\.clientDecisionByUid == request\.auth\.uid/);
 });
 
+test('the Staff-side status badge does not call an invoiced quotation a draft', () => {
+    // getActivityStatus() drives the "Recent Activities & Document List" badge
+    // Staff and Finance read to see where a quotation actually stands. Its
+    // per-status lookup used to cover only Open/Accepted/Rejected, so an
+    // Invoiced quotation — reached the moment Staff convert an accepted one —
+    // fell through to the same fallback as a quotation nobody had sent yet.
+    const { methodSource } = require('./helpers/sources');
+    const obj = new Function(`return { ${methodSource('getActivityStatus')} }`)();
+    const result = obj.getActivityStatus({ type: 'Quotation', status: 'Invoiced' });
+    assert.equal(result.label, 'INVOICED');
+    assert.notEqual(result.detail, 'Not yet sent to Client');
+});
+
 test('a recorded decision is never reported to the client as a failure', () => {
     const { methodSource } = require('./helpers/sources');
     const decide = methodSource('decideQuotation');
@@ -167,6 +208,6 @@ test('a recorded decision is never reported to the client as a failure', () => {
     assert.match(handover, /catch \(error\) \{[\s\S]*?Quotation accepted\. Our team has been told and will follow up with you\./);
     assert.match(handover, /this\.notifyByEmail\(\{\s*to: this\.clientTeamRecipients\(d\)/);
 
-    const proof = methodSource('handlePaymentProofUpload');
+    const proof = methodSource('submitPaymentProof');
     assert.match(proof, /catch \(workflowError\) \{[\s\S]*?Payment proof submitted\. Our team has been told and will review it\./);
 });

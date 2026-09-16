@@ -1,7 +1,7 @@
 // Staff and client directories, the notification feed and the release notes
 // shown in Settings.
 import { APP_CHANGELOG } from "../config.js";
-import { canonicalClientTier } from "../constants/client-tiers.js";
+import { canonicalClientTier, CLIENT_TIER_ORDER } from "../constants/client-tiers.js";
 export const directoryComputed = {
         // HR employee records plus every non-Client portal login that has no
         // employee record of its own — the seed administrator above all, who
@@ -67,6 +67,23 @@ export const directoryComputed = {
         unreadNotificationsCount() { return this.notificationsForDisplay.filter(n => !n.read).length; },
         appChangelog() { return APP_CHANGELOG; },
         priorityClients() { return this.customers.filter(c => canonicalClientTier(c.clientTier) === 'Priority'); },
+        // The dashboard widget's own name — Priority sorts ahead of Premium,
+        // the same order CLIENT_TIER_ORDER already ranks them in everywhere
+        // else this codebase compares tiers.
+        premiumAndPriorityClients() {
+            return this.customers
+                .filter(c => ['Premium', 'Priority'].includes(canonicalClientTier(c.clientTier)))
+                .sort((a, b) => CLIENT_TIER_ORDER.indexOf(canonicalClientTier(b.clientTier)) - CLIENT_TIER_ORDER.indexOf(canonicalClientTier(a.clientTier)));
+        },
+        // The Client Directory table's own list — the global search box's
+        // placeholder has always promised "Documents, Employees, TIN, ID...",
+        // but nothing wired it to this table until now.
+        filteredCustomers() {
+            if (!this.searchQuery) return this.customers;
+            const q = this.searchQuery.toLowerCase();
+            return this.customers.filter(c => [c.clientName, c.clientId, c.clientSSM, c.clientContactPerson, c.clientEmail, c.clientPhone]
+                .some(field => String(field || '').toLowerCase().includes(q)));
+        },
         // Client Task board: every client bucketed by the LIVE status of their
         // own projects (clientTaskStatus) — not the manual clientTier tag, which
         // stays a separate, untouched feature (Dashboard's Priority Clients

@@ -69,8 +69,16 @@ test('the Director-only gates admit Superadmin', () => {
 
 test('the Firestore approval branch matches the client gate', () => {
     const rules = readSource('firestore.rules');
-    const branches = rules.match(/isAdmin\(\) && isClaimDecision\(\['Pending HR', 'Pending Account', 'Pending Director'\], \['Approved', 'Rejected'\], claimFinalDecisionKeys\(\)\)/g) || [];
-    assert.equal(branches.length, 2, 'both claims and vouchers must admit Superadmin');
+    // claims and payment_vouchers now share one canUpdateClaimOrVoucher()
+    // function rather than each carrying its own literal copy, so this
+    // final-decision branch appears once, not twice — but both collections'
+    // update rules must call into it. `admin` is that function's own
+    // single-fetch isAdmin() equivalent (see the note above it).
+    const branches = rules.match(/admin && isClaimDecision\(affected, \['Pending HR', 'Pending Account', 'Pending Director'\], \['Approved', 'Rejected'\], claimFinalDecisionKeys\(\)\)/g) || [];
+    assert.equal(branches.length, 1, 'the shared final-decision branch must admit Superadmin');
+    assert.match(rules, /let admin = staffSession && unlocked && sfa && \(record\.role == 'Superadmin' \|\| record\.role == 'Director'\);/, 'admin must mean exactly isSuperadmin() || isDirector()');
+    const callers = rules.match(/allow update: if canUpdateClaimOrVoucher\(/g) || [];
+    assert.equal(callers.length, 2, 'both claims and payment_vouchers must call the shared update rule');
     // A UI that permits what the rules refuse is worse than one that refuses first.
     assert.doesNotMatch(rules, /isDirector\(\) && resource\.data\.status in \['Pending HR'/);
 });

@@ -6,7 +6,7 @@ export const formMethods = {
             this.selectedClaimEmployeeId = '';
             this.selectedVoucherEmployeeId = '';
             this.docForm = {
-                type: 'Invoice', docNo: '', status: 'Unpaid', paymentMethod: 'Bank Transfer (EFT)', paymentBank: '', paymentReceiver: '', paymentRefNo: '', paymentAttachment: '',
+                type: 'Invoice', docNo: '', status: 'Unpaid', paymentMethod: 'Bank Transfer (EFT)', paymentBank: '', paymentReceiver: '',
                 date: new Date().toISOString().substr(0, 10), dueDate: new Date(Date.now() + 5*24*60*60*1000).toISOString().substr(0, 10),
                 customerId: '', projectId: '', projectRef: '', projectTitle: '', sourceQuotationId: '', sourceQuotationNo: '', clientName: '', clientPhone: '', clientSSM: '', clientAddress: '', clientAddress1: '', clientAddress2: '', clientAddress3: '', clientCity: '', clientState: '', clientPostcode: '', clientCountry: 'Malaysia', clientEmail: '', clientContactPerson: '', clientPosition: '', additionalClientEmailsText: '',
                 items: [{ desc: '', qty: 1, price: 0 }], discount: 0

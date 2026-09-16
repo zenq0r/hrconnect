@@ -17,6 +17,12 @@ export const accessComputed = {
         // includes HR for everything else on the employee record.
         canEditLockedIdentityFields() { return ['Superadmin', 'Director'].includes(this.userProfile.role); },
         canManageEmployees() { return this.hasModulePermission('hr-employees', 'edit'); },
+        // Every staff role can open Attendance/Duty Roster to clock themselves
+        // in or view their own roster — that visibility comes from RBAC_ROLES,
+        // not from these two. These gate the second, narrower ability: correcting
+        // someone else's clock event, or building/publishing the week's shifts.
+        canCorrectAttendance() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
+        canManageDutyRoster() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
         canManageClients() { return this.hasModulePermission('client-directory', 'edit'); },
         // Was Director-only. Superadmin now holds it too: an account that can
         // delete a Client Task could not create one, which is not a coherent
@@ -89,6 +95,11 @@ export const accessComputed = {
         },
         canManageCompanySettings() { return ['Director', 'Superadmin', 'IT'].includes(this.userProfile.role); },
         canManageProjects() { return ['Director', 'Superadmin'].includes(this.userProfile.role); },
+        // Any staff role (never Client) may create a new project — every creation
+        // is still audited (saveProject calls logAudit unconditionally). This is
+        // deliberately broader than canManageProjects, which stays Director/
+        // Superadmin-only for editing, reassigning or deleting an EXISTING one.
+        canCreateProject() { return ['Staff', 'HR', 'Account', 'IT', 'Director', 'Superadmin'].includes(this.userProfile.role); },
         // Must mirror the customers subscription condition in loadPortalData(), or
         // any gate built on this.customers silently evaluates against an empty list
         // for Staff/IT — who deliberately cannot read the Client Directory.

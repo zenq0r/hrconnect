@@ -100,33 +100,124 @@
         <div v-if="clientView.show" class="zq-drawer-overlay z-[102] no-print" role="dialog" aria-modal="true" aria-label="Client Information" @click.self="closeClientView()">
             <div class="zq-drawer zq-drawer-lg">
                 <div class="zq-modal-header">
-                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="zq-modal-title mt-1">Client Information</h3><p class="zq-modal-description">Registered company and contact information.</p></div>
+                    <div><p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Client Directory</p><h3 class="zq-modal-title mt-1">Client Information</h3><p class="zq-modal-description">Read-only view of the Client Registration record — always the current data on file.</p></div>
                     <button type="button" @click="closeClientView()" aria-label="Close client information" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="zq-modal-body">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+
+                    <!-- 1. CLIENT SUMMARY -->
                     <div class="sm:col-span-2 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 p-4">
                         <div class="flex flex-wrap items-start justify-between gap-2">
-                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Company</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">{{ clientView.client.clientId }}</p><p class="mt-1 text-slate-600 dark:text-slate-300">SSM: {{ clientView.client.clientSSM }}</p><p v-if="clientView.client.companyType || clientView.client.industry" class="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ [clientView.client.companyType, clientView.client.industry].filter(Boolean).join(' · ') }}</p></div>
-                            <div class="flex shrink-0 items-center gap-1.5">
+                            <div><p class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-400">Client / Company Name</p><p class="mt-1 text-base font-extrabold text-brand-dark dark:text-white">{{ clientView.client.clientName }}</p><p v-if="clientView.client.clientId" class="mt-0.5 font-mono text-[10px] font-bold text-brand-blue dark:text-teal-300">Permanent Client ID: {{ clientView.client.clientId }}</p></div>
+                            <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                                 <span v-if="clientView.client.id && isNewClient(clientView.client.id)" class="rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-1 text-[9px] font-extrabold uppercase text-emerald-700 dark:text-emerald-300">New Client</span>
-                                <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning · {{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }}</span>
+                                <span v-else-if="clientView.client.id" class="rounded-full bg-slate-200 dark:bg-slate-700 px-2 py-1 text-[9px] font-extrabold uppercase text-slate-600 dark:text-slate-300">Returning Client</span>
                                 <span :class="clientTierMeta(clientView.client.clientTier).badgeClass" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase">{{ clientTierMeta(clientView.client.clientTier).label }}</span>
-                                <span :class="clientHealthScore(clientView.client).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase" :title="'Health Score: ' + clientHealthScore(clientView.client).score + '/100'">{{ clientHealthScore(clientView.client).label }} · {{ clientHealthScore(clientView.client).score }}</span>
+                                <span :class="clientHealthScore(clientView.client).className" class="rounded-full px-2 py-1 text-[9px] font-extrabold uppercase" :title="'Risk / Client Score: ' + clientHealthScore(clientView.client).score + '/100'">{{ clientHealthScore(clientView.client).label }} · {{ clientHealthScore(clientView.client).score }}</span>
                             </div>
                         </div>
+                        <p v-if="clientView.client.id" class="mt-2 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ clientProjectCount(clientView.client.id) }} Project{{ clientProjectCount(clientView.client.id) === 1 ? '' : 's' }} on record</p>
                         <div v-if="canManageClients && clientView.client.id" class="mt-3 flex items-center gap-1.5 border-t border-slate-200 dark:border-slate-700 pt-3">
                             <span class="text-[10px] font-bold text-slate-400 dark:text-slate-400">Set Tier:</span>
                             <button type="button" v-for="tier in ['Standard','Premium','Priority']" :key="`tier-${tier}`" @click="updateClientTier(clientView.client, tier); clientView.client.clientTier = tier" :class="clientView.client.clientTier === tier ? clientTierMeta(tier).badgeClass + ' ring-2 ring-offset-1 ring-brand-blue' : 'bg-white dark:bg-slate-700 text-slate-500 dark:text-slate-300 border border-slate-200 dark:border-slate-600'" class="rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase transition">{{ tier }}</button>
                         </div>
                     </div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Contact Person</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Position</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Email</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail }}</p></div>
-                    <div><p class="font-bold text-slate-400 dark:text-slate-400">Phone</p><p class="mt-1 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone }}</p></div>
-                    <div class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Registered Address</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p></div>
-                    <div v-if="clientView.client.clientNotes" class="sm:col-span-2"><p class="font-bold text-slate-400 dark:text-slate-400">Internal Notes</p><p class="mt-1 whitespace-pre-line rounded-lg border border-slate-200 dark:border-slate-700 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p></div>
-                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+
+                    <!-- 2. COMPANY PROFILE -->
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Company Profile</p>
+                        <div class="mt-3 space-y-2.5">
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Client / Company Name</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientName || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Business Registration No. — New Format</p><p class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientBrnNew || '—' }}</p></div>
+                            <div v-if="clientView.client.clientBrnOld"><p class="font-bold text-slate-400 dark:text-slate-400">Business Registration No. — Old Format</p><p class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientBrnOld }}</p></div>
+                            <div v-if="clientView.client.clientTin"><p class="font-bold text-slate-400 dark:text-slate-400">Tax Identification No. (TIN)</p><p class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientTin }}</p></div>
+                            <div v-if="clientView.client.companyType"><p class="font-bold text-slate-400 dark:text-slate-400">Company Type</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.companyType }}</p></div>
+                            <div v-if="clientView.client.industry"><p class="font-bold text-slate-400 dark:text-slate-400">Industry / Business Category</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.industry }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Client Tier</p><p class="mt-0.5"><span :class="clientTierMeta(clientView.client.clientTier).badgeClass" class="rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase">{{ clientTierMeta(clientView.client.clientTier).label }}</span></p></div>
+                        </div>
+                    </div>
+
+                    <!-- 3. PRIMARY CONTACT -->
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Primary Contact</p>
+                        <div class="mt-3 space-y-2.5">
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Contact Person</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientContactPerson || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Position</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPosition || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Phone Number</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.clientPhone || '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Email Address — Primary Contact</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200 break-all">{{ clientView.client.clientEmail || '—' }}</p></div>
+                        </div>
+                    </div>
+
+                    <!-- 4. ADDITIONAL AUTHORIZED CONTACTS -->
+                    <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Additional Authorized Contacts</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Kept as a separate field from Email Address — Primary Contact, never merged with it.</p>
+                        <div v-if="clientView.client.additionalClientEmails && clientView.client.additionalClientEmails.length" class="mt-2.5 flex flex-wrap gap-1.5">
+                            <span v-for="email in clientView.client.additionalClientEmails" :key="email" class="rounded-full bg-slate-100 dark:bg-slate-700 px-2.5 py-1 text-[10.5px] font-semibold text-slate-700 dark:text-slate-200 break-all"><i class="fa-solid fa-envelope mr-1 text-slate-400 dark:text-slate-400"></i>{{ email }}</span>
+                        </div>
+                        <p v-else class="mt-2.5 text-slate-400 dark:text-slate-500">No additional authorized emails on record.</p>
+                    </div>
+
+                    <!-- 5. REGISTERED ADDRESS -->
+                    <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Registered Address</p>
+                        <p class="mt-2 whitespace-pre-line rounded-lg bg-slate-50 dark:bg-slate-900/40 p-3 font-semibold text-slate-700 dark:text-slate-200">{{ formattedClientAddress(clientView.client) || '—' }}</p>
+                    </div>
+
+                    <!-- 6. RELATED RECORDS -->
+                    <div v-if="clientView.client.id" class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Related Records</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Click any figure to open those records.</p>
+                        <div class="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            <button type="button" @click="closeClientView(); viewClientBoard(clientView.client)" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).totalProjects }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Total Projects</p>
+                            </button>
+                            <button type="button" @click="closeClientView(); viewClientBoard(clientView.client)" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).activeProjects }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Active Projects</p>
+                            </button>
+                            <button type="button" @click="closeClientView(); viewClientBoard(clientView.client)" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).completedProjects }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Completed Projects</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).totalQuotations }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Total Quotations</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-brand-dark dark:text-white">{{ clientRelatedRecordCounts(clientView.client).totalInvoices }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Total Invoices</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-amber-600 dark:text-amber-400">{{ clientRelatedRecordCounts(clientView.client).unpaidInvoices }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Unpaid Invoices</p>
+                            </button>
+                            <button type="button" @click="scrollClientViewTo('client-doc-history')" class="rounded-lg border border-slate-200 dark:border-slate-700 p-2.5 text-left transition hover:border-brand-blue hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <p class="text-base font-extrabold text-emerald-600 dark:text-emerald-400">{{ clientRelatedRecordCounts(clientView.client).paidInvoices }}</p>
+                                <p class="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-400">Paid Invoices</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 7. INTERNAL INFORMATION (staff-only; never shown in Client Portal) -->
+                    <div class="sm:col-span-2 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Internal Information</p>
+                        <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Date Registered</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.createdAt ? formatDateTime(clientView.client.createdAt) : '—' }}</p></div>
+                            <div><p class="font-bold text-slate-400 dark:text-slate-400">Last Updated</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.updatedAt ? formatDateTime(clientView.client.updatedAt) : '—' }}</p></div>
+                            <div v-if="clientView.client.createdByName"><p class="font-bold text-slate-400 dark:text-slate-400">Created By</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.createdByName }}</p></div>
+                            <div v-if="clientView.client.updatedByName"><p class="font-bold text-slate-400 dark:text-slate-400">Last Updated By</p><p class="mt-0.5 font-semibold text-slate-700 dark:text-slate-200">{{ clientView.client.updatedByName }}</p></div>
+                        </div>
+                        <div v-if="canManageClients" class="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+                            <p class="font-bold text-slate-400 dark:text-slate-400">Internal Notes <span class="font-normal normal-case text-slate-400 dark:text-slate-500">(staff only — never shown in Client Portal)</span></p>
+                            <p v-if="clientView.client.clientNotes" class="mt-1.5 whitespace-pre-line rounded-lg bg-slate-50 dark:bg-slate-900/40 p-3 text-slate-700 dark:text-slate-200">{{ clientView.client.clientNotes }}</p>
+                            <p v-else class="mt-1.5 text-slate-400 dark:text-slate-500">No internal notes on record.</p>
+                        </div>
+                    </div>
+
+                    <div v-if="clientView.client.id" id="client-doc-history" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <div class="mb-3"><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Documents & Billing History</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Every quotation and invoice created for this client.</p></div>
                         <div v-if="!clientDocHistory(clientView.client).length" class="zq-empty-state zq-empty-state-compact">
                             <i class="fa-regular fa-file-invoice zq-empty-state-icon" aria-hidden="true"></i>
@@ -152,10 +243,13 @@
                     <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <div class="mb-3 flex items-center justify-between gap-3">
                             <div><p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Documents</p><p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">All JPG, PNG and PDF files collected for this client, viewable by their Client Portal too.</p></div>
-                            <label v-if="canUploadClientDocuments" class="shrink-0 cursor-pointer rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
-                                <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>{{ clientDocuments.uploading ? 'Uploading…' : 'Upload Document' }}
-                                <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
-                            </label>
+                            <div v-if="canUploadClientDocuments" class="flex shrink-0 items-center gap-2">
+                                <label class="text-[9px] font-bold text-slate-500 dark:text-slate-400">Expiry (optional)<input type="date" v-model="clientDocuments.pendingExpiryDate" class="zq-input mt-0.5 block !py-1 !text-[10px]" title="Licence/document expiry date — used for Priority-tier expiry warnings"></label>
+                                <label class="cursor-pointer rounded-lg bg-brand-blue px-3 py-2 text-[10px] font-bold text-white hover:bg-teal-800" :class="{ 'opacity-60 pointer-events-none': clientDocuments.uploading }">
+                                    <i class="fa-solid fa-cloud-arrow-up mr-1.5"></i>{{ clientDocuments.uploading ? 'Uploading…' : 'Upload Document' }}
+                                    <input type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" class="hidden" @change="handleClientDocumentUpload" :disabled="clientDocuments.uploading">
+                                </label>
+                            </div>
                         </div>
                         <div v-if="clientDocuments.loading" class="zq-loading-state"><i class="fa-solid fa-spinner fa-spin zq-loading-state-icon" aria-hidden="true"></i><p class="zq-loading-state-text">Loading documents…</p></div>
                         <div v-else-if="clientDocuments.error" class="rounded-xl border border-dashed border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-5 py-8 text-center"><i class="fa-solid fa-triangle-exclamation text-xl text-red-400 dark:text-red-500"></i><p class="mt-2 text-[10px] font-bold text-red-600 dark:text-red-400">{{ clientDocuments.error }}</p><button type="button" @click="loadClientDocuments(clientDocuments.clientDirectoryId, clientDocuments.clientName, clientDocuments.clientEmail)" class="mt-3 rounded-lg bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800 px-3 py-1.5 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40"><i class="fa-solid fa-rotate-right mr-1.5"></i>Try Again</button></div>
@@ -167,7 +261,7 @@
                         <div v-else class="space-y-2">
                             <div v-for="item in clientDocuments.items" :key="item.id" @contextmenu.prevent="openContextMenu($event, clientDocumentMenuItems(item))" v-longpress="(touch) => openContextMenu(touch, clientDocumentMenuItems(item))" class="flex items-center gap-3 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
                                 <i :class="clientDocumentIcon(item.fileType)" class="fa-solid text-xl w-6 shrink-0 text-center"></i>
-                                <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}</p></div>
+                                <div class="min-w-0 flex-1"><p class="truncate text-xs font-extrabold text-brand-dark dark:text-white">{{ item.fileName }}</p><p class="mt-0.5 text-[9px] text-slate-500 dark:text-slate-400">{{ formatFileSize(item.fileSize) }} · Uploaded by {{ item.uploadedByName }} · {{ formatDateTime(item.uploadedAt) }}<span v-if="item.expiryDate"> · Expires {{ item.expiryDate }}</span></p></div>
                                 <div class="flex shrink-0 gap-1.5">
                                     <button type="button" @click="viewClientDocument(item)" class="zq-btn zq-btn-ghost zq-btn-icon" title="View"><i class="fa-solid fa-eye text-[11px]"></i></button>
                                     <button type="button" @click="downloadClientDocument(item)" class="zq-btn zq-btn-outline zq-btn-icon" title="Download"><i class="fa-solid fa-download text-[11px]"></i></button>
@@ -175,6 +269,19 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- CLIENT ACTIVITY -->
+                    <div v-if="clientView.client.id" class="sm:col-span-2 border-t border-slate-200 dark:border-slate-700 pt-4">
+                        <p class="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue">Client Activity</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Recent activity across projects, quotations, invoices and payments for this client.</p>
+                        <div v-if="!clientRecentActivity(clientView.client).length" class="mt-2.5 text-slate-400 dark:text-slate-500">No activity recorded yet.</div>
+                        <ul v-else class="mt-2.5 space-y-2">
+                            <li v-for="(event, idx) in clientRecentActivity(clientView.client)" :key="idx" class="flex items-start gap-2.5">
+                                <span class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300"><i :class="event.icon" class="fa-solid text-[9px]"></i></span>
+                                <div class="min-w-0"><p class="font-semibold text-slate-700 dark:text-slate-200">{{ event.text }}</p><p class="text-[10px] text-slate-400 dark:text-slate-500">{{ event.label }}</p></div>
+                            </li>
+                        </ul>
                     </div>
                 </div>
                 </div>
@@ -303,6 +410,83 @@
                 <div class="zq-modal-footer">
                     <button type="button" @click="employeeModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
                     <button type="submit" class="zq-btn zq-btn-primary">Save Data</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MODAL SHIF JADUAL TUGAS -->
+        <div v-if="dutyRosterModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" :aria-label="dutyRosterModal.isEdit ? 'Edit Shift' : 'Add Shift'">
+            <form @submit.prevent="saveDutyRosterShift" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">{{ dutyRosterModal.isEdit ? 'Edit Shift' : 'Add Shift' }}</h3>
+                    <button type="button" @click="dutyRosterModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div><label for="roster-modal-label" class="zq-label">Shift Label *</label><input id="roster-modal-label" name="rosterModalLabel" v-model="dutyRosterModal.form.label" required placeholder="e.g. Pagi, Petang" class="zq-input font-semibold"></div>
+                    <div><label for="roster-modal-date" class="zq-label">Date *</label><input id="roster-modal-date" name="rosterModalDate" type="date" v-model="dutyRosterModal.form.date" required class="zq-input"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label for="roster-modal-start" class="zq-label">Start Time *</label><input id="roster-modal-start" name="rosterModalStart" type="time" v-model="dutyRosterModal.form.startTime" required class="zq-input"></div>
+                        <div><label for="roster-modal-end" class="zq-label">End Time *</label><input id="roster-modal-end" name="rosterModalEnd" type="time" v-model="dutyRosterModal.form.endTime" required class="zq-input"></div>
+                    </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="dutyRosterModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Shift</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MODAL PEMBETULAN KEHADIRAN -->
+        <div v-if="attendanceCorrectionModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Correct Attendance Record">
+            <form @submit.prevent="saveAttendanceCorrection" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Correct Attendance &mdash; {{ attendanceCorrectionModal.record?.name }}</h3>
+                    <button type="button" @click="attendanceCorrectionModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <p class="text-slate-400">{{ formatDateWithDay(attendanceCorrectionModal.record?.date) }}</p>
+                    <div><label for="att-modal-clockin" class="zq-label">Clock In *</label><input id="att-modal-clockin" name="attModalClockIn" type="datetime-local" v-model="attendanceCorrectionModal.clockInInput" required class="zq-input"></div>
+                    <div>
+                        <label for="att-modal-status" class="zq-label">Status *</label>
+                        <select id="att-modal-status" name="attModalStatus" v-model="attendanceCorrectionModal.status" class="zq-input">
+                            <option value="Clocked In">Clocked In</option>
+                            <option value="Clocked Out">Clocked Out</option>
+                        </select>
+                    </div>
+                    <div v-if="attendanceCorrectionModal.status === 'Clocked Out'"><label for="att-modal-clockout" class="zq-label">Clock Out *</label><input id="att-modal-clockout" name="attModalClockOut" type="datetime-local" v-model="attendanceCorrectionModal.clockOutInput" required class="zq-input"></div>
+                    <div><label for="att-modal-note" class="zq-label">Reason for Correction *</label><textarea id="att-modal-note" name="attModalNote" v-model="attendanceCorrectionModal.correctionNote" rows="3" required placeholder="e.g. Staff forgot to clock out, corrected after confirming with them directly." class="zq-input normal-case"></textarea></div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="attendanceCorrectionModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Correction</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- MODAL PEMBETULAN PERMOHONAN CUTI -->
+        <div v-if="leaveCorrectionModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Correct Leave Request">
+            <form @submit.prevent="saveLeaveCorrection" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Correct Leave Request &mdash; {{ leaveCorrectionModal.record?.name }}</h3>
+                    <button type="button" @click="leaveCorrectionModal.show = false" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs" v-if="leaveCorrectionModal.record">
+                    <div>
+                        <label for="leave-corr-type" class="zq-label">Leave Type *</label>
+                        <select id="leave-corr-type" name="leaveCorrType" v-model="leaveCorrectionModal.record.leaveType" class="zq-input font-bold">
+                            <option v-for="type in leaveTypes" :key="type" :value="type">{{ type }}</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label for="leave-corr-start" class="zq-label">Start Date *</label><input id="leave-corr-start" name="leaveCorrStart" type="date" v-model="leaveCorrectionModal.record.startDate" required class="zq-input"></div>
+                        <div><label for="leave-corr-end" class="zq-label">End Date *</label><input id="leave-corr-end" name="leaveCorrEnd" type="date" v-model="leaveCorrectionModal.record.endDate" required class="zq-input"></div>
+                    </div>
+                    <div><label for="leave-corr-reason" class="zq-label">Reason *</label><textarea id="leave-corr-reason" name="leaveCorrReason" v-model="leaveCorrectionModal.record.reason" rows="2" required class="zq-input normal-case"></textarea></div>
+                    <div><label for="leave-corr-note" class="zq-label">Reason for Correction *</label><textarea id="leave-corr-note" name="leaveCorrNote" v-model="leaveCorrectionModal.correctionNote" rows="2" required placeholder="e.g. Employee's end date was entered wrong; corrected after confirming with them directly." class="zq-input normal-case"></textarea></div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="leaveCorrectionModal.show = false" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" class="zq-btn zq-btn-primary">Save Correction</button>
                 </div>
             </form>
         </div>
@@ -481,16 +665,16 @@
                 <div class="zq-modal-body space-y-4 text-xs">
                     <div>
                         <label for="pwd-current" class="zq-label">Kata Laluan Semasa *</label>
-                        <input id="pwd-current" type="password" v-model="changePasswordModal.currentPassword" required class="zq-input">
+                        <input id="pwd-current" name="currentPassword" type="password" v-model="changePasswordModal.currentPassword" required autocomplete="current-password" class="zq-input zq-input-password">
                     </div>
                     <div>
                         <label for="pwd-new" class="zq-label">New Password *</label>
-                        <input id="pwd-new" type="password" v-model="changePasswordModal.newPassword" required :minlength="passwordMinLength" :placeholder="passwordPolicy" class="zq-input">
+                        <input id="pwd-new" name="newPassword" type="password" v-model="changePasswordModal.newPassword" required :minlength="passwordMinLength" autocomplete="new-password" :placeholder="passwordPolicy" class="zq-input zq-input-password">
                         <p class="mt-1.5 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ passwordPolicy }}</p>
                     </div>
                     <div>
                         <label for="pwd-confirm" class="zq-label">Sahkan Kata Laluan Baharu *</label>
-                        <input id="pwd-confirm" type="password" v-model="changePasswordModal.confirmPassword" required :minlength="passwordMinLength" class="zq-input">
+                        <input id="pwd-confirm" name="confirmNewPassword" type="password" v-model="changePasswordModal.confirmPassword" required :minlength="passwordMinLength" autocomplete="new-password" class="zq-input zq-input-password">
                     </div>
 
                     <p v-if="changePasswordModal.error" class="zq-alert zq-alert-error">{{ changePasswordModal.error }}</p>
@@ -558,4 +742,79 @@
                 </div>
                 <div class="zq-modal-footer"><button type="button" @click="closeBillingTimeline()" class="zq-btn zq-btn-primary">Close</button></div>
             </div>
+        </div>
+        <!-- PAYMENT PROOF MODAL — the client's own account of the transfer they
+             made (bank, account type, account holder, date, amount, reference)
+             and the receipt itself, collected together at the moment they submit
+             proof of a payment already made. None of this is something staff can
+             fill in ahead of time — see submitPaymentProof(), client-workflow.js. -->
+        <div v-if="paymentProofModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Submit Payment Proof">
+            <form @submit.prevent="submitPaymentProof" class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title flex items-center">
+                        <i class="fa-solid fa-receipt text-brand-gold mr-2 text-base"></i>
+                        Submit Payment Proof
+                    </h3>
+                    <button type="button" @click="closePaymentProofModal" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <p class="text-slate-600 dark:text-slate-300">{{ paymentProofModal.doc?.docNo }} — tell us how you paid and attach your receipt.</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="proof-bank" class="zq-label">Bank Used <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                            <select id="proof-bank" name="paymentProofBank" v-model="paymentProofModal.bankName" required :disabled="paymentProofModal.uploading" class="zq-input font-semibold">
+                                <option value="" disabled>-- Select Bank --</option>
+                                <option v-for="bank in malaysiaBanks" :key="bank" :value="bank">{{ bank }}</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="zq-label">Account Type <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                            <div class="mt-1.5 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Account Type">
+                                <button type="button" v-for="opt in clientPaymentAccountTypes" :key="opt.value" @click="paymentProofModal.accountType = opt.value" :disabled="paymentProofModal.uploading" :aria-pressed="paymentProofModal.accountType === opt.value" class="zq-btn zq-btn-sm" :class="paymentProofModal.accountType === opt.value ? 'zq-btn-primary' : 'zq-btn-outline'">{{ opt.label }}</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="proof-holder" class="zq-label">{{ paymentProofModal.accountType === 'Business' ? 'Company Name on the Account' : 'Name on the Account' }} <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                        <input id="proof-holder" name="paymentProofHolder" type="text" v-model="paymentProofModal.accountHolderName" required :placeholder="paymentProofModal.accountType === 'Business' ? 'e.g. Monsta Studio Sdn. Bhd.' : 'e.g. Ahmad bin Abdullah'" :disabled="paymentProofModal.uploading" class="zq-input font-semibold">
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label for="proof-date" class="zq-label">Payment Date <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                            <input id="proof-date" name="paymentProofDate" type="date" v-model="paymentProofModal.paymentDate" required :max="getLocalDateKey()" :disabled="paymentProofModal.uploading" class="zq-input font-semibold">
+                        </div>
+                        <div>
+                            <label for="proof-amount" class="zq-label">Amount Paid (RM) <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                            <input id="proof-amount" name="paymentProofAmount" type="number" step="0.01" min="0.01" v-model="paymentProofModal.amount" required placeholder="0.00" :disabled="paymentProofModal.uploading" class="zq-input font-semibold">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="proof-ref-no" class="zq-label">Reference / Transaction ID <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                        <input id="proof-ref-no" name="paymentProofRefNo" type="text" v-model="paymentProofModal.refNo" required placeholder="e.g. IT280905CT833S" :disabled="paymentProofModal.uploading" class="zq-input font-semibold">
+                    </div>
+
+                    <div>
+                        <label class="zq-label">Receipt / Payment Screenshot <span class="text-red-500 font-extrabold ml-1">* Required</span></label>
+                        <div class="mt-1.5 flex items-center gap-2">
+                            <label for="proof-file" :class="paymentProofModal.uploading ? 'opacity-60 pointer-events-none' : ''" class="zq-btn zq-btn-outline zq-btn-sm cursor-pointer shrink-0">
+                                <span>Select</span>
+                                <input id="proof-file" name="paymentProofFile" type="file" @change="selectPaymentProofFile" :disabled="paymentProofModal.uploading" accept="image/jpeg,image/png,application/pdf" class="hidden">
+                            </label>
+                            <p class="truncate text-slate-500 dark:text-slate-400">{{ paymentProofModal.fileName || 'No file selected' }}</p>
+                        </div>
+                        <p class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">JPG, PNG or PDF, up to 10 MB.</p>
+                    </div>
+                    <p v-if="paymentProofModal.error" class="zq-alert zq-alert-error">{{ paymentProofModal.error }}</p>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="closePaymentProofModal" :disabled="paymentProofModal.uploading" class="zq-btn zq-btn-ghost">Cancel</button>
+                    <button type="submit" :disabled="paymentProofModal.uploading" :class="{ 'is-loading': paymentProofModal.uploading }" class="zq-btn zq-btn-primary">
+                        {{ paymentProofModal.uploading ? 'Submitting…' : 'Submit Proof' }}
+                    </button>
+                </div>
+            </form>
         </div>

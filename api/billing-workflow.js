@@ -13,6 +13,16 @@ const PAYMENT_REVIEW_ROLES = new Set(['HR', 'Account']);
 // remains restricted to the full-access roles above.
 const DOCUMENT_ISSUE_ROLES = new Set(['Director', 'Superadmin', 'HR', 'Account']);
 
+// Same order/fallback as CLIENT_TIER_ORDER + canonicalClientTier in
+// app/constants/client-tiers.js — kept in sync by hand since api/ (CommonJS)
+// cannot import that ES module directly. An unknown/missing tier is Standard.
+const CLIENT_TIER_ORDER = ['Standard', 'Premium', 'Priority'];
+function clientTierIndexOf(value) {
+    const wanted = String(value || '').trim().toUpperCase();
+    const index = CLIENT_TIER_ORDER.findIndex(tier => tier.toUpperCase() === wanted);
+    return index === -1 ? 0 : index;
+}
+
 function clientOwnsCustomer(customer, email) {
     const normalized = normalizeEmail(email);
     if (!normalized || !customer) return false;
@@ -437,6 +447,19 @@ module.exports = async function handler(req, res) {
                 message: `${document.name || 'Client'} submitted payment proof for ${document.docNo}. Finance must verify it before settlement.`,
                 actionLabel: 'REVIEW PAYMENT'
             });
+            // Premium+ 'advanced-notifications': a receipt confirmation pushed back to
+            // the client themselves, immediately — Standard only learns the same thing
+            // by opening the portal and reading the status badge. This is a deliberately
+            // local, minimal copy of app/constants/client-tiers.js' tier ranking: api/
+            // runs as CommonJS on the server, app/ as ES modules in the browser, and the
+            // two are not meant to import across that boundary.
+            if (clientTierIndexOf(customer?.clientTier) >= 1) {
+                await createPortalNotifications(db, [identity.email], {
+                    title: `Payment proof received — ${document.docNo}`,
+                    message: `We received your payment proof for ${document.docNo}. Finance is reviewing it now.`,
+                    actionLabel: 'VIEW INVOICE'
+                });
+            }
             res.status(200).json({ success: true, recipients: count }); return;
         }
 
@@ -453,11 +476,30 @@ module.exports = async function handler(req, res) {
             if (!customer || !project) {
                 res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. It was not sent.' }); return;
             }
+            // deliveryStatus, not status, is what actually governs whether a
+            // client can read this invoice (see firestore.rules) — this is the
+            // one place it ever becomes 'Sent'. The source quotation's status
+            // moves to 'Invoiced' in the same transaction: previously a separate
+            // client-side write, now atomic with the send itself.
+            const sourceQuotationId = String(document.raw?.sourceQuotationId || '');
             const eventRef = db.collection('billing_events').doc(`${documentId}_invoice_sent`);
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, sentByUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', billingStage: 'invoice_sent', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                transaction.update(documentRef, {
+                    deliveryStatus: 'Sent',
+                    billingWorkflowStatus: 'Sent to Client',
+                    billingStage: 'invoice_sent',
+                    invoiceSentAt: timestamp,
+                    invoiceSentByUid: identity.uid,
+                    invoiceSentByName: caller?.name || identity.email,
+                    billingClientId: customerId,
+                    billingProjectId: project.id,
+                    billingPicEmail: normalizeEmail(project.ownerEmail)
+                });
+                if (sourceQuotationId) {
+                    transaction.update(db.collection('docs').doc(sourceQuotationId), { status: 'Invoiced', invoiceDocId: documentId, invoiceCreatedAt: timestamp });
+                }
                 recordTimelineInTransaction(db, transaction, {
                     documentId, document, project, customer,
                     stage: 'invoice_sent',
@@ -538,82 +580,108 @@ module.exports = async function handler(req, res) {
             if (!document.paymentProofUrl || !['Submitted', 'Rejected'].includes(document.paymentProofReviewStatus || 'Submitted')) {
                 res.status(409).json({ error: 'No submitted payment proof is awaiting review.' }); return;
             }
+            // The exact Client ID / assigned-project match is enforced where a record is
+            // first created or sent (quotation-issued, quotation-accepted, invoice-sent) —
+            // those steps establish the link. Reviewing a payment proof never creates a
+            // new link, so an older invoice whose project has since been renamed, moved
+            // or removed must still be reviewable; its payment history is real either way.
+            // Project/customer are resolved on a best-effort basis, used only to route
+            // notifications, stamp the PIC and label the timeline entry — never to block
+            // the review itself.
             const project = await resolveProject(db, document);
-            if (!customer || !project) {
-                res.status(409).json({ error: 'The invoice Client ID and assigned project do not match. Payment proof cannot be reviewed.' }); return;
-            }
             const approved = req.body?.decision === 'approved';
             const note = safeNote(req.body?.note);
+            const previousStatus = document.status;
             const nextStatus = approved ? 'Paid' : 'Unpaid';
             const raw = { ...(document.raw || {}), status: nextStatus };
-            await documentRef.update({
-                status: nextStatus,
-                raw,
-                paymentProofReviewStatus: approved ? 'Verified' : 'Rejected',
-                paymentProofReviewedAt: timestamp,
-                paymentProofReviewedByUid: identity.uid,
-                paymentProofReviewedByName: caller?.name || identity.email,
-                paymentProofReviewNote: note,
-                billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
-                billingWorkflowUpdatedAt: timestamp,
-                billingStage: approved ? 'paid' : 'payment_proof_rejected',
-                billingClientId: customerId,
-                billingProjectId: project.id,
-                billingPicEmail: normalizeEmail(project.ownerEmail)
-            });
-            // An approval is two facts as well: a person verified the proof,
-            // and only then did the invoice become Paid. Keeping them apart is
-            // what shows the settlement was never automatic.
             const reviewVersion = document.paymentProofAt || timestamp;
-            if (approved) {
-                await recordTimeline(db, {
-                    documentId, document, project, customer,
-                    stage: 'payment_verified',
-                    version: reviewVersion,
-                    fromStatus: document.status || 'Unpaid',
-                    toStatus: document.status || 'Unpaid',
+            const eventRef = db.collection('billing_events').doc(`${documentId}_review_${String(reviewVersion).replace(/[^a-zA-Z0-9]/g, '')}`);
+            const created = await db.runTransaction(async (transaction) => {
+                if ((await transaction.get(eventRef)).exists) return false;
+                transaction.create(eventRef, {
+                    action,
+                    documentId,
+                    customerId: customerId || document.billingClientId || '',
+                    projectId: project?.id || document.billingProjectId || '',
+                    reviewedByUid: identity.uid,
+                    reviewedByName: caller?.name || identity.email,
+                    decision: approved ? 'approved' : 'rejected',
+                    originalStatus: previousStatus,
+                    newStatus: nextStatus,
+                    paymentProofUrl: document.paymentProofUrl || '',
                     note,
-                    timestamp,
-                    ...actor,
-                    extra: {
-                        paymentProofUrl: document.paymentProofUrl || '',
-                        paymentProofName: document.paymentProofName || '',
-                        verifiedByUid: identity.uid,
-                        verifiedByName: caller?.name || identity.email || '',
-                        verifiedByEmail: normalizeEmail(identity.email) || ''
-                    }
+                    createdAt: timestamp
                 });
-                await recordTimeline(db, {
-                    documentId, document, project, customer,
-                    stage: 'paid',
-                    version: reviewVersion,
-                    fromStatus: document.status || 'Unpaid',
-                    toStatus: 'Paid',
-                    timestamp,
-                    ...actor,
-                    extra: {
-                        verifiedByUid: identity.uid,
-                        verifiedByName: caller?.name || identity.email || ''
-                    }
+                transaction.update(documentRef, {
+                    status: nextStatus,
+                    raw,
+                    paymentProofReviewStatus: approved ? 'Verified' : 'Rejected',
+                    paymentProofReviewedAt: timestamp,
+                    paymentProofReviewedByUid: identity.uid,
+                    paymentProofReviewedByName: caller?.name || identity.email,
+                    paymentProofReviewNote: note,
+                    billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
+                    billingWorkflowUpdatedAt: timestamp,
+                    billingStage: approved ? 'paid' : 'payment_proof_rejected',
+                    // Only overwrite the linkage stamps when this review actually resolved a
+                    // current project — never blank out or guess at a historical record's link.
+                    ...(project ? { billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) } : {})
                 });
-            } else {
-                await recordTimeline(db, {
-                    documentId, document, project, customer,
-                    stage: 'payment_proof_rejected',
-                    version: reviewVersion,
-                    fromStatus: document.status || 'Unpaid',
-                    toStatus: 'Unpaid',
-                    note,
-                    timestamp,
-                    ...actor,
-                    extra: {
-                        paymentProofUrl: document.paymentProofUrl || '',
-                        paymentProofName: document.paymentProofName || '',
-                        verifiedByUid: identity.uid,
-                        verifiedByName: caller?.name || identity.email || ''
-                    }
-                });
-            }
+                // An approval is two facts as well: a person verified the proof,
+                // and only then did the invoice become Paid. Keeping them apart is
+                // what shows the settlement was never automatic.
+                if (approved) {
+                    recordTimelineInTransaction(db, transaction, {
+                        documentId, document, project, customer,
+                        stage: 'payment_verified',
+                        version: reviewVersion,
+                        fromStatus: previousStatus || 'Unpaid',
+                        toStatus: previousStatus || 'Unpaid',
+                        note,
+                        timestamp,
+                        ...actor,
+                        extra: {
+                            paymentProofUrl: document.paymentProofUrl || '',
+                            paymentProofName: document.paymentProofName || '',
+                            verifiedByUid: identity.uid,
+                            verifiedByName: caller?.name || identity.email || '',
+                            verifiedByEmail: normalizeEmail(identity.email) || ''
+                        }
+                    });
+                    recordTimelineInTransaction(db, transaction, {
+                        documentId, document, project, customer,
+                        stage: 'paid',
+                        version: reviewVersion,
+                        fromStatus: previousStatus || 'Unpaid',
+                        toStatus: 'Paid',
+                        timestamp,
+                        ...actor,
+                        extra: {
+                            verifiedByUid: identity.uid,
+                            verifiedByName: caller?.name || identity.email || ''
+                        }
+                    });
+                } else {
+                    recordTimelineInTransaction(db, transaction, {
+                        documentId, document, project, customer,
+                        stage: 'payment_proof_rejected',
+                        version: reviewVersion,
+                        fromStatus: previousStatus || 'Unpaid',
+                        toStatus: 'Unpaid',
+                        note,
+                        timestamp,
+                        ...actor,
+                        extra: {
+                            paymentProofUrl: document.paymentProofUrl || '',
+                            paymentProofName: document.paymentProofName || '',
+                            verifiedByUid: identity.uid,
+                            verifiedByName: caller?.name || identity.email || ''
+                        }
+                    });
+                }
+                return true;
+            });
+            if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
             const recipients = [customer?.clientEmail, ...(Array.isArray(customer?.additionalClientEmails) ? customer.additionalClientEmails : []), project?.ownerEmail, ...(await recipientsForRoles(db, ['Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
                 title: approved ? `Payment verified — ${document.docNo}` : `Payment proof needs attention — ${document.docNo}`,

@@ -23,11 +23,20 @@ export const CLIENT_TIER_FEATURES = [
     { key: 'project-tracking', minTier: 0, label: 'Project and stage tracking', detail: 'See every project and the stage it currently sits at.' },
     { key: 'billing-decisions', minTier: 0, label: 'Quotations and invoices', detail: 'Accept or decline a quotation and download any invoice.' },
     { key: 'payment-proof', minTier: 0, label: 'Submit payment proof', detail: 'Upload a receipt straight onto the invoice it settles.' },
+    { key: 'document-access', minTier: 0, label: 'Client document access', detail: 'View every document our team has filed for your account.' },
+    { key: 'billing-history', minTier: 0, label: 'Full payment and invoice history', detail: 'Every quotation and invoice on record, with no retention window.' },
+    { key: 'basic-notifications', minTier: 0, label: 'Milestone notifications', detail: "Notified when a quotation, invoice or payment reaches a new status." },
     { key: 'full-timeline', minTier: 1, label: 'Full activity timeline', detail: 'Every recorded step on a project, not just its stage.' },
     { key: 'client-reply', minTier: 1, label: 'Reply to your officer', detail: 'Two-way conversation on each project update.' },
     { key: 'account-statement', minTier: 1, label: 'Download account statement', detail: 'A CSV statement of every transaction on record.' },
-    { key: 'officer-presence', minTier: 2, label: 'Live officer availability', detail: 'See when the officer handling your account is online.' },
-    { key: 'expiry-alerts', minTier: 2, label: 'Early expiry warnings', detail: 'Advance notice before a document or licence lapses.' }
+    { key: 'project-progress-summary', minTier: 1, label: 'Project progress summary', detail: 'A stage-by-stage completion view for every active project.' },
+    { key: 'advanced-notifications', minTier: 1, label: 'Proactive status notifications', detail: 'A confirmation is pushed to you the moment we receive your payment proof — not only when Finance verifies it.' },
+    { key: 'priority-queue', minTier: 1, label: 'Priority document review', detail: "Your quotations and payment proofs are queued ahead of Standard in Finance's review list." },
+    { key: 'transaction-export', minTier: 1, label: 'Export project records', detail: 'Download a CSV of every project linked to your account.' },
+    { key: 'officer-presence', minTier: 2, label: 'Dedicated officer, live availability', detail: 'See your dedicated account officer and whether they are online right now.' },
+    { key: 'expiry-alerts', minTier: 2, label: 'Early expiry warnings', detail: 'Advance notice before a document or licence on file lapses.' },
+    { key: 'deadline-reminders', minTier: 2, label: 'Upcoming deadline visibility', detail: 'A dedicated view of any project activity on your account due within 3 days.' },
+    { key: 'issue-escalation', minTier: 2, label: 'Escalate directly to a Director', detail: 'Raise an issue straight to Director/Superadmin, bypassing the normal queue.' }
 ];
 
 // Support response commitment per tier, indexed the same way.

@@ -3,6 +3,10 @@
 import {
     db,
     auth,
+    collection,
+    query,
+    where,
+    getDocs,
     doc,
     getDoc,
     getDocFromServer,
@@ -18,7 +22,7 @@ import {
     checkActionCode,
     applyActionCode
 } from "../../firebase-config.js";
-import { SEED_ADMIN_EMAILS, createEmailActionFlow, createLoginOtpState } from "../config.js";
+import { SEED_ADMIN_EMAILS, createEmailActionFlow, createLoginOtpState, TRUSTED_DEVICE_KEY_PREFIX } from "../config.js";
 import { SECOND_FACTOR_ROLES } from "../constants/rbac.js";
 import { homeTabFor } from "../views.js";
 import { PASSWORD_MIN_LENGTH, PASSWORD_POLICY_TEXT, passwordPolicyError } from "../constants/password-policy.js";
@@ -416,6 +420,7 @@ export const authMethods = {
             // the browser, leaving the button stuck on "Sending…" forever.
             this.loginOtp = createLoginOtpState({ show: true, email: flow.email, purpose: 'password-reset' });
             await this.$nextTick();
+            this.focusOtpBox(0);
             await this.requestLoginOtp();
         },
         startLoginOtpCooldown(seconds) {
@@ -575,27 +580,22 @@ export const authMethods = {
             try {
                 const flow = this.passwordResetFlow;
                 const isSignIn = this.loginOtp.purpose === 'sign-in';
+                const trustDevice = isSignIn && this.loginOtp.trustDevice;
                 const body = await this.loginOtpPayload();
                 const resp = await fetch('/api/verify-login-otp', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...body, code: this.loginOtp.code.trim() })
+                    body: JSON.stringify({ ...body, code: this.loginOtp.code.trim(), ...(trustDevice ? { trustDevice: true } : {}) })
                 });
                 const data = await resp.json().catch(() => ({}));
                 if (!resp.ok || !data.valid) throw new Error(data.error || 'Invalid or expired code.');
-                this.closeLoginOtp();
-                if (isSignIn) {
-                    // The server has just stamped this sign-in into the token's
-                    // claims; the rules read the database through that stamp, so
-                    // nothing is fetched on the old token.
-                    await auth.currentUser?.getIdToken(true);
-                    this.setPendingSecondFactor('');
-                    const context = this.pendingLoginContext;
-                    this.pendingLoginContext = null;
-                    if (!context?.firebaseUser) throw new Error('Your sign-in session has expired. Please sign in again.');
-                    await this.finishSignIn(context, { secondFactorCleared: true });
-                    return;
+                // Read before closeLoginOtp()/completeSignInAfterSecondFactor() null
+                // out pendingLoginContext.
+                if (isSignIn && data.trustedDeviceToken) {
+                    this.storeTrustedDeviceToken(this.pendingLoginContext?.firebaseUser?.uid, data.trustedDeviceToken, data.trustedDeviceExpiresAt);
                 }
+                this.closeLoginOtp();
+                if (isSignIn) { await this.completeSignInAfterSecondFactor(); return; }
                 flow.otpVerified = true;
                 flow.error = '';
             } catch (error) {
@@ -603,6 +603,162 @@ export const authMethods = {
                 this.loginOtp.error = error.message || 'Verification failed.';
                 this.loginOtp.verifying = false;
             }
+        },
+        // The tail every sign-in second factor eventually reaches — the emailed
+        // code, and now a trusted-device skip (see attemptTrustedDeviceSignIn).
+        // One place, so the two paths cannot silently drift apart.
+        async completeSignInAfterSecondFactor() {
+            // The server has just stamped this sign-in into the token's claims;
+            // the rules read the database through that stamp, so nothing is
+            // fetched on the old token.
+            await auth.currentUser?.getIdToken(true);
+            this.setPendingSecondFactor('');
+            const context = this.pendingLoginContext;
+            this.pendingLoginContext = null;
+            if (!context?.firebaseUser) throw new Error('Your sign-in session has expired. Please sign in again.');
+            await this.finishSignIn(context, { secondFactorCleared: true });
+        },
+        // ---- Trusted device (skip the emailed code on a device already
+        // verified within the last 30 days) --------------------------------
+        // The token itself never proves anything on its own: verify-login-otp
+        // independently re-verifies the caller's idToken to learn the uid, and
+        // only then checks the token against that uid's own trusted_devices
+        // record. A stolen localStorage value from a different account's
+        // browser profile is therefore useless here.
+        trustedDeviceStorageKey(uid) {
+            return `${TRUSTED_DEVICE_KEY_PREFIX}${uid}`;
+        },
+        readTrustedDeviceToken(uid) {
+            if (!uid) return null;
+            try {
+                const raw = localStorage.getItem(this.trustedDeviceStorageKey(uid));
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (!parsed?.token || !parsed?.expiresAt || Date.parse(parsed.expiresAt) <= Date.now()) {
+                    localStorage.removeItem(this.trustedDeviceStorageKey(uid));
+                    return null;
+                }
+                return parsed;
+            } catch (error) {
+                return null;
+            }
+        },
+        storeTrustedDeviceToken(uid, token, expiresAt) {
+            if (!uid || !token || !expiresAt) return;
+            try {
+                localStorage.setItem(this.trustedDeviceStorageKey(uid), JSON.stringify({ token, expiresAt }));
+            } catch (error) {
+                console.warn('Could not remember this device:', error);
+            }
+        },
+        clearTrustedDeviceToken(uid) {
+            if (!uid) return;
+            try { localStorage.removeItem(this.trustedDeviceStorageKey(uid)); } catch (error) { /* nothing to clear */ }
+        },
+        // Settings > My Profile > Trusted Devices. firestore.rules scopes the
+        // read to the signed-in user's own uid regardless of the query, so this
+        // can never list another account's devices even if asked to.
+        async loadTrustedDevices() {
+            if (!this.userProfile.uid) return;
+            this.trustedDevices.loading = true;
+            this.trustedDevices.error = '';
+            try {
+                const snapshot = await getDocs(query(collection(db, 'trusted_devices'), where('uid', '==', this.userProfile.uid)));
+                this.trustedDevices.items = snapshot.docs
+                    .map(d => ({ id: d.id, ...d.data() }))
+                    .sort((a, b) => String(b.lastUsedAt || b.createdAt || '').localeCompare(String(a.lastUsedAt || a.createdAt || '')));
+                this.trustedDevices.loaded = true;
+            } catch (error) {
+                console.error('Load trusted devices failed:', error);
+                this.trustedDevices.error = 'Unable to load your trusted devices right now.';
+            } finally {
+                this.trustedDevices.loading = false;
+            }
+        },
+        async revokeTrustedDevice(device) {
+            try {
+                await deleteDoc(doc(db, 'trusted_devices', device.id));
+                this.trustedDevices.items = this.trustedDevices.items.filter(item => item.id !== device.id);
+                // Not necessarily this browser's own device — revoking one from
+                // the list must never clear a DIFFERENT device's local trust.
+                // If it was this browser's, the next sign-in attempt tries the now
+                // -deleted token, gets refused, and attemptTrustedDeviceSignIn()
+                // already clears the stale local entry itself at that point.
+                this.showNotify('Device trust revoked.');
+            } catch (error) {
+                console.error('Revoke trusted device failed:', error);
+                this.showNotify('Unable to revoke this device right now.', 'error');
+            }
+        },
+        // Tried once, silently, before the emailed code is ever requested.
+        // Returns true only when it actually finished the sign-in; any failure
+        // (expired, revoked, none stored, network error) falls through to the
+        // normal code challenge without surfacing an error for a background
+        // check the user never explicitly asked for.
+        async attemptTrustedDeviceSignIn(uid) {
+            const stored = this.readTrustedDeviceToken(uid);
+            if (!stored) return false;
+            try {
+                const idToken = await auth.currentUser?.getIdToken();
+                if (!idToken) return false;
+                const resp = await fetch('/api/verify-login-otp', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ purpose: 'sign-in', idToken, trustedDeviceToken: stored.token })
+                });
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.valid) { this.clearTrustedDeviceToken(uid); return false; }
+                this.closeLoginOtp();
+                await this.completeSignInAfterSecondFactor();
+                return true;
+            } catch (error) {
+                console.warn('Trusted-device sign-in check failed, falling back to the emailed code:', error);
+                return false;
+            }
+        },
+        // ---- OTP boxes (6 single-character inputs sharing loginOtp.code) ---
+        otpBoxIdPrefix() {
+            return this.loginOtp.purpose === 'password-reset' ? 'reset-otp' : 'signin-otp';
+        },
+        otpDigit(index) {
+            return this.loginOtp.code.charAt(index) || '';
+        },
+        setOtpDigit(index, char) {
+            const chars = this.loginOtp.code.split('');
+            while (chars.length < 6) chars.push('');
+            chars[index] = char;
+            this.loginOtp.code = chars.join('').slice(0, 6);
+        },
+        focusOtpBox(index) {
+            if (index < 0 || index > 5) return;
+            const el = document.getElementById(`${this.otpBoxIdPrefix()}-${index}`);
+            if (el) { el.focus(); el.select?.(); }
+        },
+        onOtpDigitInput(event, index) {
+            const digit = String(event.target.value || '').replace(/\D/g, '').slice(-1);
+            this.setOtpDigit(index, digit);
+            event.target.value = digit;
+            if (digit && index < 5) this.$nextTick(() => this.focusOtpBox(index + 1));
+        },
+        onOtpDigitKeydown(event, index) {
+            if (event.key === 'Backspace' && !this.otpDigit(index) && index > 0) {
+                event.preventDefault();
+                this.setOtpDigit(index - 1, '');
+                this.focusOtpBox(index - 1);
+            } else if (event.key === 'ArrowLeft' && index > 0) {
+                event.preventDefault();
+                this.focusOtpBox(index - 1);
+            } else if (event.key === 'ArrowRight' && index < 5) {
+                event.preventDefault();
+                this.focusOtpBox(index + 1);
+            }
+        },
+        onOtpPaste(event) {
+            const digits = String(event.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+            if (!digits) return;
+            event.preventDefault();
+            this.loginOtp.code = digits;
+            this.$nextTick(() => this.focusOtpBox(Math.min(digits.length, 5)));
         },
         closeLoginOtp() {
             clearInterval(this.loginOtpCooldownTimer);
@@ -677,15 +833,26 @@ export const authMethods = {
         async startSignInOtp(loginContext) {
             this.pendingLoginContext = loginContext;
             const email = loginContext?.firebaseUser?.email || '';
+            const uid = loginContext?.firebaseUser?.uid || '';
             // The password was accepted, so Firebase already holds a session —
             // and a session is restorable. Without this marker, opening a second
             // tab while the code is still unanswered would restore that session
             // straight into the portal, and the challenge would be decoration.
             // It is cleared when the code is confirmed, when the challenge is
             // abandoned, and on any sign-out.
-            this.setPendingSecondFactor(loginContext?.firebaseUser?.uid || '');
-            this.loginOtp = createLoginOtpState({ show: true, email, purpose: 'sign-in' });
+            this.setPendingSecondFactor(uid);
+            // A device trusted on an earlier sign-in skips the emailed code
+            // entirely — tried first, silently. Shown as "Checking this
+            // device…" rather than painting the 6-box code form immediately:
+            // on a slower connection the trust check takes a moment, and
+            // showing the form only to swap it for the portal a beat later
+            // reads as "did it want a code or not?". Any trust-check failure
+            // falls through to the normal code request below.
+            this.loginOtp = createLoginOtpState({ show: true, checkingDevice: true, email, purpose: 'sign-in' });
+            if (await this.attemptTrustedDeviceSignIn(uid)) return;
+            this.loginOtp.checkingDevice = false;
             await this.$nextTick();
+            this.focusOtpBox(0);
             await this.requestLoginOtp();
         },
 
@@ -792,6 +959,11 @@ export const authMethods = {
                 this.isLoggedIn = false; this.loginLoading = false; this.mobileMenuOpen = false; this.desktopSidebarOpen = false; this.portalDataReady = false; this.portalDataReadyPromise = null; this.userProfile = { name: '', email: '', role: '', photo: '' };
                 this.mountedViews = []; this.viewError = '';
                 this.resetAllForms(); this.currentTab = 'dashboard'; this.loginForm = { email: '', password: '' }; this.searchQuery = ''; this.authView = 'landing';
+                // Gated by its own .loaded flag (see loadTrustedDevices()/switchTab()),
+                // so left unreset here it survives into whichever account signs in
+                // next on this same tab — that account's Trusted Devices screen would
+                // show the PREVIOUS user's devices instead of fetching its own.
+                this.trustedDevices = { items: [], loading: false, error: '', loaded: false };
                 this.postLogoutChoice = true;
             }
         },

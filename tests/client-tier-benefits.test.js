@@ -116,15 +116,53 @@ test('canReplyAsClient is gated, so every caller inherits the check', () => {
     assert.match(body, /clientTierAllows\('client-reply'\)/);
 });
 
+test('core portal functions are never tier-gated: quotation decisions and payment proof', () => {
+    const src = appSource();
+    // Fixed-size windows, same technique as the export/reply enforcement test above —
+    // large enough to cover each method body without needing to know what follows it.
+    for (const method of ['decideQuotation', 'canDecideQuotation', 'submitPaymentProof', 'canAttachPaymentProof']) {
+        const start = src.indexOf(`${method}(`);
+        assert.ok(start > -1, `${method} must exist`);
+        const body = src.slice(start, start + 1400);
+        assert.doesNotMatch(
+            body,
+            /clientTierAllows\(/,
+            `${method} must never gate a core function (quotation decisions and payment proof stay open on every tier)`
+        );
+    }
+});
+
+test('the new Premium+/Priority mechanisms are gated, not decorative', () => {
+    const src = appSource();
+    for (const [method, key] of [
+        ['exportClientProjectRecords', 'transaction-export'],
+        ['escalateClientIssue', 'issue-escalation']
+    ]) {
+        const start = src.indexOf(`${method}(`);
+        assert.ok(start > -1, `${method} must exist`);
+        const body = src.slice(start, start + 900);
+        assert.match(body, new RegExp(`clientTierAllows\\('${key}'\\)`), `${method} must refuse on its own`);
+    }
+    // billingWorkflowQueue's tier-aware sort must actually read a real customer
+    // tier, not a hardcoded rank — otherwise "priority-queue" would be decorative.
+    const queueStart = src.indexOf('billingItemTierRank() {');
+    assert.ok(queueStart > -1, 'billingItemTierRank must exist');
+    const queueBody = src.slice(queueStart, queueStart + 500);
+    assert.match(queueBody, /canonicalClientTier\(customer\?\.clientTier\)/);
+});
+
 test('firestore.rules enforces the reply tier server-side and fails closed', () => {
     const source = rules();
     assert.match(source, /function callerTierAllowsReply\(\)/);
     assert.match(source, /clientTier\.upper\(\) == 'PREMIUM'/);
     // A missing customer record must deny, not fall through to allow.
     assert.match(source, /exists\(\/databases\/\$\(database\)\/documents\/customers\/\$\(request\.auth\.token\.clientDirectoryId\)\)/);
-    // And it has to actually be wired into the client's create branch.
-    const createBranch = source.slice(source.indexOf('match /project_client_updates/'), source.indexOf('allow update:', source.indexOf('match /project_client_updates/')));
+    // And it has to actually be wired into the client's create branch —
+    // canCreateProjectClientUpdate() (shared by project_client_updates'
+    // create rule) is where that branch now lives.
+    const createBranch = source.slice(source.indexOf('function canCreateProjectClientUpdate('), source.indexOf('function hasAllowedRoleEmail'));
     assert.match(createBranch, /isClient\(\) &&\s*callerTierAllowsReply\(\)/);
+    assert.match(source, /match \/project_client_updates\/\{updateId\} \{[\s\S]*?allow create: if isAuthenticated\(\) &&[\s\S]*?canCreateProjectClientUpdate\(/);
 });
 
 test('a registered client sees their complete history — no tier withholds records', () => {
@@ -178,7 +216,10 @@ test('Client Directory email matches are unique and missing matches fail clearly
     assert.match(claims, /client\/email-not-registered/);
     assert.match(app, /const conflictingCustomer = this\.customers\.find\(customer =>/);
     assert.match(app, /Keep each client login email on one record only/);
-    assert.match(app, /\[\.\.\.new Set\(String\(form\.additionalClientEmailsText/);
+    // Duplicates and malformed entries are rejected, not silently deduplicated
+    // — see 'Email Address and Additional Authorized Emails are validated,
+    // not silently deduplicated or merged' below for the full behavior.
+    assert.doesNotMatch(app, /\[\.\.\.new Set\(String\(form\.additionalClientEmailsText/);
 });
 
 test('the portal prints the registered Client ID, never the Firestore document key', () => {
@@ -314,4 +355,29 @@ test('firestore.rules compares the tier case-insensitively', () => {
     assert.match(body, /clientTier\.upper\(\) == 'PREMIUM'/);
     assert.match(body, /clientTier\.upper\(\) == 'PRIORITY'/);
     assert.match(body, /clientTier is string/, 'upper() on a missing field would error the rule');
+});
+
+test('the dashboard widget lists both Premium and Priority clients, Priority first', () => {
+    // The widget used to be Priority-only. Premium clients — the tier right
+    // below it — were entitled to real benefits (see CLIENT_TIER_FEATURES
+    // above) but never surfaced on the executive dashboard at all.
+    const obj = new Function(`${constantSource('CLIENT_TIER_ORDER', 'canonicalClientTier')}
+        return { ${methodSource('premiumAndPriorityClients')} };`)();
+    obj.customers = [
+        { id: 's1', clientName: 'Standard Co', clientTier: 'STANDARD' },
+        { id: 'p1', clientName: 'Premium Co', clientTier: 'PREMIUM' },
+        { id: 'r1', clientName: 'Priority Co', clientTier: 'PRIORITY' },
+        { id: 'u1', clientName: 'Unset Tier Co' }
+    ];
+    const result = obj.premiumAndPriorityClients();
+    assert.deepEqual(result.map(c => c.id), ['r1', 'p1'], 'Standard and clients with no tier must not appear, and Priority must sort ahead of Premium');
+});
+
+test('the dashboard widget renders Premium & Priority, not the old Priority-only wording', () => {
+    const dashboard = readSource('views/tab-dashboard.html');
+    assert.match(dashboard, /Premium &amp; Priority Clients/);
+    assert.match(dashboard, /v-if="premiumAndPriorityClients\.length"/);
+    assert.match(dashboard, /v-for="cust in premiumAndPriorityClients"/);
+    assert.match(dashboard, /No Premium or Priority-tier clients yet/);
+    assert.doesNotMatch(dashboard, />Priority Clients</, 'the old Priority-only heading must not still be shown');
 });

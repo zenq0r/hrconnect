@@ -1,6 +1,17 @@
 // Every reactive field the portal starts with. One call per app instance, so
 // a signed-out session can be reset simply by rebuilding this object.
-import { SUPPORT_EMAIL, createEmailActionFlow, createLoginOtpState } from "./config.js";
+import { SUPPORT_EMAIL, createEmailActionFlow, createLoginOtpState, SIDEBAR_GROUPS_STORAGE_KEY } from "./config.js";
+
+function readSidebarGroupsCollapsed() {
+    try {
+        const raw = localStorage.getItem(SIDEBAR_GROUPS_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+    } catch (error) {
+        // Private browsing, or storage disabled entirely — every group opens expanded.
+        return {};
+    }
+}
+
 export function createInitialState() {
         return {
             isLoggedIn: false,
@@ -45,6 +56,11 @@ export function createInitialState() {
             // The navigation stays hidden until the user opens it deliberately
             // from the single menu control, on desktop as well as on mobile.
             desktopSidebarOpen: false,
+            // Which sidebar groups a user has collapsed, keyed by group id
+            // ('ops' | 'billing' | 'admin'). Read once at boot from
+            // localStorage (see toggleSidebarGroup) so the preference survives
+            // a reload; absent = expanded.
+            sidebarGroupsCollapsed: readSidebarGroupsCollapsed(),
             chartTimeFilter: 'monthly',
             // Which month the executive KPI strip reads. Empty always means
             // the live month, so a session left open overnight rolls over
@@ -88,7 +104,7 @@ export function createInitialState() {
             recordPreview: { show: false, html: '' },
             claimPreview: { show: false, claim: null, directorApprovalAttachment: '', directorApprovalAttachmentName: '', directorApprovalOriginalBytes: 0 },
             attachmentPreview: { show: false, url: '', label: '' },
-            attachmentUploadState: { payment: false, receipt: false, director: false },
+            attachmentUploadState: { receipt: false, director: false },
             unsubscribers: [],
             portalDataReady: false,
             // Closed monthly packages (Firestore `monthly_archives`, doc id = YYYY-MM).
@@ -183,14 +199,20 @@ export function createInitialState() {
             clientUpdateModal: { show: false, isEdit: false, updateId: '', original: null, project: null, form: { updateType: 'Progress Update', updateDate: '', message: '' } },
             clientReplyMessage: '',
             clientPanel: 'ov',
-            // Which invoice row is mid-upload, so only that row shows a spinner.
-            paymentProofUploadingFor: '',
+            // A manual bank transfer's full proof, collected together in one
+            // required form rather than a bare file picker with no context: which
+            // bank the client paid from, whose account it was paid from, when and
+            // how much, the transfer reference, and the receipt itself. `doc` is
+            // the invoice being proven; nulled out whenever the modal is closed so
+            // a stale submission can't be reused.
+            paymentProofModal: { show: false, doc: null, bankName: '', accountType: '', accountHolderName: '', paymentDate: '', amount: '', refNo: '', file: null, fileName: '', uploading: false, error: '' },
             bulkPrintPreparing: false,
             editingReplyId: '',
             editingReplyMessage: '',
             projectViewMode: 'board',
             projectScopeFilter: 'all',
             clientPortalFilter: { type: 'all', status: 'all' },
+            clientEscalationMessage: '',
             expandedClientGroups: new Set(),
             draggingProject: null,
             dragOverStage: '',
@@ -212,7 +234,8 @@ export function createInitialState() {
             buttonContextLongPress: { timer: null, startX: 0, startY: 0, button: null },
             buttonContextHandlers: { contextmenu: null, touchstart: null, touchmove: null, touchend: null },
             projectPreview: { show: false, project: null, detailsReady: false },
-            clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '' },
+            clientDocuments: { clientDirectoryId: '', clientName: '', clientEmail: '', items: [], loading: false, uploading: false, error: '', pendingExpiryDate: '' },
+            trustedDevices: { items: [], loading: false, error: '', loaded: false },
             clientDocumentsUnsubscribe: null,
 
             // Public-site content management: Firestore-backed content consumed directly by
@@ -244,11 +267,29 @@ export function createInitialState() {
             projectModal: {
                 show: false,
                 isEdit: false,
-                form: { id: '', projectRef: '', title: '', clientDirectoryId: '', clientPortalUid: '', clientName: '', clientEmail: '', clientSSM: '', clientTier: 'Standard', ownerEmpNo: '', ownerName: '', ownerEmail: '', ownerPhoto: '', ownerPosition: '', ownerDepartment: '', ownerAssignedAt: '', ownerPresenceStatus: 'Offline', ownerPresenceUpdatedAt: '', ownerLastSeen: '', status: 'Project Planning', startDate: '', targetDate: '', description: '' }
+                refGenerating: false,
+                form: { id: '', projectType: '', projectRef: '', title: '', clientDirectoryId: '', clientPortalUid: '', clientName: '', clientEmail: '', clientSSM: '', clientTier: 'Standard', ownerEmpNo: '', ownerName: '', ownerEmail: '', ownerPhoto: '', ownerPosition: '', ownerDepartment: '', ownerAssignedAt: '', ownerPresenceStatus: 'Offline', ownerPresenceUpdatedAt: '', ownerLastSeen: '', status: 'Project Planning', startDate: '', targetDate: '', description: '', govState: '', govPbt: '', govApplicationType: '' }
             },
             // confirmStep: null (picker) -> 'handover' or 'complete' (confirmation sub-view)
             markProjectDoneModal: { show: false, project: null, newOwnerEmpNo: '', confirmStep: null, saving: false },
             employees: [],
+            attendanceRecords: [],
+            attendanceSelectedDate: new Date().toISOString().slice(0, 10),
+            dutyRosterWeeks: [],
+            dutyRosterWeekOffset: 0,
+            dutyRosterModal: {
+                show: false,
+                isEdit: false,
+                weekKey: '',
+                shiftId: '',
+                form: { label: 'Pagi', date: '', startTime: '08:00', endTime: '17:00' }
+            },
+            attendanceCorrectionModal: { show: false, record: null, clockInInput: '', clockOutInput: '', status: 'Clocked In', correctionNote: '' },
+            leaveRequests: [],
+            selectedLeaveEmployeeId: '',
+            editingLeaveId: null,
+            leaveForm: { id: '', empNo: '', name: '', empEmail: '', position: '', dept: '', leaveType: 'Annual', startDate: '', endDate: '', totalDays: 1, reason: '' },
+            leaveCorrectionModal: { show: false, record: null, correctionNote: '' },
             customers: [],
             users: [],
             auditLogs: [],
@@ -335,6 +376,7 @@ export function createInitialState() {
             accessRequests: [],
             accessRequestModal: { show: false, saving: false, requestedRole: '', reason: '', error: '' },
 
+            leaveTypes: ['Annual', 'Medical', 'Emergency', 'Unpaid', 'Maternity', 'Paternity'],
             claimSubCategories: {
                 'Medical': [
                     'Clinic / Hospital Treatment',
@@ -465,8 +507,6 @@ export function createInitialState() {
                 paymentMethod: 'Bank Transfer (EFT)',
                 paymentBank: '',
                 paymentReceiver: '',
-                paymentRefNo: '',
-                paymentAttachment: '',
                 date: new Date().toISOString().substr(0, 10),
                 dueDate: new Date(Date.now() + 5*24*60*60*1000).toISOString().substr(0, 10),
                 clientName: '',

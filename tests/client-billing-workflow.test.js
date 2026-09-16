@@ -26,12 +26,16 @@ test('invoice draft, issue, proof and verification form one controlled flow', ()
 
     assert.match(app, /createInvoiceFromQuotation/);
     assert.match(app, /status: 'Draft'/);
-    assert.match(app, /runBillingWorkflow\('invoice-sent', docId\)/);
+    // Sending is sendInvoiceToClient()'s own explicit action, never a side
+    // effect of saveDocRecord() — see payment-invoice-delivery.test.js for the
+    // full Draft -> Ready to Send -> Sent lifecycle.
+    assert.match(app, /runBillingWorkflow\('invoice-sent', invoice\.id\)/);
     assert.match(app, /runBillingWorkflow\('quotation-issued', docId\)/);
     assert.match(app, /runBillingWorkflow\('payment-proof-submitted', d\.id\)/);
     assert.match(app, /runBillingWorkflow\('payment-proof-reviewed', invoice\.id/);
     assert.match(handler, /paymentProofReviewStatus: approved \? 'Verified' : 'Rejected'/);
-    assert.match(rules, /resource\.data\.status != 'Draft'/);
+    assert.match(rules, /clientCanReadInvoice\(resource\.data\)/);
+    assert.match(rules, /data\.deliveryStatus == 'Sent'/);
     assert.match(rules, /match \/billing_events\/\{eventId\}/);
     assert.match(rules, /allow read, write: if false/);
     assert.match(page, /Client Billing Workflow/);
@@ -43,7 +47,10 @@ test('a newly issued quotation or invoice notifies the linked Client contacts', 
 
     assert.match(app, /const isQuotationBeingIssued = payload\.type === 'Quotation'/);
     assert.match(app, /subject: `Quotation Ready — \$\{payload\.docNo\}`/);
-    assert.match(app, /subject: `Invoice Ready — \$\{payload\.docNo\}`/);
+    // The invoice email moved with the send action itself — sendInvoiceToClient()
+    // is the only place it fires, using invoice.docNo (the object passed to it),
+    // not the saveDocRecord() payload.
+    assert.match(app, /subject: `Invoice Ready — \$\{invoice\.docNo\}`/);
     assert.match(app, /to: payload\.raw\.clientEmail/);
     assert.match(app, /ctaLabel: 'VIEW QUOTATION'/);
     assert.match(app, /ctaLabel: 'VIEW INVOICE'/);

@@ -1,0 +1,131 @@
+<!-- =====================================================================
+     ATTENDANCE
+     ===================================================================== -->
+                <div v-show="currentTab === 'attendance'" class="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+                    <div>
+                        <h2 class="zq-text-page-title">Attendance</h2>
+                        <p class="zq-page-header-desc">Clock in and out, and review attendance records.</p>
+                    </div>
+
+                    <div class="zq-card p-6">
+                        <div class="flex flex-col items-center text-center gap-3 py-4">
+                            <i class="fa-solid fa-clock text-3xl text-brand-blue"></i>
+                            <template v-if="!myTodayAttendanceRecord()">
+                                <p class="zq-text-small">You have not clocked in today.</p>
+                                <button type="button" @click="clockIn()" class="zq-btn zq-btn-primary text-base px-8 py-3">
+                                    <i class="fa-solid fa-right-to-bracket"></i><span>Clock In</span>
+                                </button>
+                            </template>
+                            <template v-else-if="myTodayAttendanceRecord().status === 'Clocked In'">
+                                <p class="zq-text-small">Clocked in at <strong>{{ attendanceTimeLabel(myTodayAttendanceRecord().clockInAt) }}</strong></p>
+                                <button type="button" @click="clockOut()" class="zq-btn zq-btn-destructive text-base px-8 py-3">
+                                    <i class="fa-solid fa-right-from-bracket"></i><span>Clock Out</span>
+                                </button>
+                            </template>
+                            <template v-else>
+                                <p class="zq-text-small">Clocked in <strong>{{ attendanceTimeLabel(myTodayAttendanceRecord().clockInAt) }}</strong> &middot; Clocked out <strong>{{ attendanceTimeLabel(myTodayAttendanceRecord().clockOutAt) }}</strong></p>
+                                <span class="inline-block px-3 py-1 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800">Done for today</span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div v-if="myStaleAttendanceRecords().length" class="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-4 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                        <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                        <span>It looks like you forgot to clock out on {{ myStaleAttendanceRecords().map(r => formatDateWithDay(r.date)).join(', ') }}. Contact HR to have {{ myStaleAttendanceRecords().length > 1 ? 'these records' : 'this record' }} corrected.</span>
+                    </div>
+
+                    <div v-if="canCorrectAttendance && companyStaleAttendanceRecords().length" class="rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-900 p-4">
+                        <div class="flex items-start gap-2.5 text-xs text-amber-800 dark:text-amber-300 mb-3">
+                            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+                            <span><strong>{{ companyStaleAttendanceRecords().length }} attendance record{{ companyStaleAttendanceRecords().length > 1 ? 's' : '' }}</strong> {{ companyStaleAttendanceRecords().length > 1 ? 'look' : 'looks' }} like a forgotten clock-out — still "Clocked In" from a previous day.</span>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div v-for="record in companyStaleAttendanceRecords()" :key="`stale-${record.id}`" class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white dark:bg-slate-800/60 px-3 py-2">
+                                <span class="text-xs">
+                                    <span class="font-bold text-slate-900 dark:text-slate-100">{{ record.name }}</span>
+                                    <span class="text-slate-400"> &middot; {{ record.empNo }} &middot; {{ formatDateWithDay(record.date) }} &middot; clocked in {{ attendanceTimeLabel(record.clockInAt) }}</span>
+                                </span>
+                                <button type="button" @click="openAttendanceCorrectionModal(record)" class="zq-btn zq-btn-info zq-btn-sm">
+                                    <i class="fa-solid fa-pen"></i><span>Correct</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div v-if="canCorrectAttendance" class="zq-card p-6">
+                        <div class="flex flex-wrap justify-between items-center gap-3 mb-4">
+                            <h3 class="zq-text-section-title"><i class="fa-solid fa-users text-brand-blue mr-2"></i>Attendance &mdash; {{ formatDateWithDay(attendanceSelectedDate) }}</h3>
+                            <label for="attendance-date-filter" class="sr-only">Select date</label>
+                            <input id="attendance-date-filter" name="attendanceDateFilter" type="date" v-model="attendanceSelectedDate" class="zq-input w-auto">
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Clock In</th>
+                                        <th>Clock Out</th>
+                                        <th class="text-center">Status</th>
+                                        <th class="text-center w-24">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="record in attendanceRecordsForDate(attendanceSelectedDate)" :key="record.id" @contextmenu.prevent="openContextMenu($event, attendanceRowMenuItems(record))" v-longpress="(touch) => openContextMenu(touch, attendanceRowMenuItems(record))">
+                                        <td>
+                                            <span class="font-bold text-slate-900 dark:text-slate-100 block text-sm">{{ record.name }}</span>
+                                            <span class="text-slate-400 block text-[10px]">{{ record.empNo }} &middot; {{ record.position }}</span>
+                                        </td>
+                                        <td>{{ attendanceTimeLabel(record.clockInAt) }}</td>
+                                        <td>{{ attendanceTimeLabel(record.clockOutAt) }}</td>
+                                        <td class="text-center">
+                                            <span :class="record.status === 'Clocked Out' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold">{{ record.status }}</span>
+                                            <span v-if="record.correctionNote" class="text-slate-400 block text-[9px] mt-1" :title="record.correctionNote"><i class="fa-solid fa-pen"></i> Corrected</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="zq-table-actions">
+                                                <button @click="openAttendanceCorrectionModal(record)" class="zq-btn zq-btn-info zq-btn-icon" title="Correct Attendance">
+                                                    <i class="fa-solid fa-pen"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr v-if="attendanceRecordsForDate(attendanceSelectedDate).length === 0" class="zq-table-empty">
+                                        <td colspan="5">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="zq-empty-state-icon fa-solid fa-clock"></i>
+                                                <p class="zq-empty-state-title">No attendance records for this date</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div v-else class="zq-card p-6">
+                        <h3 class="zq-text-section-title mb-4"><i class="fa-solid fa-clock-rotate-left text-brand-blue mr-2"></i>My Attendance History</h3>
+                        <div class="overflow-x-auto">
+                            <table class="zq-table">
+                                <thead>
+                                    <tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="text-center">Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="record in [...attendanceRecords].sort((a, b) => String(b.date).localeCompare(String(a.date)))" :key="record.id">
+                                        <td>{{ formatDateWithDay(record.date) }}</td>
+                                        <td>{{ attendanceTimeLabel(record.clockInAt) }}</td>
+                                        <td>{{ attendanceTimeLabel(record.clockOutAt) }}</td>
+                                        <td class="text-center"><span :class="record.status === 'Clocked Out' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold">{{ record.status }}</span></td>
+                                    </tr>
+                                    <tr v-if="attendanceRecords.length === 0" class="zq-table-empty">
+                                        <td colspan="4">
+                                            <div class="zq-empty-state zq-empty-state-compact">
+                                                <i class="zq-empty-state-icon fa-solid fa-clock"></i>
+                                                <p class="zq-empty-state-title">No attendance history yet</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>

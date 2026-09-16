@@ -1,6 +1,17 @@
 // Project board scoping: which projects this role sees, who can be assigned,
 // and which client accounts are linked to a project.
+import { PROJECT_TYPES, GOV_APPLICATION_TYPES } from "../constants/project-types.js";
+import { MALAYSIA_STATES, localAuthoritiesFor } from "../constants/malaysia-locations.js";
 export const projectsComputed = {
+        projectTypes() { return PROJECT_TYPES; },
+        govApplicationTypes() { return GOV_APPLICATION_TYPES; },
+        malaysiaStates() { return MALAYSIA_STATES; },
+        // Filtered to the state chosen in the Add/Edit Project modal — empty
+        // until a state is picked, so the Local Authority select never shows a
+        // stale list from a different state.
+        projectGovLocalAuthorities() {
+            return localAuthoritiesFor(this.projectModal?.form?.govState || '');
+        },
         // A Project Activity is only valid for the board when its Client Directory
         // record is an active Client Task parent. This single gate is used by both
         // the board and list views so an orphaned/legacy record can never appear
