@@ -1219,11 +1219,16 @@ service cloud.firestore {
     // can never be handed the same reference, even though projects/{id} reads
     // are PIC-scoped and neither of them can see the other's project. count
     // may only move forward by exactly 1 per write — never jump, never reset.
+    // isProjectManager() (Superadmin/Director) used to be OR'd in here too,
+    // but it is already a subset of canCreateProject() (isFinanceOrHR()
+    // already covers Superadmin/Director) — it never admitted anyone
+    // canCreateProject() didn't, it just cost this rule a second
+    // getUserRecord() fetch on every denied caller.
     match /project_ref_counters/{counterId} {
-      allow read: if canCreateProject() || isProjectManager();
-      allow create: if (canCreateProject() || isProjectManager()) &&
+      allow read: if canCreateProject();
+      allow create: if canCreateProject() &&
         request.resource.data.count == 1;
-      allow update: if (canCreateProject() || isProjectManager()) &&
+      allow update: if canCreateProject() &&
         request.resource.data.count == resource.data.count + 1;
       allow delete: if false;
     }
