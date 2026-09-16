@@ -478,7 +478,11 @@ test('only the current project PIC can load or manage project activity details',
     const html = readSource('index.html');
 
     assert.match(rules, /resource\.data\.projectOwnerEmail == request\.auth\.token\.email/);
-    assert.match(rules, /request\.resource\.data\.projectOwnerEmail == get\(\/databases\/\$\(database\)\/documents\/projects\/\$\(request\.resource\.data\.projectId\)\)\.data\.ownerEmail/);
+    // canCreateProjectActivity() (shared by project_activities' create rule)
+    // is where the projectOwnerEmail cross-check now lives, against a
+    // `project` fetched once by the caller instead of get() inline.
+    assert.match(rules, /function canCreateProjectActivity\(project, data\) \{[\s\S]*?data\.projectOwnerEmail == project\.ownerEmail/);
+    assert.match(rules, /allow create: if exists\(\/databases\/\$\(database\)\/documents\/projects\/\$\(request\.resource\.data\.projectId\)\) &&\s*canCreateProjectActivity\(/);
     assert.match(rules, /getAfter\(\/databases\/\$\(database\)\/documents\/projects\/\$\(resource\.data\.projectId\)\)\.data\.ownerEmail/);
     assert.match(app, /where\('projectOwnerEmail', '==', String\(this\.userProfile\.email \|\| ''\)\.trim\(\)\.toLowerCase\(\)\)/);
     assert.match(app, /canViewProjectActivityDetails\(project\)/);

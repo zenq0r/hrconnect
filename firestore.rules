@@ -262,6 +262,92 @@ service cloud.firestore {
         getAfter(/databases/$(database)/documents/customers/$(clientDirectoryId)).data.clientTaskCreatedAt.size() > 0;
     }
 
+    // Shared by project_activities/{activityId} below: `project` (the
+    // parent projects/{projectId} document) is fetched ONCE by the caller
+    // and threaded through, instead of being fetched independently — for
+    // the same path — inside each of these checks the way the create rule
+    // used to (twice: once in its role gate, once to cross-check
+    // projectOwnerEmail) and the update rule used to (three separate
+    // branches, three separate fetches of the same document).
+    function canCreateProjectActivity(project, data) {
+      return (isProjectManager() || (isApprovedStaffSession() && project.ownerEmail == request.auth.token.email)) &&
+        data.projectOwnerEmail == project.ownerEmail &&
+        data.createdByUid == request.auth.uid &&
+        data.projectId is string &&
+        data.projectId.size() > 0 &&
+        data.activityType is string &&
+        data.activityType.size() > 0 &&
+        data.assignedEmpNo is string &&
+        data.assignedEmpNo.size() > 0 &&
+        data.assignedEmail is string &&
+        data.assignedEmail.size() > 0 &&
+        data.summary is string &&
+        data.summary.size() > 0 &&
+        data.dueDate is string &&
+        data.status == 'Scheduled';
+    }
+
+    // The PIC-only edit, its completion, and a committed handover's index
+    // refresh — three of project_activities' five update branches, all
+    // gated on the caller still being the parent project's current PIC.
+    // getAfter() (the handover branch) reads post-write state and cannot
+    // share `project` — a pre-write fetch — so it keeps its own call.
+    function canUpdateProjectActivity(project, affected) {
+      return (
+        isApprovedStaffSession() &&
+        project.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectId == resource.data.projectId &&
+        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
+        request.resource.data.status == resource.data.status &&
+        affected.hasOnly([
+          'activityType', 'summary', 'dueDate', 'assignedEmpNo', 'assignedName', 'assignedEmail', 'assignedPosition', 'details', 'updatedAt', 'updatedByUid', 'updatedByEmail'
+        ])
+      ) || (
+        isApprovedStaffSession() &&
+        project.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
+        request.resource.data.status == 'Done' &&
+        request.resource.data.completedByUid == request.auth.uid &&
+        request.resource.data.completedByEmail == request.auth.token.email &&
+        affected.hasOnly([
+          'status', 'completedAt', 'completedByUid', 'completedByEmail'
+        ])
+      ) || (
+        // The outgoing PIC can refresh the safe owner-email index only when a
+        // project handover is committed in the same batch. getAfter() prevents
+        // a standalone activity write from granting access to another user.
+        isApprovedStaffSession() &&
+        project.ownerEmail == request.auth.token.email &&
+        request.resource.data.projectOwnerEmail == getAfter(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail &&
+        affected.hasOnly(['projectOwnerEmail'])
+      );
+    }
+
+    // Shared by project_client_updates/{updateId}'s create rule: `project`
+    // is fetched ONCE and threaded through both the staff and client
+    // branches, instead of the four independent fetches of the same
+    // projects/{projectId} document (clientDirectoryId, ownerEmail,
+    // clientPortalUid, clientDirectoryId again) it used to make.
+    function canCreateProjectClientUpdate(project, data) {
+      return data.clientDirectoryId == project.clientDirectoryId && (
+        (
+          isApprovedStaffSession() &&
+          data.senderRole != 'Client' &&
+          (isProjectManager() || project.ownerEmail == request.auth.token.email) &&
+          project.clientPortalUid == data.clientPortalUid
+        ) || (
+          // A secondary client contact's own uid never matches the project's
+          // single clientPortalUid, so authorize by clientDirectoryId claim
+          // instead (mirrors the projects read rule's secondary-contact path).
+          isClient() &&
+          callerTierAllowsReply() &&
+          data.senderRole == 'Client' &&
+          data.clientPortalUid == request.auth.uid &&
+          project.clientDirectoryId == request.auth.token.clientDirectoryId
+        )
+      );
+    }
+
     // The company domains are for staff and management, and for nobody else. A
     // Client is by definition somebody outside the company, so their sign-in
     // address must NOT be on an approved company domain — the mirror image of
@@ -1249,47 +1335,14 @@ service cloud.firestore {
         isApprovedStaffSession() &&
         resource.data.assignedEmail == request.auth.token.email
       );
-      allow create: if (
-        isProjectManager() ||
-        (isApprovedStaffSession() &&
-          get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail == request.auth.token.email)
-      ) &&
-        exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
-        request.resource.data.projectOwnerEmail == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail &&
-        request.resource.data.createdByUid == request.auth.uid &&
-        request.resource.data.projectId is string &&
-        request.resource.data.projectId.size() > 0 &&
-        request.resource.data.activityType is string &&
-        request.resource.data.activityType.size() > 0 &&
-        request.resource.data.assignedEmpNo is string &&
-        request.resource.data.assignedEmpNo.size() > 0 &&
-        request.resource.data.assignedEmail is string &&
-        request.resource.data.assignedEmail.size() > 0 &&
-        request.resource.data.summary is string &&
-        request.resource.data.summary.size() > 0 &&
-        request.resource.data.dueDate is string &&
-        request.resource.data.status == 'Scheduled';
-      allow update: if (
-        isProjectManager()
-      ) || (
-        isApprovedStaffSession() &&
-        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
-        request.resource.data.projectId == resource.data.projectId &&
-        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
-        request.resource.data.status == resource.data.status &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'activityType', 'summary', 'dueDate', 'assignedEmpNo', 'assignedName', 'assignedEmail', 'assignedPosition', 'details', 'updatedAt', 'updatedByUid', 'updatedByEmail'
-        ])
-      ) || (
-        isApprovedStaffSession() &&
-        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
-        request.resource.data.projectOwnerEmail == resource.data.projectOwnerEmail &&
-        request.resource.data.status == 'Done' &&
-        request.resource.data.completedByUid == request.auth.uid &&
-        request.resource.data.completedByEmail == request.auth.token.email &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'completedAt', 'completedByUid', 'completedByEmail'
-        ])
+      allow create: if exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
+        canCreateProjectActivity(
+          get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data,
+          request.resource.data
+        );
+      allow update: if isProjectManager() || canUpdateProjectActivity(
+        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data,
+        request.resource.data.diff(resource.data).affectedKeys()
       ) || (
         // The assignee closes out their own scheduled work — the dashboard's
         // "My Assigned Project Activities" card is built around exactly this.
@@ -1297,6 +1350,8 @@ service cloud.firestore {
         // Type, Assigned To, the summary and both access indexes stay immutable:
         // an assignee can neither retarget an activity nor widen their own access
         // through it, and cannot reopen one either (status must become 'Done').
+        // No projects/ fetch needed — ownership here is the activity's own
+        // assignedEmail, not the parent project's PIC.
         isApprovedStaffSession() &&
         resource.data.assignedEmail == request.auth.token.email &&
         request.resource.data.status == 'Done' &&
@@ -1304,16 +1359,6 @@ service cloud.firestore {
         request.resource.data.completedByEmail == request.auth.token.email &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'status', 'completedAt', 'completedByUid', 'completedByEmail'
-        ])
-      ) || (
-        // The outgoing PIC can refresh the safe owner-email index only when a
-        // project handover is committed in the same batch. getAfter() prevents
-        // a standalone activity write from granting access to another user.
-        isApprovedStaffSession() &&
-        get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail == request.auth.token.email &&
-        request.resource.data.projectOwnerEmail == getAfter(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.ownerEmail &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'projectOwnerEmail'
         ])
       );
       allow delete: if isProjectManager();
@@ -1349,25 +1394,9 @@ service cloud.firestore {
         request.resource.data.message is string &&
         request.resource.data.message.size() > 0 &&
         exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
-        request.resource.data.clientDirectoryId == get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientDirectoryId && (
-          (
-            isApprovedStaffSession() &&
-            request.resource.data.senderRole != 'Client' &&
-            (
-              isProjectManager() ||
-              get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.ownerEmail == request.auth.token.email
-            ) &&
-            get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientPortalUid == request.resource.data.clientPortalUid
-          ) || (
-            // A secondary client contact's own uid never matches the project's
-            // single clientPortalUid, so authorize by clientDirectoryId claim
-            // instead (mirrors the projects read rule's secondary-contact path).
-            isClient() &&
-            callerTierAllowsReply() &&
-            request.resource.data.senderRole == 'Client' &&
-            request.resource.data.clientPortalUid == request.auth.uid &&
-            get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientDirectoryId == request.auth.token.clientDirectoryId
-          )
+        canCreateProjectClientUpdate(
+          get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data,
+          request.resource.data
         );
       allow update: if isProjectManager() || (
         isApprovedStaffSession() &&

@@ -157,9 +157,12 @@ test('firestore.rules enforces the reply tier server-side and fails closed', () 
     assert.match(source, /clientTier\.upper\(\) == 'PREMIUM'/);
     // A missing customer record must deny, not fall through to allow.
     assert.match(source, /exists\(\/databases\/\$\(database\)\/documents\/customers\/\$\(request\.auth\.token\.clientDirectoryId\)\)/);
-    // And it has to actually be wired into the client's create branch.
-    const createBranch = source.slice(source.indexOf('match /project_client_updates/'), source.indexOf('allow update:', source.indexOf('match /project_client_updates/')));
+    // And it has to actually be wired into the client's create branch —
+    // canCreateProjectClientUpdate() (shared by project_client_updates'
+    // create rule) is where that branch now lives.
+    const createBranch = source.slice(source.indexOf('function canCreateProjectClientUpdate('), source.indexOf('function hasAllowedRoleEmail'));
     assert.match(createBranch, /isClient\(\) &&\s*callerTierAllowsReply\(\)/);
+    assert.match(source, /match \/project_client_updates\/\{updateId\} \{[\s\S]*?allow create: if isAuthenticated\(\) &&[\s\S]*?canCreateProjectClientUpdate\(/);
 });
 
 test('a registered client sees their complete history — no tier withholds records', () => {
