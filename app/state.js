@@ -256,6 +256,16 @@ export function createInitialState() {
 
             editingDocId: null,
             clientSavedForDocument: false,
+            // The Assign list is grouped by project stage and hides finished
+            // projects, because a client with two years of history has more
+            // closed projects than open ones and the open ones are what a new
+            // quotation is for. A closed project stays selectable through this
+            // toggle rather than being unreachable.
+            documentProjectShowClosed: false,
+            // Loaded on demand, per document, rather than subscribed: a
+            // timeline is read when someone asks for one, and there is no
+            // reason for every session to stream the whole collection.
+            billingTimelineModal: { show: false, loading: false, error: '', document: null, entries: [] },
             editingPayId: null,
             editingClaimId: null,
             editingVoucherId: null,

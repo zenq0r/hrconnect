@@ -3,11 +3,16 @@
 import {
     db,
     doc,
+    collection,
+    query,
+    where,
+    getDocs,
     setDoc,
     updateDoc,
     deleteDoc
 } from "../../firebase-config.js";
 import { epfContribution, socsoContribution, eisContribution, skbbkTableCovers } from "../constants/statutory.js";
+import { billingStageLabel, billingStageIcon, billingStageOfDocument, isBillingBranchStage } from "../constants/billing-workflow.js";
 
 // The records confirmDeleteRecord() removes, keyed by the flag the lists put on
 // each row. Checked in this order, the same order the lists were written in.
@@ -124,6 +129,70 @@ export const billingMethods = {
                 this.showNotify(error.message || 'Unable to review the payment proof.', 'error');
             }
         },
+        // ------------------------------------------------------------------
+        // The billing timeline
+        //
+        // Read-only, and read on demand. Every entry was written by
+        // /api/billing-workflow through the Admin SDK; firestore.rules refuses
+        // every browser write to this collection, so nothing on screen here
+        // can be edited or removed from the portal — which is the point of
+        // keeping it separate from the status fields on the document.
+        // ------------------------------------------------------------------
+        billingStageLabelFor(item) { return billingStageLabel(billingStageOfDocument(item)); },
+        billingStageIconFor(item) { return billingStageIcon(billingStageOfDocument(item)); },
+        billingStageIsBranch(item) { return isBillingBranchStage(billingStageOfDocument(item)); },
+        billingTimelineStageIcon(stage) { return billingStageIcon(stage); },
+        billingTimelineEntryTone(entry) {
+            return isBillingBranchStage(entry?.stage) ? 'is-danger' : ['paid', 'payment_verified', 'quotation_accepted'].includes(entry?.stage) ? 'is-done' : 'is-step';
+        },
+        async openBillingTimeline(item) {
+            if (!item?.id) return;
+            this.billingTimelineModal = { show: true, loading: true, error: '', document: JSON.parse(JSON.stringify(item)), entries: [] };
+            try {
+                // Ordered in the browser rather than by the query: sorting
+                // server-side would need a composite index for a list that is
+                // never more than a dozen entries long.
+                const snapshot = await getDocs(query(collection(db, 'billing_timeline'), where('documentId', '==', String(item.id))));
+                this.billingTimelineModal.entries = snapshot.docs.map(entry => ({ id: entry.id, ...entry.data() }));
+            } catch (error) {
+                console.error('Billing timeline load failed:', error);
+                this.billingTimelineModal.error = 'Unable to load the history for this document right now.';
+            } finally {
+                this.billingTimelineModal.loading = false;
+            }
+        },
+        closeBillingTimeline() {
+            this.billingTimelineModal = { show: false, loading: false, error: '', document: null, entries: [] };
+        },
+        // Cancelling, rather than deleting, is how an invoice the client has
+        // already seen is closed off: the document number stays spoken for and
+        // the reason lands in the timeline. Deleting remains available for a
+        // draft nobody outside Finance has seen.
+        async cancelInvoiceFromWorkflow(invoice) {
+            if (!this.canManageBillingWorkflow || invoice?.type !== 'Invoice') {
+                this.showNotify('Only a Director or Superadmin can cancel an issued invoice.', 'error'); return;
+            }
+            if (invoice.status === 'Paid' || invoice.paymentProofReviewStatus === 'Verified') {
+                this.showNotify('A verified, paid invoice cannot be cancelled. Issue a credit note instead.', 'error'); return;
+            }
+            const { confirmed, note } = await this.askConfirmWithNote({
+                title: 'Cancel this invoice?',
+                message: `${invoice.docNo} will be marked Cancelled and no payment will be due. The record and its full history are kept.`,
+                confirmLabel: 'Cancel Invoice',
+                danger: true,
+                noteLabel: 'Reason for cancelling',
+                notePlaceholder: 'Why this invoice is being withdrawn'
+            });
+            if (!confirmed) return;
+            try {
+                await this.runBillingWorkflow('invoice-cancelled', invoice.id, { note });
+                this.logAudit('UPDATE', `Cancelled invoice ${invoice.docNo}`);
+                this.showNotify(`${invoice.docNo} is marked Cancelled. The client and PIC have been notified.`);
+            } catch (error) {
+                console.error('Invoice cancel failed:', error);
+                this.showNotify(error.message || 'Unable to cancel this invoice.', 'error');
+            }
+        },
         async discardInvoiceDraft(invoice) {
             if (!this.canDeleteBillingDocument(invoice) || invoice?.type !== 'Invoice' || invoice.status !== 'Draft') {
                 this.showNotify('Only Director, Finance or Superadmin can discard an unsent invoice draft.', 'error'); return;
@@ -198,6 +267,15 @@ export const billingMethods = {
                 }
                 await setDoc(doc(db, "docs", docId), payload, { merge: true });
                 this.editingDocId = docId;
+                // "Created" has to be filed before anything can file "Sent",
+                // or the history of a document starts halfway through and
+                // never says who prepared it. The record itself is already
+                // saved, so a failure here is logged rather than surfaced —
+                // the next stage change writes its own entry regardless.
+                if (!previous) {
+                    try { await this.runBillingWorkflow('document-created', docId); }
+                    catch (timelineError) { console.error('Billing timeline entry could not be recorded:', timelineError); }
+                }
                 if (isQuotationBeingIssued) {
                     try { await this.runBillingWorkflow('quotation-issued', docId); }
                     catch (workflowError) { console.error('Quotation notification workflow failed:', workflowError); this.showNotify('Quotation was saved, but its Client ID notification could not be sent. Correct the Client/project link and try again.', 'error'); return false; }

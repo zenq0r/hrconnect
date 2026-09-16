@@ -214,13 +214,23 @@ export const clientWorkflowMethods = {
             this.logAudit('UPDATE', `Client ${accepting ? 'accepted' : 'declined'} quotation ${d.docNo}`);
             const who = this.userProfile.name || this.userProfile.email;
             if (!accepting) {
-                this.showNotify('Quotation declined. Our team has been notified.');
-                this.notifyByEmail({
-                    to: this.clientTeamRecipients(d),
-                    subject: `Quotation Declined — ${d.docNo}`,
-                    heading: 'Quotation Declined',
-                    message: `${who} declined quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `\n\nNote: "${note}"` : ''}`
-                });
+                // A decline goes through the same server handler as an
+                // acceptance, so both outcomes land in billing_timeline. It
+                // used to be an e-mail and nothing else, which left no record
+                // of why a quotation was never invoiced.
+                try {
+                    await this.runBillingWorkflow('quotation-declined', d.id);
+                    this.showNotify('Quotation declined. Our team has been notified.');
+                } catch (error) {
+                    console.error('Quotation decline handover could not be started:', error);
+                    this.showNotify('Quotation declined. Our team has been notified.');
+                    this.notifyByEmail({
+                        to: this.clientTeamRecipients(d),
+                        subject: `Quotation Declined — ${d.docNo}`,
+                        heading: 'Quotation Declined',
+                        message: `${who} declined quotation ${d.docNo} (${this.formatCurrency(d.amount)}).${note ? `\n\nNote: "${note}"` : ''}`
+                    });
+                }
                 return;
             }
             try {
@@ -250,11 +260,12 @@ export const clientWorkflowMethods = {
         // records evidence; it never settles the invoice — staff mark Paid.
         canAttachPaymentProof(d) {
             if (this.userProfile.role !== 'Client') return false;
-            if (!d || d.type !== 'Invoice' || d.status === 'Paid') return false;
+            if (!d || d.type !== 'Invoice' || ['Paid', 'Cancelled'].includes(d.status)) return false;
             return this.clientPortalDocs.some(own => own.id === d.id);
         },
         clientBillingStatus(d) {
             if (d?.type !== 'Invoice') return d?.status || 'Open';
+            if (d.status === 'Cancelled') return 'Cancelled';
             if (d.paymentProofReviewStatus === 'Verified' || d.status === 'Paid') return 'Paid';
             if (d.paymentProofReviewStatus === 'Submitted') return 'Payment Under Review';
             if (d.paymentProofReviewStatus === 'Rejected') return 'Proof Needs Attention';

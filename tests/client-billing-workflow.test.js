@@ -105,3 +105,108 @@ test('Client document listeners are compatible with the no-draft access rule', (
     assert.match(indexes, /"fieldPath": "raw\.customerId"/);
     assert.match(indexes, /"fieldPath": "raw\.clientEmail"/);
 });
+
+test('every stage change is filed in an append-only billing timeline', () => {
+    const app = read('app.js');
+    const handler = read('api/billing-workflow.js');
+    const rules = read('firestore.rules');
+    const page = read('index.html');
+
+    // The history is its own collection, not a field on the document, so a
+    // later status change cannot overwrite what the document used to be.
+    assert.match(rules, /match \/billing_timeline\/\{entryId\}/);
+    assert.match(handler, /db\.collection\('billing_timeline'\)/);
+    assert.match(handler, /function recordTimelineInTransaction/);
+    assert.match(handler, /function buildTimelineEntry/);
+
+    // Every stage the spec names reaches the timeline.
+    ['quotation_created', 'quotation_sent', 'quotation_accepted', 'invoice_created', 'invoice_sent',
+        'payment_proof_submitted', 'payment_under_review', 'payment_verified', 'paid',
+        'quotation_declined', 'payment_proof_rejected', 'invoice_cancelled']
+        .forEach(stage => assert.match(handler, new RegExp(`'${stage}'`), `${stage} is never recorded`));
+
+    // What an audit needs on each entry: who, when, from, to, and — where the
+    // stage is about money — the proof and the person who verified it.
+    ['actorUid', 'actorName', 'actorRole', 'fromStatus', 'toStatus', 'paymentProofUrl', 'verifiedByUid']
+        .forEach(field => assert.match(handler, new RegExp(field), `${field} is not recorded`));
+
+    assert.match(app, /runBillingWorkflow\('document-created', docId\)/);
+    assert.match(app, /runBillingWorkflow\('quotation-declined', d\.id\)/);
+    assert.match(app, /runBillingWorkflow\('invoice-cancelled', invoice\.id/);
+    assert.match(app, /async openBillingTimeline\(item\)/);
+    assert.match(page, /Billing Workflow Position/);
+    assert.match(page, /View Full History/);
+});
+
+test('the timeline is readable by the document\'s own people and writable by nobody', () => {
+    const rules = read('firestore.rules');
+    const timeline = rules.slice(rules.indexOf('match /billing_timeline/{entryId}'));
+    const block = timeline.slice(0, timeline.indexOf('\n    }') + 6);
+
+    // No browser session writes here — not a Client, not a PIC, not a
+    // Superadmin. Only the Admin SDK behind /api/billing-workflow.
+    assert.match(block, /allow write: if false;/);
+    assert.doesNotMatch(block, /allow (create|update|delete)/);
+
+    // Reads follow the document: billing roles, the assigned PIC, the Client.
+    assert.match(block, /isAdmin\(\) \|\| isHR\(\) \|\| isAccount\(\) \|\| isIT\(\)/);
+    assert.match(block, /resource\.data\.picEmail == request\.auth\.token\.email/);
+    assert.match(block, /resource\.data\.clientEmail == request\.auth\.token\.email/);
+    // A secondary Client contact is matched by claim, not by a per-row get():
+    // one document lookup per returned row would hit the rules access limit.
+    assert.match(block, /resource\.data\.customerId == request\.auth\.token\.clientDirectoryId/);
+    assert.doesNotMatch(block, /customerEmailMatches\(get\(/);
+});
+
+test('the portal and the handler name the billing stages identically', () => {
+    const constants = read('app/constants/billing-workflow.js');
+    const serverStages = read('api/_billingStages.js');
+
+    // Two runtimes, two copies, one vocabulary. A stage renamed in one place
+    // and not the other would show a client "Recorded" instead of the label.
+    const labelsOf = (source) => [...source.matchAll(/(quotation_created|quotation_sent|quotation_accepted|invoice_created|invoice_sent|payment_proof_submitted|payment_under_review|payment_verified|paid|quotation_declined|payment_proof_rejected|invoice_cancelled)/g)]
+        .map(match => match[1]);
+    const portalKeys = new Set(labelsOf(constants));
+    const serverKeys = new Set(labelsOf(serverStages));
+    assert.deepEqual([...portalKeys].sort(), [...serverKeys].sort());
+
+    // The current stage is derived from the saved record, so the Status
+    // dropdown cannot claim a stage the document never went through.
+    assert.match(constants, /export function billingStageOfDocument/);
+    assert.match(constants, /if \(item\.paymentProofReviewStatus === 'Submitted'\) return 'payment_under_review'/);
+});
+
+test('Assign names the responsible PIC and no longer doubles as the status', () => {
+    const app = read('app.js');
+    const page = read('index.html');
+
+    // The list is grouped by project stage and finished projects are out of
+    // the way by default — a client with years of history had every closed
+    // project sitting in the same flat list as the open ones.
+    assert.match(app, /documentProjectGroupsForSelectedClient\(\)/);
+    assert.match(app, /documentProjectShowClosed/);
+    assert.match(app, /CLOSED_PROJECT_STAGES = \['Completed & Done'\]/);
+    // Nothing is filtered by reference prefix: staff invent their own
+    // references, and a prefix rule would silently drop a real project.
+    assert.doesNotMatch(app, /projectRef.*startsWith\('NDA/);
+    assert.match(app, /selectedDocumentProject\(\)/);
+    assert.match(page, /<optgroup v-for="group in documentProjectGroupsForSelectedClient"/);
+    assert.match(page, /Person In Charge/);
+    assert.match(page, /It is not the workflow status/);
+});
+
+test('an issued invoice is cancelled rather than deleted, and a paid one is neither', () => {
+    const app = read('app.js');
+    const handler = read('api/billing-workflow.js');
+    const page = read('index.html');
+
+    assert.match(handler, /action === 'invoice-cancelled'/);
+    assert.match(handler, /A verified, paid invoice cannot be cancelled/);
+    assert.match(handler, /status: 'Cancelled'/);
+    assert.match(app, /async cancelInvoiceFromWorkflow\(invoice\)/);
+    assert.match(page, /Cancel Invoice/);
+    // A cancelled invoice keeps its history but leaves the review queue:
+    // there is nothing left for Finance to verify on it.
+    assert.match(app, /!\['Draft', 'Cancelled'\]\.includes\(item\.status\) && item\.paymentProofUrl/);
+    assert.match(app, /\['Paid', 'Cancelled'\]\.includes\(d\.status\)/);
+});

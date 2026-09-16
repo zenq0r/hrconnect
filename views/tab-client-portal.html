@@ -167,6 +167,7 @@
                                                         <input type="file" accept="image/jpeg,image/png,application/pdf" class="hidden" @change="handlePaymentProofUpload($event, d)">
                                                     </label>
                                                     <button v-if="d.paymentProofUrl" type="button" @click="openAttachment(d.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-secondary zq-btn-icon zq-btn-sm" title="View submitted payment proof" aria-label="View submitted payment proof"><i class="fa-solid fa-eye"></i></button>
+                                                    <button type="button" @click="openBillingTimeline(d)" class="zq-btn zq-btn-ghost zq-btn-icon zq-btn-sm" title="View the recorded history of this document" aria-label="View the recorded history of this document"><i class="fa-solid fa-clock-rotate-left"></i></button>
                                                 </div>
                                                 <p v-if="d.clientDecisionAt" class="zq-cp-cell-note">{{ d.status === 'Accepted' ? 'Accepted' : 'Declined' }} by {{ d.clientDecisionByName }}</p>
                                                 <p v-if="d.paymentProofReviewStatus === 'Rejected'" class="zq-cp-cell-note is-act">Proof needs attention{{ d.paymentProofReviewNote ? ` — ${d.paymentProofReviewNote}` : '' }}</p>

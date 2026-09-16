@@ -687,6 +687,43 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // The permanent history of a quotation or invoice: one record per stage
+    // change, written only by /api/billing-workflow through the Admin SDK.
+    //
+    // `allow write: if false` is the whole point of this collection existing
+    // separately from the status fields on docs/{id}. A Director can change an
+    // invoice's status; nobody — Superadmin included — can change or remove the
+    // record of it having been something else, because no browser session may
+    // write here at all. A stage change adds an entry; it never rewrites one.
+    //
+    // Reads mirror the docs/{docId} read rule, so a timeline is visible to
+    // exactly the people who can already see the document it belongs to: the
+    // billing roles, the assigned PIC, and the owning Client.
+    match /billing_timeline/{entryId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || isHR() || isAccount() || isIT() ||
+        (
+          isApprovedStaffSession() &&
+          resource.data.picEmail is string &&
+          resource.data.picEmail == request.auth.token.email
+        ) ||
+        (isClient() && resource.data.clientEmail == request.auth.token.email) ||
+        (
+          // A secondary authorized contact's e-mail never matches the primary
+          // clientEmail on the entry, so authorize them by the shared
+          // clientDirectoryId claim. Compared directly rather than through a
+          // get() on customers/{id}: this rule is evaluated per returned row,
+          // and a document lookup per row would hit the rules access limit on
+          // a long history.
+          isClient() &&
+          resource.data.customerId is string &&
+          resource.data.customerId.size() > 0 &&
+          resource.data.customerId == request.auth.token.clientDirectoryId
+        )
+      );
+      allow write: if false;
+    }
+
     // Client Document Repository — centralized JPEG/JPG/PNG/PDF storage metadata per client.
     // Actual file bytes live in Firebase Storage (see storage.rules); this collection only
     // tracks who uploaded what, when, and the Storage path/download URL.

@@ -126,6 +126,7 @@ kind of rule, and the place it holds:
 | who may read or write a record | `firestore.rules` | roles come from `users/{uid}`, and a locked account holds no role |
 | derived money figures | `firestore.rules` | SST, EPF, SOCSO, EIS and totals are recomputed against their own inputs |
 | a document's line items add up | `functions/` `verifyBillingDocumentTotals` | rules cannot iterate a list; the trigger corrects and audits instead |
+| the history of a quotation or invoice | `firestore.rules` `billing_timeline` | append-only by construction: no browser session may write there at all, so only `/api/billing-workflow` (Admin SDK) files a stage change, and nobody — Superadmin included — can edit or delete one afterwards |
 | password policy | `api/_security.js` | the copy in `app/constants/password-policy.js` is the hint shown while typing |
 | attachment access | `storage.rules` | the uploader and the staff who approve, capped at one type and size |
 

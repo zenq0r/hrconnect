@@ -5,6 +5,7 @@ const { getAdminAuth, getAdminFirestore } = require('./_firebaseAdmin');
 const { normalizeEmail, isSeedAdminEmail, PORTAL_URL } = require('./_security');
 const { enforceRateLimit } = require('./_rateLimit');
 const { secondFactorSatisfied } = require('./_portalClaims');
+const { billingStageLabel } = require('./_billingStages');
 
 const INVOICE_MANAGEMENT_ROLES = new Set(['Director', 'Superadmin']);
 const PAYMENT_REVIEW_ROLES = new Set(['HR', 'Account']);
@@ -112,6 +113,100 @@ function safeNote(value) {
     return typeof value === 'string' ? value.trim().slice(0, 1000) : '';
 }
 
+// ---------------------------------------------------------------------------
+// The billing timeline
+//
+// One document per stage change, never edited and never deleted, so the full
+// history of a quotation or invoice survives every later status change. The
+// status fields on docs/{id} answer "where is this now"; billing_timeline
+// answers "how did it get here, and who moved it".
+//
+// The id is derived from the document and the event rather than generated, so
+// a retried request re-writes the same entry instead of adding a duplicate.
+// `version` exists because two of these events legitimately repeat: a client
+// may submit proof more than once, and each submission is reviewed on its own.
+// ---------------------------------------------------------------------------
+function timelineEntryId(documentId, stage, version = '') {
+    const suffix = String(version || '').replace(/[^a-zA-Z0-9]/g, '');
+    return `${documentId}__${stage}${suffix ? `__${suffix}` : ''}`;
+}
+
+function buildTimelineEntry(options) {
+    const {
+        documentId,
+        document,
+        project,
+        customer,
+        stage,
+        fromStatus = '',
+        toStatus = '',
+        actorUid = '',
+        actorName = '',
+        actorEmail = '',
+        actorRole = '',
+        note = '',
+        timestamp,
+        extra = {}
+    } = options;
+    return {
+        documentId,
+        documentNo: document?.docNo || '',
+        documentType: document?.type || '',
+        amount: Number(document?.amount) || 0,
+        customerId: String(document?.raw?.customerId || ''),
+        clientName: document?.name || '',
+        clientEmail: normalizeEmail(document?.raw?.clientEmail) || '',
+        // Copied onto the entry rather than looked up later: a project can be
+        // renamed or handed to another PIC, and the history should still read
+        // as it did on the day the stage was recorded.
+        projectId: project?.id || String(document?.raw?.projectId || ''),
+        projectRef: project?.projectRef || String(document?.raw?.projectRef || ''),
+        projectTitle: project?.title || String(document?.raw?.projectTitle || ''),
+        // The PIC is what lets that one staff account read this entry at all
+        // (see billing_timeline in firestore.rules), so fall back to the
+        // document's own index when the project could not be resolved.
+        picEmail: normalizeEmail(project?.ownerEmail) || normalizeEmail(document?.billingPicEmail) || '',
+        picName: project?.ownerName || '',
+        clientDirectoryId: String(customer?.clientId || document?.raw?.customerId || ''),
+        stage,
+        stageLabel: billingStageLabel(stage),
+        fromStatus,
+        toStatus,
+        actorUid,
+        actorName,
+        actorEmail: normalizeEmail(actorEmail) || '',
+        actorRole,
+        note: safeNote(note),
+        at: timestamp,
+        // Milliseconds as a tiebreaker: two entries written in the same second
+        // still sort deterministically, without needing a server counter.
+        seq: Date.parse(timestamp) || Date.now(),
+        source: 'api/billing-workflow',
+        ...extra
+    };
+}
+
+// Inside a transaction, so the stage change and its history entry either both
+// land or neither does.
+function recordTimelineInTransaction(db, transaction, options) {
+    const ref = db.collection('billing_timeline').doc(timelineEntryId(options.documentId, options.stage, options.version));
+    transaction.set(ref, buildTimelineEntry(options), { merge: true });
+}
+
+// For the one action that is not transactional (payment-proof-reviewed reads
+// and writes a single document). A failure here must not undo a verification
+// the client has already been told about, so it is logged, not thrown.
+async function recordTimeline(db, options) {
+    try {
+        const ref = db.collection('billing_timeline').doc(timelineEntryId(options.documentId, options.stage, options.version));
+        await ref.set(buildTimelineEntry(options), { merge: true });
+        return true;
+    } catch (error) {
+        console.error('billing timeline write failed:', options.stage, error);
+        return false;
+    }
+}
+
 module.exports = async function handler(req, res) {
     if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
     try {
@@ -128,10 +223,13 @@ module.exports = async function handler(req, res) {
             res.status(403).json({ error: 'Confirm the sign-in code for this session first. Sign out, sign in again and enter the code sent to your email.' }); return;
         }
         const { action, documentId } = req.body || {};
-        if (!['quotation-issued', 'quotation-accepted', 'invoice-sent', 'payment-proof-submitted', 'payment-proof-reviewed'].includes(action) || typeof documentId !== 'string' || !documentId) {
+        if (!['document-created', 'quotation-issued', 'quotation-accepted', 'quotation-declined', 'invoice-sent', 'invoice-cancelled', 'payment-proof-submitted', 'payment-proof-reviewed'].includes(action) || typeof documentId !== 'string' || !documentId) {
             res.status(400).json({ error: 'Invalid workflow request.' }); return;
         }
-        const rate = await enforceRateLimit(db, { scope: 'billing-workflow', key: identity.uid, limit: 20, windowMs: 5 * 60 * 1000 });
+        // The ceiling rose from 20 with document-created and the two branch
+        // actions: a Finance session now files a timeline entry per stage
+        // instead of only at the three notification points.
+        const rate = await enforceRateLimit(db, { scope: 'billing-workflow', key: identity.uid, limit: 40, windowMs: 5 * 60 * 1000 });
         if (!rate.allowed) { res.setHeader('Retry-After', String(rate.retryAfterSeconds)); res.status(429).json({ error: 'Too many workflow requests. Please try again shortly.' }); return; }
 
         const documentRef = db.collection('docs').doc(documentId);
@@ -143,6 +241,34 @@ module.exports = async function handler(req, res) {
         const customer = customerSnapshot?.exists ? customerSnapshot.data() : null;
         const clientOwnsDocument = callerRole === 'Client' && clientOwnsCustomer(customer, identity.email);
         const timestamp = new Date().toISOString();
+        const actor = {
+            actorUid: identity.uid,
+            actorName: caller?.name || identity.email || '',
+            actorEmail: identity.email || '',
+            actorRole: callerRole || ''
+        };
+
+        // The first entry in a document's history: it exists, as a draft, and
+        // this is who made it. Nothing is notified and no status moves — the
+        // point is only that "Created" is on the record before "Sent" is, so a
+        // timeline never starts halfway through.
+        if (action === 'document-created') {
+            if (!DOCUMENT_ISSUE_ROLES.has(callerRole) || !['Quotation', 'Invoice'].includes(document.type)) {
+                res.status(403).json({ error: 'Only an authorized document manager may open a billing document.' }); return;
+            }
+            const project = await resolveProject(db, document);
+            const stage = document.type === 'Quotation' ? 'quotation_created' : 'invoice_created';
+            await recordTimeline(db, {
+                documentId, document, project, customer, stage,
+                fromStatus: '',
+                toStatus: document.status || '',
+                note: safeNote(req.body?.note),
+                timestamp,
+                ...actor,
+                ...(document.raw?.sourceQuotationNo ? { extra: { sourceQuotationNo: document.raw.sourceQuotationNo, sourceQuotationId: document.raw.sourceQuotationId || '' } } : {})
+            });
+            res.status(200).json({ success: true, stage }); return;
+        }
 
         if (action === 'quotation-issued') {
             if (!DOCUMENT_ISSUE_ROLES.has(callerRole) || document.type !== 'Quotation' || document.status !== 'Open') {
@@ -159,9 +285,18 @@ module.exports = async function handler(req, res) {
                 transaction.update(documentRef, {
                     billingWorkflowStatus: 'Quotation Sent to Client',
                     billingWorkflowUpdatedAt: timestamp,
+                    billingStage: 'quotation_sent',
                     billingClientId: customerId,
                     billingProjectId: project.id,
                     billingPicEmail: normalizeEmail(project.ownerEmail)
+                });
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'quotation_sent',
+                    fromStatus: 'Draft',
+                    toStatus: 'Open',
+                    timestamp,
+                    ...actor
                 });
                 return true;
             });
@@ -187,7 +322,17 @@ module.exports = async function handler(req, res) {
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, clientUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Awaiting Finance Invoice', billingWorkflowUpdatedAt: timestamp, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                transaction.update(documentRef, { billingWorkflowStatus: 'Awaiting Finance Invoice', billingWorkflowUpdatedAt: timestamp, billingStage: 'quotation_accepted', billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'quotation_accepted',
+                    fromStatus: 'Open',
+                    toStatus: 'Accepted',
+                    note: document.clientDecisionNote || '',
+                    timestamp,
+                    ...actor,
+                    actorName: document.clientDecisionByName || actor.actorName
+                });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
@@ -196,6 +341,41 @@ module.exports = async function handler(req, res) {
             const count = await createPortalNotifications(db, recipients, {
                 title: `Quotation accepted — ${document.docNo}`,
                 message: `${document.name || 'Client'} accepted ${document.docNo}. PIC has a handover task; Finance should prepare the invoice.`,
+                actionLabel: 'OPEN BILLING'
+            });
+            res.status(200).json({ success: true, recipients: count }); return;
+        }
+
+        // A decline is a real outcome, not an absence of one. It ends the
+        // ladder for this quotation and says so in the history, which is what
+        // makes "why was this never invoiced" answerable months later.
+        if (action === 'quotation-declined') {
+            if (!clientOwnsDocument || document.type !== 'Quotation' || document.status !== 'Rejected' || document.clientDecisionByUid !== identity.uid) {
+                res.status(403).json({ error: 'This declined quotation cannot start a workflow for this account.' }); return;
+            }
+            const project = await resolveProject(db, document);
+            const eventRef = db.collection('billing_events').doc(`${documentId}_quotation_declined`);
+            const created = await db.runTransaction(async (transaction) => {
+                if ((await transaction.get(eventRef)).exists) return false;
+                transaction.create(eventRef, { action, documentId, clientUid: identity.uid, customerId, projectId: project?.id || '', createdAt: timestamp });
+                transaction.update(documentRef, { billingWorkflowStatus: 'Quotation Declined', billingWorkflowUpdatedAt: timestamp, billingStage: 'quotation_declined' });
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'quotation_declined',
+                    fromStatus: 'Open',
+                    toStatus: 'Rejected',
+                    note: document.clientDecisionNote || '',
+                    timestamp,
+                    ...actor,
+                    actorName: document.clientDecisionByName || actor.actorName
+                });
+                return true;
+            });
+            if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
+            const recipients = [project?.ownerEmail, ...(await recipientsForRoles(db, ['Account', 'Director', 'Superadmin']))];
+            const count = await createPortalNotifications(db, recipients, {
+                title: `Quotation declined — ${document.docNo}`,
+                message: `${document.name || 'Client'} declined ${document.docNo}. No invoice is due; a revised quotation can be issued from Billing.`,
                 actionLabel: 'OPEN BILLING'
             });
             res.status(200).json({ success: true, recipients: count }); return;
@@ -213,7 +393,40 @@ module.exports = async function handler(req, res) {
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, clientUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
-                transaction.update(documentRef, { paymentProofReviewStatus: 'Submitted', billingWorkflowStatus: 'Payment Proof Review', billingWorkflowUpdatedAt: timestamp, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                transaction.update(documentRef, { paymentProofReviewStatus: 'Submitted', billingWorkflowStatus: 'Payment Proof Review', billingWorkflowUpdatedAt: timestamp, billingStage: 'payment_under_review', billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                // Two entries, because the client's act and the staff duty it
+                // creates are different facts: the proof arrived, and it is now
+                // waiting on a human. A resubmission files a fresh pair rather
+                // than overwriting the earlier attempt.
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'payment_proof_submitted',
+                    version: document.paymentProofAt || timestamp,
+                    fromStatus: document.status || 'Unpaid',
+                    toStatus: document.status || 'Unpaid',
+                    timestamp,
+                    ...actor,
+                    actorName: document.paymentProofByName || actor.actorName,
+                    extra: {
+                        paymentProofUrl: document.paymentProofUrl || '',
+                        paymentProofName: document.paymentProofName || '',
+                        paymentProofAt: document.paymentProofAt || timestamp
+                    }
+                });
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'payment_under_review',
+                    version: document.paymentProofAt || timestamp,
+                    fromStatus: document.status || 'Unpaid',
+                    toStatus: document.status || 'Unpaid',
+                    note: 'Routed to Finance, Director and the assigned PIC for verification.',
+                    timestamp,
+                    actorUid: 'system:client-billing-workflow',
+                    actorName: 'ZENQOR Billing Workflow',
+                    actorEmail: 'system@zenqor.com.my',
+                    actorRole: 'System',
+                    extra: { paymentProofAt: document.paymentProofAt || timestamp }
+                });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
@@ -244,7 +457,16 @@ module.exports = async function handler(req, res) {
             const created = await db.runTransaction(async (transaction) => {
                 if ((await transaction.get(eventRef)).exists) return false;
                 transaction.create(eventRef, { action, documentId, sentByUid: identity.uid, customerId, projectId: project.id, createdAt: timestamp });
-                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                transaction.update(documentRef, { billingWorkflowStatus: 'Sent to Client', billingStage: 'invoice_sent', invoiceSentAt: timestamp, invoiceSentByUid: identity.uid, invoiceSentByName: caller?.name || identity.email, billingClientId: customerId, billingProjectId: project.id, billingPicEmail: normalizeEmail(project.ownerEmail) });
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'invoice_sent',
+                    fromStatus: 'Draft',
+                    toStatus: 'Unpaid',
+                    timestamp,
+                    ...actor,
+                    extra: document.raw?.sourceQuotationNo ? { sourceQuotationNo: document.raw.sourceQuotationNo, sourceQuotationId: document.raw.sourceQuotationId || '' } : {}
+                });
                 return true;
             });
             if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
@@ -253,6 +475,55 @@ module.exports = async function handler(req, res) {
                 title: `Invoice issued — ${document.docNo}`,
                 message: `Your invoice for ${document.name || 'your account'} is ready. Review it in Documents & Billing and upload payment proof once paid.`,
                 actionLabel: 'OPEN INVOICE'
+            });
+            res.status(200).json({ success: true, recipients: count }); return;
+        }
+
+        // Cancelling supersedes an issued invoice without removing it. Deleting
+        // is still available to Finance for an unsent draft; anything the
+        // client has already seen is closed off in the history instead, so the
+        // document number is never quietly reused for something else.
+        if (action === 'invoice-cancelled') {
+            if (!INVOICE_MANAGEMENT_ROLES.has(callerRole)) {
+                res.status(403).json({ error: 'Only Director or Superadmin may cancel an issued invoice.' }); return;
+            }
+            if (document.status === 'Paid' || document.paymentProofReviewStatus === 'Verified') {
+                res.status(409).json({ error: 'A verified, paid invoice cannot be cancelled. Issue a credit note instead.' }); return;
+            }
+            const project = await resolveProject(db, document);
+            const eventRef = db.collection('billing_events').doc(`${documentId}_invoice_cancelled`);
+            const note = safeNote(req.body?.note);
+            const created = await db.runTransaction(async (transaction) => {
+                if ((await transaction.get(eventRef)).exists) return false;
+                transaction.create(eventRef, { action, documentId, cancelledByUid: identity.uid, customerId, projectId: project?.id || '', createdAt: timestamp });
+                transaction.update(documentRef, {
+                    status: 'Cancelled',
+                    raw: { ...(document.raw || {}), status: 'Cancelled' },
+                    billingWorkflowStatus: 'Invoice Cancelled',
+                    billingWorkflowUpdatedAt: timestamp,
+                    billingStage: 'invoice_cancelled',
+                    invoiceCancelledAt: timestamp,
+                    invoiceCancelledByUid: identity.uid,
+                    invoiceCancelledByName: caller?.name || identity.email || '',
+                    invoiceCancelledNote: note
+                });
+                recordTimelineInTransaction(db, transaction, {
+                    documentId, document, project, customer,
+                    stage: 'invoice_cancelled',
+                    fromStatus: document.status || 'Unpaid',
+                    toStatus: 'Cancelled',
+                    note,
+                    timestamp,
+                    ...actor
+                });
+                return true;
+            });
+            if (!created) { res.status(200).json({ success: true, duplicate: true }); return; }
+            const recipients = [customer?.clientEmail, ...(Array.isArray(customer?.additionalClientEmails) ? customer.additionalClientEmails : []), project?.ownerEmail];
+            const count = await createPortalNotifications(db, recipients, {
+                title: `Invoice cancelled — ${document.docNo}`,
+                message: `${document.docNo} has been cancelled and no payment is due.${note ? ` Note: ${note}` : ''}`,
+                actionLabel: 'OPEN BILLING'
             });
             res.status(200).json({ success: true, recipients: count }); return;
         }
@@ -285,10 +556,64 @@ module.exports = async function handler(req, res) {
                 paymentProofReviewNote: note,
                 billingWorkflowStatus: approved ? 'Paid' : 'Payment Proof Rejected',
                 billingWorkflowUpdatedAt: timestamp,
+                billingStage: approved ? 'paid' : 'payment_proof_rejected',
                 billingClientId: customerId,
                 billingProjectId: project.id,
                 billingPicEmail: normalizeEmail(project.ownerEmail)
             });
+            // An approval is two facts as well: a person verified the proof,
+            // and only then did the invoice become Paid. Keeping them apart is
+            // what shows the settlement was never automatic.
+            const reviewVersion = document.paymentProofAt || timestamp;
+            if (approved) {
+                await recordTimeline(db, {
+                    documentId, document, project, customer,
+                    stage: 'payment_verified',
+                    version: reviewVersion,
+                    fromStatus: document.status || 'Unpaid',
+                    toStatus: document.status || 'Unpaid',
+                    note,
+                    timestamp,
+                    ...actor,
+                    extra: {
+                        paymentProofUrl: document.paymentProofUrl || '',
+                        paymentProofName: document.paymentProofName || '',
+                        verifiedByUid: identity.uid,
+                        verifiedByName: caller?.name || identity.email || '',
+                        verifiedByEmail: normalizeEmail(identity.email) || ''
+                    }
+                });
+                await recordTimeline(db, {
+                    documentId, document, project, customer,
+                    stage: 'paid',
+                    version: reviewVersion,
+                    fromStatus: document.status || 'Unpaid',
+                    toStatus: 'Paid',
+                    timestamp,
+                    ...actor,
+                    extra: {
+                        verifiedByUid: identity.uid,
+                        verifiedByName: caller?.name || identity.email || ''
+                    }
+                });
+            } else {
+                await recordTimeline(db, {
+                    documentId, document, project, customer,
+                    stage: 'payment_proof_rejected',
+                    version: reviewVersion,
+                    fromStatus: document.status || 'Unpaid',
+                    toStatus: 'Unpaid',
+                    note,
+                    timestamp,
+                    ...actor,
+                    extra: {
+                        paymentProofUrl: document.paymentProofUrl || '',
+                        paymentProofName: document.paymentProofName || '',
+                        verifiedByUid: identity.uid,
+                        verifiedByName: caller?.name || identity.email || ''
+                    }
+                });
+            }
             const recipients = [customer?.clientEmail, ...(Array.isArray(customer?.additionalClientEmails) ? customer.additionalClientEmails : []), project?.ownerEmail, ...(await recipientsForRoles(db, ['Director', 'Superadmin']))];
             const count = await createPortalNotifications(db, recipients, {
                 title: approved ? `Payment verified — ${document.docNo}` : `Payment proof needs attention — ${document.docNo}`,

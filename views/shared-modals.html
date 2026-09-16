@@ -503,3 +503,59 @@
                 </div>
             </form>
         </div>
+
+        <!-- ================= BILLING TIMELINE (READ ONLY) =================
+             The permanent history of one quotation or invoice. Every row was
+             written by /api/billing-workflow through the Admin SDK;
+             firestore.rules refuses every browser write to billing_timeline,
+             so nothing here can be edited or removed from the portal. A status
+             change adds a row — it never rewrites one. -->
+        <div v-if="billingTimelineModal.show" class="zq-modal-overlay z-[105]" role="dialog" aria-modal="true" aria-label="Billing document history" @click.self="closeBillingTimeline()">
+            <div class="zq-modal zq-modal-lg">
+                <div class="zq-modal-header">
+                    <div>
+                        <p class="text-[10px] font-extrabold uppercase tracking-[0.18em] text-brand-blue">Audit Trail</p>
+                        <h3 class="zq-modal-title mt-1">{{ billingTimelineModal.document?.type || 'Document' }} History — {{ billingTimelineModal.document?.docNo || '-' }}</h3>
+                        <p class="zq-modal-description">{{ billingTimelineModal.document?.name || 'Registered client' }}<span v-if="billingTimelineModal.document?.raw?.projectRef"> · {{ billingTimelineModal.document.raw.projectRef }}</span></p>
+                    </div>
+                    <button type="button" @click="closeBillingTimeline()" aria-label="Close document history" class="zq-modal-close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span class="zq-billing-ladder-step" :class="billingStageIsBranch(billingTimelineModal.document) ? 'is-branch' : 'is-current'">
+                            <i class="fa-solid" :class="billingStageIconFor(billingTimelineModal.document)"></i>
+                            <span>{{ billingStageLabelFor(billingTimelineModal.document) }}</span>
+                        </span>
+                        <span class="text-[10px] font-bold text-slate-500 dark:text-slate-400">Current stage · {{ formatCurrency(billingTimelineModal.document?.amount) }}</span>
+                    </div>
+
+                    <p v-if="billingTimelineModal.loading" class="rounded-xl border border-dashed border-slate-300 px-4 py-6 text-center text-xs font-semibold text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                        <i class="fa-solid fa-spinner fa-spin mr-2"></i>Loading recorded history…
+                    </p>
+                    <p v-else-if="billingTimelineModal.error" class="zq-alert zq-alert-error">{{ billingTimelineModal.error }}</p>
+                    <div v-else-if="!billingTimelineEntries.length" class="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center dark:border-slate-700 dark:bg-slate-900/30">
+                        <i class="fa-solid fa-clock-rotate-left text-lg text-slate-400"></i>
+                        <p class="mt-2 text-xs font-extrabold text-brand-dark dark:text-white">No recorded stage changes yet</p>
+                        <p class="mt-1 text-[10px] text-slate-500 dark:text-slate-400">Documents issued before the audit trail was introduced keep their own status and dates; their history begins at the next stage change.</p>
+                    </div>
+                    <ol v-else class="zq-timeline">
+                        <li v-for="entry in billingTimelineEntries" :key="entry.id" :class="billingTimelineEntryTone(entry)" class="zq-timeline-entry">
+                            <span class="zq-timeline-dot"><i class="fa-solid" :class="billingTimelineStageIcon(entry.stage)"></i></span>
+                            <p class="zq-timeline-stage">{{ entry.stageLabel || entry.stage }}</p>
+                            <p class="zq-timeline-meta">{{ formatDateTime(entry.at) }} · {{ entry.actorName || 'System' }}<span v-if="entry.actorRole"> ({{ entry.actorRole }})</span></p>
+                            <p v-if="entry.fromStatus || entry.toStatus" class="zq-timeline-transition">
+                                <code>{{ entry.fromStatus || '—' }}</code><i class="fa-solid fa-arrow-right"></i><code>{{ entry.toStatus || '—' }}</code>
+                            </p>
+                            <p v-if="entry.verifiedByName" class="zq-timeline-meta">Verified by {{ entry.verifiedByName }}</p>
+                            <p v-if="entry.note" class="zq-timeline-note">{{ entry.note }}</p>
+                            <p v-if="entry.paymentProofUrl" class="mt-1.5">
+                                <button type="button" @click="openAttachment(entry.paymentProofUrl, 'Payment proof')" class="zq-btn zq-btn-secondary zq-btn-sm">
+                                    <i class="fa-solid fa-receipt"></i><span>{{ entry.paymentProofName || 'View payment proof' }}</span>
+                                </button>
+                            </p>
+                        </li>
+                    </ol>
+                </div>
+                <div class="zq-modal-footer"><button type="button" @click="closeBillingTimeline()" class="zq-btn zq-btn-primary">Close</button></div>
+            </div>
+        </div>

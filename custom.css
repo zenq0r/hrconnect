@@ -2079,6 +2079,155 @@ html.dark #app .border-slate-300:not([class*="dark:border-"]) { border-color: va
 }
 .dark #app .zq-party-selector-summary span:first-child { color: #f8fafc; }
 
+/* The billing ladder: Quotation Created → Sent → Accepted → Invoice Created →
+   Unpaid → Proof Submitted → Under Review → Verified → Paid. Colour carries
+   only one distinction — behind us, here now, or not yet — because the numbers
+   already carry the order, and a nine-colour strip reads as decoration. */
+#app .zq-billing-ladder {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+#app .zq-billing-ladder-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border: 1px solid #dbe3ec;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #94a3b8;
+    font-size: 0.625rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+#app .zq-billing-ladder-step i { font-size: 0.625rem; }
+#app .zq-billing-ladder-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #64748b;
+    font-size: 0.5625rem;
+    line-height: 1;
+}
+#app .zq-billing-ladder-step.is-done {
+    border-color: #99f6e4;
+    background: #f0fdfa;
+    color: #0f766e;
+}
+#app .zq-billing-ladder-step.is-done .zq-billing-ladder-index { background: #ccfbf1; color: #0f766e; }
+#app .zq-billing-ladder-step.is-current {
+    border-color: #0f766e;
+    background: #0f766e;
+    color: #ffffff;
+    box-shadow: 0 1px 6px rgba(15, 118, 110, 0.3);
+}
+#app .zq-billing-ladder-step.is-current .zq-billing-ladder-index { background: rgba(255, 255, 255, 0.28); color: #ffffff; }
+#app .zq-billing-ladder-step.is-branch {
+    border-color: #b91c1c;
+    background: #b91c1c;
+    color: #ffffff;
+}
+#app .zq-billing-ladder-step.is-branch .zq-billing-ladder-index { background: rgba(255, 255, 255, 0.28); color: #ffffff; }
+.dark #app .zq-billing-ladder-step {
+    border-color: #475569;
+    background: #253247;
+    color: #94a3b8;
+}
+.dark #app .zq-billing-ladder-index { background: #334155; color: #cbd5e1; }
+.dark #app .zq-billing-ladder-step.is-done {
+    border-color: #115e59;
+    background: #0f2b2b;
+    color: #5eead4;
+}
+.dark #app .zq-billing-ladder-step.is-done .zq-billing-ladder-index { background: #134e4a; color: #5eead4; }
+.dark #app .zq-billing-ladder-step.is-current {
+    border-color: #2dd4bf;
+    background: #0d9488;
+    color: #ffffff;
+}
+.dark #app .zq-billing-ladder-step.is-branch {
+    border-color: #f87171;
+    background: #7f1d1d;
+    color: #fee2e2;
+}
+
+/* The timeline itself. One row per recorded stage change, oldest first, with a
+   rail down the left so a long history reads as a sequence rather than a list
+   of separate cards. */
+#app .zq-timeline { position: relative; margin: 0; padding: 0 0 0 26px; list-style: none; }
+#app .zq-timeline::before {
+    content: "";
+    position: absolute;
+    top: 6px;
+    bottom: 6px;
+    left: 7px;
+    width: 2px;
+    background: #e2e8f0;
+}
+.dark #app .zq-timeline::before { background: #334155; }
+#app .zq-timeline-entry { position: relative; padding-bottom: 14px; }
+#app .zq-timeline-entry:last-child { padding-bottom: 0; }
+#app .zq-timeline-dot {
+    position: absolute;
+    top: 3px;
+    left: -26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    background: #64748b;
+    color: #ffffff;
+    font-size: 0.5rem;
+}
+.dark #app .zq-timeline-dot { border-color: #1b2638; }
+#app .zq-timeline-entry.is-done .zq-timeline-dot { background: #0f766e; }
+#app .zq-timeline-entry.is-danger .zq-timeline-dot { background: #b91c1c; }
+#app .zq-timeline-entry.is-step .zq-timeline-dot { background: #475569; }
+#app .zq-timeline-stage { color: #0f172a; font-size: 0.75rem; font-weight: 800; }
+.dark #app .zq-timeline-stage { color: #f8fafc; }
+#app .zq-timeline-meta { margin-top: 2px; color: #64748b; font-size: 0.625rem; font-weight: 600; }
+.dark #app .zq-timeline-meta { color: #94a3b8; }
+#app .zq-timeline-note {
+    margin-top: 5px;
+    padding: 6px 9px;
+    border-left: 3px solid #cbd5e1;
+    border-radius: 0 6px 6px 0;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 0.6875rem;
+}
+.dark #app .zq-timeline-note { border-left-color: #475569; background: #1b2638; color: #cbd5e1; }
+#app .zq-timeline-transition {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 0.5625rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+.dark #app .zq-timeline-transition { color: #94a3b8; }
+#app .zq-timeline-transition code {
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #e2e8f0;
+    color: #0f172a;
+    font-family: inherit;
+}
+.dark #app .zq-timeline-transition code { background: #334155; color: #f8fafc; }
+
 /* Premium workspace navigation: the sidebar is deliberately subdued so the
    selected module carries the visual emphasis, with a clear role distinction
    between internal staff (teal) and the Client Portal (blue). */
