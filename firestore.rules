@@ -16,11 +16,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // zenq0r.com is fully retired — every account has moved to zenqor.com.my.
     function hasApprovedCompanyEmail(email) {
-      return email is string && (
-        email.matches('^[^@]+@zenq0r[.]com$') ||
-        email.matches('^[^@]+@zenqor[.]com[.]my$')
-      );
+      return email is string && email.matches('^[^@]+@zenqor[.]com[.]my$');
     }
 
     function isAuthenticated() {

@@ -6,9 +6,9 @@
 // server-side allowlist in api/_security.js is a third that has to agree with it.
 export const PORTAL_URL = 'https://www.hrconnect.zenqor.com.my/';
 
-// Mirrors SEED_ADMIN_EMAILS in api/_security.js — see the note there. Both
-// addresses count while the seed administrator moves to zenqor.com.my.
-export const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my', 'admin@zenq0r.com']);
+// Mirrors SEED_ADMIN_EMAILS in api/_security.js — see the note there.
+// zenq0r.com is fully retired; every account has moved to zenqor.com.my.
+export const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my']);
 // Where account and support correspondence comes from, and the fallback shown
 // when no company email is configured.
 export const SUPPORT_EMAIL = 'info@zenqor.com.my';

@@ -113,7 +113,7 @@ export const adminUserMethods = {
                 // whatever was just typed for this "new" one (and flipping the caller's
                 // own session role live if they happened to reuse their own email). Block
                 // it here instead: this is almost always a Director/Superadmin trying to
-                // grant Client Portal access using a @zenq0r.com email that already
+                // grant Client Portal access using a @zenqor.com.my email that already
                 // belongs to an existing staff account under a different role.
                 if (isNewUser && existingRecord) {
                     this.showNotify(`Unable to create a new account: ${email} already belongs to an existing ${existingRecord.role || 'portal'} account (${existingRecord.name || email}). Edit that existing record instead of adding a new one, or use a different email.`);
@@ -157,7 +157,7 @@ export const adminUserMethods = {
                     // path. That's the normal case here — this branch runs precisely
                     // because Firebase Auth already has an account for this email
                     // (auth/email-already-in-use), and almost always that's an existing
-                    // staff account (role !== 'Client') on the @zenq0r.com domain. Telling
+                    // staff account (role !== 'Client') on the @zenqor.com.my domain. Telling
                     // the admin "access will activate automatically" would be false in
                     // that case, so say so plainly instead of leaving them to discover it
                     // only when a Project's Client Portal Access link stays unresolved.

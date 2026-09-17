@@ -1,14 +1,13 @@
 const crypto = require('crypto');
-const APPROVED_STAFF_DOMAINS = new Set(['zenq0r.com', 'zenqor.com.my']);
+const APPROVED_STAFF_DOMAINS = new Set(['zenqor.com.my']);
 
 // The protected seed administrator — the account that cannot be deleted, can
 // restore its own profile, and is trusted as Superadmin even before its
 // Firestore record exists. It is the last line of defence against a total
-// lockout, so BOTH addresses count while it moves to zenqor.com.my: the new one
-// so it holds those powers the moment it is created, the old one so the account
-// signed in today does not lose them mid-move. Drop the legacy entry once it is
-// retired. This was copied by hand into five files before; keep it here only.
-const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my', 'admin@zenq0r.com']);
+// lockout. The legacy admin@zenq0r.com entry is retired: every account has
+// moved to zenqor.com.my. This was copied by hand into five files before;
+// keep it here only.
+const SEED_ADMIN_EMAILS = new Set(['info@zenqor.com.my']);
 const SEED_ADMIN_PRIMARY = 'info@zenqor.com.my';
 
 // Every outbound Resend email sends from this address. It was written by hand
@@ -53,24 +52,17 @@ function hashResetToken(token) {
 }
 
 // Hostnames a password-reset / notification link may point at. An exact-match set,
-// never a suffix test: 'evilwww.hrct.zenq0r.com' and 'www.hrct.zenq0r.com.evil.test'
-// both have to fail, and endsWith() would let one of them through.
+// never a suffix test: 'evilwww.hrct.portal.zenqor.com.my.evil.test' has to
+// fail, and endsWith() would let it through.
 //
-// Both the old and the new portal hostname are listed while the move off
-// zenqor.com.my is in progress, so a link already sitting in someone's inbox keeps
-// working. Drop the zenqor.com.my entry once that domain is gone for good.
-// Where new links point. The set below still accepts the retired hosts so a
-// link already sitting in an inbox keeps working, but nothing new may be built
-// with them — that split is why the reset email went on pointing at a dead
-// address long after the portal had moved.
+// zenq0r.com is fully retired — every account has moved to zenqor.com.my, so
+// www.hrct.zenq0r.com is dropped from this set. www.hrct.portal.zenqor.com.my
+// is kept a while longer only so a reset link already sitting in someone's
+// inbox still validates; prune it too once outstanding links have expired.
 const PORTAL_URL = 'https://www.hrconnect.zenqor.com.my/';
 
 const APPROVED_PORTAL_HOSTS = new Set([
     'www.hrconnect.zenqor.com.my',
-    // Hosts the portal answered on earlier today and before. Kept only so a
-    // reset link already sitting in someone's inbox still validates; both are
-    // dead addresses now, so prune them once outstanding links have expired.
-    'www.hrct.zenq0r.com',
     'www.hrct.portal.zenqor.com.my'
 ]);
 

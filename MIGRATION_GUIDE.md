@@ -35,7 +35,7 @@ di bawah path `users/{uid}` (bukan email lagi, tapi UID Firebase):
 ```json
 {
   "name": "Nama Pengguna",
-  "email": "nama@zenq0r.com",
+  "email": "nama@zenqor.com.my",
   "role": "Superadmin"
 }
 ```

@@ -28,7 +28,7 @@ function buildStaffPortal(role, { uid = 'viewer-uid' } = {}) {
 
 const FULL_ACCESS = ['Superadmin', 'Director'];
 const OBSERVERS = ['IT'];
-const SEED_ADMINS = ['info@zenqor.com.my', 'admin@zenq0r.com'];
+const SEED_ADMINS = ['info@zenqor.com.my'];
 const READ_ONLY_ACTIONS = ['view', 'read', 'access'];
 const WRITING_ACTIONS = ['edit', 'lock', 'reset', 'delete'];
 

@@ -22,7 +22,7 @@ function buildPresence({ employees = [], customers = [], now = 1_000_000 } = {})
     gate.employees = employees;
     gate.customers = customers;
     gate.presenceNow = now;
-    gate.isSeedAdminEmail = email => ['info@zenqor.com.my', 'admin@zenq0r.com'].includes(String(email || '').toLowerCase());
+    gate.isSeedAdminEmail = email => ['info@zenqor.com.my'].includes(String(email || '').toLowerCase());
     gate.getPresenceTime = value => (value ? Date.parse(value) : 0);
     // The real computed, rebuilt the same way.
     const anchorSrc = src.slice(src.indexOf('        presenceAnchorEmails() {'), src.indexOf('        canViewStaffDirectory()'));
@@ -142,19 +142,21 @@ test('a Client login may not use a company domain, and staff may use nothing els
     const end = src.indexOf('        portalEmailRejectionMessage(role) {');
     assert.ok(start > -1 && end > start, 'the portal email gate must remain in app.js');
     const gate = new Function(`return { ${src.slice(start, end)} };`)();
-    gate.allowedStaffDomains = ['zenq0r.com', 'zenqor.com.my'];
+    gate.allowedStaffDomains = ['zenqor.com.my'];
     gate.isStaffEmail = function (email) {
         const e = String(email || '').toLowerCase().trim();
         return /^[^\s@]+@[^\s@]+$/.test(e) && this.allowedStaffDomains.includes(e.split('@')[1]);
     };
 
     // A Client is somebody outside the company, so a company address is not a
-    // valid Client identity - both company domains, not just the one asked about.
-    for (const email of ['orang@zenqor.com.my', 'ORANG@ZENQOR.COM.MY', 'orang@zenq0r.com']) {
+    // valid Client identity.
+    for (const email of ['orang@zenqor.com.my', 'ORANG@ZENQOR.COM.MY']) {
         assert.equal(gate.isPortalEmailAllowed(email, 'Client'), false, `${email} must be refused as a Client`);
     }
     // Real client addresses keep working - these are the ones actually in use.
-    for (const email of ['zenqort@gmail.com', 'azziemahmad@gmail.com', 'azrul@monsta.com', 'nurhaniffzaid@publicimage.asia']) {
+    // zenq0r.com is fully retired as a company domain, so an address on it is
+    // now an ordinary outside address like any other.
+    for (const email of ['zenqort@gmail.com', 'azziemahmad@gmail.com', 'azrul@monsta.com', 'nurhaniffzaid@publicimage.asia', 'orang@zenq0r.com']) {
         assert.equal(gate.isPortalEmailAllowed(email, 'Client'), true, `${email} must still sign in as a Client`);
     }
     // And the original direction is untouched.

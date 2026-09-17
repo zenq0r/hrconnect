@@ -349,7 +349,7 @@ export function createInitialState() {
 
             // Staff and management accounts are limited to Zenqor's approved
             // company domains. Client accounts use the email registered for them.
-            allowedStaffDomains: ['zenq0r.com', 'zenqor.com.my'],
+            allowedStaffDomains: ['zenqor.com.my'],
             portalAccessRevocationInProgress: false,
             portalLockCheckInProgress: false,
             // A normal sign-out (including the idle-session timeout) is never a

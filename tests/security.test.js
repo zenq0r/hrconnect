@@ -120,11 +120,12 @@ test('every colour utility the markup uses exists in the built stylesheet', () =
 });
 
 test('portal URL validation rejects lookalike and insecure domains', () => {
-    // The portal now lives at www.hrconnect.zenqor.com.my. The two addresses it
-    // answered on before are still accepted so links already sent stay valid.
+    // The portal now lives at www.hrconnect.zenqor.com.my. One legacy address
+    // (a different rename, still on zenqor.com.my) is still accepted so links
+    // already sent stay valid. zenq0r.com is fully retired — no host on it
+    // validates any more, in any form.
     assert.equal(isAllowedPortalUrl('https://www.hrconnect.zenqor.com.my/path'), true);
     assert.equal(isAllowedPortalUrl('https://www.hrconnect.zenqor.com.my'), true);
-    assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com/path'), true);
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my/path'), true);
     // Everything else still fails, on either hostname: no bare host, no suffix
     // trickery, no prefix trickery, no plaintext.
@@ -136,10 +137,13 @@ test('portal URL validation rejects lookalike and insecure domains', () => {
     assert.equal(isAllowedPortalUrl('https://evilwww.hrconnect.zenqor.com.my'), false);
     assert.equal(isAllowedPortalUrl('http://www.hrconnect.zenqor.com.my'), false);
     assert.equal(isAllowedPortalUrl('https://www.hrct.portal.zenqor.com.my.evil.test'), false);
-    assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com.evil.test'), false);
     assert.equal(isAllowedPortalUrl('https://evilwww.hrct.portal.zenqor.com.my'), false);
-    assert.equal(isAllowedPortalUrl('https://evilwww.hrct.zenq0r.com'), false);
     assert.equal(isAllowedPortalUrl('http://www.hrct.portal.zenqor.com.my'), false);
+    // zenq0r.com: retired entirely, so even the once-valid exact host fails now.
+    assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com/path'), false);
+    assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com'), false);
+    assert.equal(isAllowedPortalUrl('https://www.hrct.zenq0r.com.evil.test'), false);
+    assert.equal(isAllowedPortalUrl('https://evilwww.hrct.zenq0r.com'), false);
     assert.equal(isAllowedPortalUrl('http://www.hrct.zenq0r.com'), false);
 });
 
@@ -294,8 +298,10 @@ test('Client accounts cannot subscribe to or read the internal user directory', 
 });
 
 test('staff identity requires an exact approved Authentication email domain', () => {
-    assert.equal(isApprovedStaffEmail('person@zenq0r.com'), true);
     assert.equal(isApprovedStaffEmail('PERSON@ZENQOR.COM.MY'), true);
+    // zenq0r.com is fully retired — no address on it counts as staff any more,
+    // in any form.
+    assert.equal(isApprovedStaffEmail('person@zenq0r.com'), false);
     assert.equal(isApprovedStaffEmail('person@client.zenq0r.com'), false);
     assert.equal(isApprovedStaffEmail('person@zenq0r.com.evil.test'), false);
     assert.equal(isApprovedStaffEmail('person@fakezenqor.com.my'), false);
@@ -305,7 +311,7 @@ test('staff identity requires an exact approved Authentication email domain', ()
 test('Staff domains are enforced while registered Client email access remains available', () => {
     const appSource = readSource('app.js');
     const rulesSource = readSource('firestore.rules');
-    assert.match(appSource, /allowedStaffDomains:\s*\['zenq0r\.com', 'zenqor\.com\.my'\]/);
+    assert.match(appSource, /allowedStaffDomains:\s*\['zenqor\.com\.my'\]/);
     assert.match(appSource, /this\.allowedStaffDomains\.includes\(emailDomain\)/);
     assert.match(appSource, /this\.authView === 'staff' && !this\.isStaffEmail\(this\.loginForm\.email\)/);
     // The provisioning form now runs the same gate as sign-in, in both
@@ -331,16 +337,20 @@ test('Staff domains are enforced while registered Client email access remains av
     assert.match(rulesSource, /function hasApprovedCompanyEmail\(email\)/);
     assert.match(rulesSource, /function isApprovedStaffSession\(\)/);
     assert.match(rulesSource, /data\.role == 'Client'/);
-    assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenq0r\[\.\]com\$'\)/);
     assert.match(rulesSource, /email\.matches\('\^\[\^@\]\+@zenqor\[\.\]com\[\.\]my\$'\)/);
+    // zenq0r.com is fully retired — hasApprovedCompanyEmail() no longer
+    // accepts it in any form. Scoped to the function body (not the whole
+    // file) so this doesn't trip on the comment explaining the retirement.
+    const companyEmailFn = rulesSource.slice(rulesSource.indexOf('function hasApprovedCompanyEmail'), rulesSource.indexOf('function isAuthenticated'));
+    assert.doesNotMatch(companyEmailFn, /zenq0r/);
     const claimsSource = readSource('api/sync-user-claims.js');
     // The seed administrator is no longer a string copied into five files; it is
-    // one set in api/_security.js that every caller shares. Assert the behaviour
-    // rather than the spelling: both the new address and the legacy one count
-    // while the account moves, and nothing else does.
+    // one set in api/_security.js that every caller shares. Assert the
+    // behaviour rather than the spelling: only the current address counts now
+    // that the legacy one has been retired.
     assert.match(claimsSource, /isSeedAdminEmail\(decoded\.email\)/);
     assert.equal(isSeedAdminEmail('info@zenqor.com.my'), true);
-    assert.equal(isSeedAdminEmail('admin@zenq0r.com'), true);
+    assert.equal(isSeedAdminEmail('admin@zenq0r.com'), false);
     assert.equal(isSeedAdminEmail('  INFO@Zenqor.Com.My  '), true, 'must normalise case and spacing');
     assert.equal(isSeedAdminEmail('annas@zenqor.com.my'), false);
     assert.equal(isSeedAdminEmail('info@zenqor.com.my.evil.test'), false);
