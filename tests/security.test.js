@@ -933,11 +933,19 @@ test('every third-party script and stylesheet is pinned to its exact bytes', () 
     // Google Fonts builds its CSS per browser, so there is no fixed file to hash.
     // It only ever supplies a typeface; nothing it serves can execute.
     //
+    // googletagmanager.com/gtag/js is a deliberate, accepted gap, not an
+    // oversight: Google does not publish a fixed hash for it (the file is
+    // self-updating), so no integrity attribute can ever be correct for long.
+    // Self-hosting a stale mirror would silently drift from Google's own
+    // analytics/consent logic. The trade-off is accepted because gtag.js only
+    // ever runs analytics/consent code — it is not on the path that reads or
+    // writes salaries, IC numbers or bank accounts.
+    //
     // Known gap, not covered here: the Firebase SDK and Vercel's analytics are
     // pulled in by ES module `import` statements, and an import has no
     // integrity attribute. Closing that means self-hosting those modules or an
     // import map with integrity metadata.
-    const hashable = external.filter(tag => !tag.includes('fonts.googleapis.com'));
+    const hashable = external.filter(tag => !tag.includes('fonts.googleapis.com') && !tag.includes('googletagmanager.com'));
     assert.ok(hashable.length >= 3, 'Vue, Chart.js and Font Awesome are all loaded from a CDN');
 
     for (const tag of hashable) {

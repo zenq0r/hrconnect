@@ -18,7 +18,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
-    
+
+    <!-- GOOGLE TAG (gtag.js)
+         Deliberately carries no `integrity` attribute, unlike every other
+         script below: Google does not publish a fixed hash for this file
+         (it self-updates), so no hash could ever stay correct. Accepted
+         because this script only ever runs Google's own analytics/consent
+         code — it has no path to the salaries, IC numbers or bank accounts
+         the rest of this file's integrity pins exist to protect (see
+         tests/security.test.js's explicit carve-out for this exact URL). -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XJ0QP6E0H3"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XJ0QP6E0H3');
+    </script>
+
     <!-- VUE 3, TAILWIND CSS & LIBRARIES
          Every third-party file is pinned to an exact version AND to its exact
          bytes with `integrity`. This page handles salaries, IC numbers and bank
