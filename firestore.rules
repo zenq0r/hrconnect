@@ -1229,6 +1229,19 @@ service cloud.firestore {
         (request.resource.data.attachments is list && request.resource.data.attachments.size() <= 5);
     }
 
+    // Optional YYYY-MM-DD. Whether an Active notice past this date has
+    // actually flipped to Archived yet is a client-side concern
+    // (autoArchiveExpiredAnnouncements() in app/methods/announcements.js,
+    // opportunistically run by whichever Director/Superadmin/HR session next
+    // loads the collection — the same "no cron in a static site" shape as
+    // ensureClientTasksForExistingProjects()) — that write is just an
+    // ordinary status: 'Archived' update, already covered by allow update
+    // below, so this rule only bounds the field's own shape.
+    function announcementExpiresAtValid() {
+      return !('expiresAt' in request.resource.data) ||
+        (request.resource.data.expiresAt is string && request.resource.data.expiresAt.size() <= 10);
+    }
+
     match /announcements/{announcementId} {
       allow read: if isAdminOrHR() || (
         isApprovedStaffSession() && resource.data.status == 'Active'
@@ -1240,7 +1253,8 @@ service cloud.firestore {
         request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000 &&
         request.resource.data.priority in ['Normal', 'Important', 'Urgent'] &&
         request.resource.data.status == 'Active' &&
-        announcementAttachmentsValid();
+        announcementAttachmentsValid() &&
+        announcementExpiresAtValid();
       allow update: if isAdminOrHR() &&
         request.resource.data.createdByUid == resource.data.createdByUid &&
         request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140 &&
@@ -1248,7 +1262,8 @@ service cloud.firestore {
         request.resource.data.priority in ['Normal', 'Important', 'Urgent'] &&
         request.resource.data.status in ['Active', 'Archived'] &&
         request.resource.data.lastEditedByUid == request.auth.uid &&
-        announcementAttachmentsValid();
+        announcementAttachmentsValid() &&
+        announcementExpiresAtValid();
       allow delete: if isAdmin();
     }
 

@@ -329,7 +329,10 @@ export const realtimeMethods = {
                     ? subscribeWithReadySignal(dutyRosterSource, (snapshot) => { this.dutyRosterWeeks = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'duty roster')
                     : Promise.resolve(),
                 announcementsSource
-                    ? subscribeWithReadySignal(announcementsSource, (snapshot) => { this.announcements = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'announcements')
+                    ? subscribeWithReadySignal(announcementsSource, (snapshot) => {
+                        this.announcements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        this.autoArchiveExpiredAnnouncements();
+                    }, 'announcements')
                     : Promise.resolve(),
                 leaveRequestsSource
                     ? subscribeWithReadySignal(leaveRequestsSource, (snapshot) => { this.leaveRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'leave requests')

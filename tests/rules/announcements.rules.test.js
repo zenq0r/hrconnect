@@ -104,3 +104,26 @@ test('only Director, Superadmin and HR upload an attachment, and only into their
     await assertFails(as('hr').storage.ref('announcement_attachments/u-director/photo.jpg')
         .put(Buffer.from([0xFF, 0xD8, 0xFF]), { contentType: 'image/jpeg' }));
 });
+
+// ---- expiresAt (auto-archive) ---------------------------------------------
+
+test('expiresAt is optional, but only ever a short string', async () => {
+    await assertSucceeds(as('hr').db.doc('announcements/N10').set(active({ id: 'N10' })));
+    await assertSucceeds(as('hr').db.doc('announcements/N11').set(active({ id: 'N11', expiresAt: '2026-12-31' })));
+    await assertFails(as('hr').db.doc('announcements/N12').set(active({ id: 'N12', expiresAt: 20261231 })));
+    await assertFails(as('hr').db.doc('announcements/N13').set(active({ id: 'N13', expiresAt: '2026-12-31T00:00:00.000Z-too-long' })));
+});
+
+test('auto-archiving a past-due notice is an ordinary HR/Director/Superadmin archive, nothing new', async () => {
+    await seed({ 'announcements/A3': active({ id: 'A3', title: 'EXPIRED NOTICE', expiresAt: '2020-01-01' }) });
+    // This is exactly what autoArchiveExpiredAnnouncements() sends: the
+    // signed-in manager stamps themselves as lastEditedByUid on an ordinary
+    // status: 'Active' -> 'Archived' write, same shape as a manual Archive.
+    await assertSucceeds(as('hr').db.doc('announcements/A3').set(active({
+        id: 'A3', title: 'EXPIRED NOTICE', expiresAt: '2020-01-01', status: 'Archived', lastEditedByUid: 'u-hr',
+    })));
+    // Staff can never perform that write, expired or not.
+    await assertFails(as('staff').db.doc('announcements/A3').set(active({
+        id: 'A3', title: 'EXPIRED NOTICE', expiresAt: '2020-01-01', status: 'Archived', lastEditedByUid: 'u-staff',
+    })));
+});

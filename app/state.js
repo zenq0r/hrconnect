@@ -292,12 +292,13 @@ export function createInitialState() {
             leaveCorrectionModal: { show: false, record: null, correctionNote: '' },
             announcements: [],
             announcementFilter: 'Active',
+            announcementAutoArchiveRunning: false,
             announcementModal: {
                 show: false,
                 isEdit: false,
                 id: '',
                 uploading: false,
-                form: { title: '', message: '', priority: 'Normal', attachments: [] }
+                form: { title: '', message: '', priority: 'Normal', attachments: [], expiresAt: '' }
             },
             customers: [],
             users: [],

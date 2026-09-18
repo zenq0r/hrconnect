@@ -12,6 +12,7 @@ import {
     doc,
     setDoc,
     deleteDoc,
+    writeBatch,
     storageRef,
     uploadBytes,
     getDownloadURL,
@@ -61,17 +62,58 @@ export const announcementMethods = {
                 return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
             });
         },
+        // A date-only compare (both sides are YYYY-MM-DD, or expiresAt is
+        // empty/unset) — never on the clock, so an announcement stays up for
+        // the whole of its expiry date rather than disappearing mid-morning.
+        isAnnouncementExpired(item) {
+            return Boolean(item?.expiresAt) && item.expiresAt < this.getLocalDateKey();
+        },
         // The board's own list: managers can flip announcementFilter to review
         // Archived notices, everyone else only ever has Active ones to look at
-        // (firestore.rules never sends them anything else).
+        // (firestore.rules never sends them anything else). An expired-but-
+        // still-Active item (the brief window before autoArchiveExpiredAnnouncements()
+        // commits) is treated as already Archived here too, so nobody sees a
+        // stale notice flash before the write lands.
         visibleAnnouncements() {
             const filter = this.canManageAnnouncements ? this.announcementFilter : 'Active';
-            return this.sortedAnnouncements(this.announcements.filter(a => a.status === filter));
+            return this.sortedAnnouncements(this.announcements.filter(a => {
+                const effectiveStatus = a.status === 'Active' && this.isAnnouncementExpired(a) ? 'Archived' : a.status;
+                return effectiveStatus === filter;
+            }));
         },
         // Dashboard widget: top few Active notices, for everyone, regardless of
         // the board's own Active/Archived filter.
         latestAnnouncements(limit = 3) {
-            return this.sortedAnnouncements(this.announcements.filter(a => a.status === 'Active')).slice(0, limit);
+            return this.sortedAnnouncements(this.announcements.filter(a => a.status === 'Active' && !this.isAnnouncementExpired(a))).slice(0, limit);
+        },
+        // Director/Superadmin/HR-only housekeeping, opportunistic rather than
+        // scheduled: this static site has no cron, so whichever manager's
+        // session next loads the collection is the one that notices an expiry
+        // date has passed and flips status to Archived — the same shape as
+        // ensureClientTasksForExistingProjects()/repairLegacyProjectClientLinks()
+        // in clients.js. The write itself is an ordinary archive, already
+        // covered by the announcements update rule; this only decides when to
+        // fire it. Guarded against re-entry while a previous pass is still
+        // committing, exactly like those two functions guard themselves.
+        async autoArchiveExpiredAnnouncements() {
+            if (!this.canManageAnnouncements || this.announcementAutoArchiveRunning) return;
+            const due = this.announcements.filter(a => a.status === 'Active' && this.isAnnouncementExpired(a));
+            if (!due.length) return;
+            this.announcementAutoArchiveRunning = true;
+            try {
+                const nowIso = new Date().toISOString();
+                const batch = writeBatch(db);
+                due.forEach(item => batch.set(doc(db, 'announcements', item.id), {
+                    ...item, status: 'Archived',
+                    lastEditedByUid: this.userProfile.uid, lastEditedByName: this.userProfile.name, lastEditedAt: nowIso
+                }));
+                await batch.commit();
+                due.forEach(item => this.logAudit('UPDATE', `Auto-archived expired announcement "${item.title}" (expired ${item.expiresAt})`));
+            } catch (error) {
+                console.warn('Auto-archiving expired announcements failed (non-fatal, will retry next load):', error);
+            } finally {
+                this.announcementAutoArchiveRunning = false;
+            }
         },
         openAnnouncementModal(item = null) {
             if (!this.canManageAnnouncements) { this.showNotify('Only Director, Superadmin and HR can post an announcement.'); return; }
@@ -81,8 +123,8 @@ export const announcementMethods = {
                 id: item?.id || '',
                 uploading: false,
                 form: item
-                    ? { title: item.title, message: item.message, priority: item.priority, attachments: [...(item.attachments || [])] }
-                    : { title: '', message: '', priority: 'Normal', attachments: [] }
+                    ? { title: item.title, message: item.message, priority: item.priority, attachments: [...(item.attachments || [])], expiresAt: item.expiresAt || '' }
+                    : { title: '', message: '', priority: 'Normal', attachments: [], expiresAt: '' }
             };
         },
         async saveAnnouncement() {
@@ -91,12 +133,13 @@ export const announcementMethods = {
             const title = form.title.trim();
             const message = form.message.trim();
             if (!title || !message) { this.showNotify('Complete the title and message.'); return; }
+            if (form.expiresAt && form.expiresAt < this.getLocalDateKey()) { this.showNotify('Expiry date cannot be in the past.'); return; }
             const nowIso = new Date().toISOString();
             try {
                 if (isEdit) {
                     const existing = this.announcements.find(a => a.id === id);
                     await setDoc(doc(db, 'announcements', id), {
-                        title, message, priority: form.priority, attachments: form.attachments,
+                        title, message, priority: form.priority, attachments: form.attachments, expiresAt: form.expiresAt || '',
                         status: existing?.status || 'Active',
                         createdByUid: existing?.createdByUid, createdByName: existing?.createdByName, createdByEmail: existing?.createdByEmail, createdAt: existing?.createdAt,
                         lastEditedByUid: this.userProfile.uid, lastEditedByName: this.userProfile.name, lastEditedAt: nowIso
@@ -106,7 +149,7 @@ export const announcementMethods = {
                 } else {
                     const ref = doc(collection(db, 'announcements'));
                     await setDoc(ref, {
-                        title, message, priority: form.priority, status: 'Active', attachments: form.attachments,
+                        title, message, priority: form.priority, status: 'Active', attachments: form.attachments, expiresAt: form.expiresAt || '',
                         createdByUid: this.userProfile.uid, createdByName: this.userProfile.name, createdByEmail: this.userProfile.email, createdAt: nowIso,
                         lastEditedByUid: this.userProfile.uid, lastEditedByName: this.userProfile.name, lastEditedAt: nowIso
                     });
@@ -205,8 +248,14 @@ export const announcementMethods = {
         async restoreAnnouncement(item) {
             if (!this.canManageAnnouncements) { this.showNotify('Only Director, Superadmin and HR can restore an announcement.'); return; }
             try {
+                // A past expiry date left in place would just have
+                // autoArchiveExpiredAnnouncements() re-archive this the next
+                // time any manager's session loads the collection — clearing
+                // it here is what makes Restore actually mean "active again",
+                // not "active until the next page load."
+                const expiresAt = this.isAnnouncementExpired(item) ? '' : item.expiresAt;
                 await setDoc(doc(db, 'announcements', item.id), {
-                    ...item, status: 'Active',
+                    ...item, status: 'Active', expiresAt,
                     lastEditedByUid: this.userProfile.uid, lastEditedByName: this.userProfile.name, lastEditedAt: new Date().toISOString()
                 });
                 this.logAudit('UPDATE', `Restored announcement "${item.title}"`);
