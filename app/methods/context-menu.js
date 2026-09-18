@@ -199,6 +199,14 @@ export const contextMenuMethods = {
                 this.canManageDutyRoster ? { label: 'Remove Shift', icon: 'fa-trash', danger: true, action: () => this.removeDutyRosterShift(shift) } : null
             ];
         },
+        announcementMenuItems(item) {
+            return [
+                this.canManageAnnouncements ? { label: 'Edit Announcement', icon: 'fa-pen', action: () => this.openAnnouncementModal(item) } : null,
+                this.canManageAnnouncements && item.status === 'Active' ? { label: 'Archive Announcement', icon: 'fa-box-archive', action: () => this.archiveAnnouncement(item) } : null,
+                this.canManageAnnouncements && item.status === 'Archived' ? { label: 'Restore Announcement', icon: 'fa-rotate-left', action: () => this.restoreAnnouncement(item) } : null,
+                this.canDelete ? { label: 'Delete Announcement', icon: 'fa-trash', danger: true, action: () => this.deleteAnnouncement(item) } : null
+            ];
+        },
         leaveRequestRowMenuItems(record) {
             return [
                 this.canEditLeaveRequest(record) ? { label: 'Edit Leave Request', icon: 'fa-pen', action: () => this.editLeaveRequest(record) } : null,

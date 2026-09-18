@@ -1212,6 +1212,34 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Announcements — a company-wide notice board. Director/Superadmin/HR
+    // (the same pair Duty Roster already trusts to publish to everyone) post
+    // and archive notices; every other approved internal staff session reads
+    // Active ones only, mirroring duty_roster's Draft/Published split. Client
+    // accounts never reach this collection — announcements are an internal
+    // HR/Staff Portal workflow, kept separate from the Client Portal's own
+    // client-updates, the same boundary the rest of this file already draws.
+    match /announcements/{announcementId} {
+      allow read: if isAdminOrHR() || (
+        isApprovedStaffSession() && resource.data.status == 'Active'
+      );
+      allow create: if isAdminOrHR() &&
+        request.resource.data.createdByUid == request.auth.uid &&
+        request.resource.data.createdByEmail == request.auth.token.email &&
+        request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140 &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000 &&
+        request.resource.data.priority in ['Normal', 'Important', 'Urgent'] &&
+        request.resource.data.status == 'Active';
+      allow update: if isAdminOrHR() &&
+        request.resource.data.createdByUid == resource.data.createdByUid &&
+        request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140 &&
+        request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000 &&
+        request.resource.data.priority in ['Normal', 'Important', 'Urgent'] &&
+        request.resource.data.status in ['Active', 'Archived'] &&
+        request.resource.data.lastEditedByUid == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     match /projects/{projectId} {
       allow read: if isAuthenticated() && (
         // Director/Superadmin can supervise every process. Other internal

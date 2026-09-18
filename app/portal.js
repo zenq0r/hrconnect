@@ -24,6 +24,7 @@ import { hrMethods } from "./methods/hr.js";
 import { attendanceMethods } from "./methods/attendance.js";
 import { dutyRosterMethods } from "./methods/duty-roster.js";
 import { leaveMethods } from "./methods/leave.js";
+import { announcementMethods } from "./methods/announcements.js";
 import { realtimeMethods } from "./methods/realtime.js";
 
 export const portalMethods = {
@@ -42,6 +43,7 @@ export const portalMethods = {
     ...attendanceMethods,
     ...dutyRosterMethods,
     ...leaveMethods,
+    ...announcementMethods,
     ...realtimeMethods,
 };
 

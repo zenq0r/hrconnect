@@ -23,6 +23,11 @@ export const accessComputed = {
         // someone else's clock event, or building/publishing the week's shifts.
         canCorrectAttendance() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
         canManageDutyRoster() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
+        // Every internal role reads Active announcements — that visibility comes
+        // from RBAC_ROLES, not this. This gates posting/editing/archiving one,
+        // mirroring canManageDutyRoster's pair exactly (same trio in
+        // firestore.rules' isAdminOrHR()).
+        canManageAnnouncements() { return ['Director', 'Superadmin', 'HR'].includes(this.userProfile.role); },
         canManageClients() { return this.hasModulePermission('client-directory', 'edit'); },
         // Was Director-only. Superadmin now holds it too: an account that can
         // delete a Client Task could not create one, which is not a coherent

@@ -290,6 +290,14 @@ export function createInitialState() {
             editingLeaveId: null,
             leaveForm: { id: '', empNo: '', name: '', empEmail: '', position: '', dept: '', leaveType: 'Annual', startDate: '', endDate: '', totalDays: 1, reason: '' },
             leaveCorrectionModal: { show: false, record: null, correctionNote: '' },
+            announcements: [],
+            announcementFilter: 'Active',
+            announcementModal: {
+                show: false,
+                isEdit: false,
+                id: '',
+                form: { title: '', message: '', priority: 'Normal' }
+            },
             customers: [],
             users: [],
             auditLogs: [],

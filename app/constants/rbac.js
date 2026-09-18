@@ -7,10 +7,10 @@ export const RBAC_ROLES = {
     // (content/site_text). Restricted to Superadmin/Director/IT only — see
     // isContentAdmin() in firestore.rules, which grants write on exactly these
     // collections to that same set of roles (not the full isAdmin() surface).
-    'Director': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'Superadmin': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
-    'HR': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'profile'],
-    'Account': ['dashboard', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'attendance', 'duty-roster', 'leave', 'reports', 'profile'],
+    'Director': ['dashboard', 'announcements', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'Superadmin': ['dashboard', 'announcements', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'HR': ['dashboard', 'announcements', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'hr-employees', 'attendance', 'duty-roster', 'leave', 'reports', 'profile'],
+    'Account': ['dashboard', 'announcements', 'client-task', 'project-activities', 'doc-generator', 'payslip-generator', 'claims', 'client-directory', 'attendance', 'duty-roster', 'leave', 'reports', 'profile'],
     // IT staff are employees too: Claims is where they file and follow their
     // own claims and vouchers, as the Staff role does. Attendance/Duty Roster/
     // Leave are the same — every internal role clocks in, views its own
@@ -21,9 +21,9 @@ export const RBAC_ROLES = {
     // visible projects instead of the Client Directory, which they cannot
     // read (see the customers rule in firestore.rules) — no new data becomes
     // reachable by granting this.
-    'IT': ['dashboard', 'client-task', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'website-content', 'audit-logs', 'settings', 'profile'],
+    'IT': ['dashboard', 'announcements', 'client-task', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
-    'Staff': ['dashboard', 'client-task', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'profile']
+    'Staff': ['dashboard', 'announcements', 'client-task', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'profile']
 };
 
 // Human names for the RBAC modules above. The sidebar writes its own labels
@@ -31,6 +31,7 @@ export const RBAC_ROLES = {
 // one row per module of whichever role it is describing.
 export const MODULE_LABELS = {
     'dashboard': 'Dashboard',
+    'announcements': 'Announcements',
     'client-task': 'Client Task',
     'project-activities': 'Project Activities',
     'doc-generator': 'Quotation & Invoice',
@@ -79,6 +80,11 @@ export const MODULE_ACTIONS = {
         edit: { all: ['Director', 'Superadmin', 'HR', 'Account'] },
         remove: { all: FULL_ACCESS_ROLES },
         note: 'Recent Activity and the billing queue act on invoices, payslips, claims and vouchers. Finance can also delete invoices and quotations here.',
+    },
+    'announcements': {
+        edit: { all: ['Director', 'Superadmin', 'HR'] },
+        remove: { all: FULL_ACCESS_ROLES },
+        note: 'Director, Superadmin and HR post and archive company-wide notices. Everyone else reads Active notices only, matching firestore.rules.',
     },
     'client-task': {
         edit: { all: FULL_ACCESS_ROLES },

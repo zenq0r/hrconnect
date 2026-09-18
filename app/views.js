@@ -19,6 +19,7 @@ const VIEW_NAMES = new Set([
     'shared-modals',
     'print-templates',
     'tab-dashboard',
+    'tab-announcements',
     'tab-client-task',
     'tab-projects',
     'tab-documents',
@@ -41,6 +42,7 @@ const VIEW_NAMES = new Set([
 // one screen, which is why they share an entry.
 const TAB_VIEWS = {
     'dashboard': 'tab-dashboard',
+    'announcements': 'tab-announcements',
     'client-task': 'tab-client-task',
     'project-activities': 'tab-projects',
     'document-quotations': 'tab-documents',

@@ -46,6 +46,9 @@
                     <button v-if="userProfile.role === 'Client'" type="button" @click="openClientPanel('ov')" :class="{'sidebar-item-active': currentTab === 'client-portal' && clientPanel === 'ov', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': !(currentTab === 'client-portal' && clientPanel === 'ov')}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-house-chimney w-5 text-center"></i><span>Dashboard</span>
                     </button>
+                    <button v-if="hasAccess('announcements')" type="button" @click="switchTab('announcements')" :class="{'sidebar-item-active': currentTab === 'announcements', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'announcements'}" class="zq-nav-item w-full">
+                        <i class="fa-solid fa-bullhorn w-5 text-center"></i><span>Announcements</span>
+                    </button>
 
                     <div class="pt-3 pb-1">
                         <button type="button" @click="toggleSidebarGroup('ops')" class="zq-sidebar-group-toggle w-full flex items-center justify-between px-3 py-1 rounded-md text-slate-500 hover:text-slate-300 transition" :aria-expanded="!isSidebarGroupCollapsed('ops')">

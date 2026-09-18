@@ -163,6 +163,10 @@ export const realtimeMethods = {
             // every other internal role only ever receives Published weeks back
             // from this same unfiltered collection() listener.
             const dutyRosterSource = role !== 'Client' ? collection(db, 'duty_roster') : null;
+            // Same shape as duty roster: Active/Archived narrows what a
+            // non-manager gets back from this one unfiltered listener, per the
+            // announcements read rule.
+            const announcementsSource = role !== 'Client' ? collection(db, 'announcements') : null;
             // Leave is single-stage (HR decides), so unlike claims/vouchers,
             // Account is not part of the review chain and reads only its own
             // requests here — matching the leave_requests read rule exactly.
@@ -323,6 +327,9 @@ export const realtimeMethods = {
                     : Promise.resolve(),
                 dutyRosterSource
                     ? subscribeWithReadySignal(dutyRosterSource, (snapshot) => { this.dutyRosterWeeks = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'duty roster')
+                    : Promise.resolve(),
+                announcementsSource
+                    ? subscribeWithReadySignal(announcementsSource, (snapshot) => { this.announcements = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'announcements')
                     : Promise.resolve(),
                 leaveRequestsSource
                     ? subscribeWithReadySignal(leaveRequestsSource, (snapshot) => { this.leaveRequests = snapshot.docs.map(d => ({ id: d.id, ...d.data() })); }, 'leave requests')
