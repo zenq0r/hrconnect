@@ -378,6 +378,17 @@ test('the dashboard widget renders Premium & Priority, not the old Priority-only
     assert.match(dashboard, /Premium &amp; Priority Clients/);
     assert.match(dashboard, /v-if="premiumAndPriorityClients\.length"/);
     assert.match(dashboard, /v-for="cust in premiumAndPriorityClients"/);
-    assert.match(dashboard, /No Premium or Priority-tier clients yet/);
     assert.doesNotMatch(dashboard, />Priority Clients</, 'the old Priority-only heading must not still be shown');
+});
+
+// The widget (and its Staff Workload neighbour) used to fall back to a full
+// "No data yet" placeholder card, which meant the dashboard was never
+// actually more compact than its busiest possible state — an empty company
+// saw two whole cards of empty-state prose instead of the row simply not
+// being there. Both are hidden outright now when there is nothing to show.
+test('an empty Premium/Priority widget and an empty Staff Workload widget are hidden, not shown as placeholder cards', () => {
+    const dashboard = readSource('views/tab-dashboard.html');
+    assert.doesNotMatch(dashboard, /No Premium or Priority-tier clients yet/, 'the old empty-state placeholder text must be gone');
+    assert.doesNotMatch(dashboard, /No active workload right now/, 'the old empty-state placeholder text must be gone');
+    assert.match(dashboard, /v-if="premiumAndPriorityClients\.length \|\| employeeWorkload\.length"/, 'the shared row itself must also collapse when both widgets are empty');
 });

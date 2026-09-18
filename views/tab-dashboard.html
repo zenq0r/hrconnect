@@ -195,33 +195,37 @@
                                 </div>
                             </div>
                             <!-- PRIMARY KPI ROW — the 5 metrics that answer "where does the
-                                 Client → Quotation → Invoice → Paid workflow stand right now". -->
-                            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                                <div class="zq-kpi-card">
+                                 Client → Quotation → Invoice → Paid workflow stand right now".
+                                 Each card is v-if'd on its own headline number so a metric with
+                                 nothing to report yet (a fresh company, a closed period with no
+                                 activity) doesn't sit on the strip as a bare zero — the row
+                                 reflows to whichever metrics actually have something to show. -->
+                            <div v-if="customers.length || activeProjectsCount || pendingQuotationsCount || unpaidInvoicesCount || paidInvoicesCount" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                                <div v-if="customers.length" class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-amber-500"></span><i class="fa-solid fa-building text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ customers.length }}</p>
                                     <p class="zq-kpi-card-label truncate">Total Clients</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ priorityClients.length }} Priority</p>
                                 </div>
-                                <div class="zq-kpi-card">
+                                <div v-if="activeProjectsCount" class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span><i class="fa-solid fa-diagram-project text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ activeProjectsCount }}</p>
                                     <p class="zq-kpi-card-label truncate">Active Projects</p>
                                     <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">{{ projects.length }} Total Tracked</p>
                                 </div>
-                                <div class="zq-kpi-card">
+                                <div v-if="pendingQuotationsCount" class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-yellow-500"></span><i class="fa-solid fa-file-pen text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-brand-dark dark:text-white truncate">{{ pendingQuotationsCount }}</p>
                                     <p class="zq-kpi-card-label truncate">Quotation Pending</p>
                                     <p class="zq-kpi-card-context text-indigo-700 dark:text-indigo-300 truncate">{{ totalQuotations }} Total Issued</p>
                                 </div>
-                                <div class="zq-kpi-card">
+                                <div v-if="unpaidInvoicesCount" class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-red-500"></span><i class="fa-solid fa-file-invoice-dollar text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-red-700 dark:text-red-300 truncate">{{ unpaidInvoicesCount }}</p>
                                     <p class="zq-kpi-card-label truncate">Unpaid Invoice</p>
                                     <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">{{ formatCurrency(totalRevenuePending) }} Outstanding</p>
                                 </div>
-                                <div class="zq-kpi-card">
+                                <div v-if="paidInvoicesCount" class="zq-kpi-card">
                                     <div class="zq-kpi-card-head"><span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span><i class="fa-solid fa-circle-check text-[10px] text-slate-300 dark:text-slate-400"></i></div>
                                     <p class="zq-kpi-card-value text-xl text-emerald-700 dark:text-emerald-300 truncate">{{ paidInvoicesCount }}</p>
                                     <p class="zq-kpi-card-label truncate">Paid Invoice</p>
@@ -229,29 +233,30 @@
                                 </div>
                             </div>
                             <!-- SECONDARY KPI ROW — everything else the Executive Command Center
-                                 already tracked, kept but visually quieter than the row above. -->
-                            <div class="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-                                <div class="zq-kpi-card zq-kpi-card-compact">
+                                 already tracked, kept but visually quieter than the row above.
+                                 Same per-card v-if as the primary row above. -->
+                            <div v-if="employees.length || periodRevenuePaid || totalRevenuePending || periodPayrollNet || periodApprovedClaimsAmount" class="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                                <div v-if="employees.length" class="zq-kpi-card zq-kpi-card-compact">
                                     <p class="zq-kpi-card-value truncate">{{ employees.length }}</p>
                                     <p class="zq-kpi-card-label truncate">Employees</p>
                                     <p class="zq-kpi-card-context text-emerald-700 dark:text-emerald-300 truncate">{{ activeEmployeesCount }} Active</p>
                                 </div>
-                                <div class="zq-kpi-card zq-kpi-card-compact">
+                                <div v-if="periodRevenuePaid" class="zq-kpi-card zq-kpi-card-compact">
                                     <p class="zq-kpi-card-value truncate">{{ formatCurrency(periodRevenuePaid) }}</p>
                                     <p class="zq-kpi-card-label truncate">Revenue Collected</p>
                                     <p class="zq-kpi-card-context text-slate-600 dark:text-slate-300 truncate">Collected Inflow</p>
                                 </div>
-                                <div class="zq-kpi-card zq-kpi-card-compact">
+                                <div v-if="totalRevenuePending" class="zq-kpi-card zq-kpi-card-compact">
                                     <p class="zq-kpi-card-value truncate">{{ formatCurrency(totalRevenuePending) }}</p>
                                     <p class="zq-kpi-card-label truncate">Pending Receivables</p>
                                     <p class="zq-kpi-card-context text-red-700 dark:text-red-300 truncate">All periods</p>
                                 </div>
-                                <div class="zq-kpi-card zq-kpi-card-compact">
+                                <div v-if="periodPayrollNet" class="zq-kpi-card zq-kpi-card-compact">
                                     <p class="zq-kpi-card-value truncate">{{ formatCurrency(periodPayrollNet) }}</p>
                                     <p class="zq-kpi-card-label truncate">Payroll Net</p>
                                     <p class="zq-kpi-card-context text-purple-600 dark:text-purple-400 truncate">{{ payslipHistory.length }} Payslips</p>
                                 </div>
-                                <div class="zq-kpi-card zq-kpi-card-compact">
+                                <div v-if="periodApprovedClaimsAmount" class="zq-kpi-card zq-kpi-card-compact">
                                     <p class="zq-kpi-card-value truncate">{{ formatCurrency(periodApprovedClaimsAmount) }}</p>
                                     <p class="zq-kpi-card-label truncate">Claims Approved</p>
                                     <p class="zq-kpi-card-context text-amber-700 dark:text-amber-300 truncate">{{ pendingClaimsCount }} Pending</p>
@@ -259,8 +264,11 @@
                             </div>
                         </section>
 
-                        <!-- CLIENT & PROJECT OVERVIEW — Premium & Priority Clients and Staff Workload share one row -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                        <!-- CLIENT & PROJECT OVERVIEW — Premium & Priority Clients and Staff Workload
+                             share one row. Both are cross-system insight widgets, not core numbers,
+                             so with nothing to show they are hidden outright rather than filling the
+                             row with an empty-state placeholder card. -->
+                        <div v-if="premiumAndPriorityClients.length || employeeWorkload.length" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
                         <!-- PREMIUM & PRIORITY CLIENTS WIDGET -->
                         <div v-if="premiumAndPriorityClients.length" class="zq-card p-5">
                             <div class="mb-3 flex items-center justify-between gap-3">
@@ -275,15 +283,6 @@
                                         <span class="shrink-0 rounded-full bg-slate-200 dark:bg-slate-600 px-1.5 py-0.5 text-[9px] font-bold text-slate-600 dark:text-slate-200">{{ clientProjectCount(cust.id) }} proj</span>
                                     </span>
                                 </button>
-                            </div>
-                        </div>
-                        <div v-else class="zq-card p-5">
-                            <h2 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-star text-rose-500"></i>Premium &amp; Priority Clients</h2>
-                            <div class="zq-empty-state zq-empty-state-compact">
-                                <i class="fa-solid fa-star zq-empty-state-icon" aria-hidden="true"></i>
-                                <p class="zq-empty-state-title">No Premium or Priority-tier clients yet</p>
-                                <p class="zq-empty-state-text">Clients set to the Premium or Priority tier in the Client Directory will appear here.</p>
-                                <div v-if="hasAccess('client-directory')" class="zq-empty-state-action"><button type="button" @click="switchTab('client-directory')" class="zq-btn zq-btn-outline zq-btn-sm">View Client Directory</button></div>
                             </div>
                         </div>
 
@@ -306,15 +305,6 @@
                                     </div>
                                     <span class="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black" :class="w.total >= 4 ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200'">{{ w.total }}</span>
                                 </button>
-                            </div>
-                        </div>
-                        <div v-else class="zq-card p-5">
-                            <h2 class="zq-text-section-title flex items-center gap-2 mb-3"><i class="fa-solid fa-gauge-high text-brand-blue"></i>Staff Workload Across Clients</h2>
-                            <div class="zq-empty-state zq-empty-state-compact">
-                                <i class="fa-solid fa-gauge-high zq-empty-state-icon" aria-hidden="true"></i>
-                                <p class="zq-empty-state-title">No active workload right now</p>
-                                <p class="zq-empty-state-text">Staff members with active project or activity assignments will appear here.</p>
-                                <div v-if="hasAccess('hr-employees')" class="zq-empty-state-action"><button type="button" @click="switchTab('hr-employees')" class="zq-btn zq-btn-outline zq-btn-sm">View Employee Management</button></div>
                             </div>
                         </div>
                         </div>
