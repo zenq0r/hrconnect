@@ -58,12 +58,12 @@
                     <button v-if="hasAccess('client-task')" type="button" @click="switchTab('client-task')" :class="{'sidebar-item-active': currentTab === 'client-task', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'client-task'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-list-check w-5 text-center"></i><span>Client Task</span>
                     </button>
-                    <!-- Director/Superadmin/HR/Account (anyone with Client Task access) can only
-                         ever reach the board by drilling into one client from Client Task — there
-                         is deliberately no unfiltered "every project, every client" view for them
-                         anymore, so this direct button is hidden entirely.
-                         Staff/IT/Client have no Client Task page at all, so they keep this as
-                         their only path (Client's own "My Projects" tracker included). -->
+                    <!-- Every internal role (Director/Superadmin/HR/Account/IT/Staff) now has
+                         Client Task, and can only ever reach the board by drilling into one
+                         client from there — there is deliberately no unfiltered "every project,
+                         every client" view for anyone, so this direct button is hidden entirely.
+                         Client is the only role with no Client Task page, so this stays their
+                         one path in ("My Projects" tracker). -->
                     <button v-if="hasAccess('project-activities') && !hasAccess('client-task')" type="button" @click="boardClientFilter = null; switchTab('project-activities')" :class="{'sidebar-item-active': currentTab === 'project-activities', 'text-slate-400 hover:bg-slate-800/60 hover:text-white': currentTab !== 'project-activities'}" class="zq-nav-item w-full">
                         <i class="fa-solid fa-diagram-project w-5 text-center"></i><span>{{ userProfile.role === 'Client' ? 'My Projects' : 'Project Activities' }}</span>
                     </button>

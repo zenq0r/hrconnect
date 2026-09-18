@@ -14,10 +14,16 @@ export const RBAC_ROLES = {
     // IT staff are employees too: Claims is where they file and follow their
     // own claims and vouchers, as the Staff role does. Attendance/Duty Roster/
     // Leave are the same — every internal role clocks in, views its own
-    // roster, and files its own leave requests.
-    'IT': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'website-content', 'audit-logs', 'settings', 'profile'],
+    // roster, and files its own leave requests. 'client-task' is view-only
+    // for both roles below — MODULE_ACTIONS.client-task restricts edit/remove
+    // to FULL_ACCESS_ROLES, and clientTaskSource() (app/computed/directory.js)
+    // already falls back to deriving each client card from this role's own
+    // visible projects instead of the Client Directory, which they cannot
+    // read (see the customers rule in firestore.rules) — no new data becomes
+    // reachable by granting this.
+    'IT': ['dashboard', 'client-task', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'website-content', 'audit-logs', 'settings', 'profile'],
     'Client': ['project-activities', 'client-portal', 'client-documents', 'client-updates', 'client-support', 'profile'],
-    'Staff': ['dashboard', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'profile']
+    'Staff': ['dashboard', 'client-task', 'project-activities', 'claims', 'attendance', 'duty-roster', 'leave', 'profile']
 };
 
 // Human names for the RBAC modules above. The sidebar writes its own labels
