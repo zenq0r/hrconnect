@@ -1,15 +1,20 @@
 // Role naming and the two module-level permission checks every screen calls.
 import { RBAC_ROLES } from "../constants/rbac.js";
 export const accessMethods = {
+        // Short, standard role names — the kind any basic company HR system
+        // uses (HR Admin, Finance, IT, Staff, Client) — rather than each
+        // role's full internal department title. One map feeds every place a
+        // role name is shown: this dropdown, the Staff Portal roster, audit
+        // log lines, notifications and account-creation emails.
         getRoleDisplayName(code) {
             const roles = {
                 'Director': 'Director',
                 'Superadmin': 'Super Admin',
-                'HR': 'Human Resource Management',
-                'Account': 'Finance Account Management',
-                'IT': 'Intelligence Team Management',
-                'Staff': 'Operation Team Management',
-                'Client': 'Client Users System Terminal'
+                'HR': 'HR Admin',
+                'Account': 'Finance & Account',
+                'IT': 'IT',
+                'Staff': 'Staff',
+                'Client': 'Client'
             };
             return roles[code] || code;
         },

@@ -504,13 +504,13 @@
                     <div>
                         <label for="usr-modal-role" class="zq-label">Role *</label>
                         <select id="usr-modal-role" name="usrModalRole" v-model="userModal.form.role" class="zq-input font-bold">
-                                            <option v-if="userProfile.role === 'Superadmin' || userProfile.role === 'Director'" value="Director">Director</option>
-                                            <option value="Superadmin">Super Admin</option>
-                                            <option value="HR">Human Resource Management</option>
-                                            <option value="Account">Finance Account Management</option>
-                                            <option value="IT">Intelligence Team Management</option>
-                                            <option value="Staff">Operation Team Management</option>
-                                            <option value="Client">Client Users System Terminal</option>
+                                            <option v-if="userProfile.role === 'Superadmin' || userProfile.role === 'Director'" value="Director">{{ getRoleDisplayName('Director') }}</option>
+                                            <option value="Superadmin">{{ getRoleDisplayName('Superadmin') }}</option>
+                                            <option value="HR">{{ getRoleDisplayName('HR') }}</option>
+                                            <option value="Account">{{ getRoleDisplayName('Account') }}</option>
+                                            <option value="IT">{{ getRoleDisplayName('IT') }}</option>
+                                            <option value="Staff">{{ getRoleDisplayName('Staff') }}</option>
+                                            <option value="Client">{{ getRoleDisplayName('Client') }}</option>
                         </select>
                     </div>
                 </div>
