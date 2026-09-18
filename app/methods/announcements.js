@@ -7,13 +7,39 @@
 // whole thing is simpler than paginating it.
 import {
     db,
+    storage,
     collection,
     doc,
     setDoc,
-    deleteDoc
+    deleteDoc,
+    storageRef,
+    uploadBytes,
+    getDownloadURL,
+    deleteObject
 } from "../../firebase-config.js";
 
 const PRIORITY_ORDER = { Urgent: 0, Important: 1, Normal: 2 };
+
+// Extension -> content type, and back to a human icon/label. Must mirror the
+// announcement_attachments write rule in storage.rules exactly, or a file
+// this map accepts would still be refused at the Storage boundary.
+const ATTACHMENT_TYPES = {
+    png: { contentType: 'image/png', icon: 'fa-file-image', label: 'Image' },
+    jpg: { contentType: 'image/jpeg', icon: 'fa-file-image', label: 'Image' },
+    jpeg: { contentType: 'image/jpeg', icon: 'fa-file-image', label: 'Image' },
+    gif: { contentType: 'image/gif', icon: 'fa-file-image', label: 'Image' },
+    webp: { contentType: 'image/webp', icon: 'fa-file-image', label: 'Image' },
+    pdf: { contentType: 'application/pdf', icon: 'fa-file-pdf', label: 'PDF' },
+    mp4: { contentType: 'video/mp4', icon: 'fa-file-video', label: 'Video' },
+    docx: { contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', icon: 'fa-file-word', label: 'Word' },
+    xlsx: { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', icon: 'fa-file-excel', label: 'Excel' },
+    pptx: { contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', icon: 'fa-file-powerpoint', label: 'PowerPoint' }
+};
+const MAX_ATTACHMENT_BYTES = { 'image': 10, 'application/pdf': 15, 'video/mp4': 40, 'office': 15 };
+function attachmentSizeLimitBytes(contentType) {
+    const key = contentType.startsWith('image/') ? 'image' : contentType.startsWith('application/vnd.openxmlformats') ? 'office' : contentType;
+    return (MAX_ATTACHMENT_BYTES[key] || 10) * 1024 * 1024;
+}
 
 export const announcementMethods = {
 
@@ -53,9 +79,10 @@ export const announcementMethods = {
                 show: true,
                 isEdit: Boolean(item),
                 id: item?.id || '',
+                uploading: false,
                 form: item
-                    ? { title: item.title, message: item.message, priority: item.priority }
-                    : { title: '', message: '', priority: 'Normal' }
+                    ? { title: item.title, message: item.message, priority: item.priority, attachments: [...(item.attachments || [])] }
+                    : { title: '', message: '', priority: 'Normal', attachments: [] }
             };
         },
         async saveAnnouncement() {
@@ -69,7 +96,7 @@ export const announcementMethods = {
                 if (isEdit) {
                     const existing = this.announcements.find(a => a.id === id);
                     await setDoc(doc(db, 'announcements', id), {
-                        title, message, priority: form.priority,
+                        title, message, priority: form.priority, attachments: form.attachments,
                         status: existing?.status || 'Active',
                         createdByUid: existing?.createdByUid, createdByName: existing?.createdByName, createdByEmail: existing?.createdByEmail, createdAt: existing?.createdAt,
                         lastEditedByUid: this.userProfile.uid, lastEditedByName: this.userProfile.name, lastEditedAt: nowIso
@@ -79,7 +106,7 @@ export const announcementMethods = {
                 } else {
                     const ref = doc(collection(db, 'announcements'));
                     await setDoc(ref, {
-                        title, message, priority: form.priority, status: 'Active',
+                        title, message, priority: form.priority, status: 'Active', attachments: form.attachments,
                         createdByUid: this.userProfile.uid, createdByName: this.userProfile.name, createdByEmail: this.userProfile.email, createdAt: nowIso,
                         lastEditedByUid: this.userProfile.uid, lastEditedByName: this.userProfile.name, lastEditedAt: nowIso
                     });
@@ -91,6 +118,74 @@ export const announcementMethods = {
             } catch (error) {
                 console.error('Save announcement failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'save this announcement'));
+            }
+        },
+        // Uploaded immediately on selection, same as every other attachment
+        // flow in this app (handleClientDocumentUpload, handleClaimAttachmentUpload)
+        // — the modal just accumulates the resulting URLs in form.attachments,
+        // so Post/Save Changes writes them like any other field.
+        async validateAnnouncementAttachmentFile(file) {
+            if (!file) throw new Error('No file was selected.');
+            if (file.size <= 0) throw new Error('The selected file is empty.');
+            const extension = String(file.name || '').split('.').pop().toLowerCase();
+            const type = ATTACHMENT_TYPES[extension];
+            if (!type) throw new Error('Only JPG, PNG, GIF, WEBP, PDF, MP4, DOCX, XLSX and PPTX files are allowed.');
+            const limit = attachmentSizeLimitBytes(type.contentType);
+            if (file.size > limit) throw new Error(`This file type is limited to ${this.formatFileSize(limit)}.`);
+            // Magic-byte check for the types that have one fixed, cheap-to-check
+            // signature (mirrors validateClientDocumentFile's rigor); MP4 and the
+            // OOXML office formats are checked by extension + declared type only
+            // — storage.rules' own contentType gate is the real boundary either way.
+            const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+            const isPng = signature.length >= 8 && signature[0] === 0x89 && signature[1] === 0x50 && signature[2] === 0x4E && signature[3] === 0x47;
+            const isJpeg = signature.length >= 3 && signature[0] === 0xFF && signature[1] === 0xD8 && signature[2] === 0xFF;
+            const isGif = signature.length >= 4 && signature[0] === 0x47 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x38;
+            const isWebp = signature.length >= 12 && signature[0] === 0x52 && signature[1] === 0x49 && signature[2] === 0x46 && signature[3] === 0x46 && signature[8] === 0x57 && signature[9] === 0x45 && signature[10] === 0x42 && signature[11] === 0x50;
+            const isPdf = signature.length >= 4 && signature[0] === 0x25 && signature[1] === 0x50 && signature[2] === 0x44 && signature[3] === 0x46;
+            const checks = { 'image/png': isPng, 'image/jpeg': isJpeg, 'image/gif': isGif, 'image/webp': isWebp, 'application/pdf': isPdf };
+            if (type.contentType in checks && !checks[type.contentType]) throw new Error('The selected file\'s content does not match its extension.');
+            return type.contentType;
+        },
+        isImageAttachmentType(contentType) { return String(contentType || '').startsWith('image/'); },
+        announcementAttachmentIcon(contentType) {
+            const entry = Object.values(ATTACHMENT_TYPES).find(t => t.contentType === contentType);
+            return entry ? entry.icon : 'fa-file';
+        },
+        async handleAnnouncementAttachmentUpload(e) {
+            const files = Array.from(e.target.files || []);
+            if (!files.length) return;
+            if (this.announcementModal.form.attachments.length + files.length > 5) {
+                this.showNotify('An announcement may carry at most 5 attachments.');
+                e.target.value = '';
+                return;
+            }
+            this.announcementModal.uploading = true;
+            for (const file of files) {
+                try {
+                    const contentType = await this.validateAnnouncementAttachmentFile(file);
+                    const safeName = String(file.name || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
+                    const storageFileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}_${safeName}`;
+                    const storagePath = `announcement_attachments/${this.userProfile.uid}/${storageFileName}`;
+                    const fileRef = storageRef(storage, storagePath);
+                    await uploadBytes(fileRef, file, { contentType });
+                    const downloadURL = await getDownloadURL(fileRef);
+                    this.announcementModal.form.attachments.push({ name: file.name, contentType, size: file.size, storagePath, downloadURL });
+                } catch (error) {
+                    console.error('Announcement attachment upload failed:', error);
+                    this.showNotify(error?.message || `Unable to upload "${file.name}".`);
+                }
+            }
+            this.announcementModal.uploading = false;
+            e.target.value = '';
+        },
+        // The file is not yet referenced by any saved announcement while the
+        // composer is still open (Post/Save Changes hasn't run), so it is safe
+        // to remove from Storage immediately rather than leaving it orphaned.
+        async removeAnnouncementAttachment(index) {
+            const [attachment] = this.announcementModal.form.attachments.splice(index, 1);
+            if (attachment?.storagePath) {
+                try { await deleteObject(storageRef(storage, attachment.storagePath)); }
+                catch (error) { console.warn('Unable to remove the attachment file (non-fatal):', error); }
             }
         },
         async archiveAnnouncement(item) {
@@ -130,12 +225,18 @@ export const announcementMethods = {
             })) return;
             try {
                 await deleteDoc(doc(db, 'announcements', item.id));
+                await Promise.all((item.attachments || []).map(a =>
+                    deleteObject(storageRef(storage, a.storagePath)).catch(error => console.warn('Unable to remove an attachment file (non-fatal):', error))
+                ));
                 this.logAudit('DELETE', `Deleted announcement "${item.title}"`);
                 this.showNotify('Announcement deleted.');
             } catch (error) {
                 console.error('Delete announcement failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'delete this announcement'));
             }
+        },
+        openAnnouncementAttachment(attachment) {
+            window.open(attachment.downloadURL, '_blank', 'noopener');
         },
         // Fire-and-forget, same as duty-roster.js's notifyAssignedStaffOfPublishedRoster
         // — reuses the existing /api/notify endpoint, so posting an announcement

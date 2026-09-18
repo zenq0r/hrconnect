@@ -1219,6 +1219,16 @@ service cloud.firestore {
     // accounts never reach this collection — announcements are an internal
     // HR/Staff Portal workflow, kept separate from the Client Portal's own
     // client-updates, the same boundary the rest of this file already draws.
+    // Optional — most notices have none. When present, only bounds its shape
+    // (a short list); the actual bytes are gated separately by the
+    // announcement_attachments rule in storage.rules, which is the real
+    // boundary on file type and size. This just stops the field being used to
+    // stuff arbitrary metadata into the document.
+    function announcementAttachmentsValid() {
+      return !('attachments' in request.resource.data) ||
+        (request.resource.data.attachments is list && request.resource.data.attachments.size() <= 5);
+    }
+
     match /announcements/{announcementId} {
       allow read: if isAdminOrHR() || (
         isApprovedStaffSession() && resource.data.status == 'Active'
@@ -1229,14 +1239,16 @@ service cloud.firestore {
         request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140 &&
         request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000 &&
         request.resource.data.priority in ['Normal', 'Important', 'Urgent'] &&
-        request.resource.data.status == 'Active';
+        request.resource.data.status == 'Active' &&
+        announcementAttachmentsValid();
       allow update: if isAdminOrHR() &&
         request.resource.data.createdByUid == resource.data.createdByUid &&
         request.resource.data.title is string && request.resource.data.title.size() > 0 && request.resource.data.title.size() <= 140 &&
         request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000 &&
         request.resource.data.priority in ['Normal', 'Important', 'Urgent'] &&
         request.resource.data.status in ['Active', 'Archived'] &&
-        request.resource.data.lastEditedByUid == request.auth.uid;
+        request.resource.data.lastEditedByUid == request.auth.uid &&
+        announcementAttachmentsValid();
       allow delete: if isAdmin();
     }
 

@@ -38,6 +38,21 @@ service firebase.storage {
       return isSignedIn() && userRole() in ['Superadmin', 'Director', 'HR', 'Account', 'IT'];
     }
 
+    // Announcements are the one staff-facing collection Staff itself also
+    // reads (see the announcements rule in firestore.rules) — isStaffReader()
+    // above deliberately excludes Staff for the Client Directory-adjacent
+    // collections, so this is its own, broader function rather than widening
+    // that one and accidentally opening client documents to Staff too.
+    function isAnyInternalStaff() {
+      return isSignedIn() && userRole() in ['Superadmin', 'Director', 'HR', 'Account', 'IT', 'Staff'];
+    }
+
+    // Mirrors isAdminOrHR() in firestore.rules — the same pair trusted to
+    // post/archive/delete an announcement there also manages its attachments.
+    function isAnnouncementManager() {
+      return isSignedIn() && userRole() in ['Superadmin', 'Director', 'HR'];
+    }
+
     function isOwningClient(clientDirectoryId) {
       return isSignedIn() && userRole() == 'Client' &&
         request.auth.token.clientDirectoryId == clientDirectoryId;
@@ -76,6 +91,32 @@ service firebase.storage {
         request.resource.size <= 2 * 1024 * 1024 &&
         request.resource.contentType == 'image/jpeg';
       allow delete: if isStaffDocumentManager() || (isSignedIn() && request.auth.uid == ownerUid);
+    }
+
+    // Announcement attachments (posters, policy PDFs, short clips, office
+    // documents). Keyed by the poster's own uid rather than the announcement's
+    // id: a new announcement has no Firestore doc id yet at the moment a file
+    // is picked in the composer, the same reason receipts/{ownerUid} above is
+    // keyed by uid and not by claim id. Every internal role reads once posted
+    // (isAnyInternalStaff — Staff included, unlike client documents); only
+    // Director/Superadmin/HR upload or remove one, and only their own uid's
+    // folder, mirroring isAdminOrHR() in firestore.rules.
+    match /announcement_attachments/{uploaderUid}/{fileName} {
+      allow read: if isAnyInternalStaff();
+      allow write: if isSignedIn() && request.auth.uid == uploaderUid && isAnnouncementManager() && (
+        (request.resource.contentType in ['image/jpeg', 'image/png', 'image/gif', 'image/webp'] &&
+          request.resource.size <= 10 * 1024 * 1024) ||
+        (request.resource.contentType == 'application/pdf' &&
+          request.resource.size <= 15 * 1024 * 1024) ||
+        (request.resource.contentType == 'video/mp4' &&
+          request.resource.size <= 40 * 1024 * 1024) ||
+        (request.resource.contentType in [
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+          ] && request.resource.size <= 15 * 1024 * 1024)
+      );
+      allow delete: if isSignedIn() && (request.auth.uid == uploaderUid || isAnnouncementManager());
     }
 
     // Public zenqor-tech Portfolio gallery images (Digital Systems / Licensing &

@@ -64,3 +64,43 @@ test('only Superadmin and Director delete an announcement', async () => {
     await assertFails(as('staff').db.doc('announcements/A1').delete());
     await assertSucceeds(as('director').db.doc('announcements/A1').delete());
 });
+
+// ---- attachments (Firestore metadata field) -------------------------------
+
+test('attachments must be a short list, but the field is otherwise optional', async () => {
+    await assertSucceeds(as('hr').db.doc('announcements/N6').set(active({ id: 'N6' })));
+    await assertSucceeds(as('hr').db.doc('announcements/N7').set(active({ id: 'N7', attachments: [{ name: 'poster.png', storagePath: 'x' }] })));
+    const tooMany = Array.from({ length: 6 }, (_, i) => ({ name: `f${i}.png` }));
+    await assertFails(as('hr').db.doc('announcements/N8').set(active({ id: 'N8', attachments: tooMany })));
+    await assertFails(as('hr').db.doc('announcements/N9').set(active({ id: 'N9', attachments: 'not-a-list' })));
+});
+
+// ---- announcement_attachments (Storage bytes) ------------------------------
+
+test('any internal staff role reads an attachment; a Client never can', async () => {
+    for (const name of ['superadmin', 'director', 'hr', 'account', 'it', 'staff']) {
+        await assertSucceeds(as(name).storage.ref('announcement_attachments/u-hr/poster.png').getMetadata().catch(err => {
+            // Object does not exist in the Storage emulator — a NOT_FOUND after
+            // the rules already let the read through is a pass for this check.
+            if (err?.code === 'storage/object-not-found') return;
+            throw err;
+        }));
+    }
+    await assertFails(as('client').storage.ref('announcement_attachments/u-hr/poster.png').getMetadata());
+});
+
+test('HR uploads an allowed type within its size cap; an oversized or disallowed file is refused', async () => {
+    await assertSucceeds(as('hr').storage.ref('announcement_attachments/u-hr/poster.png')
+        .put(Buffer.from([0x89, 0x50, 0x4E, 0x47]), { contentType: 'image/png' }));
+    await assertFails(as('hr').storage.ref('announcement_attachments/u-hr/huge.png')
+        .put(Buffer.alloc(11 * 1024 * 1024), { contentType: 'image/png' }));
+    await assertFails(as('hr').storage.ref('announcement_attachments/u-hr/script.exe')
+        .put(Buffer.from('MZ'), { contentType: 'application/x-msdownload' }));
+});
+
+test('only Director, Superadmin and HR upload an attachment, and only into their own uid folder', async () => {
+    await assertFails(as('staff').storage.ref('announcement_attachments/u-staff/photo.jpg')
+        .put(Buffer.from([0xFF, 0xD8, 0xFF]), { contentType: 'image/jpeg' }));
+    await assertFails(as('hr').storage.ref('announcement_attachments/u-director/photo.jpg')
+        .put(Buffer.from([0xFF, 0xD8, 0xFF]), { contentType: 'image/jpeg' }));
+});

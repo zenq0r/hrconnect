@@ -296,7 +296,8 @@ export function createInitialState() {
                 show: false,
                 isEdit: false,
                 id: '',
-                form: { title: '', message: '', priority: 'Normal' }
+                uploading: false,
+                form: { title: '', message: '', priority: 'Normal', attachments: [] }
             },
             customers: [],
             users: [],

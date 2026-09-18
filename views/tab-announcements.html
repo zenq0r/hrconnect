@@ -29,6 +29,13 @@
                                         <h3 class="text-sm font-extrabold text-brand-dark dark:text-white">{{ item.title }}</h3>
                                     </div>
                                     <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300 whitespace-pre-line">{{ item.message }}</p>
+                                    <div v-if="item.attachments && item.attachments.length" class="mt-3 flex flex-wrap gap-2">
+                                        <button v-for="att in item.attachments" :key="att.storagePath" type="button" @click.stop="openAnnouncementAttachment(att)" class="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 transition hover:border-brand-blue">
+                                            <img v-if="isImageAttachmentType(att.contentType)" :src="att.downloadURL" class="h-8 w-8 shrink-0 rounded object-cover" alt="">
+                                            <i v-else :class="announcementAttachmentIcon(att.contentType)" class="fa-solid w-8 shrink-0 text-center text-base text-slate-400"></i>
+                                            <span class="min-w-0 text-left"><span class="block max-w-[120px] truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ att.name }}</span><span class="block text-[9px] text-slate-400">{{ formatFileSize(att.size) }}</span></span>
+                                        </button>
+                                    </div>
                                     <p class="mt-3 text-[10px] text-slate-400 dark:text-slate-400">Posted by {{ item.createdByName || 'Unknown' }} &middot; {{ formatDateTime(item.createdAt) }}<template v-if="item.lastEditedAt && item.lastEditedAt !== item.createdAt"> &middot; Edited {{ formatDateTime(item.lastEditedAt) }}</template></p>
                                 </div>
                                 <div v-if="canManageAnnouncements" class="flex shrink-0 items-center gap-1.5">
@@ -67,11 +74,27 @@
                                     <option value="Urgent">Urgent</option>
                                 </select>
                             </div>
+                            <div>
+                                <label class="zq-label">Attachments (optional)</label>
+                                <div v-if="announcementModal.form.attachments.length" class="mb-2 flex flex-wrap gap-2">
+                                    <div v-for="(att, idx) in announcementModal.form.attachments" :key="att.storagePath" class="flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5">
+                                        <img v-if="isImageAttachmentType(att.contentType)" :src="att.downloadURL" class="h-8 w-8 shrink-0 rounded object-cover" alt="">
+                                        <i v-else :class="announcementAttachmentIcon(att.contentType)" class="fa-solid w-8 shrink-0 text-center text-base text-slate-400"></i>
+                                        <span class="min-w-0"><span class="block max-w-[120px] truncate text-[10px] font-bold text-slate-700 dark:text-slate-200">{{ att.name }}</span><span class="block text-[9px] text-slate-400">{{ formatFileSize(att.size) }}</span></span>
+                                        <button type="button" @click="removeAnnouncementAttachment(idx)" class="ml-1 shrink-0 text-slate-400 hover:text-red-500" title="Remove attachment" aria-label="Remove attachment"><i class="fa-solid fa-xmark"></i></button>
+                                    </div>
+                                </div>
+                                <label class="inline-block cursor-pointer rounded-lg bg-slate-100 dark:bg-slate-700 px-3 py-2 text-[10px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600" :class="{ 'opacity-60 pointer-events-none': announcementModal.uploading || announcementModal.form.attachments.length >= 5 }">
+                                    <i class="fa-solid fa-paperclip mr-1.5"></i>{{ announcementModal.uploading ? 'Uploading…' : 'Attach File' }}
+                                    <input type="file" multiple accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.mp4,.docx,.xlsx,.pptx" class="hidden" @change="handleAnnouncementAttachmentUpload" :disabled="announcementModal.uploading">
+                                </label>
+                                <p class="mt-1.5 text-[9px] text-slate-400">JPG, PNG, GIF, WEBP, PDF, MP4, DOCX, XLSX, PPTX &mdash; up to 5 files.</p>
+                            </div>
                             <p v-if="!announcementModal.isEdit" class="text-[10px] leading-relaxed text-slate-500 dark:text-slate-400"><i class="fa-solid fa-circle-info mr-1"></i>Every portal account will be emailed when this is posted.</p>
                         </div>
                         <div class="zq-modal-footer">
                             <button type="button" @click="announcementModal.show = false" class="zq-btn zq-btn-outline">Cancel</button>
-                            <button type="submit" class="zq-btn zq-btn-primary">{{ announcementModal.isEdit ? 'Save Changes' : 'Post Announcement' }}</button>
+                            <button type="submit" :disabled="announcementModal.uploading" class="zq-btn zq-btn-primary">{{ announcementModal.uploading ? 'Uploading…' : (announcementModal.isEdit ? 'Save Changes' : 'Post Announcement') }}</button>
                         </div>
                     </form>
                 </div>
