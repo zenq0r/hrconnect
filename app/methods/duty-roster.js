@@ -54,6 +54,21 @@ export const dutyRosterMethods = {
             if (!employee || week.status !== 'Published') return [];
             return week.shifts.filter(shift => (shift.assignedEmpNos || []).includes(employee.empNo));
         },
+        // Dashboard-facing variant of myWeekRoster(): always the real current
+        // week, regardless of whatever week the Duty Roster tab's Prev/Next
+        // nav (dutyRosterWeekOffset) happens to be left on.
+        myShiftsThisWeek() {
+            const employee = this.myEmployeeRecord();
+            const week = this.dutyRosterWeeks.find(w => w.id === this.weekStartKeyFor(new Date()));
+            if (!employee || !week || week.status !== 'Published') return [];
+            return week.shifts
+                .filter(shift => (shift.assignedEmpNos || []).includes(employee.empNo))
+                .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
+        },
+        myShiftToday() {
+            const today = this.getLocalDateKey();
+            return this.myShiftsThisWeek().filter(shift => shift.date === today);
+        },
         slugifyShiftLabel(label) {
             return String(label || 'shift').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'shift';
         },

@@ -70,6 +70,31 @@
                             </div>
                         </div>
 
+                        <!-- MY DUTY ROSTER — today's shift + this week's schedule, always visible on the Staff dashboard per the HR SaaS blueprint's Employee Dashboard spec (Attendance/shift card pattern). -->
+                        <div class="zq-card p-5">
+                            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <h2 class="zq-text-section-title"><i class="fa-solid fa-calendar-days text-brand-blue mr-2"></i>My Duty Roster</h2>
+                                <button type="button" @click="switchTab('duty-roster')" class="text-[10px] font-bold text-brand-blue hover:underline">View Full Duty Roster</button>
+                            </div>
+                            <div v-if="myShiftToday().length" class="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30 px-4 py-3 flex flex-wrap items-center gap-2">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-extrabold uppercase text-white"><i class="fa-solid fa-clock"></i>Today</span>
+                                <span v-for="shift in myShiftToday()" :key="shift.shiftId" class="text-xs font-bold text-emerald-800 dark:text-emerald-200">{{ shift.label }} &middot; {{ shift.startTime }}&ndash;{{ shift.endTime }}</span>
+                            </div>
+                            <div v-else-if="myShiftsThisWeek().length" class="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 px-4 py-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+                                <i class="fa-solid fa-mug-hot mr-1.5"></i>No shift scheduled today. Your upcoming shifts this week are below.
+                            </div>
+                            <div v-else class="zq-empty-state zq-empty-state-compact">
+                                <i class="fa-solid fa-calendar-xmark zq-empty-state-icon" aria-hidden="true"></i>
+                                <p class="zq-empty-state-title">No shifts this week</p>
+                                <p class="zq-empty-state-text">Either HR has not published this week's roster yet, or you have not been assigned a shift.</p>
+                            </div>
+                            <div v-if="myShiftsThisWeek().length" class="mt-3 flex flex-wrap gap-2">
+                                <span v-for="shift in myShiftsThisWeek()" :key="`week-${shift.shiftId}`" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold bg-brand-blue/10 text-brand-blue">
+                                    <i class="fa-solid fa-calendar-day"></i>{{ formatDateWithDay(shift.date) }} &middot; {{ shift.label }} ({{ shift.startTime }}&ndash;{{ shift.endTime }})
+                                </span>
+                            </div>
+                        </div>
+
                         <div class="zq-card p-5">
                             <h2 class="zq-text-section-title mb-4">My Claims &amp; Payslip History</h2>
                             <div class="overflow-x-auto">
