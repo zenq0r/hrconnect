@@ -86,6 +86,9 @@
                                                 <button @click="openAttendanceCorrectionModal(record)" class="zq-btn zq-btn-info zq-btn-icon" title="Correct Attendance">
                                                     <i class="fa-solid fa-pen"></i>
                                                 </button>
+                                                <button v-if="canDelete" @click="deleteAttendanceRecord(record)" class="zq-btn zq-btn-destructive zq-btn-icon" title="Delete Attendance Record">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

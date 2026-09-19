@@ -190,7 +190,8 @@ export const contextMenuMethods = {
         },
         attendanceRowMenuItems(record) {
             return [
-                this.canCorrectAttendance ? { label: 'Correct Attendance', icon: 'fa-pen', action: () => this.openAttendanceCorrectionModal(record) } : null
+                this.canCorrectAttendance ? { label: 'Correct Attendance', icon: 'fa-pen', action: () => this.openAttendanceCorrectionModal(record) } : null,
+                this.canDelete ? { label: 'Delete Attendance Record', icon: 'fa-trash', danger: true, action: () => this.deleteAttendanceRecord(record) } : null
             ];
         },
         dutyRosterShiftMenuItems(shift) {

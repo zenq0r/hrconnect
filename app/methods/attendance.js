@@ -12,6 +12,7 @@ import {
     doc,
     setDoc,
     updateDoc,
+    deleteDoc,
     serverTimestamp
 } from "../../firebase-config.js";
 
@@ -174,6 +175,26 @@ export const attendanceMethods = {
             } catch (error) {
                 console.error('Attendance correction failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'correct this attendance record'));
+            }
+        },
+        // Permanent removal, unlike Correct above — matches MODULE_ACTIONS.attendance's
+        // remove: FULL_ACCESS_ROLES (rbac.js) and firestore.rules' attendance/{id}
+        // allow delete: if isAdmin(), so only Superadmin/Director ever reach the
+        // server for this even if this gate were somehow bypassed client-side.
+        async deleteAttendanceRecord(record) {
+            if (!this.canDelete) { this.showNotify('Only Superadmin and Director can delete an attendance record.'); return; }
+            if (!await this.askConfirm({
+                title: 'Delete this attendance record?',
+                message: `${record.name}'s attendance for ${this.formatDateWithDay(record.date)} will be permanently removed. This cannot be undone.`,
+                confirmLabel: 'Yes, Delete'
+            })) return;
+            try {
+                await deleteDoc(doc(db, 'attendance', record.id));
+                this.logAudit('DELETE', `Deleted attendance record for ${record.name} (${record.empNo}) on ${record.date}`);
+                this.showNotify('Attendance record deleted.');
+            } catch (error) {
+                console.error('Delete attendance record failed:', error);
+                this.showNotify(this.getFirestoreWriteError(error, 'delete this attendance record'));
             }
         }
 };
