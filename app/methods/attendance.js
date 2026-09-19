@@ -93,6 +93,17 @@ export const attendanceMethods = {
                 this.showNotify(this.getFirestoreWriteError(error, 'clock out'));
             }
         },
+        // deleteEmployee() never cascades to that person's attendance history
+        // (kept for audit/payroll compliance even after offboarding), so a
+        // stale clock-in can outlive the employee record it belongs to.
+        // Nobody can meaningfully "correct" a clock-out for someone no longer
+        // in the system, so both stale-record checks below drop any record
+        // whose empNo isn't in the currently-loaded employees list. The
+        // record itself is untouched — Superadmin/Director can still Correct
+        // or Delete it from the full Attendance table.
+        activeEmployeeNumbers() {
+            return new Set(this.employees.map(emp => emp.empNo));
+        },
         // Own attendance records still open from a day before today — the
         // person almost certainly forgot to clock out. Filters this.attendanceRecords
         // by own email rather than assuming the list is already self-scoped:
@@ -101,7 +112,8 @@ export const attendanceMethods = {
         myStaleAttendanceRecords() {
             const email = String(this.userProfile.email || '').trim().toLowerCase();
             const today = this.getLocalDateKey();
-            return this.attendanceRecords.filter(record => record.status === 'Clocked In' && record.date < today && String(record.empEmail || '').trim().toLowerCase() === email);
+            const activeEmpNos = this.activeEmployeeNumbers();
+            return this.attendanceRecords.filter(record => record.status === 'Clocked In' && record.date < today && activeEmpNos.has(record.empNo) && String(record.empEmail || '').trim().toLowerCase() === email);
         },
         // Same check, company-wide — only meaningful for a role that actually
         // reads every employee's records (canCorrectAttendance); for anyone
@@ -109,7 +121,8 @@ export const attendanceMethods = {
         // silently equals myStaleAttendanceRecords().
         companyStaleAttendanceRecords() {
             const today = this.getLocalDateKey();
-            return this.attendanceRecords.filter(record => record.status === 'Clocked In' && record.date < today);
+            const activeEmpNos = this.activeEmployeeNumbers();
+            return this.attendanceRecords.filter(record => record.status === 'Clocked In' && record.date < today && activeEmpNos.has(record.empNo));
         },
         // Run once per sign-in (see initFirebaseRealtime's portalDataReadyPromise,
         // right where ensureMonthlyArchives runs) rather than on every realtime
