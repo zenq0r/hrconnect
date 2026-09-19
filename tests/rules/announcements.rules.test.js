@@ -2,6 +2,7 @@
 // and archive; every other internal role reads Active notices only; Client
 // accounts never reach the collection at all.
 const { test, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
 const { start, stop, reset, seed, as, assertFails, assertSucceeds } = require('./harness');
 
 before(start);
@@ -37,6 +38,24 @@ test('only Director, Superadmin and HR read an Archived announcement', async () 
     for (const name of ['account', 'it', 'staff']) {
         await assertFails(as(name).db.doc('announcements/A2').get());
     }
+});
+
+// A single doc get() and a collection list() are different operations to
+// Cloud Firestore's rule engine — a get() on one Active doc passing does not
+// prove a whole unfiltered list() is safe, and Firestore denies the list
+// outright rather than filtering it per document. realtime.js's
+// announcementsSource used to be exactly that unfiltered collection()
+// listener for Staff/IT/Account, so their real live subscription — a list()
+// — was refused end to end even though the get() tests above passed.
+// Confirmed live before the fix: a real Staff sign-in got "Missing or
+// insufficient permissions" reproducibly. This exercises the actual list()
+// shape the fix narrows with where('status', '==', 'Active').
+test('Staff LISTS Active announcements the same way the live listener does — a bare, unfiltered list is refused', async () => {
+    const { db } = as('staff');
+    await assertFails(db.collection('announcements').get());
+    const snapshot = await assertSucceeds(db.collection('announcements').where('status', '==', 'Active').get());
+    assert.strictEqual(snapshot.size, 1);
+    assert.strictEqual(snapshot.docs[0].id, 'A1');
 });
 
 test('HR posts an announcement stamped as themselves; Staff cannot post one at all', async () => {

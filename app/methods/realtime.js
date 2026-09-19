@@ -159,14 +159,29 @@ export const realtimeMethods = {
                 : role !== 'Client'
                     ? query(collection(db, 'attendance'), where('empEmail', '==', this.userProfile.email))
                     : null;
-            // Duty roster rules already narrow a Draft week to HR/Admin/Account —
-            // every other internal role only ever receives Published weeks back
-            // from this same unfiltered collection() listener.
-            const dutyRosterSource = role !== 'Client' ? collection(db, 'duty_roster') : null;
-            // Same shape as duty roster: Active/Archived narrows what a
-            // non-manager gets back from this one unfiltered listener, per the
-            // announcements read rule.
-            const announcementsSource = role !== 'Client' ? collection(db, 'announcements') : null;
+            // A resource-dependent OR branch (Published-only, Active-only) is not
+            // enough on its own to admit an unfiltered collection() listener —
+            // confirmed live: Cloud Firestore denies the whole `list` outright for
+            // a role that only ever qualifies through that branch, rather than
+            // silently filtering per document the way a single doc get() does.
+            // (canReadAllX's own branch has no such condition, so it alone was
+            // always enough to list the whole collection — that is why this went
+            // unnoticed: every account this was tested with before now had that
+            // unconditional branch.) The where() clause below narrows the query
+            // itself to exactly what the resource-dependent branch already
+            // promises, the same shape attendanceSource/employeesSource already use.
+            const canReadAllDutyRoster = ['Superadmin', 'Director', 'HR', 'Account'].includes(role);
+            const dutyRosterSource = canReadAllDutyRoster
+                ? collection(db, 'duty_roster')
+                : role !== 'Client'
+                    ? query(collection(db, 'duty_roster'), where('status', '==', 'Published'))
+                    : null;
+            const canReadAllAnnouncements = ['Superadmin', 'Director', 'HR'].includes(role);
+            const announcementsSource = canReadAllAnnouncements
+                ? collection(db, 'announcements')
+                : role !== 'Client'
+                    ? query(collection(db, 'announcements'), where('status', '==', 'Active'))
+                    : null;
             // Leave is single-stage (HR decides), so unlike claims/vouchers,
             // Account is not part of the review chain and reads only its own
             // requests here — matching the leave_requests read rule exactly.

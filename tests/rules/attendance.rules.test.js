@@ -1,5 +1,6 @@
 // Attendance and Duty Roster, write by write, against the deployed rules.
 const { test, before, after, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
 const { serverTimestamp } = require('firebase/firestore');
 const { start, stop, reset, seed, as, assertFails, assertSucceeds } = require('./harness');
 
@@ -172,4 +173,29 @@ test('HR and Admin read a Draft week; publishing it opens it to everyone else', 
     await assertSucceeds(as('hr').db.doc('duty_roster/2026-09-14').get());
     await assertSucceeds(as('director').db.doc('duty_roster/2026-09-14').get());
     await assertSucceeds(as('hr').db.doc('duty_roster/2026-09-14').update({ status: 'Published', publishedAt: '2026-09-12T00:00:00.000Z', publishedByUid: 'u-hr', publishedByName: 'HR OFFICER' }));
+});
+
+// A single doc get() and a collection list() are different operations to
+// Cloud Firestore's rule engine — a get() on one document that happens to
+// satisfy a resource-dependent OR branch does not prove a whole unfiltered
+// list() is safe, and Firestore denies the list outright rather than
+// filtering it per document. realtime.js's dutyRosterSource/
+// announcementsSource used to be exactly that unfiltered collection()
+// listener for every non-admin role, which meant Staff could open the
+// Duty Roster / Announcements tab (a passing get() test above) but their
+// actual live subscription — a list() — was refused end to end. Confirmed
+// live before the fix: a real Staff sign-in got "Missing or insufficient
+// permissions" for both, reproducibly, even from a fully cleared browser
+// profile. The fix narrows the query itself with where('status', ...) for
+// every role that only ever qualifies through that branch — these tests
+// exercise that exact list() shape, not just get().
+test('a staff member LISTS Published duty roster weeks the same way the live listener does — a bare, unfiltered list is refused', async () => {
+    await seed({
+        'duty_roster/2026-09-14': draftWeek({ status: 'Published' }),
+        'duty_roster/2026-09-07': draftWeek({ weekStartDate: '2026-09-07', status: 'Draft', shifts: [] }),
+    });
+    const { db } = as('staff');
+    await assertFails(db.collection('duty_roster').get());
+    const snapshot = await assertSucceeds(db.collection('duty_roster').where('status', '==', 'Published').get());
+    assert.strictEqual(snapshot.size, 1);
 });
