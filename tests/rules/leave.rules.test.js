@@ -30,6 +30,23 @@ test('a staff member cannot file a leave request under a colleague\'s empNo, eve
     await assertFails(db.doc('leave_requests/L1').set(leavePayload({ empNo: 'E-OTHER' })));
 });
 
+// canSubmitForOthers in leave.js lets HR/Account/Superadmin/Director file a
+// request on behalf of any employee, the same way claims/payment_vouchers
+// already let them — mirrored here against the rule, not just the client.
+test('HR files a leave request on behalf of a staff member', async () => {
+    const { db } = as('hr');
+    await assertSucceeds(db.doc('leave_requests/L1').set(leavePayload({ createdByUid: 'u-hr' })));
+});
+
+// The submitter here (Superadmin) has no employees/{empNo} record of their
+// own — a pure portal account, same shape as this app's real seed admin —
+// so the get()-based self-ownership check below could never pass for them.
+// isFinanceOrHR() must skip that check entirely rather than 500/deny.
+test('Superadmin without an employee record of their own can still file leave for an employee', async () => {
+    const { db } = as('superadmin');
+    await assertSucceeds(db.doc('leave_requests/L1').set(leavePayload({ createdByUid: 'u-superadmin' })));
+});
+
 test('a staff member cannot file a leave request claiming to be someone else\'s createdByUid', async () => {
     const { db } = as('staff');
     await assertFails(db.doc('leave_requests/L1').set(leavePayload({ createdByUid: 'u-other' })));
@@ -52,6 +69,17 @@ test('a staff member cannot edit a colleague\'s leave request', async () => {
     const { db } = as('staff');
     await seed({ 'leave_requests/L1': leavePayload({ empNo: 'E-OTHER', empEmail: 'other@zenqor.com.my', name: 'OTHER STAFF' }) });
     await assertFails(db.doc('leave_requests/L1').update({ reason: 'tampering' }));
+});
+
+// canEditLeaveRequest() grants isFullAccessRole (Superadmin/Director) a
+// blanket edit on any still-pending request, not just the correction path
+// below — this is that pencil-icon edit, editing someone else's request
+// while it is still Pending HR (isLeaveCorrection() covers the separate,
+// stamped post-decision correction case instead).
+test('Director edits a colleague\'s still-pending leave request', async () => {
+    const { db } = as('director');
+    await seed({ 'leave_requests/L1': leavePayload({ empNo: 'E-OTHER', empEmail: 'other@zenqor.com.my', name: 'OTHER STAFF' }) });
+    await assertSucceeds(db.doc('leave_requests/L1').update({ reason: 'HR adjusted the reason on the employee\'s behalf' }));
 });
 
 test('HR approves a pending leave request, stamped as themselves', async () => {

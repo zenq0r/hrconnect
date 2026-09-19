@@ -1195,14 +1195,28 @@ service cloud.firestore {
       allow read: if isAdminOrHR() || (
         isApprovedStaffSession() && isSelfLeaveRequest(resource.data)
       );
+      // isFinanceOrHR() mirrors leave.js's canSubmitForOthers — HR/Account/
+      // Superadmin/Director submit on behalf of any employee the same way
+      // claims/payment_vouchers already let them, so the create branch below
+      // skips the self-ownership get() entirely for that quartet instead of
+      // requiring their own (often nonexistent, for a pure portal account)
+      // employees/{empNo} record to match their own email.
       allow create: if isApprovedStaffSession() &&
         request.resource.data.createdByUid == request.auth.uid &&
-        request.resource.data.empEmail == request.auth.token.email &&
-        get(/databases/$(database)/documents/employees/$(request.resource.data.empNo)).data.email == request.auth.token.email &&
-        request.resource.data.status == 'Pending HR';
+        request.resource.data.status == 'Pending HR' && (
+          isFinanceOrHR() || (
+            request.resource.data.empEmail == request.auth.token.email &&
+            get(/databases/$(database)/documents/employees/$(request.resource.data.empNo)).data.email == request.auth.token.email
+          )
+        );
+      // The isAdmin() addition below covers editLeaveRequest()'s pencil-icon
+      // path for Superadmin/Director on a request that isn't their own
+      // (canEditLeaveRequest() already grants isFullAccessRole blanket edit
+      // access client-side); isLeaveCorrection() above is a separate,
+      // stamped path for correcting a request after HR has already decided it.
       allow update: if isLeaveCorrection() || (
         isApprovedStaffSession() &&
-        isSelfLeaveRequest(resource.data) &&
+        (isSelfLeaveRequest(resource.data) || isAdmin()) &&
         resource.data.status == 'Pending HR' &&
         request.resource.data.status == 'Pending HR' &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['leaveType', 'startDate', 'endDate', 'totalDays', 'reason'])
