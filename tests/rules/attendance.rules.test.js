@@ -10,6 +10,8 @@ const clockInPayload = (overrides = {}) => ({
     empNo: 'E-STAFF', empEmail: 'staff@zenqor.com.my', name: 'PIC STAFF', position: 'Executive', dept: 'Ops',
     date: '2026-09-16', clockInAt: serverTimestamp(), clockOutAt: null, status: 'Clocked In',
     createdByUid: 'u-staff', createdAt: '2026-09-16T00:00:00.000Z',
+    selfieUrl: 'https://firebasestorage.googleapis.com/v0/b/zenqor-portal-a3b2d.appspot.com/o/attendance_selfies%2Fu-staff%2F1.jpg',
+    clockInLocation: { lat: 3.1234, lng: 101.5678, accuracy: 12 },
     ...overrides,
 });
 
@@ -26,6 +28,13 @@ beforeEach(async () => {
 test('a staff member clocks themselves in with a server-assigned time', async () => {
     const { db } = as('staff');
     await assertSucceeds(db.doc('attendance/E-STAFF_2026-09-16').set(clockInPayload()));
+});
+
+test('a clock-in without a selfie or a location is refused', async () => {
+    const { db } = as('staff');
+    await assertFails(db.doc('attendance/E-STAFF_2026-09-16').set(clockInPayload({ selfieUrl: '' })));
+    await assertFails(db.doc('attendance/E-STAFF_2026-09-16').set(clockInPayload({ clockInLocation: null })));
+    await assertFails(db.doc('attendance/E-STAFF_2026-09-16').set(clockInPayload({ clockInLocation: { lat: '3.12', lng: 101.5 } })));
 });
 
 test('a staff member cannot clock in under a colleague\'s empNo, even with their own email', async () => {
@@ -96,6 +105,36 @@ test('HR, Account and Admin read every attendance record', async () => {
     await assertSucceeds(as('hr').db.doc('attendance/E-STAFF_2026-09-16').get());
     await assertSucceeds(as('account').db.doc('attendance/E-STAFF_2026-09-16').get());
     await assertSucceeds(as('director').db.doc('attendance/E-STAFF_2026-09-16').get());
+});
+
+// ---- Clock-in selfies (Storage) --------------------------------------------
+
+test('a staff member uploads and reads their own clock-in selfie', async () => {
+    const { storage, account } = as('staff');
+    const ref = storage.ref(`attendance_selfies/${account.uid}/1.jpg`);
+    await assertSucceeds(ref.put(Buffer.from('fake-jpeg-bytes'), { contentType: 'image/jpeg' }));
+    await assertSucceeds(ref.getMetadata());
+});
+
+test('a staff member cannot upload a clock-in selfie under someone else\'s uid, or as a non-image', async () => {
+    const { storage, account } = as('staff');
+    await assertFails(storage.ref(`attendance_selfies/u-other/1.jpg`).put(Buffer.from('x'), { contentType: 'image/jpeg' }));
+    await assertFails(storage.ref(`attendance_selfies/${account.uid}/1.pdf`).put(Buffer.from('%PDF'), { contentType: 'application/pdf' }));
+});
+
+test('a staff member cannot read a colleague\'s clock-in selfie; HR and Admin can', async () => {
+    await as('otherStaff').storage.ref('attendance_selfies/u-staff2/1.jpg').put(Buffer.from('x'), { contentType: 'image/jpeg' });
+    await assertFails(as('staff').storage.ref('attendance_selfies/u-staff2/1.jpg').getMetadata());
+    await assertSucceeds(as('hr').storage.ref('attendance_selfies/u-staff2/1.jpg').getMetadata());
+    await assertSucceeds(as('director').storage.ref('attendance_selfies/u-staff2/1.jpg').getMetadata());
+});
+
+test('a staff member cannot delete their own clock-in selfie — only Superadmin or Director can', async () => {
+    const { storage, account } = as('staff');
+    await storage.ref(`attendance_selfies/${account.uid}/1.jpg`).put(Buffer.from('x'), { contentType: 'image/jpeg' });
+    await assertFails(storage.ref(`attendance_selfies/${account.uid}/1.jpg`).delete());
+    await assertFails(as('hr').storage.ref(`attendance_selfies/${account.uid}/1.jpg`).delete());
+    await assertSucceeds(as('director').storage.ref(`attendance_selfies/${account.uid}/1.jpg`).delete());
 });
 
 // ---- Duty Roster ------------------------------------------------------------

@@ -12,12 +12,15 @@
                             <i class="fa-solid fa-clock text-3xl text-brand-blue"></i>
                             <template v-if="!myTodayAttendanceRecord()">
                                 <p class="zq-text-small">You have not clocked in today.</p>
-                                <button type="button" @click="clockIn()" class="zq-btn zq-btn-primary text-base px-8 py-3">
+                                <p class="text-[11px] text-slate-400 max-w-xs"><i class="fa-solid fa-location-dot mr-1"></i>Clocking in verifies your location and takes a selfie.</p>
+                                <button type="button" @click="openClockInVerification()" class="zq-btn zq-btn-primary text-base px-8 py-3">
                                     <i class="fa-solid fa-right-to-bracket"></i><span>Clock In</span>
                                 </button>
                             </template>
                             <template v-else-if="myTodayAttendanceRecord().status === 'Clocked In'">
-                                <p class="zq-text-small">Clocked in at <strong>{{ attendanceTimeLabel(myTodayAttendanceRecord().clockInAt) }}</strong></p>
+                                <p class="zq-text-small">Clocked in at <strong>{{ attendanceTimeLabel(myTodayAttendanceRecord().clockInAt) }}</strong>
+                                    <i v-if="myTodayAttendanceRecord().selfieUrl" class="fa-solid fa-circle-check text-emerald-500 ml-1" title="Location and selfie verified"></i>
+                                </p>
                                 <button type="button" @click="clockOut()" class="zq-btn zq-btn-destructive text-base px-8 py-3">
                                     <i class="fa-solid fa-right-from-bracket"></i><span>Clock Out</span>
                                 </button>
@@ -64,6 +67,7 @@
                                     <tr>
                                         <th>Employee</th>
                                         <th>Clock In</th>
+                                        <th class="text-center">Verification</th>
                                         <th>Clock Out</th>
                                         <th class="text-center">Status</th>
                                         <th class="text-center w-24">Actions</th>
@@ -76,6 +80,15 @@
                                             <span class="text-slate-400 block text-[10px]">{{ record.empNo }} &middot; {{ record.position }}</span>
                                         </td>
                                         <td>{{ attendanceTimeLabel(record.clockInAt) }}</td>
+                                        <td class="text-center">
+                                            <div v-if="record.selfieUrl" class="flex items-center justify-center gap-2">
+                                                <img :src="record.selfieUrl" @click="openAttachment(record.selfieUrl, 'Clock-in selfie')" alt="Clock-in selfie" class="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer hover:opacity-80">
+                                                <a v-if="attendanceLocationMapUrl(record.clockInLocation)" :href="attendanceLocationMapUrl(record.clockInLocation)" target="_blank" rel="noopener" class="text-brand-blue hover:underline" title="View clock-in location on map">
+                                                    <i class="fa-solid fa-location-dot"></i>
+                                                </a>
+                                            </div>
+                                            <span v-else class="text-slate-300 dark:text-slate-600 text-[10px]">&mdash;</span>
+                                        </td>
                                         <td>{{ attendanceTimeLabel(record.clockOutAt) }}</td>
                                         <td class="text-center">
                                             <span :class="record.status === 'Clocked Out' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold">{{ record.status }}</span>
@@ -93,7 +106,7 @@
                                         </td>
                                     </tr>
                                     <tr v-if="attendanceRecordsForDate(attendanceSelectedDate).length === 0" class="zq-table-empty">
-                                        <td colspan="5">
+                                        <td colspan="6">
                                             <div class="zq-empty-state zq-empty-state-compact">
                                                 <i class="zq-empty-state-icon fa-solid fa-clock"></i>
                                                 <p class="zq-empty-state-title">No attendance records for this date</p>
@@ -110,17 +123,21 @@
                         <div class="overflow-x-auto">
                             <table class="zq-table">
                                 <thead>
-                                    <tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="text-center">Status</th></tr>
+                                    <tr><th>Date</th><th>Clock In</th><th class="text-center">Verification</th><th>Clock Out</th><th class="text-center">Status</th></tr>
                                 </thead>
                                 <tbody>
                                     <tr v-for="record in [...attendanceRecords].sort((a, b) => String(b.date).localeCompare(String(a.date)))" :key="record.id">
                                         <td>{{ formatDateWithDay(record.date) }}</td>
                                         <td>{{ attendanceTimeLabel(record.clockInAt) }}</td>
+                                        <td class="text-center">
+                                            <img v-if="record.selfieUrl" :src="record.selfieUrl" @click="openAttachment(record.selfieUrl, 'Clock-in selfie')" alt="Clock-in selfie" class="w-8 h-8 rounded-lg object-cover border border-slate-200 dark:border-slate-600 cursor-pointer hover:opacity-80 inline-block">
+                                            <span v-else class="text-slate-300 dark:text-slate-600 text-[10px]">&mdash;</span>
+                                        </td>
                                         <td>{{ attendanceTimeLabel(record.clockOutAt) }}</td>
                                         <td class="text-center"><span :class="record.status === 'Clocked Out' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold">{{ record.status }}</span></td>
                                     </tr>
                                     <tr v-if="attendanceRecords.length === 0" class="zq-table-empty">
-                                        <td colspan="4">
+                                        <td colspan="5">
                                             <div class="zq-empty-state zq-empty-state-compact">
                                                 <i class="zq-empty-state-icon fa-solid fa-clock"></i>
                                                 <p class="zq-empty-state-title">No attendance history yet</p>

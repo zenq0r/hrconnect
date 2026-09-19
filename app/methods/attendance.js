@@ -9,11 +9,15 @@
 // (see isSelfAttendanceRecord()/attendanceId create rule).
 import {
     db,
+    storage,
     doc,
     setDoc,
     updateDoc,
     deleteDoc,
-    serverTimestamp
+    serverTimestamp,
+    storageRef,
+    uploadBytes,
+    getDownloadURL
 } from "../../firebase-config.js";
 
 export const attendanceMethods = {
@@ -51,12 +55,131 @@ export const attendanceMethods = {
             const pad = n => String(n).padStart(2, '0');
             return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
         },
-        async clockIn() {
+        // Clock In now opens a modal that captures both a live selfie and the
+        // device's GPS position before the actual write happens — the button
+        // itself only ever starts that flow; confirmClockInVerification()
+        // below is what actually calls setDoc(). Both are required server-side
+        // too (see firestore.rules' attendance create rule), not just by this
+        // modal, so a client that skipped straight to a write still cannot
+        // clock someone in without them.
+        async openClockInVerification() {
             const employee = this.myEmployeeRecord();
             if (!employee) { this.showNotify('No employee record is linked to your account. Ask HR to add your email to your employee record.'); return; }
             if (this.myTodayAttendanceRecord()) { this.showNotify('You have already clocked in today.'); return; }
-            const date = this.getLocalDateKey();
+            this.clockInVerifyModal = {
+                show: true, stream: null,
+                locationStatus: 'idle', location: null, locationError: '',
+                cameraStatus: 'idle', cameraError: '',
+                photoDataUrl: '', photoBlob: null, submitting: false
+            };
+            this.requestClockInLocation();
+            await this.startClockInCamera();
+        },
+        requestClockInLocation() {
+            this.clockInVerifyModal.locationStatus = 'requesting';
+            this.clockInVerifyModal.locationError = '';
+            if (!navigator.geolocation) {
+                this.clockInVerifyModal.locationStatus = 'error';
+                this.clockInVerifyModal.locationError = 'This device does not support location. Clock in from a device with location services.';
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    if (!this.clockInVerifyModal.show) return;
+                    this.clockInVerifyModal.location = { lat: position.coords.latitude, lng: position.coords.longitude, accuracy: position.coords.accuracy };
+                    this.clockInVerifyModal.locationStatus = 'ready';
+                },
+                (error) => {
+                    if (!this.clockInVerifyModal.show) return;
+                    this.clockInVerifyModal.locationStatus = 'error';
+                    this.clockInVerifyModal.locationError = error.code === 1
+                        ? 'Location access was denied. Allow location access for this site in your browser settings, then try again.'
+                        : error.code === 2
+                            ? "Your location could not be determined. Check that your device's location/GPS is turned on."
+                            : 'Getting your location took too long. Move somewhere with a clearer signal and try again.';
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+            );
+        },
+        async startClockInCamera() {
+            this.clockInVerifyModal.cameraStatus = 'requesting';
+            this.clockInVerifyModal.cameraError = '';
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                this.clockInVerifyModal.cameraStatus = 'error';
+                this.clockInVerifyModal.cameraError = 'This browser does not support camera access. Clock in from a device with a camera.';
+                return;
+            }
             try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                if (!this.clockInVerifyModal.show) { stream.getTracks().forEach(track => track.stop()); return; }
+                this.clockInVerifyModal.stream = stream;
+                this.clockInVerifyModal.cameraStatus = 'ready';
+                await this.$nextTick();
+                const video = this.$refs.clockInVideo;
+                if (video) { video.srcObject = stream; await video.play().catch(() => {}); }
+            } catch (error) {
+                console.error('Camera access failed:', error);
+                this.clockInVerifyModal.cameraStatus = 'error';
+                this.clockInVerifyModal.cameraError = error && error.name === 'NotAllowedError'
+                    ? 'Camera access was denied. Allow camera access for this site in your browser settings, then try again.'
+                    : error && error.name === 'NotFoundError'
+                        ? 'No camera was found on this device.'
+                        : 'Unable to start the camera. Please try again.';
+            }
+        },
+        // Drawn mirrored to match what the <video> preview (itself CSS-mirrored
+        // for a natural selfie feel) actually showed the person taking it —
+        // otherwise any text in frame (a lanyard, a sign) would capture backwards
+        // from what they just saw themselves lining up.
+        captureClockInPhoto() {
+            const video = this.$refs.clockInVideo;
+            if (!video || !video.videoWidth) { this.showNotify('Camera is not ready yet.'); return; }
+            const maxDim = 640;
+            const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
+            const width = Math.max(1, Math.round(video.videoWidth * scale));
+            const height = Math.max(1, Math.round(video.videoHeight * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            const context = canvas.getContext('2d');
+            context.translate(width, 0);
+            context.scale(-1, 1);
+            context.drawImage(video, 0, 0, width, height);
+            canvas.toBlob(blob => {
+                if (!blob) { this.showNotify('Unable to capture the photo. Please try again.'); return; }
+                this.clockInVerifyModal.photoBlob = blob;
+                this.clockInVerifyModal.photoDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            }, 'image/jpeg', 0.85);
+        },
+        retakeClockInPhoto() {
+            this.clockInVerifyModal.photoBlob = null;
+            this.clockInVerifyModal.photoDataUrl = '';
+        },
+        closeClockInVerification() {
+            const stream = this.clockInVerifyModal.stream;
+            if (stream) stream.getTracks().forEach(track => track.stop());
+            this.clockInVerifyModal.show = false;
+            this.clockInVerifyModal.stream = null;
+        },
+        // One private selfie per uploader per clock-in, mirroring
+        // storeAttachment() in uploads.js — the path carries the uploader's own
+        // uid so storage.rules can say "your own" without a cross-service lookup.
+        async storeAttendanceSelfie(blob, ownerUid) {
+            const name = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.jpg`;
+            const fileRef = storageRef(storage, `attendance_selfies/${ownerUid}/${name}`);
+            await uploadBytes(fileRef, blob, { contentType: 'image/jpeg' });
+            return await getDownloadURL(fileRef);
+        },
+        async confirmClockInVerification() {
+            const modal = this.clockInVerifyModal;
+            if (modal.locationStatus !== 'ready' || !modal.location) { this.showNotify('Location is required before you can clock in.'); return; }
+            if (!modal.photoBlob) { this.showNotify('Take a selfie before you can clock in.'); return; }
+            const employee = this.myEmployeeRecord();
+            if (!employee) { this.showNotify('No employee record is linked to your account.'); this.closeClockInVerification(); return; }
+            if (this.myTodayAttendanceRecord()) { this.showNotify('You have already clocked in today.'); this.closeClockInVerification(); return; }
+            modal.submitting = true;
+            try {
+                const selfieUrl = await this.storeAttendanceSelfie(modal.photoBlob, this.userProfile.uid);
+                const date = this.getLocalDateKey();
                 await setDoc(doc(db, 'attendance', this.attendanceIdFor(employee.empNo, date)), {
                     empNo: employee.empNo,
                     empEmail: String(employee.email || '').trim().toLowerCase(),
@@ -68,14 +191,26 @@ export const attendanceMethods = {
                     clockOutAt: null,
                     status: 'Clocked In',
                     createdByUid: this.userProfile.uid,
-                    createdAt: new Date().toISOString()
+                    createdAt: new Date().toISOString(),
+                    selfieUrl,
+                    clockInLocation: { lat: modal.location.lat, lng: modal.location.lng, accuracy: modal.location.accuracy }
                 });
-                this.logAudit('CREATE', `Clocked in for ${date}`);
-                this.showNotify('Clocked in.');
+                this.logAudit('CREATE', `Clocked in for ${date} with location and selfie verification`);
+                this.showNotify('Clocked in — location and selfie verified.');
+                this.closeClockInVerification();
             } catch (error) {
-                console.error('Clock in failed:', error);
+                console.error('Verified clock in failed:', error);
                 this.showNotify(this.getFirestoreWriteError(error, 'clock in'));
+            } finally {
+                modal.submitting = false;
             }
+        },
+        // The map link HR/Admin uses to check a clock-in location against the
+        // workplace — plain lat,lng query works for both Google Maps and every
+        // major map app's universal link handler, no API key required.
+        attendanceLocationMapUrl(location) {
+            if (!location || typeof location.lat !== 'number' || typeof location.lng !== 'number') return '';
+            return `https://www.google.com/maps?q=${location.lat},${location.lng}`;
         },
         async clockOut() {
             const record = this.myTodayAttendanceRecord();

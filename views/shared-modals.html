@@ -463,6 +463,56 @@
             </form>
         </div>
 
+        <!-- MODAL CLOCK IN — VERIFY LOCATION & SELFIE -->
+        <div v-if="clockInVerifyModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Clock In — Verify Location and Selfie">
+            <div class="zq-modal">
+                <div class="zq-modal-header">
+                    <h3 class="zq-modal-title">Clock In &mdash; Verify Location &amp; Selfie</h3>
+                    <button type="button" @click="closeClockInVerification()" class="zq-modal-close" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="zq-modal-body space-y-4 text-xs">
+                    <div class="rounded-xl border p-3 flex items-start gap-2.5" :class="clockInVerifyModal.locationStatus === 'ready' ? 'border-emerald-200 bg-emerald-50 dark:bg-emerald-950/30 dark:border-emerald-900' : clockInVerifyModal.locationStatus === 'error' ? 'border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-900' : 'border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700'">
+                        <i class="fa-solid mt-0.5" :class="clockInVerifyModal.locationStatus === 'ready' ? 'fa-circle-check text-emerald-500' : clockInVerifyModal.locationStatus === 'error' ? 'fa-triangle-exclamation text-red-500' : 'fa-location-dot text-slate-400'"></i>
+                        <div class="flex-1">
+                            <p class="font-bold text-slate-900 dark:text-slate-100">Location</p>
+                            <p v-if="clockInVerifyModal.locationStatus === 'requesting'" class="text-slate-400">Getting your location&hellip;</p>
+                            <p v-else-if="clockInVerifyModal.locationStatus === 'ready'" class="text-emerald-700 dark:text-emerald-300">Location captured (&plusmn;{{ Math.round(clockInVerifyModal.location?.accuracy || 0) }}m accuracy).</p>
+                            <p v-else-if="clockInVerifyModal.locationStatus === 'error'" class="text-red-700 dark:text-red-300">{{ clockInVerifyModal.locationError }}</p>
+                        </div>
+                        <button v-if="clockInVerifyModal.locationStatus === 'error'" type="button" @click="requestClockInLocation()" class="zq-btn zq-btn-info zq-btn-sm">Retry</button>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-3">
+                        <p class="font-bold text-slate-900 dark:text-slate-100"><i class="fa-solid fa-camera mr-1"></i>Selfie</p>
+                        <p v-if="clockInVerifyModal.cameraStatus === 'requesting'" class="text-slate-400 text-center py-6">Starting camera&hellip;</p>
+                        <div v-else-if="clockInVerifyModal.cameraStatus === 'error'" class="text-center py-4 space-y-2">
+                            <p class="text-red-600 dark:text-red-400">{{ clockInVerifyModal.cameraError }}</p>
+                            <button type="button" @click="startClockInCamera()" class="zq-btn zq-btn-info zq-btn-sm">Try Again</button>
+                        </div>
+                        <template v-else>
+                            <div v-show="clockInVerifyModal.cameraStatus === 'ready' && !clockInVerifyModal.photoDataUrl" class="relative rounded-lg overflow-hidden bg-black aspect-video">
+                                <video ref="clockInVideo" autoplay playsinline muted class="w-full h-full object-cover" style="transform: scaleX(-1);"></video>
+                            </div>
+                            <button v-if="clockInVerifyModal.cameraStatus === 'ready' && !clockInVerifyModal.photoDataUrl" type="button" @click="captureClockInPhoto()" class="zq-btn zq-btn-primary w-full">
+                                <i class="fa-solid fa-camera"></i><span>Capture Selfie</span>
+                            </button>
+                            <div v-if="clockInVerifyModal.photoDataUrl" class="space-y-2">
+                                <img :src="clockInVerifyModal.photoDataUrl" alt="Captured selfie" class="w-full rounded-lg object-cover aspect-video">
+                                <button type="button" @click="retakeClockInPhoto()" class="zq-btn zq-btn-ghost w-full"><i class="fa-solid fa-rotate-left"></i><span>Retake</span></button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="zq-modal-footer">
+                    <button type="button" @click="closeClockInVerification()" class="zq-btn zq-btn-ghost" :disabled="clockInVerifyModal.submitting">Cancel</button>
+                    <button type="button" @click="confirmClockInVerification()" class="zq-btn zq-btn-primary" :disabled="clockInVerifyModal.locationStatus !== 'ready' || !clockInVerifyModal.photoBlob || clockInVerifyModal.submitting">
+                        <i class="fa-solid" :class="clockInVerifyModal.submitting ? 'fa-spinner fa-spin' : 'fa-right-to-bracket'"></i>
+                        <span>{{ clockInVerifyModal.submitting ? 'Clocking In…' : 'Confirm Clock In' }}</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- MODAL PEMBETULAN PERMOHONAN CUTI -->
         <div v-if="leaveCorrectionModal.show" class="zq-modal-overlay" role="dialog" aria-modal="true" aria-label="Correct Leave Request">
             <form @submit.prevent="saveLeaveCorrection" class="zq-modal">

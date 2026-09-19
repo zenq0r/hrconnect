@@ -285,6 +285,12 @@ export function createInitialState() {
                 form: { label: 'Pagi', date: '', startTime: '08:00', endTime: '17:00' }
             },
             attendanceCorrectionModal: { show: false, record: null, clockInInput: '', clockOutInput: '', status: 'Clocked In', correctionNote: '' },
+            clockInVerifyModal: {
+                show: false, stream: null,
+                locationStatus: 'idle', location: null, locationError: '',
+                cameraStatus: 'idle', cameraError: '',
+                photoDataUrl: '', photoBlob: null, submitting: false
+            },
             leaveRequests: [],
             selectedLeaveEmployeeId: '',
             editingLeaveId: null,

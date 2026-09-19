@@ -1117,7 +1117,18 @@ service cloud.firestore {
         request.resource.data.createdByUid == request.auth.uid &&
         request.resource.data.clockInAt == request.time &&
         request.resource.data.clockOutAt == null &&
-        request.resource.data.status == 'Clocked In';
+        request.resource.data.status == 'Clocked In' &&
+        // Location and a selfie are how a clock-in is verified — required
+        // here, not only by the modal that captures them client-side, or a
+        // client that skipped straight to this write could clock someone in
+        // from anywhere with no photo at all. The URL only has to point
+        // somewhere real; the bytes it names are gated separately by
+        // storage.rules' attendance_selfies match, the actual boundary on
+        // file type and size.
+        request.resource.data.selfieUrl is string && request.resource.data.selfieUrl.size() > 0 &&
+        request.resource.data.clockInLocation is map &&
+        request.resource.data.clockInLocation.lat is number &&
+        request.resource.data.clockInLocation.lng is number;
       allow update: if isAttendanceCorrection() || (
         isApprovedStaffSession() &&
         isSelfAttendanceRecord(resource.data) &&

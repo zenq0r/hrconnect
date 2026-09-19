@@ -93,6 +93,29 @@ service firebase.storage {
       allow delete: if isStaffDocumentManager() || (isSignedIn() && request.auth.uid == ownerUid);
     }
 
+    // Clock-in selfies. Keyed by the clocking-in employee's own uid, the same
+    // "your own" shape as receipts/{ownerUid} above — a clock-in has no
+    // Firestore doc id yet at the moment the photo is captured, only the uid
+    // taking it. Read is HR/Account/Superadmin/Director (the same set
+    // isFinanceOrHR() admits to attendance itself in firestore.rules — IT is
+    // deliberately excluded, matching that collection's own read rule) plus
+    // the person themselves, so they can see their own clock-in photo again.
+    // Only ever the portal's own re-encoded JPEG from a live camera capture,
+    // same reasoning as receipts/{ownerUid} above.
+    function canReadAttendanceSelfie() {
+      return isSignedIn() && userRole() in ['Superadmin', 'Director', 'HR', 'Account'];
+    }
+    match /attendance_selfies/{ownerUid}/{fileName} {
+      allow read: if canReadAttendanceSelfie() || (isSignedIn() && request.auth.uid == ownerUid);
+      allow write: if isSignedIn() && request.auth.uid == ownerUid &&
+        request.resource.size <= 3 * 1024 * 1024 &&
+        request.resource.contentType == 'image/jpeg';
+      // Deliberately not the uploader: deleting your own clock-in proof would
+      // defeat the point of it. Matches attendance/{attendanceId}'s own
+      // delete rule in firestore.rules (isAdmin() — Superadmin/Director only).
+      allow delete: if isSignedIn() && userRole() in ['Superadmin', 'Director'];
+    }
+
     // Announcement attachments (posters, policy PDFs, short clips, office
     // documents). Keyed by the poster's own uid rather than the announcement's
     // id: a new announcement has no Firestore doc id yet at the moment a file
