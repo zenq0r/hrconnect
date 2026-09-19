@@ -92,8 +92,15 @@ export const attendanceMethods = {
                 (error) => {
                     if (!this.clockInVerifyModal.show) return;
                     this.clockInVerifyModal.locationStatus = 'error';
+                    // A browser that has already recorded "denied" for this site
+                    // will keep silently denying every future call and never show
+                    // its native permission prompt again — flipping the toggle
+                    // back to Allow in the site's own settings panel does not
+                    // retroactively apply to a page that is already open, either.
+                    // Both need a reload of this page before a retry can work,
+                    // which is exactly what the Reload Page button below does.
                     this.clockInVerifyModal.locationError = error.code === 1
-                        ? 'Location access was denied. Allow location access for this site in your browser settings, then try again.'
+                        ? "Location access was denied. If you just changed it to Allow in your browser's site settings, that only takes effect after this page is reloaded — use Reload Page below, then Retry."
                         : error.code === 2
                             ? "Your location could not be determined. Check that your device's location/GPS is turned on."
                             : 'Getting your location took too long. Move somewhere with a clearer signal and try again.';
@@ -120,12 +127,18 @@ export const attendanceMethods = {
             } catch (error) {
                 console.error('Camera access failed:', error);
                 this.clockInVerifyModal.cameraStatus = 'error';
+                // Same reload requirement as the location error above — a
+                // permission flipped to Allow in the site settings panel does
+                // not apply to this already-open page until it reloads.
                 this.clockInVerifyModal.cameraError = error && error.name === 'NotAllowedError'
-                    ? 'Camera access was denied. Allow camera access for this site in your browser settings, then try again.'
+                    ? "Camera access was denied. If you just changed it to Allow in your browser's site settings, that only takes effect after this page is reloaded — use Reload Page below, then Try Again."
                     : error && error.name === 'NotFoundError'
                         ? 'No camera was found on this device.'
                         : 'Unable to start the camera. Please try again.';
             }
+        },
+        reloadForPermissionRetry() {
+            window.location.reload();
         },
         // Drawn mirrored to match what the <video> preview (itself CSS-mirrored
         // for a natural selfie feel) actually showed the person taking it —

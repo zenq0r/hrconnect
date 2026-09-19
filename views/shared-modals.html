@@ -478,8 +478,11 @@
                             <p v-if="clockInVerifyModal.locationStatus === 'requesting'" class="text-slate-400">Getting your location&hellip;</p>
                             <p v-else-if="clockInVerifyModal.locationStatus === 'ready'" class="text-emerald-700 dark:text-emerald-300">Location captured (&plusmn;{{ Math.round(clockInVerifyModal.location?.accuracy || 0) }}m accuracy).</p>
                             <p v-else-if="clockInVerifyModal.locationStatus === 'error'" class="text-red-700 dark:text-red-300">{{ clockInVerifyModal.locationError }}</p>
+                            <div v-if="clockInVerifyModal.locationStatus === 'error'" class="flex gap-2 mt-2">
+                                <button type="button" @click="reloadForPermissionRetry()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-arrows-rotate"></i><span>Reload Page</span></button>
+                                <button type="button" @click="requestClockInLocation()" class="zq-btn zq-btn-info zq-btn-sm">Retry</button>
+                            </div>
                         </div>
-                        <button v-if="clockInVerifyModal.locationStatus === 'error'" type="button" @click="requestClockInLocation()" class="zq-btn zq-btn-info zq-btn-sm">Retry</button>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-3">
@@ -487,7 +490,10 @@
                         <p v-if="clockInVerifyModal.cameraStatus === 'requesting'" class="text-slate-400 text-center py-6">Starting camera&hellip;</p>
                         <div v-else-if="clockInVerifyModal.cameraStatus === 'error'" class="text-center py-4 space-y-2">
                             <p class="text-red-600 dark:text-red-400">{{ clockInVerifyModal.cameraError }}</p>
-                            <button type="button" @click="startClockInCamera()" class="zq-btn zq-btn-info zq-btn-sm">Try Again</button>
+                            <div class="flex gap-2 justify-center">
+                                <button type="button" @click="reloadForPermissionRetry()" class="zq-btn zq-btn-primary zq-btn-sm"><i class="fa-solid fa-arrows-rotate"></i><span>Reload Page</span></button>
+                                <button type="button" @click="startClockInCamera()" class="zq-btn zq-btn-info zq-btn-sm">Try Again</button>
+                            </div>
                         </div>
                         <template v-else>
                             <div v-show="clockInVerifyModal.cameraStatus === 'ready' && !clockInVerifyModal.photoDataUrl" class="relative rounded-lg overflow-hidden bg-black aspect-video">
