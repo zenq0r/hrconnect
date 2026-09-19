@@ -331,6 +331,7 @@ export function createInitialState() {
                 show: false,
                 isEdit: false,
                 originalSensitive: {},
+                originalEmail: '',
                 form: {
                     empNo: 'ZEN-', name: '', email: '', ic: '', dept: '', position: '', status: 'Aktif',
                     epfNo: '', socsoNo: '', eisNo: '', taxNo: '', bankAcc: '', isSenior: false,

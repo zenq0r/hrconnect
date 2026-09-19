@@ -20,10 +20,12 @@ export const hrMethods = {
                 this.employeeModal.isEdit = true;
                 this.employeeModal.form = JSON.parse(JSON.stringify(emp));
                 this.employeeModal.originalSensitive = Object.fromEntries(sensitiveFields.map(field => [field, emp[field] || '']));
+                this.employeeModal.originalEmail = String(emp.email || '').trim().toLowerCase();
                 sensitiveFields.forEach(field => { this.employeeModal.form[field] = ''; });
             } else {
                 this.employeeModal.isEdit = false;
                 this.employeeModal.originalSensitive = {};
+                this.employeeModal.originalEmail = '';
                 this.employeeModal.form = { empNo: 'ZEN-HR' + String(Math.floor(1000+Math.random()*9000)), name: '', email: '', ic: '', dept: '', position: '', employmentType: 'Probation', status: 'Aktif', epfNo: '', socsoNo: '', eisNo: '', taxNo: '', bankAcc: '', isSenior: false, skbbkOptedOut: false, joinDate: new Date().toISOString().substr(0,10), basicSalary: 0, allowance: 0, deduction: 0 };
             }
             this.employeeModal.show = true;
@@ -53,6 +55,29 @@ export const hrMethods = {
                 sensitiveFields.forEach(field => {
                     if (this.employeeModal.isEdit && !String(form[field] || '').trim()) form[field] = this.employeeModal.originalSensitive[field] || '';
                 });
+                // employees/{empNo}.email is the only bridge to that person's
+                // users/{uid} Portal Access record (see syncEmployeeIdentityReferences
+                // below) — but the bridge is one-way-fragile: a Portal Access sign-in
+                // email is fixed forever once the account exists (Firebase Auth owns
+                // it, not this form), while this field is freely editable. Retyping it
+                // here to something that no longer matches the linked login silently
+                // strands that account: it stops being recognised as this employee at
+                // all, so it starts showing as a separate, permanently Offline row in
+                // the Staff Directory (staffDirectoryList) instead of this one's real
+                // presence. Catch that before it happens rather than after.
+                const originalEmail = String(this.employeeModal.originalEmail || '').trim().toLowerCase();
+                if (this.employeeModal.isEdit && originalEmail && form.email && originalEmail !== form.email) {
+                    const linkedPortalAccounts = await getDocs(query(collection(db, 'users'), where('email', '==', originalEmail)));
+                    if (!linkedPortalAccounts.empty) {
+                        const keepGoing = await this.askConfirm({
+                            title: 'This employee has a Portal Access login',
+                            message: `Their Portal Access sign-in email is still ${originalEmail} — it does not change with this edit, and cannot be changed from here. Saving ${form.email} will disconnect this employee record from that login: it will show as a separate, permanently Offline entry in the Staff Directory, and "Approved by" names on their pending claims/vouchers will stop updating. To keep them linked, delete and recreate their Portal Access with the new email in Profile & RBAC instead of changing it here.`,
+                            confirmLabel: 'Save Anyway',
+                            danger: true
+                        });
+                        if (!keepGoing) return;
+                    }
+                }
                 const employeeId = form.empNo.trim();
                 const wasEdit = this.employeeModal.isEdit;
                 await setDoc(doc(db, "employees", employeeId), { ...form, empNo: employeeId }, { merge: true });
